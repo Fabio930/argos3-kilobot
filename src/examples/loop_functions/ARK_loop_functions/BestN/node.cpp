@@ -1,46 +1,27 @@
-// @author Fabio Oddi <fabio.oddi@uniroma1.it>
+// @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
 
 #include "node.h"
 
 Node::Node(){}
 
-Node::Node(const std::string Env,const int SwarmSize,const int Depth,const int Id,const float Alpha,const float Utility,const float Noise)
+Node::Node(const int SwarmSize,const int Depth,const int Id,const float Utility,const float Noise)
 {
     id = Id;
-
-    if(Env=="arena")
-    {
-        utility = Utility;
-        noise = Noise;
-        for(int i=0;i<SwarmSize;i++)
-        {
-            committed_agents.push_back(0);
-        }
-    }
-    else
-    {
-        if(Depth==0)
-        {
-            filter = new Filter(Alpha,1);
-        }
-        else
-        {
-            filter = new Filter(Alpha,0);
-        }
-    }
+    utility = Utility;
+    noise = Noise;
 }
 
 Node::~Node()
 {
-    delete [] filter,parent,committed_agents,tl_br;
-    for(int i = 0; i < kernel_size.GetY(); ++i)
+    if(children.size()>0)
     {
-        delete [] kernel[i];
+        for(long unsigned int i = 0; i < children.size(); ++i)
+        {
+            this->children[i]->~Node();
+            delete [] children[i];
+        }
     }
-    for(int i = 0; i < children.size(); ++i)
-    {
-        delete [] children[i];
-    }
+    delete [] parent;
 }
 
 void Node::set_parent(Node *Parent)
@@ -70,40 +51,6 @@ void Node::set_vertices_offset(CVector2 Tl,CVector2 Br)
     tl_br.br_offset = Br;
 }
 
-void Node::init_kernel(const float Unit)
-{   
-    std::default_random_engine generator;
-    std::normal_distribution<float> distribution(utility,noise);
-    int X=0,Y=0;
-    float difX = tl_br.br_offset.GetX()-tl_br.tl_offset.GetX();
-    float difY = tl_br.br_offset.GetY()-tl_br.tl_offset.GetY();
-    for(float y=0;y<difY;y+=Unit)
-    {
-        Y++;
-        if(X==0)
-        {
-            for(float x=0;x<difX;x+=Unit)
-            {
-                X++;
-            }
-        }
-    }
-    kernel_size = CVector2(X,Y);
-    float **Kernel = new float*[Y];
-    for(int i = 0; i < Y; ++i)
-    {
-        Kernel[i] = new float[X];
-    }
-    for(int i=0;i<Y;i++)
-    {
-        for(int j=0;j<X;j++)
-        {
-            Kernel[i][j] = distribution(generator);
-        }
-    }
-    kernel = Kernel;
-}
-
 void Node::update_utility(const float Utility)
 {
     utility = Utility;
@@ -112,11 +59,6 @@ void Node::update_utility(const float Utility)
 void Node::update_noise(const float Noise)
 {
     noise = Noise;
-}
-
-void Node::update_filter(const float Sensed_utility,const float Ref_distance)
-{
-    filter->update_filter(Sensed_utility,Ref_distance);
 }
 
 int Node::get_distance_from_opt()
@@ -149,26 +91,14 @@ std::vector<Node *> Node::get_children()
     return children;
 }
 
-std::vector<Node *> Node::get_siblings()
+bool Node::isin(CVector2 Position)
 {
-    std::vector<Node *> temp = parent->get_children();
-    std::vector<Node *> out;
-    for(int i=0;i<temp.size();i++)
-    {
-        if(temp[i]->id != this->id)
+    if((Position.GetX()>=this->tl_br.tl.GetX()) && (Position.GetX()<=this->tl_br.br.GetX()))
         {
-            out.push_back(temp[i]);
+            if((Position.GetY()>=this->tl_br.tl.GetY()) && (Position.GetY()<=this->tl_br.br.GetY()))
+            {
+                return true;
+            }
         }
-    }
-    return out;
-}
-
-float** Node::get_kernel()
-{
-    return kernel;
-}
-
-CVector2 Node::get_kernel_size()
-{
-    return kernel_size;
+    return false;
 }

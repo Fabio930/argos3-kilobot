@@ -6,12 +6,8 @@
  * @cite Reina, A., Cope, A. J., Nikolaidis, E., Marshall, J. A. R., & Sabo, C. (2017). ARK: Augmented Reality for Kilobots.
  * IEEE Robotics and Automation Letters, 2(3), 1755–1761. https://doi.org/10.1109/LRA.2017.2700059
  *
- * @author Fabio Oddi <fabio.oddi@uniroma1.it>
+ * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
  */
-
-
-
-
 #ifndef BESTN_ALF_H
 #define BESTN_ALF_H
 
@@ -54,9 +50,7 @@ class CSimulator;
 
 #include <array>
 
-
 using namespace argos;
-
 
 class CBestN_ALF : public CALF
 {
@@ -79,26 +73,26 @@ public:
     /** Setup the initial state of the kilobot pc_kilobot_entity */
     void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity);
 
-    /** Experiment configuration methods (From .argos files) */
-
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
 
     /** Get experiment variables */
     void GetExperimentVariables(TConfigurationNode& t_tree);
 
-    /** Virtual environment visualization updating */
-
-
     /** Get the message to send to a Kilobot according to its position */
     void UpdateKilobotState(CKilobotEntity& c_kilobot_entity);
-
 
     /** Get the message to send to a Kilobot according to its position */
     void UpdateVirtualSensor(CKilobotEntity& c_kilobot_entity);
 
     /** Used to plot the Virtual environment on the floor */
     virtual CColor GetFloorColor(const CVector2& vec_position_on_plane);
+
+    /** Used to communicate intial field data and construct the hierarchic map*/
+    void SendStructInitInformationA(CKilobotEntity &c_kilobot_entity);
+    void SendStructInitInformationB(CKilobotEntity &c_kilobot_entity);
+    void SendInformationGPS_A(CKilobotEntity &c_kilobot_entity, const int Type);
+    void SendInformationGPS_B(CKilobotEntity &c_kilobot_entity, const int Type);
 
 private:
 
@@ -111,16 +105,23 @@ private:
     CVector2 TL,BR;
     hierarchicFloor *v_floor;
 
-    typedef enum
+    typedef struct
     {
-        QUORUM_NOT_REACHED=0,
-        QUORUM_REACHED=1,
-    } SRobotState;
+        int current_node,previous_node,commitment_node;
+    } SRobotNodes;
 
-    std::vector<SRobotState> m_vecKilobotStates;
-    std::vector<hierarchicFloor *> m_vecKilobotMaps;
+    std::vector<SRobotNodes> m_vecKilobotNodes;
     std::vector<Real> m_vecLastTimeMessaged;
+    std::vector<int> m_vecStart_experiment;
+    std::vector<int> m_vecGpsData;
+    bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
+
+    /* Number of GPS cells */
+    UInt16 m_unGpsCells;
+
+    /* GPS cell length in meters */
+    Real m_fCellLength;
 
     /************************************/
     /*       Experiment variables       */
