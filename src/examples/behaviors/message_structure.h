@@ -7,7 +7,7 @@ typedef struct message_structure
 {
     unsigned int counter;
     int agent_id, agent_node, agent_leaf;
-    float leaf_utility, control_param;
+    float leaf_utility;
     struct message_structure *next,*prev;
 } message_a;
 
@@ -16,7 +16,7 @@ void set_expiring_ticks_message(const int Expiring_time)
     expiring_ticks_messages=Expiring_time;
 }
 
-void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const int Counter, const float Leaf_utility,const float Control_param)
+void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility)
 {
     if((*Mymessage)==NULL)
     {
@@ -24,9 +24,8 @@ void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,con
         (*Mymessage)->agent_id=Agent_id;
         (*Mymessage)->agent_node=Agent_node;
         (*Mymessage)->agent_leaf=Agent_leaf;
-        (*Mymessage)->counter=Counter;
+        (*Mymessage)->counter=0;
         (*Mymessage)->leaf_utility=Leaf_utility;
-        (*Mymessage)->control_param=Control_param;
         if (Prev!=NULL && *Prev!=NULL)
         {
             (*Mymessage)->prev=*Prev;
@@ -35,7 +34,7 @@ void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,con
         else (*Mymessage)->prev=NULL;
         (*Mymessage)->next=NULL;
     }
-    else add_a_message(&(*Mymessage)->next,Mymessage,Agent_id,Agent_node,Agent_leaf,Counter,Leaf_utility,Control_param);
+    else add_a_message(&(*Mymessage)->next,Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
 }
 
 void increment_messages_counter(message_a **Mymessage)
@@ -101,7 +100,7 @@ void erase_messages(message_a **Mymessage)
     }
 }
 
-int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const int Counter, const float Leaf_utility, const float Control_param)
+int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility)
 {
     int out;
     out=1;
@@ -109,21 +108,16 @@ int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_no
     {
         if((*Mymessage)->agent_id==Agent_id)
         {
-            out=2;
-            if((*Mymessage)->counter<Counter) out = 0;
-            if(out==2)
-            {
-                (*Mymessage)->agent_node = Agent_node;
-                (*Mymessage)->agent_leaf = Agent_leaf;
-                (*Mymessage)->leaf_utility = Leaf_utility;
-                (*Mymessage)->counter = Counter;
-                (*Mymessage)->control_param = Control_param;
-            }
+            out=0;
+            (*Mymessage)->agent_node = Agent_node;
+            (*Mymessage)->agent_leaf = Agent_leaf;
+            (*Mymessage)->leaf_utility = Leaf_utility;
+            (*Mymessage)->counter = 0;
         }
         if(out==1 && (*Mymessage)->next!=NULL)
         {
             message_a *flag=(*Mymessage)->next;
-            out=is_fresh_message(&flag,Agent_id,Agent_node,Agent_leaf,Counter,Leaf_utility,Control_param);
+            out=is_fresh_message(&flag,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
         }
     }
     return out;
@@ -160,7 +154,6 @@ int list_length_m(message_a **Mymessage)
             out=out+1;
             flag=flag->next;
         }
-        
     }
     return out;
 }
@@ -177,6 +170,5 @@ message_a *select_a_random_msg(message_a **Mymessage)
     }
     return out;
 }
-
 
 #endif

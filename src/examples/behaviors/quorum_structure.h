@@ -2,6 +2,8 @@
 #define QUORUM_STRCUCT_H
 
 int expiring_ticks_quorum=20000;
+unsigned int min_quorum_length=10;
+float quorum_scaling_factor=.9;
 
 typedef struct quorum_structure
 {
@@ -42,7 +44,6 @@ void erase_expired_items(quorum_a **Myquorum)
         {
             if((*Myquorum)->next == NULL && (*Myquorum)->prev == NULL)
             {
-                // printf("erased_unique__%d__%d\n",(*Myquorum)->agent_id,(*Myquorum)->counter);
                 free(*Myquorum);
                 (*Myquorum)=NULL;
             }
@@ -50,14 +51,12 @@ void erase_expired_items(quorum_a **Myquorum)
             {
                 (*Myquorum)->prev->next=NULL;
                 (*Myquorum)->prev = NULL;
-                // printf("erased_end__%d__%d\n",(*Myquorum)->agent_id,(*Myquorum)->counter);
                 free(*Myquorum);
                 (*Myquorum)=NULL;
             }
             else if((*Myquorum)->next != NULL && (*Myquorum)->prev == NULL)
             {
                 Next->prev = NULL;
-                // printf("erased_head__%d__%d\n",(*Myquorum)->agent_id,(*Myquorum)->counter);
                 free(*Myquorum);
                 (*Myquorum)=Next;
             }
@@ -65,7 +64,6 @@ void erase_expired_items(quorum_a **Myquorum)
             {
                 (*Myquorum)->prev->next = Next;
                 Next->prev = (*Myquorum)->prev;
-                // printf("erased___%d__%d\n",(*Myquorum)->agent_id,(*Myquorum)->counter);
                 free(*Myquorum);
                 (*Myquorum)=NULL;
             }

@@ -16,7 +16,7 @@ int Leafs_size=0;
 
 typedef struct tree_structure
 {
-    int id;
+    unsigned int id, depth;
     float gt_utility;
     struct tree_structure *parent;
     struct tree_structure *children;
@@ -38,6 +38,7 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id,u
             (c+i)->tlY=0;
             (c+i)->brX=0;
             (c+i)->brY=0;
+            (c+i)->depth=(*Mytree)->depth + 1;
             (c+i)->node_filter=(filter_a*)malloc(sizeof(filter_a));
             if(Depth > 0) set_filter((c+i)->node_filter,.75,0);
             else
@@ -45,14 +46,8 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id,u
                 *(Leafs_id + *Leafs_size) = (c+i)->id;
                 *Leafs_size = *Leafs_size+1;
                 set_filter((c+i)->node_filter,.75,1);
-                if((c+i)->id==Best_leaf_id)
-                {
-                    (c+i)->gt_utility=Max_utility;
-                }
-                else
-                {
-                    (c+i)->gt_utility=Max_utility*K;
-                }
+                if((c+i)->id==Best_leaf_id) (c+i)->gt_utility=Max_utility;
+                else (c+i)->gt_utility=Max_utility*K;
             }
             tree_a *cc= (c+i);
             loop_complete_tree(&cc,Depth-1,Leafs_id,Leafs_size,Best_leaf_id,Max_utility,K);
@@ -65,6 +60,7 @@ void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned i
     branches=Branches;
     for(int i=0;i<16;i++) *(Leafs_id+i)=-1;
     *Mytree=(tree_a*)malloc(sizeof(tree_a));
+    (*Mytree)->depth = 0;
     (*Mytree)->id=num_nodes++;
     (*Mytree)->tlX=0,(*Mytree)->tlY=0,(*Mytree)->brX=0,(*Mytree)->brY=0;
     (*Mytree)->parent=NULL;

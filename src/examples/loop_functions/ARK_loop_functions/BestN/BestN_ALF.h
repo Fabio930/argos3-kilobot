@@ -51,10 +51,12 @@ public:
     virtual CColor GetFloorColor(const CVector2& vec_position_on_plane);
 
     /** Used to communicate intial field data and construct the hierarchic map*/
-    void SendStructInitInformationA(CKilobotEntity &c_kilobot_entity);
-    void SendStructInitInformationB(CKilobotEntity &c_kilobot_entity);
-    void SendInformationGPS_A(CKilobotEntity &c_kilobot_entity, const int Type);
-    void SendInformationGPS_B(CKilobotEntity &c_kilobot_entity, const int Type);
+    void SendStructInitInformation(CKilobotEntity &c_kilobot_entity);
+    
+    /** Used to communicate gps position and angle*/
+    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type);
+    
+    void SendTalkingSignal(CKilobotEntity &c_kilobot_entity, const int command);
 
     Real abs_distance(const CVector2 a,const CVector2 b);
 
@@ -76,18 +78,11 @@ private:
 
     std::vector<SRobotNodes> m_vecKilobotNodes;
     std::vector<CVector2> m_vecKilobotPositions;
-    std::vector<CVector2> m_vecKilobotOldPositions;
+    std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
     std::vector<int> m_vecStart_experiment;
-    std::vector<int> m_vecGpsData;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
-    std::vector<bool> m_vecMessageToSend;
-    /* Number of GPS cells */
-    UInt16 m_unGpsCells;
-
-    /* GPS cell length in meters */
-    Real m_fCellLength;
 
     /************************************/
     /*       Experiment variables       */

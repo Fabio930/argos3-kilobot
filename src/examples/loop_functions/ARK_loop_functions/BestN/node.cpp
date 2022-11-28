@@ -93,12 +93,6 @@ std::vector<Node *> Node::get_children()
 
 bool Node::isin(CVector2 Position)
 {
-    if((Position.GetX()>=this->tl_br.tl.GetX()) && (Position.GetX()<=this->tl_br.br.GetX()))
-        {
-            if((Position.GetY()>=this->tl_br.tl.GetY()) && (Position.GetY()<=this->tl_br.br.GetY()))
-            {
-                return true;
-            }
-        }
+    if((Position.GetX()>=this->tl_br.tl.GetX()) && (Position.GetX()<=this->tl_br.br.GetX()) && (Position.GetY()>=this->tl_br.tl.GetY()) && (Position.GetY()<=this->tl_br.br.GetY()))return true;
     return false;
 }

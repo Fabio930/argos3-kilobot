@@ -16,7 +16,6 @@ class ChierarchicFloor
         {
             float x=-1,y=-1;
         }v_offset;
-        float kernel_unit=0.01;
         std::vector<Node *> leafs;
         int num_nodes=0;
         int depth=-1;
@@ -25,7 +24,6 @@ class ChierarchicFloor
         float max_utility=-1;
         float k=-1;
         float noise=-1;
-        std::default_random_engine generator;
 
     public:
         ChierarchicFloor();
@@ -41,6 +39,8 @@ class ChierarchicFloor
         void assign_random_MAXutility();
 
         void bottom_up_utility_update(Node **Start_node);
+
+        void assign_distance_upTObottom(Node **Start_node);
 
         void set_distances_from_opt_node(Node **Start_node,const int Distance);
 

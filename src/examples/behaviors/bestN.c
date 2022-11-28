@@ -17,6 +17,12 @@ typedef enum {
     NOISE = 1
 } signal;
 
+/* divided by 10 */
+typedef enum {
+    ARENA_X = 5,
+    ARENA_Y = 5
+} arena_size;
+
 /* Enum for messages type */
 typedef enum {
   ARK_BROADCAST_MSG = 0,
@@ -28,9 +34,7 @@ typedef enum {
 typedef enum {
   MSG_A = 0,
   MSG_B = 1,
-  MSG_C = 2,
-  MSG_D = 3,
-  MSG_E = 4
+  MSG_C = 2
 } message_type;
 /* Enum for motion */
 
@@ -50,7 +54,7 @@ typedef enum {
 /* struct for the robot states */
 typedef struct state
 {
-    int current_node,commitment_node;
+    int current_node,commitment_node,current_level;
 }state_t;
 
 /* struct for the robot position */
@@ -77,7 +81,7 @@ uint32_t lastWaypointTime;
 uint32_t maxWaypointTime=3600;//3600; // about 2 minutes
 
 /* current state */
-state_t my_state={0,0};
+state_t my_state={0,0,0};
 
 unsigned int turning_ticks = 0;
 unsigned int straight_ticks = 0;
@@ -86,25 +90,20 @@ const uint16_t max_straight_ticks = 320; /* set the \tau_m period to 2.5 s: n_m 
 uint32_t last_motion_ticks = 0;
 
 /* Variables for Smart Arena messages */
+int sa_id = -1;
 int sa_type = 0;
 int sa_payload = 0;
 
 bool init_received_A=false;
 bool init_received_B=false;
-bool init_received_GPS_A=false;
-bool init_received_GPS_B=false;
 
 /* map of the environment */
 tree_a *the_tree=NULL;
 
 /* counters for broadcast a message */
-const uint16_t max_broadcast_ticks = 3;
-const uint16_t words_4_a_message = 3;
-const uint16_t ticks_for_a_chain=max_broadcast_ticks*(words_4_a_message);
+const uint16_t broadcasting_ticks = 3;
 uint32_t last_broadcast_ticks = 0;
-const uint16_t broadcasting_ticks = ticks_for_a_chain*90;
-unsigned int last_sensing_ticks=-broadcasting_ticks;
-unsigned int chain_timeout=0;
+bool last_sensing=false;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -112,37 +111,48 @@ int sending_type = MSG_A;
 message_t my_message;
 
 /* lists for decision handling */
-int msg_chain_check_in=-1;
 unsigned int received_id;
-unsigned int broadcast_counter=0;
-
-unsigned int received_node;
+unsigned int received_level;
+unsigned int received_committed;
 unsigned int received_leaf;
 float received_utility;
-float received_control_parameter;
-unsigned int received_counter;
-bool sem_talking=false;
-bool sem_talking_re=false;
+bool ARK_sem_talking=false;
 
-message_a *messages_list=NULL;
-quorum_a *quorum_list=NULL;
-message_a *chosen_message=NULL;
-unsigned int min_quorum_length=8;
-float quorum_scaling_factor=.8;
-
-bool start=false;
-bool start_chain=false;
-
-float control_parameter_gain=3;
-float control_parameter=0;
-float gain_h=0;
-float gain_k=1;
+// float control_parameter_gain=3;
+float control_parameter=3;
+float gain_h;
+float gain_k;
 
 /* used only for noisy data generation */
 unsigned int leafs_size=0;
 unsigned int leafs_id[16];
-unsigned int last_sample_id=-1;
+int last_sample_id=-1;
+unsigned int last_sample_level;
+unsigned int last_sample_committed;
 float last_sample_utility=-1;
+
+message_a *messages_list=NULL;
+message_a *chosen_message=NULL;
+quorum_a *quorum_list=NULL;
+
+bool light = true;
+/*-------------------------------------------------------------------*/
+/*                                                                   */
+/*-------------------------------------------------------------------*/
+int get_leaf_vec_id_out(const int Leaf_id)
+{
+    for(int i=0;i<16;i++) if(leafs_id[i]==Leaf_id) return i;
+    return -1;
+}
+
+/*-------------------------------------------------------------------*/
+/*                                                                   */
+/*-------------------------------------------------------------------*/
+int get_leaf_vec_id_in(const int Leaf_id)
+{
+    for(int i=0;i<16;i++) if(i==Leaf_id) return leafs_id[i];
+    return -1;
+}
 
 /*-------------------------------------------------------------------*/
 /* Function for setting the motor speed                              */
@@ -195,7 +205,6 @@ float generate_gaussian_noise(float mu, float std_dev )
     while ( u1 <= epsilon );
 
     float z0 = sqrt(-2.0 * log(u1)) * cos(two_pi * u1);
-    // printf("%f___%f\n",mu,mu + z0*std_dev);
     return z0 * std_dev + mu;
 }
 
@@ -227,69 +236,51 @@ void message_tx_success()
 /*-------------------------------------------------------------------*/
 void broadcast()
 {
-    if (!sending_msg && kilo_ticks > last_broadcast_ticks + max_broadcast_ticks)
+    if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks)
     {
-        int utility_to_send;
         sa_type=0;
         for (int i = 0; i < 9; ++i) my_message.data[i]=0;
-        switch (sending_type)\
+        int utility_to_send;
+        switch (sending_type)
         {
             case MSG_A:
-                utility_to_send = (int)(last_sample_utility*100);
-                my_message.data[0] = kilo_uid | sa_type<<7;
-                my_message.data[1] = (sa_type>>1)<<7 | utility_to_send>>3;
-                my_message.data[2] = (utility_to_send & 0b00000111)<<5 | (last_sample_id-1);
-                sending_type=MSG_B;
-                break;
-            case MSG_B:
-                sa_type = sending_type;
-                my_message.data[0] = kilo_uid | sa_type<<7;
-                my_message.data[1] = (sa_type>>1)<<7;
-                my_message.data[2] = broadcast_counter;
-                sending_type = MSG_C;
-                break;
-            case MSG_C:
-                sa_type = sending_type;
-                my_message.data[0] = kilo_uid | sa_type<<7;
-                my_message.data[1] = (sa_type>>1)<<7 |(int)(control_parameter*100);
-                my_message.data[2] = my_state.current_node;
-                sending_type = MSG_A;
+                utility_to_send = (int)(last_sample_utility*10);
+                my_message.data[0] = kilo_uid << 2 | sa_type;
+                my_message.data[1] = last_sample_committed << 7 | utility_to_send;
+                my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
                 break;
         }
         my_message.crc = message_crc(&my_message);
         last_broadcast_ticks = kilo_ticks;
-        set_color(RGB(3,3,0));
         sending_msg = true;
     }
 }
 
-void quorum_counter_increment(quorum_a **Myquorum,unsigned int *Counter)
+int check_quorum_trigger(quorum_a **Myquorum,unsigned int Counter)
 {
+    int out=Counter;
     if(*Myquorum!=NULL)
     {
         int msg_src=msg_received_from(&the_tree,my_state.current_node,(*Myquorum)->agent_node);
-        if(msg_src==THISNODE || msg_src==SUBTREE) Counter=Counter+1;
-        quorum_counter_increment(&((*Myquorum)->next),Counter);
+        if(msg_src==THISNODE || msg_src==SUBTREE) out=out+1;
+        // printf("____________\n_%d\n",msg_src);
+        out = check_quorum_trigger(&((*Myquorum)->next),out);
     }
+    return out;
 }
 
 void check_quorum(quorum_a **Myquorum)
 {
     unsigned int counter=0;
-    quorum_counter_increment(Myquorum,&counter);
+    counter = check_quorum_trigger(Myquorum,0);
+    // printf("%d_%d\n",counter,my_state.current_node);
     if(counter>=list_length_q(Myquorum)*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch)
 {
-    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE)
-    {
-        add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-    }
-    else if(my_state.commitment_node==(*Current_node)->parent->id)
-    {
-        add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-    }
+    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+    else if(my_state.commitment_node==(*Current_node)->parent->id) add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -319,6 +310,12 @@ void sample_and_decide(tree_a **leaf)
     float cross_inhibition = 0;
     tree_a *over_node=NULL;
     tree_a *c=current_node->children;
+    last_sensing = true;
+    float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
+    bottom_up_utility_update(&the_tree,(*leaf)->id,random_sample);
+    last_sample_utility = get_utility((*leaf)->node_filter);
+    if(last_sample_utility > 10) last_sample_utility=10;
+    else if(last_sample_utility < 0) last_sample_utility=0;
     if(c!=NULL)
     {
         for(int i=0;i<branches;i++)
@@ -327,13 +324,6 @@ void sample_and_decide(tree_a **leaf)
             if(bot_isin_node(&over_node)) break;
             over_node=NULL;
         }
-
-        float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
-        bottom_up_utility_update(&the_tree,(*leaf)->id,random_sample);
-        last_sensing_ticks = kilo_ticks;
-        last_sample_utility = get_utility((*leaf)->node_filter);
-        if(last_sample_utility > 10) last_sample_utility=10;
-        else if(last_sample_utility < 0) last_sample_utility=0;
         if(over_node!=NULL && my_state.current_node==my_state.commitment_node)
         {
             if(over_node->node_filter->utility < 0) commitment = 0;
@@ -341,34 +331,22 @@ void sample_and_decide(tree_a **leaf)
             else commitment = 1;
         }
     }
-    else
-    {
-        float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
-        bottom_up_utility_update(&the_tree,(*leaf)->id,random_sample);
-        last_sensing_ticks = kilo_ticks;
-        last_sample_utility = get_utility((*leaf)->node_filter);
-        if(last_sample_utility > 10) last_sample_utility=10;
-        else if(last_sample_utility < 0) last_sample_utility=0;
-    }
     if(current_node->parent!=NULL && my_state.commitment_node==current_node->parent->id)
     {
         if(current_node->node_filter->utility<=0) abandonment=1;
         else abandonment = 1/(1 + current_node->node_filter->utility);
     }
-    // control_parameter = control_parameter_gain*(1 - get_node(&the_tree,my_state.commitment_node)->node_filter->distance);
-    float control_flag=control_parameter;
-    int agent_node_flag=-1;
+    int agent_node_flag;
     switch (message_switch)
     {
         case SUBTREE:
             if(my_state.current_node==my_state.commitment_node)
             {
-                bottom_up_utility_update(&the_tree,rnd_msg->agent_leaf,rnd_msg->leaf_utility); // here is a bug
+                bottom_up_utility_update(&the_tree,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
                 float utility_flag = get_node(&the_tree,rnd_msg->agent_node)->node_filter->utility;
                 if(utility_flag<=0) recruitment = 0;
                 else if(utility_flag<MAX_UTILITY) recruitment = utility_flag/MAX_UTILITY;
                 else recruitment = 1;
-                control_flag = rnd_msg->control_param;
                 agent_node_flag = get_nearest_node(&current_node,rnd_msg->agent_node);
             }
             break;
@@ -380,26 +358,24 @@ void sample_and_decide(tree_a **leaf)
                 if(utility_flag<=0) cross_inhibition = 0;
                 else if(utility_flag<MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
                 else cross_inhibition = 1;
-                control_flag = rnd_msg->control_param;
             }
             break;
     }
-    gain_h = control_flag/(1+control_flag);
-    gain_k = 1 / (1+control_flag);
     commitment = commitment * gain_k;
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
     float p = (rand()%1000)*.001;
-    if(p<commitment) my_state.current_node=over_node->id;
-    else if(p<commitment+recruitment) my_state.current_node=agent_node_flag;
-    else if(p<commitment+cross_inhibition) my_state.current_node=current_node->parent->id;
-    else if(p<(commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node=current_node->parent->id;
+    if(p<commitment) my_state.current_node = over_node->id;
+    else if(p<commitment+recruitment) my_state.current_node = agent_node_flag;
+    else if(p<commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
+    else if(p<(commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_list);
+    my_state.current_level = get_node(&the_tree,my_state.current_node)->depth;
 }
 
-int random_in_range(int min, int max
-){
+int random_in_range(int min, int max)
+{
    return min + (rand()%(max-min));
 }
 
@@ -409,11 +385,10 @@ int random_in_range(int min, int max
 void select_new_point(bool force)
 {
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the correspective leaf*/
-    if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.001) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.001)))
+    if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.015) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.015)))
     {
         tree_a *leaf=NULL;
-        if(force) set_color(RGB(0,0,0));
-        else
+        if(!force)
         {
             for(unsigned int l=0;l<leafs_size;l++)
             {
@@ -424,15 +399,28 @@ void select_new_point(bool force)
             {
                 last_sample_utility = -1;
                 last_sample_id = -1;
-                gps_angle=-1;
+                gps_angle = -1;
                 printf("ERROR____Agent:%d___NOT_ON_LEAF__\n",kilo_uid);
             }
             else
             {
-                last_sample_id = leaf->id;
+                last_sample_id = get_leaf_vec_id_out(leaf->id);
+                last_sample_level = get_node(&the_tree,my_state.current_node)->depth;
+                if(my_state.commitment_node==my_state.current_node)
+                {
+                    last_sample_committed=1;
+                    if(last_sample_level==4)
+                    {
+                        last_sample_level = last_sample_level - 1;
+                        last_sample_committed = 0;
+                    }
+                }
+                else
+                {   
+                    last_sample_level = last_sample_level - 1;
+                    last_sample_committed = 0;
+                }
                 sample_and_decide(&leaf);
-                // if(kilo_uid==0)printf("leaf: %d\n",last_sample_id);
-                // if(kilo_uid==0)printf("Y: %f  X: %f\n",gps_position.position_y,gps_position.position_x);
             }
         }
         lastWaypointTime = kilo_ticks;
@@ -459,19 +447,35 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index)
 {
     // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
-    sa_type = ((data[shift] >> 5) & 0b00000100) | (data[shift + 1] >> 6);
-    sa_payload = ((data[shift + 1] & 0b00111111) << 8) | (data[shift + 2]);
+    sa_type = data[shift] & 0b00000011;
+    sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
     switch(sa_type)
     {
-        case MSG_C:
-            gps_position.position_x = (sa_payload >> 7) * .01;
-            gps_position.position_y = ((uint8_t)sa_payload & 0b01111111) * .01;
-            gps_angle=-1;
-            break;
-        case MSG_D:
-            gps_angle = (((uint8_t)sa_payload) * .1) * 30;
+        case MSG_B:
+            gps_position.position_x = (sa_payload >> 10) * 0.02;
+            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.02;
+            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
             break;
     }
+}
+
+int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level)
+{
+    tree_a *leaf=get_node(&the_tree,Received_leaf);
+    unsigned int level;
+    if(received_committed) level = Received_level;
+    else level = Received_level + 1;
+    if(level==leaf->depth) return leaf->id;
+    while(true)
+    {
+        if(leaf->parent!=NULL)
+        {
+            leaf=leaf->parent;
+            if(level==leaf->depth) return leaf->id;
+        }
+        else break;
+    }
+    return -1;
 }
 
 /*-------------------------------------------------------------------*/
@@ -479,19 +483,10 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index)
 /*-------------------------------------------------------------------*/
 void update_messages()
 {
-    // check the message if the messages check-chain is valid
-    if(msg_chain_check_in>=0)
-    {
-        int freshness;
-        freshness = is_fresh_message(&messages_list,received_id,received_node,received_leaf,received_counter,received_utility,received_control_parameter);
-        /* if the message is fresh then save it if there wasn't any older to update */
-        if(freshness>0)
-        {
-            if(freshness == 1) add_a_message(&messages_list,NULL,received_id,received_node,received_leaf,received_counter,received_utility,received_control_parameter);
-            // printf("%d__%d+\n\n",kilo_uid,received_id);
-        }
-        msg_chain_check_in=-1; // restore the check-chain for data reception
-    }
+    int received_node=derive_agent_node(received_committed,received_leaf,received_level);
+    int freshness = is_fresh_message(&messages_list,received_id,received_node,received_leaf,received_utility);
+    /* if the message is fresh then save it if there wasn't any older to update */
+    if(freshness == 1) add_a_message(&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
 }
 
 /*-------------------------------------------------------------------*/
@@ -501,52 +496,22 @@ void parse_kilo_message(uint8_t data[9])
 {
     // Agents wait for 3 messages by the same teammate
     // if the chain is broken the agent forgets partial data
-    sa_type = (data[1] & 0b10000000)>>6 | data[0] >> 7;
-    sa_payload = (data[1] & 0b01111111) << 8 | data[2];
-    int flag_id;
+    sa_id = (data[0] & 0b11111100) >> 2;
+    sa_type = data[0] & 0b00000011;
+    sa_payload = (uint16_t)data[1] << 8 | data[2];
+    int counter_check, temp_leaf;
     switch(sa_type)
     {
         case MSG_A:
-            flag_id = data[0] & 0b01111111;
-            int counter_check;
-            counter_check = get_counter_from_id(&messages_list, flag_id);
-            if(msg_chain_check_in==-1 && flag_id!=kilo_uid && (counter_check==-1 || counter_check>broadcasting_ticks))
+            counter_check = get_counter_from_id(&messages_list, sa_id);
+            if((counter_check==-1 || counter_check>broadcasting_ticks))
             {
-                start_chain=true;
-                chain_timeout=kilo_ticks;
-                received_id = flag_id;
-                received_utility = (sa_payload >> 5)*.01;
-                received_leaf = ((uint8_t)sa_payload & 0b00011111) + 1;
-                msg_chain_check_in = -2;
-            }
-            break;
-        case MSG_B:
-            flag_id = data[0] & 0b01111111;
-            if(msg_chain_check_in==-2 && flag_id==received_id)
-            {
-                received_counter = sa_payload;
-                chain_timeout=kilo_ticks;
-                msg_chain_check_in = -3;
-            }
-            else if(msg_chain_check_in==-2 && flag_id!=received_id)
-            {
-                msg_chain_check_in = -2;
-            }
-            break;
-        case MSG_C:
-            flag_id = data[0] & 0b01111111;
-            if(msg_chain_check_in==-3 && flag_id==received_id)
-            {
-                received_counter=received_counter+1;
-                received_control_parameter = (sa_payload >> 8)*.01;
-                msg_chain_check_in = (uint8_t)sa_payload;
-                received_node = msg_chain_check_in;
-                chain_timeout=kilo_ticks;
-                start_chain=false;
-            }
-            else if(msg_chain_check_in==-3 && flag_id!=received_id)
-            {
-                msg_chain_check_in = -3;
+                received_id = sa_id;
+                received_utility = ((uint8_t)(sa_payload >> 8)) & 0b01111111;
+                received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
+                temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
+                received_leaf = get_leaf_vec_id_in(temp_leaf);
+                received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
             }
             break;
     }
@@ -555,43 +520,35 @@ void parse_kilo_message(uint8_t data[9])
 
 void parse_smart_arena_broadcast(uint8_t data[9])
 {   
-    sa_type = ((data[0] >> 5) & 0b00000100) | (data[1] >> 6);
+    sa_type = data[0] & 0b00000011;
     switch (sa_type){
         case MSG_A:
             if(!init_received_A)
             {   
                 set_color(RGB(3,3,0));
-                float k = (data[0] & 0b01111111)*.01;
-                int best_leaf_id = (data[1] & 0b00011111)+1;
-                int branches = (data[2]>>2)+1;
-                int depth = (data[2] & 0b00000011)+1;
+                float k = data[1]*.01;
+                int best_leaf_id = (data[0] >> 2)+1;
+                int depth = (data[2] >> 2)+1;
+                int branches = (data[2] & 0b00000011)+1;
                 complete_tree(&the_tree,depth,branches,&leafs_id[0],&leafs_size,best_leaf_id,MAX_UTILITY,k);
+                offset_x=(ARENA_X*.1)/2;
+                offset_y=(ARENA_Y*.1)/2;
+                goal_position.position_x=offset_x;
+                goal_position.position_y=offset_y;
+                set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
+                int expiring_dist = (ARENA_X*.1)*100;
+                if((ARENA_Y*.1)>offset_x) expiring_dist=(ARENA_Y*.1)*100;
+                set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC*1.5);
+                set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*3);
                 init_received_A=true;
             }
             break;
-        case MSG_B://togli
+        case MSG_B:
             if(!init_received_B && init_received_A)
             {   
-                float brX = (float)(data[0] & 0b00011111) * .1;
-                float brY = (float)(data[1] & 0b00011111) * .1;
-                offset_x=brX/2;
-                offset_y=brY/2;
-                goal_position.position_x=offset_x;
-                goal_position.position_y=offset_y;
-                set_vertices(&the_tree,brX,brY);
-                int expiring_dist = brX*100;
-                if(brY>brX) expiring_dist=brY*100;
-                set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC*1.5);
-                set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*3);
-                init_received_B=true;
-            }
-            break;
-        case MSG_C:
-            if(!init_received_GPS_A && init_received_A && init_received_B)
-            {
-                int id1 = data[0] & 0b01111111;
-                int id2 = data[3] & 0b01111111;
-                int id3 = data[6] & 0b01111111;
+                int id1 = (data[0] & 0b11111100) >> 2;
+                int id2 = (data[3] & 0b11111100) >> 2;
+                int id3 = (data[6] & 0b11111100) >> 2;
                 if (id1 == kilo_uid)
                 {
                     parse_smart_arena_message(data, 0);
@@ -604,35 +561,11 @@ void parse_smart_arena_broadcast(uint8_t data[9])
                 {
                     parse_smart_arena_message(data, 2);
                 }
-                init_received_GPS_A=true;
-            }
-            break;
-        case MSG_D:
-            if(!init_received_GPS_B && init_received_GPS_A && init_received_A && init_received_B)
-            {
-                int id1 = data[0] & 0b01111111;
-                int id2 = data[3] & 0b01111111;
-                int id3 = data[6] & 0b01111111;
-                if (id1 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 0);
-                }
-                else if (id2 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 1);
-                }
-                else if (id3 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 2);
-                }
-                init_received_GPS_B=true;
                 select_new_point(true);
                 set_motion(FORWARD);
-                start = true;
+                init_received_B=true;
+                set_color(RGB(0,0,0));
             }
-            break;
-        case MSG_E:
-            
             break;
     }
 }
@@ -641,9 +574,9 @@ void parse_smart_arena_broadcast(uint8_t data[9])
 /* Callback function for message reception                           */
 /*-------------------------------------------------------------------*/
 void message_rx(message_t *msg, distance_measurement_t *d) {
+    sa_id = -1;
     sa_type = 0;
     sa_payload = 0;
-    // printf("%d__\n\n",msg->type);
     switch (msg->type)
     {
         case ARK_BROADCAST_MSG:{
@@ -651,9 +584,9 @@ void message_rx(message_t *msg, distance_measurement_t *d) {
             break;
         }
         case ARK_INDIVIDUAL_MSG:{
-            int id1 = msg->data[0] & 0b01111111;
-            int id2 = msg->data[3] & 0b01111111;
-            int id3 = msg->data[6] & 0b01111111;
+            int id1 = (msg->data[0] & 0b11111100) >> 2;
+            int id2 = (msg->data[3] & 0b11111100) >> 2;
+            int id3 = (msg->data[6] & 0b11111100) >> 2;
 
             if (id1 == kilo_uid)
             {
@@ -674,7 +607,7 @@ void message_rx(message_t *msg, distance_measurement_t *d) {
             break;
         }
         case KILO_IDENTIFICATION:{
-            int id = msg->data[0] & 0b01111111;
+            int id = (msg->data[0] & 0b11111100) >> 2;
             if (id == kilo_uid) {
                 set_color(RGB(0,0,3));
             } else {
@@ -748,7 +681,7 @@ void random_way_point_model()
     if(gps_angle!=-1)
     {
         int angleToGoal = AngleToGoal();
-        if(fabs(angleToGoal) <= 20)
+        if(fabs(angleToGoal) <= 24)
         {
             set_motion(FORWARD);
             last_motion_ticks = kilo_ticks;
@@ -789,7 +722,7 @@ void random_way_point_model()
                 set_motion(STOP);
         }
     }
-    else if(init_received_GPS_B)
+    else if(init_received_B)
     {
         set_motion(FORWARD);
         random_walk();
@@ -809,6 +742,8 @@ void setup()
     my_state.current_node=0;
     my_state.commitment_node=0;
     my_message.type=KILO_BROADCAST_MSG;
+    gain_h = control_parameter/(1+control_parameter);
+    gain_k = 1 / (1+control_parameter);
 
     /* Initialise random seed */
     uint8_t seed = rand_hard();
@@ -825,31 +760,42 @@ void setup()
 /* Main loop                                                         */
 /*-------------------------------------------------------------------*/
 void loop() {
+    switch (my_state.current_level)
+    {
+    case 0:
+        set_color(RGB(3,0,0));
+        break;
+    case 1:
+        set_color(RGB(0,3,0));
+        break;
+    case 2:
+        set_color(RGB(0,0,3));
+        break;
+    case 3:
+        set_color(RGB(3,3,0));
+        break;
+    case 4:
+        set_color(RGB(0,3,3));
+        break;
+    
+    default:
+        break;
+    }
+    if(my_state.commitment_node==my_state.current_node)
+    {
+        if(light) light = false;
+        else{
+            set_color(RGB(0,0,0));
+            light = true;
+        }
+    }
+    else light = true;
     increment_messages_counter(&messages_list);
     increment_quorum_counter(&quorum_list);
     erase_expired_messages(&messages_list);
     erase_expired_items(&quorum_list);
     random_way_point_model();
-    if(kilo_ticks < last_sensing_ticks + broadcasting_ticks)
-    {
-        sem_talking = true;
-        broadcast();
-        broadcast_counter=broadcast_counter+1;
-    }
-    else
-    {
-        broadcast_counter=0;
-        if(start) set_color(RGB(0,0,0));
-        sem_talking = false;
-    }
-    if(kilo_ticks > chain_timeout + ticks_for_a_chain*3 && msg_chain_check_in<-1)
-    {
-        start_chain=false;
-        msg_chain_check_in = -1;
-        set_color(RGB(3,0,0));
-    }
-    if(start_chain) set_color(RGB(3,0,3));
-    // printf("%d__%d_%d_%d\n",kilo_uid,my_state.commitment_node,my_state.current_node,my_state.previous_node);
+    if(last_sensing) broadcast();
 }
 
 int main()

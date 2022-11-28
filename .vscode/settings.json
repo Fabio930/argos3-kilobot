@@ -60,6 +60,8 @@
         "kilolib.h": "c",
         "stdint.h": "c",
         "message.h": "c",
-        "test_debug.h": "c"
-    }
+        "test_debug.h": "c",
+        "quorum_structure.h": "c"
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/src"
 }
