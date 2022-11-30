@@ -4,23 +4,19 @@
 int expiring_ticks_messages = 10000;
 unsigned int num_messages = 0;
 
-typedef struct message_structure
-{
+typedef struct message_structure{
     unsigned int counter;
     int agent_id, agent_node, agent_leaf;
     float leaf_utility;
     struct message_structure *next,*prev;
-} message_a;
+}message_a;
 
-void set_expiring_ticks_message(const int Expiring_time)
-{
+void set_expiring_ticks_message(const int Expiring_time){
     expiring_ticks_messages=Expiring_time;
 }
 
-void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility)
-{
-    if((*Mymessage)==NULL)
-    {
+void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
+    if((*Mymessage)==NULL){
         (*Mymessage)=(message_a*)malloc(sizeof(message_a));
         (*Mymessage)->agent_id=Agent_id;
         (*Mymessage)->agent_node=Agent_node;
@@ -28,8 +24,7 @@ void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,con
         (*Mymessage)->counter=0;
         (*Mymessage)->leaf_utility=Leaf_utility;
         num_messages++;
-        if (Prev!=NULL && *Prev!=NULL)
-        {
+        if (Prev!=NULL && *Prev!=NULL){
             (*Mymessage)->prev=*Prev;
             (*Prev)->next=*Mymessage;
         }
@@ -39,46 +34,37 @@ void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,con
     else add_a_message(&(*Mymessage)->next,Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
 }
 
-void increment_messages_counter(message_a **Mymessage)
-{
-    if((*Mymessage)!=NULL)
-    {
+void increment_messages_counter(message_a **Mymessage){
+    if((*Mymessage)!=NULL){
         (*Mymessage)->counter=(*Mymessage)->counter+1;
         increment_messages_counter(&((*Mymessage)->next));
     }
 }
 
-void erase_expired_messages(message_a **Mymessage)
-{
-    if(*Mymessage!=NULL)
-    {
+void erase_expired_messages(message_a **Mymessage){
+    if(*Mymessage!=NULL){
         message_a *Next=(*Mymessage)->next;
-        if((*Mymessage)->counter >= expiring_ticks_messages)
-        {
-            if((*Mymessage)->next == NULL && (*Mymessage)->prev == NULL)
-            {
+        if((*Mymessage)->counter >= expiring_ticks_messages){
+            if((*Mymessage)->next == NULL && (*Mymessage)->prev == NULL){
                 free(*Mymessage);
                 (*Mymessage)=NULL;
                 num_messages--;
             }
-            else if((*Mymessage)->next != NULL && (*Mymessage)->prev == NULL)
-            {
+            else if((*Mymessage)->next != NULL && (*Mymessage)->prev == NULL){
                 Next->prev = NULL;
                 (*Mymessage)->next=NULL;
                 free(*Mymessage);
                 (*Mymessage)=Next;
                 num_messages--;
             }
-            else if((*Mymessage)->next == NULL && (*Mymessage)->prev != NULL)
-            {
+            else if((*Mymessage)->next == NULL && (*Mymessage)->prev != NULL){
                 (*Mymessage)->prev->next=NULL;
                 (*Mymessage)->prev = NULL;
                 free(*Mymessage);
                 (*Mymessage)=NULL;
                 num_messages--;
             }
-            else
-            {
+            else{
                 (*Mymessage)->prev->next = Next;
                 Next->prev = (*Mymessage)->prev;
                 free(*Mymessage);
@@ -90,12 +76,9 @@ void erase_expired_messages(message_a **Mymessage)
     }
 }
 
-void erase_messages(message_a **Mymessage)
-{
-    if((*Mymessage!=NULL))
-    {
-        if((*Mymessage)->next!=NULL)
-        {
+void erase_messages(message_a **Mymessage){
+    if((*Mymessage!=NULL)){
+        if((*Mymessage)->next!=NULL){
             message_a *m=(*Mymessage)->next;
             erase_messages(&m);
             (*Mymessage)->next=NULL;
@@ -107,22 +90,18 @@ void erase_messages(message_a **Mymessage)
     num_messages = 0;
 }
 
-int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility)
-{
+int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
     int out;
     out=1;
-    if(*Mymessage!=NULL)
-    {
-        if((*Mymessage)->agent_id==Agent_id)
-        {
+    if(*Mymessage!=NULL){
+        if((*Mymessage)->agent_id==Agent_id){
             out=0;
             (*Mymessage)->agent_node = Agent_node;
             (*Mymessage)->agent_leaf = Agent_leaf;
             (*Mymessage)->leaf_utility = Leaf_utility;
             (*Mymessage)->counter = 0;
         }
-        if(out==1 && (*Mymessage)->next!=NULL)
-        {
+        if(out==1){
             message_a *flag=(*Mymessage)->next;
             out=is_fresh_message(&flag,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
         }
@@ -130,18 +109,14 @@ int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_no
     return out;
 }
 
-int get_counter_from_id(message_a **Mymessage,const int Agent_id)
-{
+int get_counter_from_id(message_a **Mymessage,const int Agent_id){
     int out;
     out=-1;
-    if(*Mymessage!=NULL)
-    {
-        if((*Mymessage)->agent_id==Agent_id)
-        {
+    if(*Mymessage!=NULL){
+        if((*Mymessage)->agent_id==Agent_id){
             out=(*Mymessage)->counter;
         }
-        else
-        {
+        else{
             message_a *flag=(*Mymessage)->next;
             out=get_counter_from_id(&flag,Agent_id);
         }

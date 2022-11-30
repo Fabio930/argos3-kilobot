@@ -134,7 +134,23 @@ message_a *messages_list=NULL;
 message_a *chosen_message=NULL;
 quorum_a *quorum_list=NULL;
 
+message_a *messages_array[];
+
 bool light = true;
+/*-------------------------------------------------------------------*/
+/*                                                                   */
+/*-------------------------------------------------------------------*/
+void fill(message_a **Array[],message_a** List){
+    message_a *flag[num_messages];
+    message_a *current_message = *List;
+    for(int i=0;i<num_messages;i++){
+        flag[i] = current_message;
+        current_message = (*List)->next;
+        printf("%d_%d\n",flag[i]->agent_id,flag[i]->counter);
+    }
+    *Array = flag;
+}
+
 /*-------------------------------------------------------------------*/
 /*                                                                   */
 /*-------------------------------------------------------------------*/
@@ -486,6 +502,8 @@ void update_messages()
     int freshness = is_fresh_message(&messages_list,received_id,received_node,received_leaf,received_utility);
     /* if the message is fresh then save it if there wasn't any older to update */
     if(freshness == 1) add_a_message(&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
+    fill(&messages_array,&messages_list);
+    printf("_________\n");
 }
 
 /*-------------------------------------------------------------------*/
