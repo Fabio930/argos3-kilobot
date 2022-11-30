@@ -12,7 +12,7 @@ typedef enum {
 
 int num_nodes=0;
 int branches=2;
-int Leafs_size=0;
+unsigned int leafs_size=0;
 
 typedef struct tree_structure
 {
@@ -24,7 +24,7 @@ typedef struct tree_structure
     filter_a *node_filter;
 }tree_a;
 
-void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id,unsigned int *Leafs_size, const unsigned int Best_leaf_id,const float Max_utility, const float K) 
+void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K) 
 {
     if(Depth>=0)
     {
@@ -43,19 +43,19 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id,u
             if(Depth > 0) set_filter((c+i)->node_filter,.75,0);
             else
             {
-                *(Leafs_id + *Leafs_size) = (c+i)->id;
-                *Leafs_size = *Leafs_size+1;
+                *(Leafs_id + leafs_size) = (c+i)->id;
+                leafs_size = leafs_size+1;
                 set_filter((c+i)->node_filter,.75,1);
                 if((c+i)->id==Best_leaf_id) (c+i)->gt_utility=Max_utility;
                 else (c+i)->gt_utility=Max_utility*K;
             }
             tree_a *cc= (c+i);
-            loop_complete_tree(&cc,Depth-1,Leafs_id,Leafs_size,Best_leaf_id,Max_utility,K);
+            loop_complete_tree(&cc,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
         }
     }
 }
 
-void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned int *Leafs_id,unsigned int *Leafs_size, const unsigned int Best_leaf_id,const float Max_utility, const float K)
+void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K)
 {
     branches=Branches;
     for(int i=0;i<16;i++) *(Leafs_id+i)=-1;
@@ -67,7 +67,7 @@ void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned i
     (*Mytree)->children=NULL;
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
     set_filter((*Mytree)->node_filter,.75,0);
-    loop_complete_tree(Mytree,Depth-1,Leafs_id,Leafs_size,Best_leaf_id,Max_utility,K);
+    loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
 }
 
 tree_a* get_node(tree_a **Mytree,const int Node_id)

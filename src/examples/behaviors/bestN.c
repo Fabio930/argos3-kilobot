@@ -124,7 +124,6 @@ float gain_h;
 float gain_k;
 
 /* used only for noisy data generation */
-unsigned int leafs_size=0;
 unsigned int leafs_id[16];
 int last_sample_id=-1;
 unsigned int last_sample_level;
@@ -274,7 +273,7 @@ void check_quorum(quorum_a **Myquorum)
     unsigned int counter=0;
     counter = check_quorum_trigger(Myquorum,0);
     // printf("%d_%d\n",counter,my_state.current_node);
-    if(counter>=list_length_q(Myquorum)*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
+    if(counter>=num_quorum_items*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch)
@@ -299,8 +298,8 @@ void sample_and_decide(tree_a **leaf)
     }
     if(quorum_list!=NULL)
     {
-        if(list_length_q(&quorum_list)>=min_quorum_length) check_quorum(&quorum_list);
-        else if(list_length_q(&quorum_list)<min_quorum_length*.8 && current_node->parent!=NULL) my_state.commitment_node=current_node->parent->id; 
+        if(num_quorum_items>=min_quorum_length) check_quorum(&quorum_list);
+        else if(num_quorum_items<min_quorum_length*.8 && current_node->parent!=NULL) my_state.commitment_node=current_node->parent->id; 
     }
 
     // decide to commit or abandon
@@ -530,7 +529,7 @@ void parse_smart_arena_broadcast(uint8_t data[9])
                 int best_leaf_id = (data[0] >> 2)+1;
                 int depth = (data[2] >> 2)+1;
                 int branches = (data[2] & 0b00000011)+1;
-                complete_tree(&the_tree,depth,branches,&leafs_id[0],&leafs_size,best_leaf_id,MAX_UTILITY,k);
+                complete_tree(&the_tree,depth,branches,&leafs_id[0],best_leaf_id,MAX_UTILITY,k);
                 offset_x=(ARENA_X*.1)/2;
                 offset_y=(ARENA_Y*.1)/2;
                 goal_position.position_x=offset_x;
@@ -760,6 +759,7 @@ void setup()
 /* Main loop                                                         */
 /*-------------------------------------------------------------------*/
 void loop() {
+    printf("_____________%d_____________\n",kilo_uid);
     switch (my_state.current_level)
     {
     case 0:

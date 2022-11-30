@@ -4,6 +4,7 @@
 int expiring_ticks_quorum=20000;
 unsigned int min_quorum_length=10;
 float quorum_scaling_factor=.9;
+unsigned int num_quorum_items=0;
 
 typedef struct quorum_structure
 {
@@ -24,6 +25,7 @@ void add_an_item(quorum_a **Myquorum,quorum_a **Prev,const unsigned int Agent_id
         (*Myquorum)->agent_id=Agent_id;
         (*Myquorum)->agent_node=Agent_node;
         (*Myquorum)->counter=0;
+        num_quorum_items++;
         if (Prev!=NULL && *Prev!=NULL)
         {
             (*Myquorum)->prev=*Prev;
@@ -46,6 +48,7 @@ void erase_expired_items(quorum_a **Myquorum)
             {
                 free(*Myquorum);
                 (*Myquorum)=NULL;
+                num_quorum_items--;
             }
             else if((*Myquorum)->next == NULL && (*Myquorum)->prev != NULL)
             {
@@ -53,12 +56,14 @@ void erase_expired_items(quorum_a **Myquorum)
                 (*Myquorum)->prev = NULL;
                 free(*Myquorum);
                 (*Myquorum)=NULL;
+                num_quorum_items--;
             }
             else if((*Myquorum)->next != NULL && (*Myquorum)->prev == NULL)
             {
                 Next->prev = NULL;
                 free(*Myquorum);
                 (*Myquorum)=Next;
+                num_quorum_items--;
             }
             else
             {
@@ -66,6 +71,7 @@ void erase_expired_items(quorum_a **Myquorum)
                 Next->prev = (*Myquorum)->prev;
                 free(*Myquorum);
                 (*Myquorum)=NULL;
+                num_quorum_items--;
             }
         }
         erase_expired_items(&Next);
@@ -94,23 +100,7 @@ void erase_quorum_list(quorum_a **Myquorum)
         (*Myquorum)->prev=NULL;
         free(*Myquorum);
     }
-}
-
-int list_length_q(quorum_a **Myquorum)
-{
-    int out=0;
-    if((*Myquorum!=NULL))
-    {
-        out=1;
-        quorum_a *q=(*Myquorum)->next;
-        while (q!=NULL)
-        {
-            out=out+1;
-            q=q->next;
-        }
-        
-    }
-    return out;
+    num_quorum_items = 0;
 }
 
 int is_fresh_item(quorum_a **Myquorum,const int Agent_id,const int Agent_node)

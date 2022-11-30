@@ -1,7 +1,8 @@
 #ifndef MESSAGE_STRCUCT_H
 #define MESSAGE_STRCUCT_H
 
-int expiring_ticks_messages=10000;
+int expiring_ticks_messages = 10000;
+unsigned int num_messages = 0;
 
 typedef struct message_structure
 {
@@ -26,6 +27,7 @@ void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,con
         (*Mymessage)->agent_leaf=Agent_leaf;
         (*Mymessage)->counter=0;
         (*Mymessage)->leaf_utility=Leaf_utility;
+        num_messages++;
         if (Prev!=NULL && *Prev!=NULL)
         {
             (*Mymessage)->prev=*Prev;
@@ -57,6 +59,7 @@ void erase_expired_messages(message_a **Mymessage)
             {
                 free(*Mymessage);
                 (*Mymessage)=NULL;
+                num_messages--;
             }
             else if((*Mymessage)->next != NULL && (*Mymessage)->prev == NULL)
             {
@@ -64,6 +67,7 @@ void erase_expired_messages(message_a **Mymessage)
                 (*Mymessage)->next=NULL;
                 free(*Mymessage);
                 (*Mymessage)=Next;
+                num_messages--;
             }
             else if((*Mymessage)->next == NULL && (*Mymessage)->prev != NULL)
             {
@@ -71,6 +75,7 @@ void erase_expired_messages(message_a **Mymessage)
                 (*Mymessage)->prev = NULL;
                 free(*Mymessage);
                 (*Mymessage)=NULL;
+                num_messages--;
             }
             else
             {
@@ -78,6 +83,7 @@ void erase_expired_messages(message_a **Mymessage)
                 Next->prev = (*Mymessage)->prev;
                 free(*Mymessage);
                 (*Mymessage)=NULL;
+                num_messages--;
             }
         }
         erase_expired_messages(&Next);
@@ -98,6 +104,7 @@ void erase_messages(message_a **Mymessage)
         free(*Mymessage);
         (*Mymessage)=NULL;
     }
+    num_messages = 0;
 }
 
 int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility)
@@ -142,29 +149,13 @@ int get_counter_from_id(message_a **Mymessage,const int Agent_id)
     return out;
 }
 
-int list_length_m(message_a **Mymessage)
-{
-    int out=0;
-    if((*Mymessage!=NULL))
-    {
-        out=1;
-        message_a *flag=(*Mymessage)->next;
-        while (flag!=NULL)
-        {
-            out=out+1;
-            flag=flag->next;
-        }
-    }
-    return out;
-}
-
 message_a *select_a_random_msg(message_a **Mymessage)
 {
     message_a *out=NULL;
     if(*Mymessage!=NULL)
     {
-        if(list_length_m(Mymessage)==1) return *Mymessage;
-        int index = rand()%(list_length_m(Mymessage)-1);
+        if(num_messages==1) return *Mymessage;
+        int index = rand()%(num_messages-1);
         out = *Mymessage;
         for(int i=0;i<index;i++) out = out->next;
     }
