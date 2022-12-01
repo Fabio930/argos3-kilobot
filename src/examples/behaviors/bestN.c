@@ -135,20 +135,6 @@ quorum_a *quorum_list=NULL;
 message_a *messages_array[];
 
 bool light = true;
-/*-------------------------------------------------------------------*/
-/*                                                                   */
-/*-------------------------------------------------------------------*/
-void fill(message_a **Array[],message_a** List){
-    message_a *flag[num_messages];
-    message_a *current_message = *List;
-    printf("%d_\n",num_messages);
-    for(int i=0;i<num_messages;i++){
-        flag[i] = current_message;
-        current_message = (*List)->next;
-        printf("%d_%d\n",flag[i]->agent_id,flag[i]->counter);
-    }
-    *Array = flag;
-}
 
 /*-------------------------------------------------------------------*/
 /*                                                                   */
@@ -257,7 +243,6 @@ int check_quorum_trigger(quorum_a **Myquorum,unsigned int Counter){
     if(*Myquorum!=NULL){
         int msg_src=msg_received_from(&the_tree,my_state.current_node,(*Myquorum)->agent_node);
         if(msg_src==THISNODE || msg_src==SUBTREE) out=out+1;
-        // printf("____________\n_%d\n",msg_src);
         out = check_quorum_trigger(&((*Myquorum)->next),out);
     }
     return out;
@@ -266,19 +251,12 @@ int check_quorum_trigger(quorum_a **Myquorum,unsigned int Counter){
 void check_quorum(quorum_a **Myquorum){
     unsigned int counter=0;
     counter = check_quorum_trigger(Myquorum,0);
-    // printf("%d_%d\n",counter,my_state.current_node);
     if(counter>=num_quorum_items*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){int freshness;
-    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE){
-        freshness = is_fresh_item(&quorum_list,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-        if(freshness==1) add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-    }
-    else if(my_state.commitment_node==(*Current_node)->parent->id){
-        freshness = is_fresh_item(&quorum_list,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-        if(freshness==1) add_an_item(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-    }
+    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -456,12 +434,8 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
 /*-------------------------------------------------------------------*/
 void update_messages(){
     int received_node=derive_agent_node(received_committed,received_leaf,received_level);
-    int freshness;
-    freshness = is_fresh_message(&messages_list,received_id,received_node,received_leaf,received_utility);
-    /* if the message is fresh then save it if there wasn't any older to update */
-    if(freshness == 1) add_a_message(&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
-    fill(&messages_array,&messages_list);
-    printf("fresness:%d_________\n",freshness);
+    update(&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
+    fill_array_m(&messages_array,&messages_list);
 }
 
 /*-------------------------------------------------------------------*/
@@ -484,10 +458,10 @@ void parse_kilo_message(uint8_t data[9]){
                 temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
                 received_leaf = get_leaf_vec_id_in(temp_leaf);
                 received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
+                update_messages();
             }
             break;
     }
-    update_messages();
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   

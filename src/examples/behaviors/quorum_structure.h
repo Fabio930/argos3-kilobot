@@ -15,23 +15,6 @@ void set_expiring_ticks_quorum_item(const int Expiring_time){
     expiring_ticks_quorum=Expiring_time;
 }
 
-void add_an_item(quorum_a **Myquorum,quorum_a **Prev,const unsigned int Agent_id,const unsigned int Agent_node){
-    if((*Myquorum)==NULL){
-        (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
-        (*Myquorum)->agent_id=Agent_id;
-        (*Myquorum)->agent_node=Agent_node;
-        (*Myquorum)->counter=0;
-        num_quorum_items++;
-        if (Prev!=NULL && *Prev!=NULL){
-            (*Myquorum)->prev=*Prev;
-            (*Prev)->next=*Myquorum;
-        }
-        else (*Myquorum)->prev=NULL;
-        (*Myquorum)->next=NULL;
-    }
-    else add_an_item(&(*Myquorum)->next,Myquorum,Agent_id,Agent_node);
-}
-
 void erase_expired_items(quorum_a **Myquorum){
     if(*Myquorum!=NULL){
         quorum_a *Next=(*Myquorum)->next;
@@ -86,7 +69,7 @@ void erase_quorum_list(quorum_a **Myquorum){
     num_quorum_items = 0;
 }
 
-int is_fresh_item(quorum_a **Myquorum,const int Agent_id,const int Agent_node){
+int update_q(quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node){
     int out;
     out=1;
     if(*Myquorum!=NULL){
@@ -97,8 +80,21 @@ int is_fresh_item(quorum_a **Myquorum,const int Agent_id,const int Agent_node){
         }
         if(out==1){
             quorum_a *flag=(*Myquorum)->next;
-            out=is_fresh_item(&flag,Agent_id,Agent_node);
+            out=update_q(&flag,Myquorum,Agent_id,Agent_node);
         }
+    }
+    else{
+        (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
+        (*Myquorum)->agent_id=Agent_id;
+        (*Myquorum)->agent_node=Agent_node;
+        (*Myquorum)->counter=0;
+        num_quorum_items++;
+        if (Prev!=NULL && *Prev!=NULL){
+            (*Myquorum)->prev=*Prev;
+            (*Prev)->next=*Myquorum;
+        }
+        else (*Myquorum)->prev=NULL;
+        (*Myquorum)->next=NULL;
     }
     return out;
 }

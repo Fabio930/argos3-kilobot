@@ -11,27 +11,31 @@ typedef struct message_structure{
     struct message_structure *next,*prev;
 }message_a;
 
-void set_expiring_ticks_message(const int Expiring_time){
-    expiring_ticks_messages=Expiring_time;
+void fill_array_m(message_a **Array[],message_a** List){
+    message_a *flag[num_messages];
+    message_a *current_message = *List;
+    for(int i=0;i<num_messages;i++){
+        flag[i] = current_message;
+        current_message = current_message->next;
+    }
+    *Array = flag;
+    sort_m(Array);
 }
 
-void add_a_message(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
-    if((*Mymessage)==NULL){
-        (*Mymessage)=(message_a*)malloc(sizeof(message_a));
-        (*Mymessage)->agent_id=Agent_id;
-        (*Mymessage)->agent_node=Agent_node;
-        (*Mymessage)->agent_leaf=Agent_leaf;
-        (*Mymessage)->counter=0;
-        (*Mymessage)->leaf_utility=Leaf_utility;
-        num_messages++;
-        if (Prev!=NULL && *Prev!=NULL){
-            (*Mymessage)->prev=*Prev;
-            (*Prev)->next=*Mymessage;
+void sort_m(message_a **Array[]){
+    for (int i = 0; i < num_messages-1; i++){
+        for (int j = i+1; j < num_messages; j++){
+            if((*Array)[i]->counter>(*Array)[j]->counter){
+                message_a *flag = (*Array)[i];
+                (*Array)[i] = (*Array)[j];
+                (*Array)[j] = flag;
+            }
         }
-        else (*Mymessage)->prev=NULL;
-        (*Mymessage)->next=NULL;
     }
-    else add_a_message(&(*Mymessage)->next,Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
+}
+
+void set_expiring_ticks_message(const int Expiring_time){
+    expiring_ticks_messages=Expiring_time;
 }
 
 void increment_messages_counter(message_a **Mymessage){
@@ -90,7 +94,7 @@ void erase_messages(message_a **Mymessage){
     num_messages = 0;
 }
 
-int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
+int update(message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
     int out;
     out=1;
     if(*Mymessage!=NULL){
@@ -103,8 +107,23 @@ int is_fresh_message(message_a **Mymessage,const int Agent_id,const int Agent_no
         }
         if(out==1){
             message_a *flag=(*Mymessage)->next;
-            out=is_fresh_message(&flag,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
+            out=update(&flag,Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
         }
+    }
+    else{
+        (*Mymessage)=(message_a*)malloc(sizeof(message_a));
+        (*Mymessage)->agent_id=Agent_id;
+        (*Mymessage)->agent_node=Agent_node;
+        (*Mymessage)->agent_leaf=Agent_leaf;
+        (*Mymessage)->counter=0;
+        (*Mymessage)->leaf_utility=Leaf_utility;
+        num_messages++;
+        if (Prev!=NULL && *Prev!=NULL){
+            (*Mymessage)->prev=*Prev;
+            (*Prev)->next=*Mymessage;
+        }
+        else (*Mymessage)->prev=NULL;
+        (*Mymessage)->next=NULL;
     }
     return out;
 }
