@@ -129,10 +129,10 @@ unsigned int last_sample_committed;
 float last_sample_utility=-1;
 
 message_a *messages_list=NULL;
-message_a *chosen_message=NULL;
 quorum_a *quorum_list=NULL;
 
 message_a *messages_array[];
+message_a *quorum_array[];
 
 bool light = true;
 
@@ -148,8 +148,7 @@ int get_leaf_vec_id_out(const int Leaf_id){
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 int get_leaf_vec_id_in(const int Leaf_id){
-    for(int i=0;i<16;i++) if(i==Leaf_id) return leafs_id[i];
-    return -1;
+    return leafs_id[Leaf_id];
 }
 
 /*-------------------------------------------------------------------*/
@@ -238,25 +237,23 @@ void broadcast(){
     }
 }
 
-int check_quorum_trigger(quorum_a **Myquorum,unsigned int Counter){
-    int out=Counter;
-    if(*Myquorum!=NULL){
-        int msg_src=msg_received_from(&the_tree,my_state.current_node,(*Myquorum)->agent_node);
-        if(msg_src==THISNODE || msg_src==SUBTREE) out=out+1;
-        out = check_quorum_trigger(&((*Myquorum)->next),out);
+unsigned int check_quorum_trigger(quorum_a **Array[]){
+    unsigned int out=0;
+    for(int i=0;i<num_quorum_items;i++){
+        int msg_src=msg_received_from(&the_tree,my_state.current_node,(*Array)[i]->agent_node);
+        if(msg_src==THISNODE || msg_src==SUBTREE) out++;
     }
     return out;
 }
 
-void check_quorum(quorum_a **Myquorum){
-    unsigned int counter=0;
-    counter = check_quorum_trigger(Myquorum,0);
+void check_quorum(quorum_a **Array){
+    unsigned int counter = check_quorum_trigger(Array);
     if(counter>=num_quorum_items*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
 }
 
-void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){int freshness;
-    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
-    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
+void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){
+    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
+    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -266,13 +263,13 @@ void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&the_tree,my_state.current_node);
     // select a random message
     int message_switch=-1;
-    message_a *rnd_msg = select_a_random_msg(&messages_list);
+    message_a *rnd_msg = select_a_random_msg(&messages_array);
     if(rnd_msg!=NULL){
         message_switch=msg_received_from(&the_tree,my_state.current_node,rnd_msg->agent_node);
         update_quorum_list(&current_node,&rnd_msg,message_switch);
     }
     if(quorum_list!=NULL){
-        if(num_quorum_items>=min_quorum_length) check_quorum(&quorum_list);
+        if(num_quorum_items>=min_quorum_length) check_quorum(&quorum_array);
         else if(num_quorum_items<min_quorum_length*.8 && current_node->parent!=NULL) my_state.commitment_node=current_node->parent->id; 
     }
 
@@ -352,7 +349,7 @@ void select_new_point(bool force){
     if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.015) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.015))){
         tree_a *leaf=NULL;
         if(!force){
-            for(unsigned int l=0;l<leafs_size;l++){
+            for(unsigned int l=0;l<num_leafs;l++){
                 leaf = get_node(&the_tree,leafs_id[l]);
                 if(bot_isin_node(&leaf)) break;
             }
@@ -449,7 +446,7 @@ void parse_kilo_message(uint8_t data[9]){
     int counter_check, temp_leaf;
     switch(sa_type){
         case MSG_A:
-            counter_check = get_counter_from_id(&messages_list, sa_id);
+            counter_check = get_counter_from_id(&messages_array, sa_id);
             if((counter_check==-1 || counter_check > 5*broadcasting_ticks)){
                 received_id = sa_id;
                 received_utility = ((uint8_t)(sa_payload >> 8)) & 0b01111111;
@@ -481,8 +478,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 int expiring_dist = (ARENA_X*.1)*100;
                 if((ARENA_Y*.1)>offset_x) expiring_dist=(ARENA_Y*.1)*100;
-                set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC*1.5);
-                set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*3);
+                set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC);
+                set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*2);
                 init_received_A=true;
             }
             break;
@@ -704,10 +701,10 @@ void loop(){
         }
     }
     else light = true;
-    increment_messages_counter(&messages_array,&messages_list);
-    increment_quorum_counter(&quorum_list);
-    erase_expired_messages(&messages_list);
-    erase_expired_items(&quorum_list);
+    increment_messages_counter(&messages_array);
+    increment_quorum_counter(&quorum_array);
+    erase_expired_messages(&messages_array,&messages_list);
+    erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(last_sensing) broadcast();
 }
@@ -726,6 +723,8 @@ int main(){
 
     kilo_start(setup, loop);
     
-    // erase_tree(&the_tree);
+    erase_tree(&the_tree);
+    erase_messages(&messages_array,&messages_list);
+    erase_quorum_list(&quorum_array,&quorum_list);
     return 0;
 }

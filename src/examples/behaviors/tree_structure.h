@@ -12,7 +12,7 @@ typedef enum{
 
 int num_nodes=0;
 int branches=2;
-unsigned int leafs_size=0;
+unsigned int num_leafs=0;
 
 typedef struct tree_structure{
     unsigned int id, depth;
@@ -39,8 +39,8 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, 
             (c+i)->node_filter=(filter_a*)malloc(sizeof(filter_a));
             if(Depth > 0) set_filter((c+i)->node_filter,.75,0);
             else{
-                *(Leafs_id + leafs_size) = (c+i)->id;
-                leafs_size = leafs_size+1;
+                *(Leafs_id + num_leafs) = (c+i)->id;
+                num_leafs++;
                 set_filter((c+i)->node_filter,.75,1);
                 if((c+i)->id==Best_leaf_id) (c+i)->gt_utility=Max_utility;
                 else (c+i)->gt_utility=Max_utility*K;
