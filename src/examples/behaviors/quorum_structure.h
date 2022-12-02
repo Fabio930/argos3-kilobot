@@ -1,6 +1,8 @@
 #ifndef QUORUM_STRCUCT_H
 #define QUORUM_STRCUCT_H
-
+/*                      */
+/*  CHANGE AS MESSAGES  */
+/*                      */
 int expiring_ticks_quorum=20000;
 unsigned int min_quorum_length=10;
 float quorum_scaling_factor=.9;
@@ -69,25 +71,25 @@ void erase_quorum_list(quorum_a **Myquorum){
     num_quorum_items = 0;
 }
 
-int update_q(quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node){
+int update_q(quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node,const int Counter){
     int out;
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
             out=2;
             (*Myquorum)->agent_node = Agent_node;
-            (*Myquorum)->counter = 0;
+            (*Myquorum)->counter = Counter;
         }
         if(out==1){
             quorum_a *flag=(*Myquorum)->next;
-            out=update_q(&flag,Myquorum,Agent_id,Agent_node);
+            out=update_q(&flag,Myquorum,Agent_id,Agent_node,Counter);
         }
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
         (*Myquorum)->agent_id=Agent_id;
         (*Myquorum)->agent_node=Agent_node;
-        (*Myquorum)->counter=0;
+        (*Myquorum)->counter=Counter;
         num_quorum_items++;
         if (Prev!=NULL && *Prev!=NULL){
             (*Myquorum)->prev=*Prev;

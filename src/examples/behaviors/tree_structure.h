@@ -107,8 +107,8 @@ int msg_received_from(tree_a **Mytree,const int Mynode_id,const int Messagednode
     else return OTHER;
 }
 
-void complete_update(tree_a *node){
-    tree_a *c=node->children;
+void complete_update(tree_a **node){
+    tree_a *c=(*node)->children;
     float temp_utility=0,temp_distance=0;
     for(int i=0;i<branches;i++){
         if((c+i)->node_filter->utility>temp_utility){
@@ -116,14 +116,14 @@ void complete_update(tree_a *node){
             temp_distance=(c+i)->node_filter->distance;
         }
     }
-    update_filter(node->node_filter,temp_utility,temp_distance);
-    if(node->parent!=NULL) complete_update(node->parent);
+    update_filter((*node)->node_filter,temp_utility,temp_distance);
+    if((*node)->parent!=NULL) complete_update(&((*node)->parent));
 }
 
 void bottom_up_utility_update(tree_a **Mytree,const int Leaf_id,const float Sensed_utility){
     tree_a *leaf=get_node(Mytree,Leaf_id);
     update_filter(leaf->node_filter,Sensed_utility,0);
-    if(leaf->parent!=NULL) complete_update(leaf->parent);
+    if(leaf->parent!=NULL) complete_update(&(leaf->parent));
 }
 
 /*-------------------------------------------------------------------*/

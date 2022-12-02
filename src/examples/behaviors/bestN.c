@@ -255,8 +255,8 @@ void check_quorum(quorum_a **Myquorum){
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){int freshness;
-    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
+    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -336,7 +336,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p<commitment+recruitment) my_state.current_node = agent_node_flag;
     else if(p<commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
     else if(p<(commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
-    erase_messages(&messages_list);
+    erase_messages(&messages_array,&messages_list);
     my_state.current_level = get_node(&the_tree,my_state.current_node)->depth;
 }
 
@@ -434,8 +434,7 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
 /*-------------------------------------------------------------------*/
 void update_messages(){
     int received_node=derive_agent_node(received_committed,received_leaf,received_level);
-    update(&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
-    fill_array_m(&messages_array,&messages_list);
+    update(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
 }
 
 /*-------------------------------------------------------------------*/
@@ -451,7 +450,7 @@ void parse_kilo_message(uint8_t data[9]){
     switch(sa_type){
         case MSG_A:
             counter_check = get_counter_from_id(&messages_list, sa_id);
-            if((counter_check==-1 || counter_check>broadcasting_ticks)){
+            if((counter_check==-1 || counter_check > 5*broadcasting_ticks)){
                 received_id = sa_id;
                 received_utility = ((uint8_t)(sa_payload >> 8)) & 0b01111111;
                 received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
@@ -474,7 +473,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 int best_leaf_id = (data[0] >> 2)+1;
                 int depth = (data[2] >> 2)+1;
                 int branches = (data[2] & 0b00000011)+1;
-                complete_tree(&the_tree,depth,branches,&leafs_id[0],best_leaf_id,MAX_UTILITY,k);
+                complete_tree(&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
                 offset_x=(ARENA_X*.1)/2;
                 offset_y=(ARENA_Y*.1)/2;
                 goal_position.position_x=offset_x;
@@ -671,7 +670,12 @@ void setup(){
 /* Main loop                                                         */
 /*-------------------------------------------------------------------*/
 void loop(){
-    printf("_____________%d_____________\n",kilo_uid);
+    printf("_________ID_%d____N_MSG_%d_________\n",kilo_uid,num_messages);
+    message_a *flag = messages_list;
+    for (int i = 0; i < num_messages; i++){
+        flag = flag->next;
+    }
+    // print_m(&messages_array);
     switch (my_state.current_level){
     case 0:
         set_color(RGB(3,0,0));
@@ -700,7 +704,7 @@ void loop(){
         }
     }
     else light = true;
-    increment_messages_counter(&messages_list);
+    increment_messages_counter(&messages_array,&messages_list);
     increment_quorum_counter(&quorum_list);
     erase_expired_messages(&messages_list);
     erase_expired_items(&quorum_list);
