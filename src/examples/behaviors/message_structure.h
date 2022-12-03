@@ -4,6 +4,7 @@
 int expiring_ticks_messages = 10000;
 unsigned int num_messages = 0;
 unsigned int free_space_m = 0;
+
 typedef struct message_structure{
     unsigned int counter;
     int agent_id, agent_node, agent_leaf;

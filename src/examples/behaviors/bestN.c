@@ -95,9 +95,6 @@ int sa_payload = 0;
 bool init_received_A=false;
 bool init_received_B=false;
 
-/* map of the environment */
-tree_a *the_tree=NULL;
-
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 3;
 uint32_t last_broadcast_ticks = 0;
@@ -122,27 +119,24 @@ float gain_h;
 float gain_k;
 
 /* used only for noisy data generation */
-unsigned int leafs_id[16];
 int last_sample_id=-1;
 unsigned int last_sample_level;
 unsigned int last_sample_committed;
 float last_sample_utility=-1;
 
-message_a *messages_list=NULL;
-quorum_a *quorum_list=NULL;
+/* map of the environment */
+tree_a *the_tree=NULL;
+tree_a *tree_array[];
+unsigned int leafs_id[16];
 
+message_a *messages_list=NULL;
 message_a *messages_array[];
+
+quorum_a *quorum_list=NULL;
 message_a *quorum_array[];
 
 bool light = true;
 
-/*-------------------------------------------------------------------*/
-/*                                                                   */
-/*-------------------------------------------------------------------*/
-int get_leaf_vec_id_out(const int Leaf_id){
-    for(int i=0;i<16;i++) if(leafs_id[i]==Leaf_id) return i;
-    return -1;
-}
 
 /*-------------------------------------------------------------------*/
 /*                                                                   */
@@ -240,7 +234,7 @@ void broadcast(){
 unsigned int check_quorum_trigger(quorum_a **Array[]){
     unsigned int out=0;
     for(int i=0;i<num_quorum_items;i++){
-        int msg_src=msg_received_from(&the_tree,my_state.current_node,(*Array)[i]->agent_node);
+        int msg_src=msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
         if(msg_src==THISNODE || msg_src==SUBTREE) out++;
     }
     return out;
@@ -260,12 +254,12 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
 /* sample a value, update the map, decide if change residence node                   */
 /*-----------------------------------------------------------------------------------*/
 void sample_and_decide(tree_a **leaf){
-    tree_a *current_node = get_node(&the_tree,my_state.current_node);
+    tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
     int message_switch=-1;
     message_a *rnd_msg = select_a_random_msg(&messages_array);
     if(rnd_msg!=NULL){
-        message_switch=msg_received_from(&the_tree,my_state.current_node,rnd_msg->agent_node);
+        message_switch=msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
         update_quorum_list(&current_node,&rnd_msg,message_switch);
     }
     if(quorum_list!=NULL){
@@ -282,7 +276,7 @@ void sample_and_decide(tree_a **leaf){
     tree_a *c=current_node->children;
     last_sensing = true;
     float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
-    bottom_up_utility_update(&the_tree,(*leaf)->id,random_sample);
+    bottom_up_utility_update(&tree_array,(*leaf)->id,random_sample);
     last_sample_utility = get_utility((*leaf)->node_filter);
     if(last_sample_utility > 10) last_sample_utility=10;
     else if(last_sample_utility < 0) last_sample_utility=0;
@@ -306,18 +300,18 @@ void sample_and_decide(tree_a **leaf){
     switch (message_switch){
         case SUBTREE:
             if(my_state.current_node==my_state.commitment_node){
-                bottom_up_utility_update(&the_tree,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
-                float utility_flag = get_node(&the_tree,rnd_msg->agent_node)->node_filter->utility;
+                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
+                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
                 if(utility_flag<=0) recruitment = 0;
                 else if(utility_flag<MAX_UTILITY) recruitment = utility_flag/MAX_UTILITY;
                 else recruitment = 1;
-                agent_node_flag = get_nearest_node(&current_node,rnd_msg->agent_node);
+                agent_node_flag = get_nearest_node(&tree_array,my_state.current_node,rnd_msg->agent_node);
             }
             break;
         case SIBLINGTREE:
             if(current_node->parent->id==my_state.commitment_node){
-                bottom_up_utility_update(&the_tree,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
-                float utility_flag = get_node(&the_tree,rnd_msg->agent_node)->node_filter->utility;
+                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
+                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
                 if(utility_flag<=0) cross_inhibition = 0;
                 else if(utility_flag<MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
                 else cross_inhibition = 1;
@@ -334,7 +328,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p<commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
     else if(p<(commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
-    my_state.current_level = get_node(&the_tree,my_state.current_node)->depth;
+    my_state.current_level = get_node(&tree_array,my_state.current_node)->depth;
 }
 
 int random_in_range(int min, int max){
@@ -350,7 +344,8 @@ void select_new_point(bool force){
         tree_a *leaf=NULL;
         if(!force){
             for(unsigned int l=0;l<num_leafs;l++){
-                leaf = get_node(&the_tree,leafs_id[l]);
+                leaf = get_node(&tree_array,leafs_id[l]);
+                last_sample_id = l;
                 if(bot_isin_node(&leaf)) break;
             }
             if(leaf==NULL){
@@ -360,8 +355,7 @@ void select_new_point(bool force){
                 printf("ERROR____Agent:%d___NOT_ON_LEAF__\n",kilo_uid);
             }
             else{
-                last_sample_id = get_leaf_vec_id_out(leaf->id);
-                last_sample_level = get_node(&the_tree,my_state.current_node)->depth;
+                last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
                 if(my_state.commitment_node==my_state.current_node){
                     last_sample_committed=1;
                     if(last_sample_level==4){
@@ -377,7 +371,7 @@ void select_new_point(bool force){
             }
         }
         lastWaypointTime = kilo_ticks;
-        tree_a *actual_node = get_node(&the_tree,my_state.current_node);
+        tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         float flag;
         flag=abs((int)((actual_node->brX-actual_node->tlX)*100))*.0025;
         min_dist=abs((int)((actual_node->brY-actual_node->tlY)*100))*.0025;
@@ -411,7 +405,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level){
-    tree_a *leaf=get_node(&the_tree,Received_leaf);
+    tree_a *leaf=get_node(&tree_array,Received_leaf);
     unsigned int level;
     if(received_committed) level = Received_level;
     else level = Received_level + 1;
@@ -470,7 +464,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 int best_leaf_id = (data[0] >> 2)+1;
                 int depth = (data[2] >> 2)+1;
                 int branches = (data[2] & 0b00000011)+1;
-                complete_tree(&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
+                complete_tree(&tree_array,&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
                 offset_x=(ARENA_X*.1)/2;
                 offset_y=(ARENA_Y*.1)/2;
                 goal_position.position_x=offset_x;
@@ -723,7 +717,7 @@ int main(){
 
     kilo_start(setup, loop);
     
-    erase_tree(&the_tree);
+    erase_tree(&tree_array,&the_tree);
     erase_messages(&messages_array,&messages_list);
     erase_quorum_list(&quorum_array,&quorum_list);
     return 0;

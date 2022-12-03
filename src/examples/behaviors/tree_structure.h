@@ -51,7 +51,43 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, 
     }
 }
 
-void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K){
+void sort_t(tree_a **Array[]){
+    for (int i = 0; i < num_nodes-1; i++){
+        for (int j = i+1; j < num_nodes; j++){
+            if((*Array)[i]->id > (*Array)[j]->id){
+                tree_a *flag = (*Array)[i];
+                (*Array)[i] = (*Array)[j];
+                (*Array)[j] = flag;
+            }
+        }
+    }
+}
+
+tree_a* get_node_from_3(tree_a **Mytree,const int Node_id){
+    tree_a *out=NULL;
+    if((*Mytree)->id==Node_id) return (*Mytree);
+    else if ((*Mytree)->children!=NULL){
+        tree_a *c=(*Mytree)->children;
+        for(int i=0;i<branches;i++){
+            tree_a *cc=c+i;
+            out=get_node_from_3(&cc,Node_id);
+            if(out!=NULL) break;
+        }
+    }
+    return out;
+}
+
+void fill_trees_arrays(tree_a **Array[],tree_a **Mytree){
+    *Array=(tree_a*)malloc(num_nodes*sizeof(tree_a));
+    tree_a *node;
+    for(int i=0;i<num_nodes;i++){
+        node = get_node_from_3(Mytree,i);
+        (*Array)[i] = node;
+    }
+    sort_t(Array);
+}
+
+void complete_tree(tree_a **Array[],tree_a **Mytree,const int Depth,const int Branches,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K){
     branches=Branches;
     for(int i=0;i<16;i++) *(Leafs_id+i)=-1;
     *Mytree=(tree_a*)malloc(sizeof(tree_a));
@@ -63,46 +99,27 @@ void complete_tree(tree_a **Mytree,const int Depth,const int Branches,unsigned i
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
     set_filter((*Mytree)->node_filter,.75,0);
     loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
+    fill_trees_arrays(Array,Mytree);
 }
 
-tree_a* get_node(tree_a **Mytree,const int Node_id){
-    tree_a *out=NULL;
-    if((*Mytree)->id==Node_id) return (*Mytree);
-    else if ((*Mytree)->children!=NULL){
-        tree_a *c=(*Mytree)->children;
-        for(int i=0;i<branches;i++){
-            tree_a *cc=c+i;
-            out=get_node(&cc,Node_id);
-            if(out!=NULL) break;
-        }
-    }
-    return out;
+tree_a* get_node(tree_a **Array[],const int Node_id){
+    return (*Array)[Node_id];
 }
 
-int get_nearest_node(tree_a **Mytree,const int MSGnode){
-    int out=-1;
-    if((*Mytree)->id==MSGnode) return (*Mytree)->id;
-    else if ((*Mytree)->children!=NULL){
-        tree_a *c=(*Mytree)->children;
-        for(int i=0;i<branches;i++){
-            tree_a *cc=c+i;
-            out=get_nearest_node(&cc,MSGnode);
-            if(out!=-1){
-                out=cc->id;
-                break;
-            }
-        }
-    }
-    return out;
+int get_nearest_node(tree_a **Array[],const int MYnode,const int MSGnode){
+    tree_a *my_node=(*Array)[MYnode];
+    tree_a *msg_node=(*Array)[MSGnode];
+    for(int i=0;i<msg_node->depth-my_node->depth-1;i++) msg_node=msg_node->parent;
+    return msg_node->id;
 }
 
-int msg_received_from(tree_a **Mytree,const int Mynode_id,const int Messagednode_id){
+int msg_received_from(tree_a **Array[],const int Mynode_id,const int Messagednode_id){
     if(Mynode_id==Messagednode_id) return THISNODE;
-    tree_a *my_node=get_node(Mytree,Mynode_id);
+    tree_a *my_node=get_node(Array,Mynode_id);
     if(my_node->parent!=NULL && my_node->parent->id==Messagednode_id) return PARENTNODE;
-    tree_a *flag=get_node(&my_node,Messagednode_id);
+    tree_a *flag=get_node_from_3(&my_node,Messagednode_id);
     if(flag!=NULL) return SUBTREE;
-    if(my_node->parent!=NULL) flag=get_node(&(my_node->parent),Messagednode_id);
+    if(my_node->parent!=NULL) flag=get_node_from_3(&(my_node->parent),Messagednode_id);
     if(flag!=NULL) return SIBLINGTREE;
     else return OTHER;
 }
@@ -120,8 +137,8 @@ void complete_update(tree_a **node){
     if((*node)->parent!=NULL) complete_update(&((*node)->parent));
 }
 
-void bottom_up_utility_update(tree_a **Mytree,const int Leaf_id,const float Sensed_utility){
-    tree_a *leaf=get_node(Mytree,Leaf_id);
+void bottom_up_utility_update(tree_a **Array[],const int Leaf_id,const float Sensed_utility){
+    tree_a *leaf=get_node(Array,Leaf_id);
     update_filter(leaf->node_filter,Sensed_utility,0);
     if(leaf->parent!=NULL) complete_update(&(leaf->parent));
 }
@@ -232,19 +249,18 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     loop_set_vertices(Mytree,indx,-1);
 }
 
-void erase_tree(tree_a **Mytree){
-    if((*Mytree)->children!=NULL){
-        tree_a *c=(*Mytree)->children;
-        for(int i=0;i<branches;i++){
-            tree_a *cc = c+i;
-            erase_tree(&cc);
+void erase_tree(tree_a **Array[],tree_a **Mytree){
+    if(num_nodes>0){
+        for (int i=0; i<num_nodes;i++){
+            erase_filter((*Array)[i]->node_filter);
+            free((*Array)[i]->node_filter);            
+            free((*Array)[i]);
         }
-        (*Mytree)->children=NULL;
+        free(*Array);
+        num_nodes=0;
+        num_leafs=0;
+        *Mytree=NULL;
     }
-    erase_filter((*Mytree)->node_filter);
-    free((*Mytree)->node_filter);
-    (*Mytree)->parent=NULL;
-    free(*Mytree);
 }
 
 #endif

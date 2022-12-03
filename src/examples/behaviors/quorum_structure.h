@@ -2,7 +2,7 @@
 #define QUORUM_STRCUCT_H
 
 int expiring_ticks_quorum=20000;
-unsigned int min_quorum_length=10;
+unsigned int min_quorum_length=8;
 float quorum_scaling_factor=.9;
 unsigned int num_quorum_items=0;
 unsigned int free_space_q = 0;
