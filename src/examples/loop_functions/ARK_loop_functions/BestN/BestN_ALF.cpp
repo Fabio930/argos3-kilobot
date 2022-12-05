@@ -25,7 +25,7 @@ CBestN_ALF::~CBestN_ALF(){
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::Init(TConfigurationNode& t_node) {
+void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
     /* Other initializations: Varibales, Log file opening... */
@@ -35,7 +35,7 @@ void CBestN_ALF::Init(TConfigurationNode& t_node) {
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::Reset() {
+void CBestN_ALF::Reset(){
     /* Close data file */
     m_cOutput.close();
     /* Reopen the file, erasing its contents */
@@ -45,7 +45,7 @@ void CBestN_ALF::Reset() {
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::Destroy() {
+void CBestN_ALF::Destroy(){
     /* Close data file */
     m_cOutput.close();
 }
@@ -53,7 +53,7 @@ void CBestN_ALF::Destroy() {
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::SetupInitialKilobotStates() {
+void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotNodes.resize(m_tKilobotEntities.size());
@@ -126,38 +126,29 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID=GetKilobotId(c_kilobot_entity);
     if (m_fTimeInSeconds - m_vecLastTimeMessaged[unKilobotID]< m_fMinTimeBetweenTwoMsg) return; // if the time is too short, the kilobot cannot receive a message
-    if(!start_experiment)
-    {
+    if(!start_experiment){
         for (int i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
         /* Send init information for environment representation*/
-        switch (m_vecStart_experiment[unKilobotID])
-        {
+        switch (m_vecStart_experiment[unKilobotID]){
         case 0:
-            m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
             m_vecStart_experiment[unKilobotID]=1;
             SendStructInitInformation(c_kilobot_entity);
             break;
         case 1:
-            m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
             m_vecStart_experiment[unKilobotID]=2;
             SendInformationGPS(c_kilobot_entity,0);
             break;
         }
         start_experiment=true;
-        for(long unsigned int i=0;i<m_vecStart_experiment.size();i++)
-        {
-            if(m_vecStart_experiment[i]!=2)
-            {
+        for(long unsigned int i=0;i<m_vecStart_experiment.size();i++){
+            if(m_vecStart_experiment[i]!=2){
                 start_experiment=false;
                 break;
             }
         }
     }
-    else
-    {
-        if (m_fTimeInSeconds - m_vecLastTimeMessaged[unKilobotID]< m_fMinTimeBetweenTwoMsg*3) return; // if the time is too short, the kilobot cannot receive a message
+    else{
         for (int i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
-        m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
         SendInformationGPS(c_kilobot_entity,1);
     }
 }
@@ -167,10 +158,10 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
 /* Send #branches, #depth, param k, ID best leaf to let agents build their maps
    and set the noisy data sampling signals    
 */
-void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity)
-{
+void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type=0;
@@ -184,10 +175,11 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity)
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
-        } else{
+        }
+        else{
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = ((tKilobotMessage.m_sData >> 4) << 2) | tKilobotMessage.m_sType;
@@ -201,10 +193,10 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity)
 /****************************************/
 /* Send GPS position and orientation */
 
-void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type)
-{
+void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = Type;
@@ -221,10 +213,11 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int 
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
-        } else{
+        }
+        else{
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = ((tKilobotMessage.m_sID >> 4) << 2) | (tKilobotMessage.m_sType & 0b0011);
@@ -236,8 +229,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int 
 
 /****************************************/
 /****************************************/
-Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b)
-{
+Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
     Real x=a.GetX()-b.GetX();
     x = x*x;
     Real y=a.GetY()-b.GetY();
@@ -247,7 +239,7 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b)
 /****************************************/
 /****************************************/
 
-CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane) {
+CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     return color;
 }

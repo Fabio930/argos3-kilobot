@@ -14,8 +14,7 @@
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
 #include "hierarchicFloor.h"
 
-class CBestN_ALF : public CALF
-{
+class CBestN_ALF : public CALF{
 
 public:
 
@@ -71,8 +70,7 @@ private:
     CVector2 TL,BR;
     ChierarchicFloor *vh_floor;
 
-    typedef struct
-    {
+    typedef struct{
         int current_node,previous_node,commitment_node;
     } SRobotNodes;
 

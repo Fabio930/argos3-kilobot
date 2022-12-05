@@ -9,15 +9,13 @@
 #include <random>
 #include <argos3/core/utility/math/vector2.h>
 
-namespace argos
-{
+namespace argos{
     class CSpace;
 }
 
 using namespace argos;
 
-class Node
-{
+class Node{
     private:
         int id;
         int distance_from_opt=-1;
@@ -25,8 +23,7 @@ class Node
         float noise=-1;
         Node *parent=NULL;
         std::vector<Node *> children;
-        struct Vertices
-        {
+        struct Vertices{
             CVector2 tl=CVector2(),br=CVector2(),tl_offset=CVector2(),br_offset=CVector2();
         }tl_br;
 

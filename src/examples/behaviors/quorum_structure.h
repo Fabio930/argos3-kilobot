@@ -5,7 +5,6 @@ int expiring_ticks_quorum=20000;
 unsigned int min_quorum_length=8;
 float quorum_scaling_factor=.9;
 unsigned int num_quorum_items=0;
-unsigned int free_space_q = 0;
 
 typedef struct quorum_structure{
     unsigned int agent_id, agent_node, counter;
@@ -19,7 +18,7 @@ void set_expiring_ticks_quorum_item(const int Expiring_time){
 void sort_q(quorum_a **Array[]){
     for (int i = 0; i < num_quorum_items-1; i++){
         for (int j = i+1; j < num_quorum_items; j++){
-            if((*Array)[i]->counter > (*Array)[j]->counter){
+            if(((*Array)[i] == NULL && (*Array)[j] != NULL) || (*Array)[i]->counter > (*Array)[j]->counter){
                 quorum_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
@@ -28,18 +27,16 @@ void sort_q(quorum_a **Array[]){
     }
 }
 
-void fill_array_q(quorum_a **Array[],quorum_a** List){
-    *Array=(quorum_a*)malloc(num_quorum_items*sizeof(quorum_a));
-    quorum_a *current_item = *List;
-    for(int i=0;i<num_quorum_items;i++){
-        (*Array)[i] = current_item;
-        current_item = current_item->next;
-    }
-    sort_q(Array);
+void init_array_qrm(quorum_a **Array[]){
+    *Array = (quorum_a*)malloc(64*sizeof(quorum_a));
+    for(int i=0;i<64;i++) (*Array)[i] = NULL;
 }
 
 void print_q(quorum_a **Array[]){
-    for (int i = 0; i < num_quorum_items; i++) printf("Q__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+    for (int i = 0; i < num_quorum_items; i++){
+        if((*Array)[i]!=NULL) printf("Q__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+        else printf("NULL\n");
+    }
 }
 
 void increment_quorum_counter(quorum_a **Array[]){
@@ -51,15 +48,14 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
         if((*Array)[i]->counter>=expiring_ticks_quorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
-                free(*Array);
+                (*Array)[i] = NULL;
                 *Myquorum=NULL;
             }
             else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
-                quorum_a *temp=(*Array)[i]->next;
-                temp->prev=NULL;
+                *Myquorum = (*Array)[i]->next;
+                (*Myquorum)->prev=NULL;
                 free((*Array)[i]);
                 (*Array)[i]=NULL;
-                *Myquorum=temp;
             }
             else if((*Array)[i]->next == NULL && (*Array)[i]->prev != NULL){
                 (*Array)[i]->prev->next=NULL;
@@ -79,31 +75,37 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
 }
 
 void erase_quorum_list(quorum_a **Array[],quorum_a **Myquorum){
-    if(num_quorum_items>0){
-        for(int i=0;i<num_quorum_items;i++) free((*Array)[i]);
-        free(*Array);
-        num_quorum_items = 0;
-        *Myquorum=NULL;
+    for(int i=0;i<num_quorum_items;i++){
+        free((*Array)[i]);
+        (*Array)[i] = NULL;
     }
+    num_quorum_items = 0;
+    *Myquorum=NULL;
 }
 
-int update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node,const int Counter){
+void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
+    for(int i=0;i<num_quorum_items;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    free(*Array);
+    num_quorum_items = 0;
+    *Myquorum=NULL;
+}
+
+int update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node){
     int out;
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
             out=0;
             (*Myquorum)->agent_node = Agent_node;
-            (*Myquorum)->counter = Counter;
+            (*Myquorum)->counter = 0;
         }
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,Agent_node,Counter);
+        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,Agent_node);
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
         (*Myquorum)->agent_id=Agent_id;
         (*Myquorum)->agent_node=Agent_node;
-        (*Myquorum)->counter=Counter;
-        if(num_quorum_items > 0) free_space_q=1;
+        (*Myquorum)->counter=0;
         num_quorum_items++;
         if (Prev!=NULL && *Prev!=NULL){
             (*Myquorum)->prev=*Prev;
@@ -111,13 +113,7 @@ int update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const int Ag
         }
         else (*Myquorum)->prev=NULL;
         (*Myquorum)->next=NULL;
-    }
-    if(Prev==NULL){
-        if(free_space_q==1){
-            free(*Array);
-            free_space_q = 0;
-        }
-        fill_array_q(Array,Myquorum);
+        (*Array)[num_quorum_items-1] = *Myquorum;
     }
     return out;
 }

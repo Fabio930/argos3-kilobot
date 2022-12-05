@@ -19,8 +19,8 @@ typedef enum{
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
+    ARENA_X = 10,
+    ARENA_Y = 10
 }arena_size;
 
 /* Enum for messages type */
@@ -72,19 +72,14 @@ position_t goal_position={0,0};
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
-int gps_angle=-1;
-float RotSpeed=38.0;
+int gps_angle;
+float RotSpeed = 45.0;
 float min_dist;
-uint32_t lastWaypointTime;
-uint32_t maxWaypointTime=3600;//3600; // about 2 minutes
 
 /* current state */
 state_t my_state={0,0,0};
 
 unsigned int turning_ticks = 0;
-unsigned int straight_ticks = 0;
-const uint8_t max_turning_ticks = 160; /* constant to allow a maximum rotation of 180 degrees with \omega=\pi/5 */
-const uint16_t max_straight_ticks = 320; /* set the \tau_m period to 2.5 s: n_m = \tau_m/\delta_t = 2.5/(1/32) */
 uint32_t last_motion_ticks = 0;
 
 /* Variables for Smart Arena messages */
@@ -92,13 +87,13 @@ int sa_id = -1;
 int sa_type = 0;
 int sa_payload = 0;
 
-bool init_received_A=false;
-bool init_received_B=false;
+bool init_received_A = false;
+bool init_received_B = false;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 3;
 uint32_t last_broadcast_ticks = 0;
-bool last_sensing=false;
+bool last_sensing = false;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -114,29 +109,28 @@ float received_utility;
 bool ARK_sem_talking=false;
 
 // float control_parameter_gain=3;
-float control_parameter=3;
+float control_parameter = 3;
 float gain_h;
 float gain_k;
 
 /* used only for noisy data generation */
-int last_sample_id=-1;
+int last_sample_id = -1;
 unsigned int last_sample_level;
 unsigned int last_sample_committed;
-float last_sample_utility=-1;
+float last_sample_utility = -1;
 
 /* map of the environment */
-tree_a *the_tree=NULL;
+tree_a *the_tree = NULL;
 tree_a *tree_array[];
 unsigned int leafs_id[16];
 
-message_a *messages_list=NULL;
-message_a *messages_array[];
+message_a *messages_list = NULL;
+message_a *messages_array[64];
 
-quorum_a *quorum_list=NULL;
-message_a *quorum_array[];
+quorum_a *quorum_list = NULL;
+quorum_a *quorum_array[64];
 
 bool light = true;
-
 
 /*-------------------------------------------------------------------*/
 /*                                                                   */
@@ -190,7 +184,7 @@ float generate_gaussian_noise(float mu, float std_dev){
 }
 
 bool bot_isin_node(tree_a **Node){
-    if(((*Node)!=NULL)&&(gps_position.position_x >= (*Node)->tlX && gps_position.position_x <= (*Node)->brX)&&(gps_position.position_y >= (*Node)->tlY && gps_position.position_y <= (*Node)->brY)) return true;
+    if(((*Node) != NULL) && (gps_position.position_x >= (*Node)->tlX && gps_position.position_x <= (*Node)->brX)&&(gps_position.position_y >= (*Node)->tlY && gps_position.position_y <= (*Node)->brY)) return true;
     return false;
 }
 
@@ -214,7 +208,7 @@ void message_tx_success(){
 /*-------------------------------------------------------------------*/
 void broadcast(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
-        sa_type=0;
+        sa_type = 0;
         for (int i = 0; i < 9; ++i) my_message.data[i]=0;
         int utility_to_send;
         switch (sending_type){
@@ -232,22 +226,28 @@ void broadcast(){
 }
 
 unsigned int check_quorum_trigger(quorum_a **Array[]){
-    unsigned int out=0;
-    for(int i=0;i<num_quorum_items;i++){
-        int msg_src=msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
-        if(msg_src==THISNODE || msg_src==SUBTREE) out++;
+    unsigned int out = 0;
+    for(int i = 0;i < num_quorum_items;i++){
+        int msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
+        if(msg_src == THISNODE || msg_src == SUBTREE) out++;
     }
     return out;
 }
 
 void check_quorum(quorum_a **Array){
     unsigned int counter = check_quorum_trigger(Array);
-    if(counter>=num_quorum_items*quorum_scaling_factor) my_state.commitment_node=my_state.current_node;
+    if(counter >= num_quorum_items*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){
-    if(my_state.commitment_node==my_state.current_node && Msg_switch!=SIBLINGTREE) update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
-    else if(my_state.commitment_node==(*Current_node)->parent->id) update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node,0);
+    if(my_state.commitment_node == my_state.current_node && Msg_switch != SIBLINGTREE){
+        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+        sort_q(&quorum_array);
+    }
+    else if(my_state.commitment_node == (*Current_node)->parent->id){
+        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+        sort_q(&quorum_array);
+    }
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -256,15 +256,15 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
 void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
-    int message_switch=-1;
+    int message_switch = -1;
     message_a *rnd_msg = select_a_random_msg(&messages_array);
-    if(rnd_msg!=NULL){
-        message_switch=msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
+    if(rnd_msg != NULL){
+        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
         update_quorum_list(&current_node,&rnd_msg,message_switch);
     }
-    if(quorum_list!=NULL){
-        if(num_quorum_items>=min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items<min_quorum_length*.8 && current_node->parent!=NULL) my_state.commitment_node=current_node->parent->id; 
+    if(quorum_list != NULL){
+        if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
+        else if(num_quorum_items < min_quorum_length*.8 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
 
     // decide to commit or abandon
@@ -272,48 +272,48 @@ void sample_and_decide(tree_a **leaf){
     float recruitment = 0;
     float abandonment = 0;
     float cross_inhibition = 0;
-    tree_a *over_node=NULL;
-    tree_a *c=current_node->children;
+    tree_a *over_node = NULL;
+    tree_a *c = current_node->children;
     last_sensing = true;
     float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
     bottom_up_utility_update(&tree_array,(*leaf)->id,random_sample);
     last_sample_utility = get_utility((*leaf)->node_filter);
     if(last_sample_utility > 10) last_sample_utility=10;
     else if(last_sample_utility < 0) last_sample_utility=0;
-    if(c!=NULL){
-        for(int i=0;i<branches;i++){
-            over_node=c+i;
+    if(c != NULL){
+        for(int i = 0;i < branches;i++){
+            over_node = c+i;
             if(bot_isin_node(&over_node)) break;
-            over_node=NULL;
+            over_node = NULL;
         }
-        if(over_node!=NULL && my_state.current_node==my_state.commitment_node){
+        if(over_node != NULL && my_state.current_node == my_state.commitment_node){
             if(over_node->node_filter->utility < 0) commitment = 0;
             else if(over_node->node_filter->utility < MAX_UTILITY) commitment = over_node->node_filter->utility/MAX_UTILITY;
             else commitment = 1;
         }
     }
-    if(current_node->parent!=NULL && my_state.commitment_node==current_node->parent->id){
-        if(current_node->node_filter->utility<=0) abandonment=1;
+    if(current_node->parent != NULL && my_state.commitment_node == current_node->parent->id){
+        if(current_node->node_filter->utility <= 0) abandonment = 1;
         else abandonment = 1/(1 + current_node->node_filter->utility);
     }
     int agent_node_flag;
     switch (message_switch){
         case SUBTREE:
-            if(my_state.current_node==my_state.commitment_node){
+            if(my_state.current_node == my_state.commitment_node){
                 bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
                 float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
-                if(utility_flag<=0) recruitment = 0;
+                if(utility_flag <= 0) recruitment = 0;
                 else if(utility_flag<MAX_UTILITY) recruitment = utility_flag/MAX_UTILITY;
                 else recruitment = 1;
                 agent_node_flag = get_nearest_node(&tree_array,my_state.current_node,rnd_msg->agent_node);
             }
             break;
         case SIBLINGTREE:
-            if(current_node->parent->id==my_state.commitment_node){
+            if(current_node->parent->id == my_state.commitment_node){
                 bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
                 float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
-                if(utility_flag<=0) cross_inhibition = 0;
-                else if(utility_flag<MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
+                if(utility_flag <= 0) cross_inhibition = 0;
+                else if(utility_flag < MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
                 else cross_inhibition = 1;
             }
             break;
@@ -323,10 +323,10 @@ void sample_and_decide(tree_a **leaf){
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
     float p = (rand()%1000)*.001;
-    if(p<commitment) my_state.current_node = over_node->id;
-    else if(p<commitment+recruitment) my_state.current_node = agent_node_flag;
-    else if(p<commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
-    else if(p<(commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
+    if(p < commitment) my_state.current_node = over_node->id;
+    else if(p < commitment+recruitment) my_state.current_node = agent_node_flag;
+    else if(p < commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
+    else if(p < (commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
     my_state.current_level = get_node(&tree_array,my_state.current_node)->depth;
 }
@@ -340,15 +340,15 @@ int random_in_range(int min, int max){
 /*-----------------------------------------------------------------------------------*/
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the correspective leaf*/
-    if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.015) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.015))){
-        tree_a *leaf=NULL;
+    if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
+        tree_a *leaf = NULL;
         if(!force){
-            for(unsigned int l=0;l<num_leafs;l++){
+            for(unsigned int l = 0;l < num_leafs;l++){
                 leaf = get_node(&tree_array,leafs_id[l]);
                 last_sample_id = l;
                 if(bot_isin_node(&leaf)) break;
             }
-            if(leaf==NULL){
+            if(leaf == NULL){
                 last_sample_utility = -1;
                 last_sample_id = -1;
                 gps_angle = -1;
@@ -356,9 +356,9 @@ void select_new_point(bool force){
             }
             else{
                 last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
-                if(my_state.commitment_node==my_state.current_node){
-                    last_sample_committed=1;
-                    if(last_sample_level==4){
+                if(my_state.commitment_node == my_state.current_node){
+                    last_sample_committed = 1;
+                    if(last_sample_level == 4){
                         last_sample_level = last_sample_level - 1;
                         last_sample_committed = 0;
                     }
@@ -370,15 +370,14 @@ void select_new_point(bool force){
                 sample_and_decide(&leaf);
             }
         }
-        lastWaypointTime = kilo_ticks;
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         float flag;
-        flag=abs((int)((actual_node->brX-actual_node->tlX)*100))*.0025;
-        min_dist=abs((int)((actual_node->brY-actual_node->tlY)*100))*.0025;
-        if(flag>min_dist) min_dist=flag;
+        flag = abs((int)((actual_node->brX-actual_node->tlX)*100))*.0025;
+        min_dist = abs((int)((actual_node->brY-actual_node->tlY)*100))*.0025;
+        if(flag > min_dist) min_dist = flag;
         do{
-            goal_position.position_x=(float)(random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100)))*.01;
-            goal_position.position_y=(float)(random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100)))*.01;
+            goal_position.position_x = (float)(random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100)))*.01;
+            goal_position.position_y = (float)(random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100)))*.01;
             float dif_x,dif_y;
             dif_x = abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01;
             dif_y = abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01;
@@ -405,15 +404,15 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level){
-    tree_a *leaf=get_node(&tree_array,Received_leaf);
+    tree_a *leaf = get_node(&tree_array,Received_leaf);
     unsigned int level;
     if(received_committed) level = Received_level;
     else level = Received_level + 1;
-    if(level==leaf->depth) return leaf->id;
+    if(level == leaf->depth) return leaf->id;
     while(true){
-        if(leaf->parent!=NULL){
-            leaf=leaf->parent;
-            if(level==leaf->depth) return leaf->id;
+        if(leaf->parent != NULL){
+            leaf = leaf->parent;
+            if(level == leaf->depth) return leaf->id;
         }
         else break;
     }
@@ -424,16 +423,15 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
 /* Check and save incoming data                                      */
 /*-------------------------------------------------------------------*/
 void update_messages(){
-    int received_node=derive_agent_node(received_committed,received_leaf,received_level);
-    update(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
+    int received_node = derive_agent_node(received_committed,received_leaf,received_level);
+    update_m(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
+    sort_m(&messages_array);
 }
 
 /*-------------------------------------------------------------------*/
 /* Parse smart messages                                              */
 /*-------------------------------------------------------------------*/
 void parse_kilo_message(uint8_t data[9]){
-    // Agents wait for 3 messages by the same teammate
-    // if the chain is broken the agent forgets partial data
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
     sa_payload = (uint16_t)data[1] << 8 | data[2];
@@ -441,7 +439,7 @@ void parse_kilo_message(uint8_t data[9]){
     switch(sa_type){
         case MSG_A:
             counter_check = get_counter_from_id(&messages_array, sa_id);
-            if((counter_check==-1 || counter_check > 5*broadcasting_ticks)){
+            if((counter_check == -1 || counter_check > 5*broadcasting_ticks)){
                 received_id = sa_id;
                 received_utility = ((uint8_t)(sa_payload >> 8)) & 0b01111111;
                 received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
@@ -459,26 +457,25 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     switch (sa_type){
         case MSG_A:
             if(!init_received_A){   
-                set_color(RGB(3,3,0));
                 float k = data[1]*.01;
                 int best_leaf_id = (data[0] >> 2)+1;
                 int depth = (data[2] >> 2)+1;
                 int branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
-                offset_x=(ARENA_X*.1)/2;
-                offset_y=(ARENA_Y*.1)/2;
-                goal_position.position_x=offset_x;
-                goal_position.position_y=offset_y;
+                offset_x = (ARENA_X*.1)/2;
+                offset_y = (ARENA_Y*.1)/2;
+                goal_position.position_x = offset_x;
+                goal_position.position_y = offset_y;
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 int expiring_dist = (ARENA_X*.1)*100;
-                if((ARENA_Y*.1)>offset_x) expiring_dist=(ARENA_Y*.1)*100;
+                if((ARENA_Y*.1)>offset_x) expiring_dist = (ARENA_Y*.1)*100;
                 set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC);
                 set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*2);
-                init_received_A=true;
+                init_received_A = true;
             }
             break;
         case MSG_B:
-            if(!init_received_B && init_received_A){   
+            if(init_received_A && !init_received_B){   
                 int id1 = (data[0] & 0b11111100) >> 2;
                 int id2 = (data[3] & 0b11111100) >> 2;
                 int id3 = (data[6] & 0b11111100) >> 2;
@@ -487,8 +484,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
                 select_new_point(true);
                 set_motion(FORWARD);
-                init_received_B=true;
-                set_color(RGB(0,0,0));
+                init_received_B = true;
             }
             break;
     }
@@ -531,78 +527,39 @@ void message_rx(message_t *msg, distance_measurement_t *d){
 /* Compute angle to Goal                                             */
 /*-------------------------------------------------------------------*/
 void NormalizeAngle(int* angle){
-    while(*angle>180){
-        *angle=*angle-360;
+    while(*angle > 180){
+        *angle = *angle-360;
     }
-    while(*angle<-180){
-        *angle=*angle+360;
+    while(*angle < -180){
+        *angle = *angle+360;
     }
 }
 int AngleToGoal(){
-    int angletogoal=(atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
+    int angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
     NormalizeAngle(&angletogoal);
     return angletogoal;
 }
 
-/*-------------------------------------------------------------------*/
-/* Function implementing the uncorrelated random walk                */
-/*-------------------------------------------------------------------*/
-void random_walk(){
-    switch( current_motion_type ) {
-    case TURN_LEFT:
-        if(kilo_ticks > last_motion_ticks + turning_ticks){
-            /* start moving forward */
-            last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-            set_motion(FORWARD);
-            straight_ticks = rand()%max_straight_ticks + 1;
-        }
-    case TURN_RIGHT:
-        if(kilo_ticks > last_motion_ticks + turning_ticks){
-            /* start moving forward */
-            last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-            set_motion(FORWARD);
-            straight_ticks = rand()%max_straight_ticks + 1;
-        }
-        break;
-    case FORWARD:
-        if(kilo_ticks > last_motion_ticks + straight_ticks){
-            /* perform a radnom turn */
-            last_motion_ticks = kilo_ticks;
-            turning_ticks = rand()%max_turning_ticks + 1;
-            if(rand()%2){
-                set_motion(TURN_LEFT);
-            }
-            else{
-                set_motion(TURN_RIGHT);
-            }
-        }
-        break;
-    case STOP:
-    default:
-        set_motion(STOP);
-    }
-}
-
 void random_way_point_model(){   
-    if(gps_angle!=-1){
+    if(init_received_B){
+        select_new_point(false);
         int angleToGoal = AngleToGoal();
         if(fabs(angleToGoal) <= 24){
             set_motion(FORWARD);
             last_motion_ticks = kilo_ticks;
         }
         else{
-            if(angleToGoal>0){
+            if(angleToGoal > 0){
                 set_motion(TURN_LEFT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks=(unsigned int) ( fabs(angleToGoal)/RotSpeed*32.0 );
+                turning_ticks = (unsigned int) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
             else{
                 set_motion(TURN_RIGHT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks=(unsigned int) ( fabs(angleToGoal)/RotSpeed*32.0 );
+                turning_ticks = (unsigned int) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
         }
-        select_new_point(false);
         switch(current_motion_type){
             case TURN_LEFT:
                 if(kilo_ticks > last_motion_ticks + turning_ticks){
@@ -625,10 +582,6 @@ void random_way_point_model(){
                 set_motion(STOP);
         }
     }
-    else if(init_received_B){
-        set_motion(FORWARD);
-        random_walk();
-    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -638,13 +591,15 @@ void setup(){
     /* Initialise LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-
-    /* Initialise state and message type*/
-    my_state.current_node=0;
-    my_state.commitment_node=0;
-    my_message.type=KILO_BROADCAST_MSG;
-    gain_h = control_parameter/(1+control_parameter);
+    
+    /* Initialise state, message type and control parameters*/
+    my_state.current_node = 0;
+    my_state.commitment_node = 0;
+    my_message.type = KILO_BROADCAST_MSG;
+    gain_h = control_parameter / (1+control_parameter);
     gain_k = 1 / (1+control_parameter);
+    init_array_msg(&messages_array);
+    init_array_qrm(&quorum_array);
 
     /* Initialise random seed */
     uint8_t seed = rand_hard();
@@ -653,7 +608,6 @@ void setup(){
     srand(seed);
 
     /* Initialise motion variables */
-    last_motion_ticks=rand()%max_straight_ticks;
     set_motion(STOP);
 }
 
@@ -662,11 +616,6 @@ void setup(){
 /*-------------------------------------------------------------------*/
 void loop(){
     printf("_________ID_%d____N_MSG_%d_________\n",kilo_uid,num_messages);
-    message_a *flag = messages_list;
-    for (int i = 0; i < num_messages; i++){
-        flag = flag->next;
-    }
-    // print_m(&messages_array);
     switch (my_state.current_level){
     case 0:
         set_color(RGB(3,0,0));
@@ -687,7 +636,7 @@ void loop(){
     default:
         break;
     }
-    if(my_state.commitment_node==my_state.current_node){
+    if(my_state.commitment_node == my_state.current_node){
         if(light) light = false;
         else{
             set_color(RGB(0,0,0));
@@ -695,6 +644,7 @@ void loop(){
         }
     }
     else light = true;
+    if(!init_received_B) set_color(RGB(3,3,0));
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
     erase_expired_messages(&messages_array,&messages_list);
@@ -717,8 +667,8 @@ int main(){
 
     kilo_start(setup, loop);
     
-    erase_tree(&tree_array,&the_tree);
-    erase_messages(&messages_array,&messages_list);
-    erase_quorum_list(&quorum_array,&quorum_list);
+    destroy_tree(&tree_array,&the_tree);
+    destroy_messages_memory(&messages_array,&messages_list);
+    destroy_quorum_memory(&quorum_array,&quorum_list);
     return 0;
 }

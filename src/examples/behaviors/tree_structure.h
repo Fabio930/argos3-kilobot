@@ -249,10 +249,10 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     loop_set_vertices(Mytree,indx,-1);
 }
 
-void erase_tree(tree_a **Array[],tree_a **Mytree){
+void destroy_tree(tree_a **Array[],tree_a **Mytree){
     if(num_nodes>0){
         for (int i=0; i<num_nodes;i++){
-            erase_filter((*Array)[i]->node_filter);
+            destroy_filter((*Array)[i]->node_filter);
             free((*Array)[i]->node_filter);            
             free((*Array)[i]);
         }

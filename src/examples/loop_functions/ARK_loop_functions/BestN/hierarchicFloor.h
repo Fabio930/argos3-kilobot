@@ -8,12 +8,10 @@
 #define HIERARCHICFLOOR_H
 #include "node.h"
 
-class ChierarchicFloor
-{
+class ChierarchicFloor{
     private:
         Node *root=NULL;
-        struct XYoffset
-        {
+        struct XYoffset{
             float x=-1,y=-1;
         }v_offset;
         std::vector<Node *> leafs;

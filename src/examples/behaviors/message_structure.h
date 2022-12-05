@@ -3,7 +3,6 @@
 
 int expiring_ticks_messages = 10000;
 unsigned int num_messages = 0;
-unsigned int free_space_m = 0;
 
 typedef struct message_structure{
     unsigned int counter;
@@ -28,18 +27,16 @@ void sort_m(message_a **Array[]){
     }
 }
 
-void fill_array_m(message_a **Array[],message_a** List){
-    *Array=(message_a*)malloc(num_messages*sizeof(message_a));
-    message_a *current_message = *List;
-    for(int i=0;i<num_messages;i++){
-        (*Array)[i] = current_message;
-        current_message = current_message->next;
-    }
-    sort_m(Array);
+void init_array_msg(message_a **Array[]){
+    *Array = (message_a*)malloc(64*sizeof(message_a));
+    for(int i=0;i<64;i++) (*Array)[i] = NULL;
 }
 
 void print_m(message_a **Array[]){
-    for (int i = 0; i < num_messages; i++) printf("M__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+    for (int i = 0; i < num_messages; i++){
+        if((*Array)[i]!=NULL) printf("M__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+        else printf("NULL\n");
+    }
 }
 
 void increment_messages_counter(message_a **Array[]){
@@ -51,26 +48,25 @@ void erase_expired_messages(message_a **Array[],message_a **Mymessage){
         if((*Array)[i]->counter>=expiring_ticks_messages){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
-                free(*Array);
-                *Mymessage=NULL;
+                (*Array)[i] = NULL;
+                *Mymessage = NULL;
             }
             else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
-                message_a *temp=(*Array)[i]->next;
-                temp->prev=NULL;
+                *Mymessage = (*Array)[i]->next;
+                (*Mymessage)->prev = NULL;
                 free((*Array)[i]);
-                (*Array)[i]=NULL;
-                *Mymessage=temp;
+                (*Array)[i] = NULL;
             }
             else if((*Array)[i]->next == NULL && (*Array)[i]->prev != NULL){
-                (*Array)[i]->prev->next=NULL;
+                (*Array)[i]->prev->next = NULL;
                 free((*Array)[i]);
-                (*Array)[i]=NULL;
+                (*Array)[i] = NULL;
             }
             else{
                 (*Array)[i]->next->prev = (*Array)[i]->prev;
                 (*Array)[i]->prev->next = (*Array)[i]->next;
                 free((*Array)[i]);
-                (*Array)[i]=NULL;
+                (*Array)[i] = NULL;
             }
             num_messages--;
         }
@@ -79,15 +75,22 @@ void erase_expired_messages(message_a **Array[],message_a **Mymessage){
 }
 
 void erase_messages(message_a **Array[],message_a **Mymessage){
-    if(num_messages>0){
-        for(int i=0;i<num_messages;i++) free((*Array)[i]);
-        free(*Array);
-        num_messages = 0;
-        *Mymessage=NULL;
+    for(int i=0;i<num_messages;i++){
+        free((*Array)[i]);
+        (*Array)[i] = NULL;
     }
+    num_messages = 0;
+    *Mymessage=NULL;
 }
 
-int update(message_a **Array[], message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
+void destroy_messages_memory(message_a **Array[],message_a **Mymessage){
+    for(int i=0;i<num_messages;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    free(*Array);
+    num_messages = 0;
+    *Mymessage=NULL;
+}
+
+int update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
     int out;
     out=1;
     if(*Mymessage!=NULL){
@@ -98,7 +101,7 @@ int update(message_a **Array[], message_a **Mymessage,message_a **Prev,const int
             (*Mymessage)->leaf_utility = Leaf_utility;
             (*Mymessage)->counter = 0;
         }
-        if(out==1) out=update(Array,&((*Mymessage)->next),Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
+        if(out==1) out=update_m(Array,&((*Mymessage)->next),Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
     }
     else{
         (*Mymessage)=(message_a*)malloc(sizeof(message_a));
@@ -107,7 +110,6 @@ int update(message_a **Array[], message_a **Mymessage,message_a **Prev,const int
         (*Mymessage)->agent_leaf=Agent_leaf;
         (*Mymessage)->counter=0;
         (*Mymessage)->leaf_utility=Leaf_utility;
-        if(num_messages > 0) free_space_m=1;
         num_messages++;
         if (Prev!=NULL && *Prev!=NULL){
             (*Mymessage)->prev=*Prev;
@@ -115,13 +117,7 @@ int update(message_a **Array[], message_a **Mymessage,message_a **Prev,const int
         }
         else (*Mymessage)->prev=NULL;
         (*Mymessage)->next=NULL;
-    }
-    if(Prev==NULL){
-        if(free_space_m==1){
-            free(*Array);
-            free_space_m = 0;
-        }
-        fill_array_m(Array,Mymessage);
+        (*Array)[num_messages-1] = *Mymessage;
     }
     return out;
 }
