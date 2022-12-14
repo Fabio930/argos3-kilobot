@@ -1,13 +1,8 @@
 /**
  * @file <BestN_ALF.h>
- *
- * @brief This is the header file of ALF, the ARK (Augmented Reality for Kilobots) loop function.
- *
- * @cite Reina, A., Cope, A. J., Nikolaidis, E., Marshall, J. A. R., & Sabo, C. (2017). ARK: Augmented Reality for Kilobots.
- * IEEE Robotics and Automation Letters, 2(3), 1755–1761. https://doi.org/10.1109/LRA.2017.2700059
- *
  * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
- */
+**/
+
 #ifndef BESTN_ALF_H
 #define BESTN_ALF_H
 
@@ -27,6 +22,10 @@ public:
     virtual void Reset();
 
     virtual void Destroy();
+
+    virtual void PostStep();
+
+    virtual void PostExperiment();
 
     /** Setup the initial state of the Kilobots in the space */
     void SetupInitialKilobotStates();
@@ -55,9 +54,11 @@ public:
     /** Used to communicate gps position and angle*/
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type);
     
-    void SendTalkingSignal(CKilobotEntity &c_kilobot_entity, const int command);
+    void AskForLevel(CKilobotEntity &c_kilobot_entity, const int Level);
 
     Real abs_distance(const CVector2 a,const CVector2 b);
+
+    void UpdateLog();
 
 private:
 
@@ -65,32 +66,41 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    int depth,branches;
+    int depth,branches,control_gain;
     float k;
     CVector2 TL,BR;
     ChierarchicFloor *vh_floor;
 
-    typedef struct{
-        int current_node,previous_node,commitment_node;
-    } SRobotNodes;
-
-    std::vector<SRobotNodes> m_vecKilobotNodes;
     std::vector<CVector2> m_vecKilobotPositions;
     std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
     std::vector<int> m_vecStart_experiment;
+    std::vector<int> m_vecKilobotNodes;
+    std::vector<int> m_vecKilobotCommitments;
+    std::vector<int> m_vecKilobotDistFromOpt;
+    std::vector<std::vector<CVector2>> m_vecKilobotsPositionsHistory;
+    std::vector<std::vector<int>> m_vecKilobotsNodesHistory;
+    std::vector<std::vector<int>> m_vecKilobotsCommitmentsHistory;
+    std::vector<std::vector<int>> m_vecKilobotsDistFromOptHistory;
+    std::vector<int> m_vecKilobotAskLevel;
+    std::vector<int> m_vecKilobotMsgType;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
+
+    unsigned int log_counter = 0;
 
     /************************************/
     /*       Experiment variables       */
     /************************************/
 
+    /* simulator seed */
+    uint m_random_seed;
+
     /* output file for data acquizition */
-    std::ofstream m_cOutput;
+    std::ofstream m_cLog;
 
     /* output file name*/
-    std::string m_strOutputFileName;
+    std::string m_strLogFileName;
 
     /* data acquisition frequency in ticks */
     UInt16 m_unDataAcquisitionFrequency;

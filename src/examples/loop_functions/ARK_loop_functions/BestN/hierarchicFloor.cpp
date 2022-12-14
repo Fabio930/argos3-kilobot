@@ -1,11 +1,11 @@
-// @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
-
+/**
+ * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
+**/
 #include "hierarchicFloor.h"
 
 ChierarchicFloor::ChierarchicFloor(){}
 
-ChierarchicFloor::ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int SwarmSize,const int Depth,const int Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offsety){
-    swarm_size = SwarmSize;
+ChierarchicFloor::ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int Depth,const int Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offsety){
     depth = Depth;
     branches = Branches;
     max_utility = Utility;
@@ -14,7 +14,7 @@ ChierarchicFloor::ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int
     v_offset.x = Offsetx;
     v_offset.y = Offsety;
 
-    root = new Node(swarm_size,depth,0,max_utility*k,noise);
+    root = new Node(0,max_utility*k,noise);
     num_nodes++;
     root->set_vertices(Tl,Br);
     complete_tree();
@@ -31,7 +31,7 @@ ChierarchicFloor::~ChierarchicFloor(){
 void ChierarchicFloor::complete_tree(){
     int deep = depth-1;
     for(long unsigned int i=0;i<branches;i++){
-        Node *temp = new Node(swarm_size,deep,num_nodes++,max_utility*k,noise);
+        Node *temp = new Node(num_nodes++,max_utility*k,noise);
         root->add_child(&temp);
         temp->set_parent(&root);
         if(deep == 0) leafs.push_back(temp);
@@ -43,7 +43,7 @@ void ChierarchicFloor::complete_tree(Node **ToComplete,const int Deep){
     if(Deep>0){
         int deep = Deep-1;
         for(long unsigned int i=0;i<branches;i++){
-            Node *temp = new Node(swarm_size,deep,num_nodes++,max_utility*k,noise);
+            Node *temp = new Node(num_nodes++,max_utility*k,noise);
             (*ToComplete)->add_child(&temp);
             temp->set_parent(ToComplete);
             if(deep == 0) leafs.push_back(temp);
@@ -53,7 +53,7 @@ void ChierarchicFloor::complete_tree(Node **ToComplete,const int Deep){
 }
 
 void ChierarchicFloor::assign_random_MAXutility(){
-    Node *random_leaf = leafs[rand()%leafs.size()];
+    Node *random_leaf = leafs[floor((rand()*(1.0/RAND_MAX))*leafs.size())];
     random_leaf->update_utility(max_utility);
     random_leaf->set_distance_from_opt(0);
     if(random_leaf->parent!=NULL){
@@ -181,6 +181,18 @@ void ChierarchicFloor::adjust_vertices(Node **Start_node){
     if((*Start_node)->children.size()!=0) for(long unsigned int i=0;i<branches;i++) adjust_vertices(&((*Start_node)->children[i]));
 }
 
+int ChierarchicFloor::derive_node_id(const int Level, CVector2 Position){
+    Node *leaf = get_leaf_from_position(Position);
+    if(leaf->depth == Level) return leaf->id;
+    else{
+        for(int i=0;i<depth;i++){
+            leaf = leaf->parent;
+            if(leaf->depth == Level) return leaf->id;
+        }
+    }
+    return -1;
+}
+
 std::vector<Node *> ChierarchicFloor::get_leafs_from_node(Node **Start_node){
     std::vector<Node *> out;
     if((*Start_node)->children.size()==branches){
@@ -198,7 +210,7 @@ std::vector<Node *> ChierarchicFloor::get_leafs(){
 }
 
 Node* ChierarchicFloor::get_random_leaf(){
-    return leafs[rand()%leafs.size()];
+    return leafs[floor((rand()*(1.0/RAND_MAX))*leafs.size())];
 }
 
 Node* ChierarchicFloor::get_best_leaf(){

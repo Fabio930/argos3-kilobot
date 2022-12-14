@@ -34,7 +34,8 @@ typedef enum{
 typedef enum{
   MSG_A = 0,
   MSG_B = 1,
-  MSG_C = 2
+  MSG_C = 2,
+  MSG_D = 3
 }message_type;
 /* Enum for motion */
 
@@ -108,8 +109,7 @@ unsigned int received_leaf;
 float received_utility;
 bool ARK_sem_talking=false;
 
-// float control_parameter_gain=3;
-float control_parameter = 3;
+float control_parameter;
 float gain_h;
 float gain_k;
 
@@ -129,8 +129,6 @@ message_a *messages_array[64];
 
 quorum_a *quorum_list = NULL;
 quorum_a *quorum_array[64];
-
-bool light = true;
 
 /*-------------------------------------------------------------------*/
 /*                                                                   */
@@ -173,14 +171,13 @@ void set_motion( motion_t new_motion_type){
 /* Function to sample a random number from a Gaussian distribution   */
 /*-------------------------------------------------------------------*/
 float generate_gaussian_noise(float mu, float std_dev){
-    const float epsilon = DBL_MIN;
     const float two_pi = 2.0*PI;
     float u1;
     do{
         u1 = rand() * (1.0 / RAND_MAX);
-    }while(u1<=epsilon);
-    float z0 = sqrt(-2.0 * log(u1)) * cos(two_pi * u1);
-    return z0 * std_dev + mu;
+    }while(u1<=DBL_MIN);
+    float z0 = sqrt(-log2f(u1)) * cos(two_pi * u1);
+    return (z0 * std_dev) + mu;
 }
 
 bool bot_isin_node(tree_a **Node){
@@ -236,7 +233,7 @@ unsigned int check_quorum_trigger(quorum_a **Array[]){
 
 void check_quorum(quorum_a **Array){
     unsigned int counter = check_quorum_trigger(Array);
-    if(counter >= num_quorum_items*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
+    if(counter >= floor(num_quorum_items*quorum_scaling_factor)) my_state.commitment_node = my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){
@@ -264,7 +261,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items < min_quorum_length*.8 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items < ceil(min_quorum_length*.8) && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
 
     // decide to commit or abandon
@@ -322,17 +319,16 @@ void sample_and_decide(tree_a **leaf){
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
-    float p = (rand()%1000)*.001;
+    float p = rand() * (1.0 / RAND_MAX);
     if(p < commitment) my_state.current_node = over_node->id;
     else if(p < commitment+recruitment) my_state.current_node = agent_node_flag;
     else if(p < commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
     else if(p < (commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
-    my_state.current_level = get_node(&tree_array,my_state.current_node)->depth;
 }
 
 int random_in_range(int min, int max){
-   return min + (rand()%(max-min));
+   return min + floor((rand() * (1.0 / RAND_MAX))*(max-min));
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -371,6 +367,7 @@ void select_new_point(bool force){
             }
         }
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
+        my_state.current_level = actual_node->depth;
         float flag;
         flag = abs((int)((actual_node->brX-actual_node->tlX)*100))*.0025;
         min_dist = abs((int)((actual_node->brY-actual_node->tlY)*100))*.0025;
@@ -432,16 +429,17 @@ void update_messages(){
 /* Parse smart messages                                              */
 /*-------------------------------------------------------------------*/
 void parse_kilo_message(uint8_t data[9]){
+    received_utility = 0;
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
-    sa_payload = (uint16_t)data[1] << 8 | data[2];
+    sa_payload = (((uint16_t)data[1]) << 8) | data[2];
     int counter_check, temp_leaf;
     switch(sa_type){
         case MSG_A:
             counter_check = get_counter_from_id(&messages_array, sa_id);
             if((counter_check == -1 || counter_check > 5*broadcasting_ticks)){
                 received_id = sa_id;
-                received_utility = ((uint8_t)(sa_payload >> 8)) & 0b01111111;
+                received_utility = (float)(((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
                 received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
                 temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
                 received_leaf = get_leaf_vec_id_in(temp_leaf);
@@ -457,9 +455,13 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     switch (sa_type){
         case MSG_A:
             if(!init_received_A){   
+                set_color(RGB(3,3,0));
                 float k = data[1]*.01;
                 int best_leaf_id = (data[0] >> 2)+1;
-                int depth = (data[2] >> 2)+1;
+                control_parameter = (data[2] >> 4);
+                gain_h = control_parameter / (1+control_parameter);
+                gain_k = 1 / (1+control_parameter);
+                int depth = ((data[2] >> 2)& 0b00000011)+1;
                 int branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
                 offset_x = (ARENA_X*.1)/2;
@@ -469,8 +471,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 int expiring_dist = (ARENA_X*.1)*100;
                 if((ARENA_Y*.1)>offset_x) expiring_dist = (ARENA_Y*.1)*100;
-                set_expiring_ticks_message(expiring_dist*TICKS_PER_SEC);
-                set_expiring_ticks_quorum_item(expiring_dist*TICKS_PER_SEC*2);
+                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2);
                 init_received_A = true;
             }
             break;
@@ -485,7 +487,18 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 select_new_point(true);
                 set_motion(FORWARD);
                 init_received_B = true;
+                set_color(RGB(0,0,0));
             }
+            break;
+        case MSG_C:
+            if(my_state.current_level == (int)(data[0] >> 2)){
+                if(my_state.current_node == my_state.commitment_node){
+                    set_color(RGB(0,0,3));
+                }
+                else set_color(RGB(3,0,0));
+            }
+            else set_color(RGB(0,0,0));
+            // printf("Agent:%d currNode:%d  commitNode:%d  Level:%d\n",kilo_uid,my_state.current_node,my_state.commitment_node,my_state.current_level);
             break;
     }
 }
@@ -534,6 +547,7 @@ void NormalizeAngle(int* angle){
         *angle = *angle+360;
     }
 }
+
 int AngleToGoal(){
     int angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
     NormalizeAngle(&angletogoal);
@@ -596,8 +610,6 @@ void setup(){
     my_state.current_node = 0;
     my_state.commitment_node = 0;
     my_message.type = KILO_BROADCAST_MSG;
-    gain_h = control_parameter / (1+control_parameter);
-    gain_k = 1 / (1+control_parameter);
     init_array_msg(&messages_array);
     init_array_qrm(&quorum_array);
 
@@ -615,36 +627,6 @@ void setup(){
 /* Main loop                                                         */
 /*-------------------------------------------------------------------*/
 void loop(){
-    printf("_________ID_%d____N_MSG_%d_________\n",kilo_uid,num_messages);
-    switch (my_state.current_level){
-    case 0:
-        set_color(RGB(3,0,0));
-        break;
-    case 1:
-        set_color(RGB(0,3,0));
-        break;
-    case 2:
-        set_color(RGB(0,0,3));
-        break;
-    case 3:
-        set_color(RGB(3,3,0));
-        break;
-    case 4:
-        set_color(RGB(0,3,3));
-        break;
-    
-    default:
-        break;
-    }
-    if(my_state.commitment_node == my_state.current_node){
-        if(light) light = false;
-        else{
-            set_color(RGB(0,0,0));
-            light = true;
-        }
-    }
-    else light = true;
-    if(!init_received_B) set_color(RGB(3,3,0));
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
     erase_expired_messages(&messages_array,&messages_list);

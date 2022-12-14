@@ -1,10 +1,10 @@
 #ifndef QUORUM_STRCUCT_H
 #define QUORUM_STRCUCT_H
 
-int expiring_ticks_quorum=20000;
-unsigned int min_quorum_length=8;
-float quorum_scaling_factor=.9;
-unsigned int num_quorum_items=0;
+int expiring_ticks_quorum = 20000;
+unsigned int min_quorum_length = 10;
+float quorum_scaling_factor = 1;
+unsigned int num_quorum_items = 0;
 
 typedef struct quorum_structure{
     unsigned int agent_id, agent_node, counter;

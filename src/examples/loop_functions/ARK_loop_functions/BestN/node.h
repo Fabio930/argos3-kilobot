@@ -2,7 +2,7 @@
  * @file <node.h>
  *
  * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
- */
+**/
 #ifndef NODE_H
 #define NODE_H
 #include <string>
@@ -17,7 +17,7 @@ using namespace argos;
 
 class Node{
     private:
-        int id;
+        int id,depth;
         int distance_from_opt=-1;
         float utility=-1;
         float noise=-1;
@@ -30,7 +30,7 @@ class Node{
     public:
         Node();
 
-        Node(const int SwarmSize,const int Depth,const int Id,const float Utility,const float Noise);
+        Node(const int Id,const float Utility,const float Noise);
 
         ~Node();
                 

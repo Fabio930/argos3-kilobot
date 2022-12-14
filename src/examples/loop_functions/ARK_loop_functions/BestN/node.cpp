@@ -1,13 +1,16 @@
-// @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
+/**
+ * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
+**/ 
 
 #include "node.h"
 
 Node::Node(){}
 
-Node::Node(const int SwarmSize,const int Depth,const int Id,const float Utility,const float Noise){
+Node::Node(const int Id,const float Utility,const float Noise){
     id = Id;
     utility = Utility;
     noise = Noise;
+    depth = 0;
 }
 
 Node::~Node(){
@@ -22,6 +25,7 @@ Node::~Node(){
 
 void Node::set_parent(Node **Parent){
     parent = *Parent;
+    depth = parent->depth+1;
 }
 
 void Node::add_child(Node **Child){

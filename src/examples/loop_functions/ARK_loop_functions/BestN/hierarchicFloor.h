@@ -26,7 +26,7 @@ class ChierarchicFloor{
     public:
         ChierarchicFloor();
 
-        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int SwarmSize,const int Depth,const int Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offset);
+        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int Depth,const int Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offset);
 
         ~ChierarchicFloor();
         
@@ -48,6 +48,8 @@ class ChierarchicFloor{
 
         void adjust_vertices(Node **Start_node);
 
+        int derive_node_id(const int Level, CVector2 Position);
+
         std::vector<Node *> get_leafs_from_node(Node **Start_node);
         
         std::vector<Node *> get_leafs();
@@ -55,8 +57,6 @@ class ChierarchicFloor{
         Node* get_random_leaf();
 
         Node* get_best_leaf();
-
-        float get_kernel_unit();
 
         Node* get_node(const int Id);
 

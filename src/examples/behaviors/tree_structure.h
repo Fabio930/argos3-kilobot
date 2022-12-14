@@ -37,11 +37,11 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, 
             (c+i)->brY=0;
             (c+i)->depth=(*Mytree)->depth + 1;
             (c+i)->node_filter=(filter_a*)malloc(sizeof(filter_a));
-            if(Depth > 0) set_filter((c+i)->node_filter,.75,0);
+            if(Depth > 0) set_filter((c+i)->node_filter,0.75,0);
             else{
                 *(Leafs_id + num_leafs) = (c+i)->id;
                 num_leafs++;
-                set_filter((c+i)->node_filter,.75,1);
+                set_filter((c+i)->node_filter,0.75,1);
                 if((c+i)->id==Best_leaf_id) (c+i)->gt_utility=Max_utility;
                 else (c+i)->gt_utility=Max_utility*K;
             }
@@ -97,7 +97,7 @@ void complete_tree(tree_a **Array[],tree_a **Mytree,const int Depth,const int Br
     (*Mytree)->parent=NULL;
     (*Mytree)->children=NULL;
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
-    set_filter((*Mytree)->node_filter,.75,0);
+    set_filter((*Mytree)->node_filter,0.75,0);
     loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
     fill_trees_arrays(Array,Mytree);
 }
@@ -137,7 +137,7 @@ void complete_update(tree_a **node){
     if((*node)->parent!=NULL) complete_update(&((*node)->parent));
 }
 
-void bottom_up_utility_update(tree_a **Array[],const int Leaf_id,const float Sensed_utility){
+void bottom_up_utility_update(tree_a **Array[],const int Leaf_id,float Sensed_utility){
     tree_a *leaf=get_node(Array,Leaf_id);
     update_filter(leaf->node_filter,Sensed_utility,0);
     if(leaf->parent!=NULL) complete_update(&(leaf->parent));

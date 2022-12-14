@@ -6,8 +6,9 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="61"
-        ticks_per_second="10"/>
+        <experiment length="__TIMEEXPERIMENT__"
+        ticks_per_second="10"
+        random_seed="__SEED__" />
     </framework>
     
     <!-- *************** -->
@@ -49,14 +50,14 @@
             dataacquisitionfrequency="10"  
             environmentplotupdatefrequency="10"
             timeforonemessage="0.05"
-            logfilename="log.tsv">
+            logfilename="__KILOLOG__">
         </variables>
 
         <hierarchicStruct
-            depth="2"
-            branches="2"
-            k="0.75"
-            control_gain="3">
+            depth="__DEPTH__"
+            branches="__BRANCHES__"
+            k="__K__"
+            control_gain="__R__">
         </hierarchicStruct>
 
         <environments>
@@ -85,7 +86,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="32" max_trials="200">
+            <entity quantity="__NUMROBOTS__" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
