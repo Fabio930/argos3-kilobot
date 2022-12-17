@@ -119,14 +119,14 @@ float last_sample_utility = -1;
 
 /* map of the environment */
 tree_a *the_tree = NULL;
-tree_a *tree_array[1];
+tree_a *tree_array;
 unsigned int leafs_id[16];
 
 message_a *messages_list = NULL;
-message_a *messages_array[64];
+message_a *messages_array;
 
 quorum_a *quorum_list = NULL;
-quorum_a *quorum_array[64];
+quorum_a *quorum_array;
 
 /*-------------------------------------------------------------------*/
 /* Function for translating the relative ID of a leaf in the true ID */
