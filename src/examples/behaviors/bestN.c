@@ -3,15 +3,13 @@
  */
 
 #include "kilolib.h"
-#include <stdlib.h>
-#include<stdio.h>
 #include "tree_structure.h"
 #include "message_structure.h"
 #include "quorum_structure.h"
+#include "distribution_functions.h"
 
 #define PI 3.14159265358979323846
 /* used only for noisy data generation */
-const float DBL_MIN = 0.15;
 typedef enum{
     MAX_UTILITY = 10,
     NOISE = 1
@@ -121,7 +119,7 @@ float last_sample_utility = -1;
 
 /* map of the environment */
 tree_a *the_tree = NULL;
-tree_a *tree_array[];
+tree_a *tree_array[1];
 unsigned int leafs_id[16];
 
 message_a *messages_list = NULL;
@@ -131,7 +129,7 @@ quorum_a *quorum_list = NULL;
 quorum_a *quorum_array[64];
 
 /*-------------------------------------------------------------------*/
-/*                                                                   */
+/* Function for translating the relative ID of a leaf in the true ID */
 /*-------------------------------------------------------------------*/
 int get_leaf_vec_id_in(const int Leaf_id){
     return leafs_id[Leaf_id];
@@ -168,20 +166,10 @@ void set_motion( motion_t new_motion_type){
 }
 
 /*-------------------------------------------------------------------*/
-/* Function to sample a random number from a Gaussian distribution   */
+/*                                                                   */
 /*-------------------------------------------------------------------*/
-float generate_gaussian_noise(float mu, float std_dev){
-    const float two_pi = 2.0*PI;
-    float u1;
-    do{
-        u1 = rand() * (1.0 / RAND_MAX);
-    }while(u1<=DBL_MIN);
-    float z0 = sqrt(-log2f(u1)) * cos(two_pi * u1);
-    return (z0 * std_dev) + mu;
-}
-
-bool bot_isin_node(tree_a **Node){
-    if(((*Node) != NULL) && (gps_position.position_x >= (*Node)->tlX && gps_position.position_x <= (*Node)->brX)&&(gps_position.position_y >= (*Node)->tlY && gps_position.position_y <= (*Node)->brY)) return true;
+bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
+    if(((*Node) != NULL) && (PositionX >= (*Node)->tlX && PositionX <= (*Node)->brX)&&(PositionY >= (*Node)->tlY && PositionY <= (*Node)->brY)) return true;
     return false;
 }
 
@@ -222,6 +210,9 @@ void broadcast(){
     }
 }
 
+/*-------------------------------------------------------------------*/
+/*                                                                   */
+/*-------------------------------------------------------------------*/
 unsigned int check_quorum_trigger(quorum_a **Array[]){
     unsigned int out = 0;
     for(int i = 0;i < num_quorum_items;i++){
@@ -231,9 +222,9 @@ unsigned int check_quorum_trigger(quorum_a **Array[]){
     return out;
 }
 
-void check_quorum(quorum_a **Array){
+void check_quorum(quorum_a **Array[]){
     unsigned int counter = check_quorum_trigger(Array);
-    if(counter >= floor(num_quorum_items*quorum_scaling_factor)) my_state.commitment_node = my_state.current_node;
+    if(counter >= num_quorum_items*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
 }
 
 void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){
@@ -261,7 +252,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items < ceil(min_quorum_length*.8) && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items < min_quorum_length*.8 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
 
     // decide to commit or abandon
@@ -272,7 +263,7 @@ void sample_and_decide(tree_a **leaf){
     tree_a *over_node = NULL;
     tree_a *c = current_node->children;
     last_sensing = true;
-    float random_sample = generate_gaussian_noise((*leaf)->gt_utility,NOISE);
+    float random_sample = levy(NOISE*1.0,2) + (*leaf)->gt_utility;
     bottom_up_utility_update(&tree_array,(*leaf)->id,random_sample);
     last_sample_utility = get_utility((*leaf)->node_filter);
     if(last_sample_utility > 10) last_sample_utility=10;
@@ -280,7 +271,7 @@ void sample_and_decide(tree_a **leaf){
     if(c != NULL){
         for(int i = 0;i < branches;i++){
             over_node = c+i;
-            if(bot_isin_node(&over_node)) break;
+            if(pos_isin_node(goal_position.position_x,goal_position.position_y,&over_node)) break;
             over_node = NULL;
         }
         if(over_node != NULL && my_state.current_node == my_state.commitment_node){
@@ -293,7 +284,7 @@ void sample_and_decide(tree_a **leaf){
         if(current_node->node_filter->utility <= 0) abandonment = 1;
         else abandonment = 1/(1 + current_node->node_filter->utility);
     }
-    int agent_node_flag;
+    int agent_node_flag = -1;
     switch (message_switch){
         case SUBTREE:
             if(my_state.current_node == my_state.commitment_node){
@@ -342,29 +333,21 @@ void select_new_point(bool force){
             for(unsigned int l = 0;l < num_leafs;l++){
                 leaf = get_node(&tree_array,leafs_id[l]);
                 last_sample_id = l;
-                if(bot_isin_node(&leaf)) break;
+                if(pos_isin_node(goal_position.position_x,goal_position.position_y,&leaf)) break;
             }
-            if(leaf == NULL){
-                last_sample_utility = -1;
-                last_sample_id = -1;
-                gps_angle = -1;
-                printf("ERROR____Agent:%d___NOT_ON_LEAF__\n",kilo_uid);
-            }
-            else{
-                last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
-                if(my_state.commitment_node == my_state.current_node){
-                    last_sample_committed = 1;
-                    if(last_sample_level == 4){
-                        last_sample_level = last_sample_level - 1;
-                        last_sample_committed = 0;
-                    }
-                }
-                else{   
+            last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
+            if(my_state.commitment_node == my_state.current_node){
+                last_sample_committed = 1;
+                if(last_sample_level == 4){
                     last_sample_level = last_sample_level - 1;
                     last_sample_committed = 0;
                 }
-                sample_and_decide(&leaf);
             }
+            else{   
+                last_sample_level = last_sample_level - 1;
+                last_sample_committed = 0;
+            }
+            sample_and_decide(&leaf);
         }
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         my_state.current_level = actual_node->depth;
@@ -433,19 +416,16 @@ void parse_kilo_message(uint8_t data[9]){
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
     sa_payload = (((uint16_t)data[1]) << 8) | data[2];
-    int counter_check, temp_leaf;
+    int temp_leaf;
     switch(sa_type){
         case MSG_A:
-            counter_check = get_counter_from_id(&messages_array, sa_id);
-            if((counter_check == -1 || counter_check > 5*broadcasting_ticks)){
-                received_id = sa_id;
-                received_utility = (float)(((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
-                received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
-                temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
-                received_leaf = get_leaf_vec_id_in(temp_leaf);
-                received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
-                update_messages();
-            }
+            received_id = sa_id;
+            received_utility = (float)(((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
+            received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
+            temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
+            received_leaf = get_leaf_vec_id_in(temp_leaf);
+            received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
+            update_messages();
             break;
     }
 }
@@ -469,10 +449,9 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 goal_position.position_x = offset_x;
                 goal_position.position_y = offset_y;
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
-                int expiring_dist = (ARENA_X*.1)*100;
-                if((ARENA_Y*.1)>offset_x) expiring_dist = (ARENA_Y*.1)*100;
-                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2);
+                float expiring_dist = sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
+                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1.1);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1.2);
                 init_received_A = true;
             }
             break;
@@ -498,7 +477,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 else set_color(RGB(3,0,0));
             }
             else set_color(RGB(0,0,0));
-            // printf("Agent:%d currNode:%d  commitNode:%d  Level:%d\n",kilo_uid,my_state.current_node,my_state.commitment_node,my_state.current_level);
             break;
     }
 }

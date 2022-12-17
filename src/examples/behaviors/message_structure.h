@@ -1,5 +1,8 @@
 #ifndef MESSAGE_STRCUCT_H
 #define MESSAGE_STRCUCT_H
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 int expiring_ticks_messages = 10000;
 unsigned int num_messages = 0;

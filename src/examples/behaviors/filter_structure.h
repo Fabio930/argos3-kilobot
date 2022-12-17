@@ -1,7 +1,9 @@
 #ifndef FILTER_STRUCT_H
 #define FILTER_STRUCT_H
 #include <math.h>
-
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 typedef struct filter_structure{
     float utility, distance;
     int count_1, count_2, data_switch, im_leaf;

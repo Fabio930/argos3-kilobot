@@ -1,6 +1,9 @@
 #ifndef TREE_STRUCT_H
 #define TREE_STRUCT_H
 #include "filter_structure.h"
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 typedef enum{
     OTHER=0,

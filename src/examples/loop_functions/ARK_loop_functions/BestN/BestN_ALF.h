@@ -88,11 +88,15 @@ private:
     Real m_fMinTimeBetweenTwoMsg;
 
     unsigned int log_counter = 0;
+    int best_leaf;
 
     /************************************/
     /*       Experiment variables       */
     /************************************/
 
+    /* random number generator */
+    CRandom::CRNG* c_rng;
+    
     /* simulator seed */
     uint m_random_seed;
 

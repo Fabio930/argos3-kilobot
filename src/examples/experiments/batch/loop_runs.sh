@@ -32,41 +32,41 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #################################
 # experiment_length is in seconds
 #################################
-experiment_length = "10801"
-RUNS = 100
-numrobots = "32"
-kappa = "0.75 0.85 1.0"
-depth = "1 2 3 4"
-branches = "2 4"
-control_param = "1 3 5"
+experiment_length="10801"
+RUNS=100
+numrobots="30"
+kappa="0.75 0.85 1.0"
+depth="1 2 3 4"
+branches="2 4"
+control_param="1 3 5"
 
 for nrob in $numrobots; do
-    dir = $res_dir/"Robots#"$nrob
+    dir=$res_dir/"Robots#"$nrob
     if [[ ! -e $dir ]]; then
         mkdir $dir
     fi
     for par1 in $branches; do
-        dir1 = $dir/"Branches#"$par1
+        dir1=$dir/"Branches#"$par1
         if [[ ! -e $dir1 ]]; then
             mkdir $dir1
         fi
         for par2 in $depth; do
-            dir2 = $dir1/"Depth#"$par2
+            dir2=$dir1/"Depth#"$par2
             if [[ ! -e $dir2 ]]; then
                 mkdir $dir2
             fi
             for par3 in $kappa; do
-                dir3 = $dir2/"K#"$par3
+                dir3=$dir2/"K#"$par3
                 if [[ ! -e $dir3 ]]; then
                     mkdir $dir3
                 fi
                 for par4 in $control_param; do
-                    dir4 = $dir3/"R#"$par4"_"$experiment_length
+                    dir4=$dir3/"R#"$par4"_"$experiment_length
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi
                     for it in $(seq 1 $RUNS); do
-                        config = `printf 'config_nrob%d_branches%d_depth%d_K%01d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
+                        config=`printf 'config_nrob%d_branches%d_depth%d_K%01d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
                         echo config $config
                         cp $base_config $config
                         sed -i "s|__NUMROBOTS__|$nrob|g" $config
@@ -76,7 +76,7 @@ for nrob in $numrobots; do
                         sed -i "s|__R__|$par4|g" $config
                         sed -i "s|__SEED__|$it|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
-                        kilo_file = "run#${it}_LOG.tsv"
+                        kilo_file="run#${it}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
                         echo "Running next configuration Robots $nrob Branches $par1 Depth $par2 K $par3 R $par4"
                         echo "argos3 -c $1$config"
@@ -86,7 +86,7 @@ for nrob in $numrobots; do
                 done
             done
         done
-        depth = "1 2"
+        depth="1 2"
     done
 done
 

@@ -63,5 +63,8 @@
         "test_debug.h": "c",
         "quorum_structure.h": "c"
     },
-    "cmake.sourceDirectory": "${workspaceFolder}/src"
+    "cmake.sourceDirectory": "${workspaceFolder}/src",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngineFallback": "enabled",
+    "problems.showCurrentInStatus": true
 }

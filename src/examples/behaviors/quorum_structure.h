@@ -1,9 +1,12 @@
 #ifndef QUORUM_STRCUCT_H
 #define QUORUM_STRCUCT_H
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-int expiring_ticks_quorum = 20000;
+int expiring_ticks_quorum = 10000;
 unsigned int min_quorum_length = 10;
-float quorum_scaling_factor = 1;
+float quorum_scaling_factor = .9;
 unsigned int num_quorum_items = 0;
 
 typedef struct quorum_structure{
@@ -72,15 +75,6 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
         }
         else break;
     }
-}
-
-void erase_quorum_list(quorum_a **Array[],quorum_a **Myquorum){
-    for(int i=0;i<num_quorum_items;i++){
-        free((*Array)[i]);
-        (*Array)[i] = NULL;
-    }
-    num_quorum_items = 0;
-    *Myquorum=NULL;
 }
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){

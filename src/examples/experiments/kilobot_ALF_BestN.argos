@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="61"
+        <experiment length="0"
         ticks_per_second="10"/>
     </framework>
     
@@ -56,7 +56,7 @@
             depth="2"
             branches="2"
             k="0.75"
-            control_gain="3">
+            control_gain="1">
         </hierarchicStruct>
 
         <environments>
@@ -85,7 +85,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="32" max_trials="200">
+            <entity quantity="30" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
@@ -142,7 +142,7 @@
     <!-- ****************** -->
     <!-- * Visualization  * -->
     <!-- ****************** -->
-    <!-- <visualization>
+    <visualization>
         <qt-opengl>
             <camera>
                 <placements>
@@ -150,6 +150,6 @@
                 </placements>
             </camera>
         </qt-opengl>
-    </visualization> -->
+    </visualization>
     
 </argos-configuration>

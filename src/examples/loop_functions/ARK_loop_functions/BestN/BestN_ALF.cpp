@@ -9,6 +9,7 @@
 
 CBestN_ALF::CBestN_ALF() :
     m_unDataAcquisitionFrequency(10){
+        c_rng = CRandom::CreateRNG("argos");
 }
 
 /****************************************/
@@ -49,11 +50,17 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 
 void CBestN_ALF::PostExperiment(){
-    m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << std::endl;
+    m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t';
+    for(long unsigned int i=0;i< vh_floor->get_leafs().size();i++){
+        m_cLog << vh_floor->get_leafs()[i]->get_id();
+        if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
+        else m_cLog << std::endl;
+    }
     for(long unsigned int i=0;i<m_vecKilobotsPositionsHistory.size();i++){
         m_cLog << m_unDataAcquisitionFrequency*i << '\t'; 
         for(long unsigned int j=0;j<m_vecKilobotsPositionsHistory[i].size();j++){
-            m_cLog << m_vecKilobotsPositionsHistory[i][j] << '\t' << m_vecKilobotsNodesHistory[i][j] << '\t' << m_vecKilobotsCommitmentsHistory[i][j] << '\t' << m_vecKilobotsDistFromOptHistory[i][j] << '\t'; 
+            m_cLog << m_vecKilobotsPositionsHistory[i][j] << '\t' << m_vecKilobotsNodesHistory[i][j] << '\t' << m_vecKilobotsCommitmentsHistory[i][j] << '\t' << m_vecKilobotsDistFromOptHistory[i][j]; 
+            if(j < m_vecKilobotsPositionsHistory[i].size()-1) m_cLog << '\t';
         }
         if(i < m_vecKilobotsPositionsHistory.size()-1) m_cLog << std::endl;
     }
@@ -102,6 +109,8 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
     vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
+    best_leaf = c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
+    vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
     UpdateLog();
@@ -331,6 +340,8 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
+    Node *leaf = vh_floor->get_best_leaf();
+    if(leaf->isin(vec_position_on_plane)) color=CColor::GREEN;
     return color;
 }
 
