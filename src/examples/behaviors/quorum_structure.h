@@ -31,7 +31,7 @@ void sort_q(quorum_a **Array[]){
 }
 
 void init_array_qrm(quorum_a **Array[]){
-    *Array = (quorum_a*)malloc(64*sizeof(quorum_a));
+    *Array = (quorum_a**)malloc(64*sizeof(quorum_a*));
     for(int i=0;i<64;i++) (*Array)[i] = NULL;
 }
 

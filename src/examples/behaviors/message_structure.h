@@ -31,7 +31,7 @@ void sort_m(message_a **Array[]){
 }
 
 void init_array_msg(message_a **Array[]){
-    *Array = (message_a*)malloc(64*sizeof(message_a));
+    *Array = (message_a**)malloc(64*sizeof(message_a*));
     for(int i=0;i<64;i++) (*Array)[i] = NULL;
 }
 

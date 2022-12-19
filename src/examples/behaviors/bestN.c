@@ -119,14 +119,14 @@ float last_sample_utility = -1;
 
 /* map of the environment */
 tree_a *the_tree = NULL;
-tree_a *tree_array;
+tree_a **tree_array;
 unsigned int leafs_id[16];
 
 message_a *messages_list = NULL;
-message_a *messages_array;
+message_a **messages_array;
 
 quorum_a *quorum_list = NULL;
-quorum_a *quorum_array;
+quorum_a **quorum_array;
 
 /*-------------------------------------------------------------------*/
 /* Function for translating the relative ID of a leaf in the true ID */
@@ -312,9 +312,9 @@ void sample_and_decide(tree_a **leaf){
     cross_inhibition = cross_inhibition * gain_h;
     float p = rand() * (1.0 / RAND_MAX);
     if(p < commitment) my_state.current_node = over_node->id;
-    else if(p < commitment+recruitment) my_state.current_node = agent_node_flag;
-    else if(p < commitment+cross_inhibition) my_state.current_node = current_node->parent->id;
-    else if(p < (commitment+recruitment+cross_inhibition+abandonment)*.667) my_state.current_node = current_node->parent->id;
+    else if(p < commitment + recruitment) my_state.current_node = agent_node_flag;
+    else if(p < commitment + cross_inhibition) my_state.current_node = current_node->parent->id;
+    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
 }
 
@@ -443,7 +443,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 gain_k = 1 / (1+control_parameter);
                 int depth = ((data[2] >> 2)& 0b00000011)+1;
                 int branches = (data[2] & 0b00000011)+1;
-                complete_tree(&tree_array,&the_tree,depth,branches,&leafs_id,best_leaf_id,MAX_UTILITY,k);
+                complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 offset_x = (ARENA_X*.1)/2;
                 offset_y = (ARENA_Y*.1)/2;
                 goal_position.position_x = offset_x;

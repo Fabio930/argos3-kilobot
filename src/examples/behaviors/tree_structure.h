@@ -80,8 +80,8 @@ tree_a* get_node_from_3(tree_a **Mytree,const int Node_id){
     return out;
 }
 
-void fill_trees_arrays(tree_a **Array[],tree_a **Mytree){
-    *Array=(tree_a*)malloc(num_nodes*sizeof(tree_a));
+void fill_tree_array(tree_a **Array[],tree_a **Mytree){
+    *Array=(tree_a**)malloc(num_nodes*sizeof(tree_a*));
     tree_a *node;
     for(int i=0;i<num_nodes;i++){
         node = get_node_from_3(Mytree,i);
@@ -102,7 +102,7 @@ void complete_tree(tree_a **Array[],tree_a **Mytree,const int Depth,const int Br
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
     set_filter((*Mytree)->node_filter,0.75,0);
     loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
-    fill_trees_arrays(Array,Mytree);
+    fill_tree_array(Array,Mytree);
 }
 
 tree_a* get_node(tree_a **Array[],const int Node_id){
