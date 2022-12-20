@@ -49,44 +49,38 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::PostExperiment(){
-    m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t';
-    for(long unsigned int i=0;i< vh_floor->get_leafs().size();i++){
-        m_cLog << vh_floor->get_leafs()[i]->get_id();
-        if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
-        else m_cLog << std::endl;
-    }
-    for(long unsigned int i=0;i<m_vecKilobotsPositionsHistory.size();i++){
-        m_cLog << m_unDataAcquisitionFrequency*i << '\t'; 
-        for(long unsigned int j=0;j<m_vecKilobotsPositionsHistory[i].size();j++){
-            m_cLog << m_vecKilobotsPositionsHistory[i][j] << '\t' << m_vecKilobotsNodesHistory[i][j] << '\t' << m_vecKilobotsCommitmentsHistory[i][j] << '\t' << m_vecKilobotsDistFromOptHistory[i][j]; 
-            if(j < m_vecKilobotsPositionsHistory[i].size()-1) m_cLog << '\t';
-        }
-        if(i < m_vecKilobotsPositionsHistory.size()-1) m_cLog << std::endl;
-    }
-}
-
-/****************************************/
-/****************************************/
-
 void CBestN_ALF::PostStep(){
     if(start_experiment){
         log_counter++;
         if(log_counter == m_unDataAcquisitionFrequency){
-            UpdateLog();
+            logging_time++;
+            UpdateLog(logging_time);
             log_counter = 0;
         }
+    }
+    else if(header==0){
+        UpdateLog(logging_time);
+        header = 1;
     }
 }
 
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::UpdateLog(){
-    m_vecKilobotsPositionsHistory.push_back(m_vecKilobotPositions);
-    m_vecKilobotsNodesHistory.push_back(m_vecKilobotNodes);
-    m_vecKilobotsCommitmentsHistory.push_back(m_vecKilobotCommitments);
-    m_vecKilobotsDistFromOptHistory.push_back(m_vecKilobotDistFromOpt);
+void CBestN_ALF::UpdateLog(long unsigned int Time){
+    if(Time == 0){
+        m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t';
+        for(long unsigned int i=0;i< vh_floor->get_leafs().size();i++){
+            m_cLog << vh_floor->get_leafs()[i]->get_id();
+            if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
+        }
+    }
+    m_cLog << std::endl;
+    m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
+    for(long unsigned int i=0;i<m_vecKilobotPositions.size();i++){
+        m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
+        if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
+    }
 }
 
 /****************************************/
@@ -102,10 +96,6 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
     m_vecKilobotNodes.resize(m_tKilobotEntities.size());
     m_vecKilobotCommitments.resize(m_tKilobotEntities.size());
-    m_vecKilobotsPositionsHistory.reserve(m_tKilobotEntities.size());
-    m_vecKilobotsDistFromOptHistory.reserve(m_tKilobotEntities.size());
-    m_vecKilobotsNodesHistory.reserve(m_tKilobotEntities.size());
-    m_vecKilobotsCommitmentsHistory.reserve(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
     vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
@@ -113,7 +103,6 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
-    UpdateLog();
 }
 
 /****************************************/

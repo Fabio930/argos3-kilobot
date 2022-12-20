@@ -25,8 +25,6 @@ public:
 
     virtual void PostStep();
 
-    virtual void PostExperiment();
-
     /** Setup the initial state of the Kilobots in the space */
     void SetupInitialKilobotStates();
 
@@ -58,7 +56,7 @@ public:
 
     Real abs_distance(const CVector2 a,const CVector2 b);
 
-    void UpdateLog();
+    void UpdateLog(long unsigned int Time);
 
 private:
 
@@ -78,10 +76,6 @@ private:
     std::vector<int> m_vecKilobotNodes;
     std::vector<int> m_vecKilobotCommitments;
     std::vector<int> m_vecKilobotDistFromOpt;
-    std::vector<std::vector<CVector2>> m_vecKilobotsPositionsHistory;
-    std::vector<std::vector<int>> m_vecKilobotsNodesHistory;
-    std::vector<std::vector<int>> m_vecKilobotsCommitmentsHistory;
-    std::vector<std::vector<int>> m_vecKilobotsDistFromOptHistory;
     std::vector<int> m_vecKilobotAskLevel;
     std::vector<int> m_vecKilobotMsgType;
     bool start_experiment = false;
@@ -102,6 +96,8 @@ private:
 
     /* output file for data acquizition */
     std::ofstream m_cLog;
+    unsigned int header = 0;
+    long unsigned int logging_time = 0;
 
     /* output file name*/
     std::string m_strLogFileName;
