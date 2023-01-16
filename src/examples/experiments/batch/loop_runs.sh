@@ -1,7 +1,7 @@
-#! /bin/bash.
+#! /bin/bash
 
 # in ARGoS folder run the following:
-# bash ./src/examples/experiments/batch/loop_runs.sh /src/examples/experiments/batch kilobot_ALF_BestN.argos
+# ./src/examples/experiments/batch/loop_runs.sh /src/examples/experiments/batch kilobot_ALF_BestN.argos
 
 if [ "$#" -ne 2 ]; then
     echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
@@ -33,7 +33,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 # experiment_length is in seconds
 #################################
 experiment_length="3601"
-RUNS=100
+RUNS=10
 numrobots="20"
 kappa="0.75 0.85 1.0"
 depth="1 2"
@@ -56,12 +56,15 @@ for nrob in $numrobots; do
                 mkdir $dir2
             fi
             for par3 in $kappa; do
-                dir3=$dir2/"K#"$par3
+                strToReplace="."
+                replace="_"
+                par3BIS=${par3//$strToReplace/$replace}
+                dir3=$dir2/"K#"$par3BIS
                 if [[ ! -e $dir3 ]]; then
                     mkdir $dir3
                 fi
                 for par4 in $control_param; do
-                    dir4=$dir3/"R#"$par4"_"$experiment_length
+                    dir4=$dir3/"R#"$par4"_S#"$experiment_length-1
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi
@@ -76,7 +79,8 @@ for nrob in $numrobots; do
                         sed -i "s|__R__|$par4|g" $config
                         sed -i "s|__SEED__|$it|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
-                        kilo_file="run#${it}_LOG.tsv"
+                        dt=$(date '+%d/%m/%Y %H:%M:%S');
+                        kilo_file="date#${dt}_run#${it}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
                         echo "Running next configuration Robots $nrob Branches $par1 Depth $par2 K $par3 R $par4"
                         echo "argos3 -c $1$config"
@@ -86,7 +90,7 @@ for nrob in $numrobots; do
                 done
             done
         done
-        depth="1"
+        # depth="1"
     done
 done
 
