@@ -69,7 +69,7 @@ void CBestN_ALF::PostStep(){
 
 void CBestN_ALF::UpdateLog(long unsigned int Time){
     if(Time == 0){
-        m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t' << vh_floor->get_best_leaf()->get_top_left_angle() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle() << '\t';
+        m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t' << vh_floor->get_best_leaf()->get_top_left_angle().GetX() << '\t' <<  vh_floor->get_best_leaf()->get_top_left_angle().GetY() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetX() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetY() << '\t';
         for(long unsigned int i=0;i< vh_floor->get_leafs().size();i++){
             m_cLog << vh_floor->get_leafs()[i]->get_id();
             if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';

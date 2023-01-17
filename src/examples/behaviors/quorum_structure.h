@@ -5,8 +5,8 @@
 #include <stdio.h>
 
 int expiring_ticks_quorum = 10000;
-unsigned int min_quorum_length = 7;
-float quorum_scaling_factor = 1;
+unsigned int min_quorum_length = 8;
+float quorum_scaling_factor = .8;
 unsigned int num_quorum_items = 0;
 
 typedef struct quorum_structure{
@@ -15,7 +15,7 @@ typedef struct quorum_structure{
 }quorum_a;
 
 void set_expiring_ticks_quorum_item(const int Expiring_time){
-    expiring_ticks_quorum=Expiring_time;
+    expiring_ticks_quorum = Expiring_time;
 }
 
 void sort_q(quorum_a **Array[]){

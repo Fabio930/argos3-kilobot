@@ -32,7 +32,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #################################
 # experiment_length is in seconds
 #################################
-experiment_length="3601"
+experiment_length="36"
 RUNS=10
 numrobots="20"
 kappa="0.75 0.85 1.0"
@@ -64,12 +64,12 @@ for nrob in $numrobots; do
                     mkdir $dir3
                 fi
                 for par4 in $control_param; do
-                    dir4=$dir3/"R#"$par4"_S#"$experiment_length-1
+                    dir4=$dir3/"R#"$par4"_S#"$experiment_length
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi
                     for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_nrob%d_branches%d_depth%d_K%01d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
+                        config=`printf 'config_nrob%d_branches%d_depth%d_K%d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
                         echo config $config
                         cp $base_config $config
                         sed -i "s|__NUMROBOTS__|$nrob|g" $config
@@ -79,10 +79,10 @@ for nrob in $numrobots; do
                         sed -i "s|__R__|$par4|g" $config
                         sed -i "s|__SEED__|$it|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
-                        dt=$(date '+%d/%m/%Y %H:%M:%S');
-                        kilo_file="date#${dt}_run#${it}_LOG.tsv"
+                        dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                        kilo_file="${dt}__run#${it}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                        echo "Running next configuration Robots $nrob Branches $par1 Depth $par2 K $par3 R $par4"
+                        echo "Running next configuration Robots $nrob Branches $par1 Depth $par2 K $par3 R $par4 File $kilo_file"
                         echo "argos3 -c $1$config"
                         argos3 -c './'$config
                         mv $kilo_file $dir4
