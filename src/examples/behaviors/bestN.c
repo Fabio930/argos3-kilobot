@@ -6,7 +6,7 @@
 #include "tree_structure.h"
 #include "message_structure.h"
 #include "quorum_structure.h"
-#include "distribution_functions.h"
+#include "distribution_functions.c"
 
 #define PI 3.14159265358979323846
 /* used only for noisy data generation */
