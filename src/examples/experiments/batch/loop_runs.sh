@@ -90,7 +90,7 @@ for nrob in $numrobots; do
                 done
             done
         done
-        # depth="1"
+        depth="1"
     done
 done
 
