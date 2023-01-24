@@ -450,8 +450,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 goal_position.position_y = offset_y;
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 float expiring_dist = sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
-                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1.1);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1.2);
+                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1.5);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1.5);
                 init_received_A = true;
             }
             break;
