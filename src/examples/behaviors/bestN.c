@@ -316,6 +316,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition) my_state.current_node = current_node->parent->id;
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
+    printf("A_id: %d, pn:%d, cn:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
 }
 
 int random_in_range(int min, int max){
@@ -451,7 +452,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 float expiring_dist = sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
                 set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1.5);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1.5);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 15);
                 init_received_A = true;
             }
             break;
