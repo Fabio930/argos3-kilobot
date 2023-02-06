@@ -316,7 +316,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition) my_state.current_node = current_node->parent->id;
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) my_state.current_node = current_node->parent->id;
     erase_messages(&messages_array,&messages_list);
-    printf("A_id: %d, pn:%d, cn:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    // printf("A_id: %d, pn:%d, cn:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
 }
 
 int random_in_range(int min, int max){
