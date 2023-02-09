@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.txt": "makefile",
         "tree_structure.h": "c",
         "new": "cpp",
         "array": "cpp",
@@ -61,7 +62,11 @@
         "stdint.h": "c",
         "message.h": "c",
         "test_debug.h": "c",
-        "quorum_structure.h": "c"
+        "quorum_structure.h": "c",
+        "stddef.h": "c",
+        "stdio.h": "c",
+        "filter_structure.h": "c",
+        "bestn.h": "c"
     },
     "cmake.sourceDirectory": "${workspaceFolder}/src",
     "C_Cpp.errorSquiggles": "enabled",

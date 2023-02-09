@@ -2,131 +2,7 @@
  * author: Fabio Oddi (Università la Sapienza di Roma) fabio.oddi@diag.uniroma1.it
  */
 
-#include "kilolib.h"
-#include "tree_structure.h"
-#include "message_structure.h"
-#include "quorum_structure.h"
-#include "distribution_functions.c"
-
-#define PI 3.14159265358979323846
-/* used only for noisy data generation */
-typedef enum{
-    MAX_UTILITY = 10,
-    NOISE = 1
-}signal;
-
-/* divided by 10 */
-typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
-}arena_size;
-
-/* Enum for messages type */
-typedef enum{
-  ARK_BROADCAST_MSG = 0,
-  ARK_INDIVIDUAL_MSG = 1,
-  KILO_BROADCAST_MSG = 255,
-  KILO_IDENTIFICATION = 120
-}received_message_type;
-
-typedef enum{
-  MSG_A = 0,
-  MSG_B = 1,
-  MSG_C = 2,
-  MSG_D = 3
-}message_type;
-/* Enum for motion */
-
-typedef enum{
-    FORWARD = 0,
-    TURN_LEFT = 1,
-    TURN_RIGHT = 2,
-    STOP = 3,
-}motion_t;
-
-/* Enum for boolean flags */
-typedef enum{
-    false = 0,
-    true = 1,
-}bool;
-
-/* struct for the robot states */
-typedef struct state{
-    int current_node,commitment_node,current_level;
-}state_t;
-
-/* struct for the robot position */
-typedef struct position{
-    float position_x,position_y;
-}position_t;
-
-/* offsets of map axes*/
-float offset_x, offset_y;
-
-/* current motion type */
-motion_t current_motion_type = STOP;
-
-/* goal position */
-position_t goal_position={0,0};
-
-/* position and angle given from ARK */
-position_t gps_position={0,0};
-int gps_angle;
-float RotSpeed = 45.0;
-
-/* current state */
-state_t my_state={0,0,0};
-
-unsigned int turning_ticks = 0;
-uint32_t last_motion_ticks = 0;
-
-/* Variables for Smart Arena messages */
-int sa_id = -1;
-int sa_type = 0;
-int sa_payload = 0;
-
-bool init_received_A = false;
-bool init_received_B = false;
-
-/* counters for broadcast a message */
-const uint16_t broadcasting_ticks = 3;
-uint32_t last_broadcast_ticks = 0;
-bool last_sensing = false;
-
-/* Flag for decision to send a word */
-bool sending_msg = false;
-int sending_type = MSG_A;
-message_t my_message;
-
-/* lists for decision handling */
-unsigned int received_id;
-unsigned int received_level;
-unsigned int received_committed;
-unsigned int received_leaf;
-float received_utility;
-bool ARK_sem_talking=false;
-
-float control_parameter;
-float gain_h;
-float gain_k;
-
-/* used only for noisy data generation */
-int last_sample_id = -1;
-unsigned int last_sample_level;
-unsigned int last_sample_committed;
-float last_sample_utility = -1;
-
-/* map of the environment */
-tree_a *the_tree = NULL;
-tree_a **tree_array;
-unsigned int leafs_id[16];
-
-message_a *messages_list = NULL;
-message_a **messages_array;
-
-quorum_a *quorum_list = NULL;
-quorum_a **quorum_array;
-
+#include "bestN.h"
 /*-------------------------------------------------------------------*/
 /* Function for translating the relative ID of a leaf in the true ID */
 /*-------------------------------------------------------------------*/
@@ -135,37 +11,37 @@ int get_leaf_vec_id_in(const int Leaf_id){
 }
 
 /*-------------------------------------------------------------------*/
-/* Function for setting the motor speed                              */
+/*              Function for setting the motor speed                 */
 /*-------------------------------------------------------------------*/
 void set_motion( motion_t new_motion_type){
     bool calibrated = true;
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
-        case FORWARD:
-            spinup_motors();
-            if(calibrated) set_motors(kilo_straight_left,kilo_straight_right);
-            else set_motors(70,70);
-            break;
-        case TURN_LEFT:
-            spinup_motors();
-            if(calibrated) set_motors(kilo_turn_left,0);
-            else set_motors(70,0);
-            break;
-        case TURN_RIGHT:
-            spinup_motors();
-            if(calibrated) set_motors(0,kilo_turn_right);
-            else set_motors(0,70);
-            break;
-        case STOP:
-        default:
-            set_motors(0,0);
+            case FORWARD:
+                spinup_motors();
+                if(calibrated) set_motors(kilo_straight_left,kilo_straight_right);
+                else set_motors(70,70);
+                break;
+            case TURN_LEFT:
+                spinup_motors();
+                if(calibrated) set_motors(kilo_turn_left,0);
+                else set_motors(70,0);
+                break;
+            case TURN_RIGHT:
+                spinup_motors();
+                if(calibrated) set_motors(0,kilo_turn_right);
+                else set_motors(0,70);
+                break;
+            case STOP:
+            default:
+                set_motors(0,0);
         }
         current_motion_type = new_motion_type;
     }
 }
 
 /*-------------------------------------------------------------------*/
-/*                                                                   */
+/*            Check if a given point is in a given node              */
 /*-------------------------------------------------------------------*/
 bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
     if(((*Node) != NULL) && (PositionX >= (*Node)->tlX && PositionX <= (*Node)->brX)&&(PositionY >= (*Node)->tlY && PositionY <= (*Node)->brY)) return true;
@@ -173,7 +49,7 @@ bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
 }
 
 /*-------------------------------------------------------------------*/
-/* Send current kb status to the swarm                               */
+/*              Send current kb status to the swarm                  */
 /*-------------------------------------------------------------------*/
 message_t *message_tx(){    
     if (sending_msg) return &my_message;
@@ -181,14 +57,14 @@ message_t *message_tx(){
 }
 
 /*-------------------------------------------------------------------*/
-/* Callback function for successful transmission                     */
+/*          Callback function for successful transmission            */
 /*-------------------------------------------------------------------*/
 void message_tx_success(){
     sending_msg = false;
 }
 
 /*-------------------------------------------------------------------*/
-/* Function to broadcast a message                                        */
+/*                 Function to broadcast a message                   */
 /*-------------------------------------------------------------------*/
 void broadcast(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
@@ -210,7 +86,7 @@ void broadcast(){
 }
 
 /*-------------------------------------------------------------------*/
-/*                                                                   */
+/*           Bunch of funtions for handling the quorum               */
 /*-------------------------------------------------------------------*/
 unsigned int check_quorum_trigger(quorum_a **Array[]){
     unsigned int out = 0;
@@ -238,7 +114,7 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
 }
 
 /*-----------------------------------------------------------------------------------*/
-/* sample a value, update the map, decide if change residence node                   */
+/*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
 void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
@@ -251,7 +127,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= min_quorum_length*.6 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items <= min_quorum_length*.35 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
@@ -321,13 +197,13 @@ void sample_and_decide(tree_a **leaf){
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
-int random_in_range(int min, int max){return min + floor((rand() * (1.0 / RAND_MAX))*(max-min));}
+int random_in_range(int min, int max){return min + ((rand() * (1.0 / RAND_MAX))*(max-min));}
 
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */
 /*-----------------------------------------------------------------------------------*/
 void select_new_point(bool force){
-    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the correspective leaf*/
+    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         tree_a *leaf = NULL;
         if(!force){
@@ -360,18 +236,19 @@ void select_new_point(bool force){
             if(flag > min_dist) min_dist = flag;
         }
         do{
-            goal_position.position_x = (float)(random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100)))*.01;
-            goal_position.position_y = (float)(random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100)))*.01;
+            goal_position.position_x = random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100))*.01;
+            goal_position.position_y = random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100))*.01;
             float dif_x,dif_y;
             dif_x = abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01;
             dif_y = abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01;
             if (dif_x >= min_dist || dif_y >= min_dist ) break;
         }while(true);
+        printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
     }
 }
 
 /*-------------------------------------------------------------------*/
-/* Parse smart messages                            */
+/*                   Parse smart messages                            */
 /*-------------------------------------------------------------------*/
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     // index of first element in the 3 sub-blocks of data
@@ -387,6 +264,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
+/*-------------------------------------------------------------------*/
+/*         derive the agent position from the data received          */
+/*-------------------------------------------------------------------*/
 int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level){
     tree_a *leaf = get_node(&tree_array,Received_leaf);
     unsigned int level;
@@ -404,7 +284,7 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
 }
 
 /*-------------------------------------------------------------------*/
-/* Check and save incoming data                                      */
+/*                   Check and save incoming data                    */
 /*-------------------------------------------------------------------*/
 void update_messages(){
     int received_node = derive_agent_node(received_committed,received_leaf,received_level);
@@ -413,7 +293,7 @@ void update_messages(){
 }
 
 /*-------------------------------------------------------------------*/
-/* Parse smart messages                                              */
+/*                      Parse smart messages                         */
 /*-------------------------------------------------------------------*/
 void parse_kilo_message(uint8_t data[9]){
     received_utility = 0;
@@ -486,7 +366,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
 }
 
 /*-------------------------------------------------------------------*/
-/* Callback function for message reception                           */
+/*              Callback function for message reception              */
 /*-------------------------------------------------------------------*/
 void message_rx(message_t *msg, distance_measurement_t *d){
     sa_id = -1;
@@ -519,7 +399,7 @@ void message_rx(message_t *msg, distance_measurement_t *d){
 }
 
 /*-------------------------------------------------------------------*/
-/* Compute angle to Goal                                             */
+/*                      Compute angle to Goal                        */
 /*-------------------------------------------------------------------*/
 void NormalizeAngle(int* angle){
     while(*angle > 180){
@@ -536,6 +416,9 @@ int AngleToGoal(){
     return angletogoal;
 }
 
+/*-------------------------------------------------------------------*/
+/*                      Random way point model                       */
+/*-------------------------------------------------------------------*/
 void random_way_point_model(){   
     if(init_received_B){
         select_new_point(false);
@@ -581,7 +464,7 @@ void random_way_point_model(){
 }
 
 /*-------------------------------------------------------------------*/
-/* Init function                                                     */
+/*                          Init function                            */
 /*-------------------------------------------------------------------*/
 void setup(){
     /* Initialise LED and motors */
@@ -606,7 +489,7 @@ void setup(){
 }
 
 /*-------------------------------------------------------------------*/
-/* Main loop                                                         */
+/*                             loop                                  */
 /*-------------------------------------------------------------------*/
 void loop(){
     increment_messages_counter(&messages_array);
@@ -617,6 +500,9 @@ void loop(){
     if(last_sensing) broadcast();
 }
 
+/*-------------------------------------------------------------------*/
+/*                             main                                  */
+/*-------------------------------------------------------------------*/
 int main(){
     kilo_init();
     

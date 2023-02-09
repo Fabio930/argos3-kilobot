@@ -172,7 +172,7 @@ class Grinder:
                                             locations_to_store = [0]*A
                                             for l in range(len(commitments[c])):
                                                 if semc==0:
-                                                    for e in range(int(len(commitments[c][l])*.33)):
+                                                    for e in range(int(len(commitments[c][l]))):
                                                         if commitments[c][l][e] in leafs:
                                                             sum = 0
                                                             for ce in range(len(commitments[c][l])):
@@ -231,7 +231,7 @@ class Grinder:
                                 plt.ylim((-0.05,1.05))
                                 plt.tight_layout()
                                 if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                    os.mkdir(base+"/images")
+                                    os.mkdir(base+"/Robots#"+str(A)+"/images")
                                 fig_path=base+"/Robots#"+str(A)+"/images/CONFIGc__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__estimates.png"
                                 plt.savefig(fig_path)
                                 # plt.show(fig)
