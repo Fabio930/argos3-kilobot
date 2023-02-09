@@ -3,16 +3,10 @@
  */
 
 #include "bestN.h"
-/*-------------------------------------------------------------------*/
-/* Function for translating the relative ID of a leaf in the true ID */
-/*-------------------------------------------------------------------*/
 int get_leaf_vec_id_in(const int Leaf_id){
     return leafs_id[Leaf_id];
 }
 
-/*-------------------------------------------------------------------*/
-/*              Function for setting the motor speed                 */
-/*-------------------------------------------------------------------*/
 void set_motion( motion_t new_motion_type){
     bool calibrated = true;
     if(current_motion_type != new_motion_type){
@@ -40,32 +34,20 @@ void set_motion( motion_t new_motion_type){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*            Check if a given point is in a given node              */
-/*-------------------------------------------------------------------*/
 bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
     if(((*Node) != NULL) && (PositionX >= (*Node)->tlX && PositionX <= (*Node)->brX)&&(PositionY >= (*Node)->tlY && PositionY <= (*Node)->brY)) return true;
     return false;
 }
 
-/*-------------------------------------------------------------------*/
-/*              Send current kb status to the swarm                  */
-/*-------------------------------------------------------------------*/
 message_t *message_tx(){    
     if (sending_msg) return &my_message;
     return 0;
 }
 
-/*-------------------------------------------------------------------*/
-/*          Callback function for successful transmission            */
-/*-------------------------------------------------------------------*/
 void message_tx_success(){
     sending_msg = false;
 }
 
-/*-------------------------------------------------------------------*/
-/*                 Function to broadcast a message                   */
-/*-------------------------------------------------------------------*/
 void broadcast(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         sa_type = 0;
@@ -85,9 +67,6 @@ void broadcast(){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*           Bunch of funtions for handling the quorum               */
-/*-------------------------------------------------------------------*/
 unsigned int check_quorum_trigger(quorum_a **Array[]){
     unsigned int out = 0;
     for(int i = 0;i < num_quorum_items;i++){
@@ -113,9 +92,6 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
     }
 }
 
-/*-----------------------------------------------------------------------------------*/
-/*          sample a value, update the map, decide if change residence node          */
-/*-----------------------------------------------------------------------------------*/
 void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
@@ -199,9 +175,6 @@ void sample_and_decide(tree_a **leaf){
 
 int random_in_range(int min, int max){return min + ((rand() * (1.0 / RAND_MAX))*(max-min));}
 
-/*-----------------------------------------------------------------------------------*/
-/* Function implementing the uncorrelated random walk with the random waypoint model */
-/*-----------------------------------------------------------------------------------*/
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
@@ -247,9 +220,6 @@ void select_new_point(bool force){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*                   Parse smart messages                            */
-/*-------------------------------------------------------------------*/
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
@@ -264,9 +234,6 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*         derive the agent position from the data received          */
-/*-------------------------------------------------------------------*/
 int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level){
     tree_a *leaf = get_node(&tree_array,Received_leaf);
     unsigned int level;
@@ -283,18 +250,12 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
     return -1;
 }
 
-/*-------------------------------------------------------------------*/
-/*                   Check and save incoming data                    */
-/*-------------------------------------------------------------------*/
 void update_messages(){
     int received_node = derive_agent_node(received_committed,received_leaf,received_level);
     update_m(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
     sort_m(&messages_array);
 }
 
-/*-------------------------------------------------------------------*/
-/*                      Parse smart messages                         */
-/*-------------------------------------------------------------------*/
 void parse_kilo_message(uint8_t data[9]){
     received_utility = 0;
     sa_id = (data[0] & 0b11111100) >> 2;
@@ -365,9 +326,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*              Callback function for message reception              */
-/*-------------------------------------------------------------------*/
 void message_rx(message_t *msg, distance_measurement_t *d){
     sa_id = -1;
     sa_type = 0;
@@ -398,9 +356,6 @@ void message_rx(message_t *msg, distance_measurement_t *d){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*                      Compute angle to Goal                        */
-/*-------------------------------------------------------------------*/
 void NormalizeAngle(int* angle){
     while(*angle > 180){
         *angle = *angle-360;
@@ -416,9 +371,6 @@ int AngleToGoal(){
     return angletogoal;
 }
 
-/*-------------------------------------------------------------------*/
-/*                      Random way point model                       */
-/*-------------------------------------------------------------------*/
 void random_way_point_model(){   
     if(init_received_B){
         select_new_point(false);
@@ -463,9 +415,6 @@ void random_way_point_model(){
     }
 }
 
-/*-------------------------------------------------------------------*/
-/*                          Init function                            */
-/*-------------------------------------------------------------------*/
 void setup(){
     /* Initialise LED and motors */
     set_color(RGB(0,0,0));
@@ -488,9 +437,6 @@ void setup(){
     set_motion(STOP);
 }
 
-/*-------------------------------------------------------------------*/
-/*                             loop                                  */
-/*-------------------------------------------------------------------*/
 void loop(){
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
@@ -500,9 +446,6 @@ void loop(){
     if(last_sensing) broadcast();
 }
 
-/*-------------------------------------------------------------------*/
-/*                             main                                  */
-/*-------------------------------------------------------------------*/
 int main(){
     kilo_init();
     
