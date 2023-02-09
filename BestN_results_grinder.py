@@ -4,7 +4,6 @@ from scipy.special import gamma
 from matplotlib import pyplot as plt
 from lifelines import KaplanMeierFitter
 from lifelines import WeibullFitter
-from prettytable import PrettyTable
 
 class Grinder:
 
@@ -45,25 +44,25 @@ class Grinder:
             if base not in BASES:
                 BASES.append(base)
             for dir in os.listdir(base):
-                pre_path=os.path.join(base, dir)
-                if '.' not in pre_path and dir.split('#')[0]=="Robots":
+                if '.' not in dir and '#' in dir:
+                    pre_path=os.path.join(base, dir)
                     n_agents=int(dir.split('#')[1])
                     if n_agents not in N_AGENTS:
                         N_AGENTS.append(int(n_agents))
-                    for dir in os.listdir(pre_path):
-                        if '.' not in dir:
-                            branches=int(dir.split('#')[1])
+                    for zdir in os.listdir(pre_path):
+                        if '.' not in zdir and '#' in zdir:
+                            branches=int(zdir.split('#')[1])
                             if branches not in BRACHES:
                                 BRACHES.append(int(branches))
-                            dtemp=os.path.join(pre_path, dir)
+                            dtemp=os.path.join(pre_path, zdir)
                             for sdir in os.listdir(dtemp):
-                                if '.' not in sdir:
+                                if '.' not in sdir and '#' in sdir:
                                     depth=int(sdir.split('#')[1])
                                     if depth not in DEPTH:
                                         DEPTH.append(int(depth))
                                     stemp=os.path.join(dtemp, sdir)
                                     for ssdir in os.listdir(stemp):
-                                        if '.' not in ssdir:
+                                        if '.' not in ssdir and '#' in ssdir:
                                             k=float(ssdir.split('#')[1].replace("_","."))
                                             if k not in K:
                                                 K.append(float(k))
@@ -231,9 +230,9 @@ class Grinder:
                                 plt.xlim((0,S+50))
                                 plt.ylim((-0.05,1.05))
                                 plt.tight_layout()
-                                if not os.path.exists(base+"/images"):
+                                if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
                                     os.mkdir(base+"/images")
-                                fig_path=base+"/images/CONFIGc__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__estimates.png"
+                                fig_path=base+"/Robots#"+str(A)+"/images/CONFIGc__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__estimates.png"
                                 plt.savefig(fig_path)
                                 # plt.show(fig)
                                 plt.close(fig)
@@ -243,9 +242,9 @@ class Grinder:
     def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
         data_0,data_1 = data[0],data[1]
         for base in BASES:
-            if os.path.exists(base+"/resume.csv"):
-                os.remove(base+"/resume.csv")
             for A in N_AGENTS:
+                if os.path.exists(base+"/Robots#"+str(A)+"/resume.csv"):
+                    os.remove(base+"/Robots#"+str(A)+"/resume.csv")
                 for S in MAX_STEPS:
                     for B in BRACHES:
                         for D in DEPTH:
@@ -258,6 +257,7 @@ class Grinder:
                                         type="binary"
                                     elif B==4:
                                         type="quad"
+                                    print=True
                                     if data_0.get((base,A,S,B,D,k,r)) is not None:
                                         dist_0=0
                                         dist_1=0
@@ -267,11 +267,13 @@ class Grinder:
                                         locations=data_0.get((base,A,S,B,D,k,r))[1]
                                         commitments=data_0.get((base,A,S,B,D,k,r))[2]
                                         distances=data_0.get((base,A,S,B,D,k,r))[3]
-                                        best_leafs=data_0.get((base,A,S,B,D,k,r))[4]
-                                        leafs=data_0.get((base,A,S,B,D,k,r))[5]
+                                        seeds=data_0.get((base,A,S,B,D,k,r))[4]
+                                        best_leafs=data_0.get((base,A,S,B,D,k,r))[5]
+                                        leafs=data_0.get((base,A,S,B,D,k,r))[6]
                                         mean=data_1.get((base,A,S,B,D,k,r))[0]
                                         std=data_1.get((base,A,S,B,D,k,r))[1]
                                         for t in range(len(times)):
+                                            # print(best_leafs[t],'\n',commitments[t],'\n\n')
                                             if times[t]<=S:
                                                 check_4_succes=0
                                                 for d in range(len(distances[t])):
@@ -304,18 +306,14 @@ class Grinder:
                                         mean_val=round(mean,3)
                                         std_val=round(std,3)
                                     else:
-                                        dist_0_val=-1
-                                        dist_1_val=-1
-                                        dist_2_val=-1
-                                        no_decision_val=-1
-                                        mean_val=-1
-                                        std_val=-1
-                                    is_new = True
-                                    if os.path.exists(base+"/resume.csv"):
-                                        is_new=False
-                                    fieldnames = ["max_steps","agents","k","r","options","type","mean","std","dist_0","dist_1","dist_2","no_decision"]
-                                    with open(base+"/resume.csv","a") as f:
-                                        writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
-                                        if is_new:
-                                            writer.writeheader()
-                                        writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"dist_0":dist_0_val,"dist_1":dist_1_val,"dist_2":dist_2_val,"no_decision":no_decision_val})
+                                        print=False
+                                    if print:
+                                        is_new = True
+                                        if os.path.exists(base+"/Robots#"+str(A)+"/resume.csv"):
+                                            is_new=False
+                                        fieldnames = ["max_steps","agents","k","r","options","type","mean","std","dist_0","dist_1","dist_2","no_decision"]
+                                        with open(base+"/Robots#"+str(A)+"/resume.csv","a") as f:
+                                            writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
+                                            if is_new:
+                                                writer.writeheader()
+                                            writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"dist_0":dist_0_val,"dist_1":dist_1_val,"dist_2":dist_2_val,"no_decision":no_decision_val})

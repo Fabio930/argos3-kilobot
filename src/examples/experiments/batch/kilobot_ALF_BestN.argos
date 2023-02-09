@@ -18,11 +18,8 @@
         
         <kilobot_controller id="bestN">
             <actuators>
-                <differential_steering implementation="default"
-                bias_avg="0.000015"
-                bias_stddev="0.00186"
-                />
-                <kilobot_communication implementation="default" />
+                <differential_steering implementation="default"/>
+                <kilobot_communication implementation="default"/>
                 <kilobot_led implementation="default" />
             </actuators>
             <sensors>

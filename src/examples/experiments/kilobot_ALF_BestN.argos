@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="7201"
+        <experiment length="0"
         ticks_per_second="10"/>
     </framework>
     
@@ -18,8 +18,6 @@
         <kilobot_controller id="bestN">
             <actuators>
                 <differential_steering implementation="default"
-                bias_avg="0.000015"
-                bias_stddev="0.00186"
                 />
                 <kilobot_communication implementation="default" />
                 <kilobot_led implementation="default" />
@@ -111,7 +109,7 @@
         <distribute>
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="10" max_trials="200">
+            <entity quantity="5" max_trials="100">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

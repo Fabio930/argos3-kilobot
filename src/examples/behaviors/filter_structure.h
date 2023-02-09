@@ -41,7 +41,7 @@ void update_filter(filter_a *myfilter,const float Sensed_utility, const float Re
             if(myfilter->count_2 > 1) myfilter->data_2[1] = myfilter->data_2[1]*((myfilter->count_2-2)/(myfilter->count_2-1)) + pow(Sensed_utility-myfilter->data_2[0],2)/myfilter->count_2;
             myfilter->data_switch = 1;
         }
-        if(myfilter->count_1>1 && myfilter->count_2>1) myfilter->distance = 1 - sqrt(2*sqrt(myfilter->data_1[1])*sqrt(myfilter->data_2[1])/(.0000000000000001 + myfilter->data_1[1] + myfilter->data_2[1])) * exp(-.25*((pow(myfilter->data_1[0]-myfilter->data_2[0],2))/(.0000000000000001 + myfilter->data_1[1] + myfilter->data_2[1])));
+        if(myfilter->count_1>1 && myfilter->count_2>1) myfilter->distance = 1 - sqrt(2*sqrt(myfilter->data_1[1])*sqrt(myfilter->data_2[1])/(.0000000001 + myfilter->data_1[1] + myfilter->data_2[1])) * exp(-.25*((pow(myfilter->data_1[0]-myfilter->data_2[0],2))/(.0000000001 + myfilter->data_1[1] + myfilter->data_2[1])));
     }
     else myfilter->distance=Ref_distance;
 }
