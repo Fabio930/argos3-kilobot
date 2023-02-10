@@ -69,8 +69,6 @@ class Grinder:
                                             path_temp=os.path.join(stemp, ssdir)
                                             for folder in os.listdir(path_temp):
                                                 if '.' not in folder:
-                                                    # pre_params = folder.split('__') # not considering different dates 
-                                                    # params = pre_params[-1].split('_')
                                                     params = folder.split('_')
                                                     r , max_steps = float(params[0].split('#')[1]) , int(params[1].split('#')[1])-1
                                                     if r not in R:
@@ -87,6 +85,7 @@ class Grinder:
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
+                                                            # date = selem[0].split('__')[0]
                                                             if selem[-1]=="tsv" and selem[0].split('_')[-1]=="LOG":
                                                                 seed=-1
                                                                 best_leaf=-1
@@ -174,7 +173,7 @@ class Grinder:
                                                 if semc==0:
                                                     for e in range(int(len(commitments[c][l]))):
                                                         if commitments[c][l][e] in leafs:
-                                                            sum = 0
+                                                            sum = 1
                                                             for ce in range(len(commitments[c][l])):
                                                                 if e!=ce and commitments[c][l][e]==commitments[c][l][ce]:
                                                                     sum += 1
@@ -190,6 +189,7 @@ class Grinder:
                                             stored_distances[c] = list(distances_to_store)
                                             stored_commitments[c] = list(commitments_to_store)
                                             stored_locations[c] = list(locations_to_store)
+                                            # print(best_leafs[c],'\n',stored_times[c],'\t',stored_commitments[c],'\t',stored_distances[c],'\t',leafs,'\n\n')
                                         data.update({(base,A,S,B,D,k,r):(stored_times,stored_locations,stored_commitments,stored_distances,list(seeds),list(best_leafs),list(leafs))})
                             for k in K:
                                 x = 0
@@ -257,7 +257,7 @@ class Grinder:
                                         type="binary"
                                     elif B==4:
                                         type="quad"
-                                    print=True
+                                    SEMprint=True
                                     if data_0.get((base,A,S,B,D,k,r)) is not None:
                                         dist_0=0
                                         dist_1=0
@@ -273,7 +273,7 @@ class Grinder:
                                         mean=data_1.get((base,A,S,B,D,k,r))[0]
                                         std=data_1.get((base,A,S,B,D,k,r))[1]
                                         for t in range(len(times)):
-                                            # print(best_leafs[t],'\n',commitments[t],'\n\n')
+                                            # print(best_leafs[t],'\n',times[t],'\t',commitments[t],'\t',distances[t],'\t',leafs[t],'\n\n')
                                             if times[t]<=S:
                                                 check_4_succes=0
                                                 for d in range(len(distances[t])):
@@ -306,8 +306,8 @@ class Grinder:
                                         mean_val=round(mean,3)
                                         std_val=round(std,3)
                                     else:
-                                        print=False
-                                    if print:
+                                        SEMprint=False
+                                    if SEMprint:
                                         is_new = True
                                         if os.path.exists(base+"/Robots#"+str(A)+"/resume.csv"):
                                             is_new=False

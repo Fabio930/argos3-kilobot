@@ -54,7 +54,7 @@ typedef enum{
 
 /* struct for the robot states */
 typedef struct state{
-    int current_node,commitment_node,current_level;
+    int previous_node,current_node,commitment_node,current_level;
 }state_t;
 
 /* struct for the robot position */

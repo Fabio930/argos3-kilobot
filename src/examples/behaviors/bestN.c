@@ -103,7 +103,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= min_quorum_length*.35 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items <= min_quorum_length*.5 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
@@ -162,13 +162,14 @@ void sample_and_decide(tree_a **leaf){
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
     float p = rand() * (1.0 / RAND_MAX);
-    // int action = 0;
-    if(p < commitment) my_state.current_node = over_node->id;
-    else if(p < commitment + recruitment) my_state.current_node = agent_node_flag;
-    else if(p < commitment + cross_inhibition) my_state.current_node = current_node->parent->id;
-    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) my_state.current_node = current_node->parent->id;
+    int action = 0;
+    my_state.previous_node = my_state.current_node;
+    if     (p < commitment)                                                          {my_state.current_node = over_node->id;            action=1;}
+    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;          action=2;}
+    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; action=3;}
+    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; action=4;}
     erase_messages(&messages_array,&messages_list);
-    // printf("A_id:%d, pn:%d, cn:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
     // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
@@ -216,7 +217,7 @@ void select_new_point(bool force){
             dif_y = abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01;
             if (dif_x >= min_dist || dif_y >= min_dist ) break;
         }while(true);
-        printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
+        // printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
     }
 }
 
@@ -421,6 +422,7 @@ void setup(){
     set_motors(0,0);
     
     /* Initialise state, message type and control parameters*/
+    my_state.previous_node = 0;
     my_state.current_node = 0;
     my_state.commitment_node = 0;
     my_message.type = KILO_BROADCAST_MSG;
