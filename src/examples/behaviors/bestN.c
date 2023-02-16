@@ -8,23 +8,19 @@ int get_leaf_vec_id_in(const int Leaf_id){
 }
 
 void set_motion( motion_t new_motion_type){
-    bool calibrated = true;
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
             case FORWARD:
                 spinup_motors();
-                if(calibrated) set_motors(kilo_straight_left,kilo_straight_right);
-                else set_motors(70,70);
+                set_motors(kilo_straight_left,kilo_straight_right);
                 break;
             case TURN_LEFT:
                 spinup_motors();
-                if(calibrated) set_motors(kilo_turn_left,0);
-                else set_motors(70,0);
+                set_motors(kilo_turn_left,0);
                 break;
             case TURN_RIGHT:
                 spinup_motors();
-                if(calibrated) set_motors(0,kilo_turn_right);
-                else set_motors(0,70);
+                set_motors(0,kilo_turn_right);
                 break;
             case STOP:
             default:
@@ -103,7 +99,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= min_quorum_length*.5 && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items <= (min_quorum_length-1) && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
@@ -169,9 +165,9 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; action=3;}
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; action=4;}
     erase_messages(&messages_array,&messages_list);
-    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
-    // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
-    // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
+    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
+    printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
 int random_in_range(int min, int max){return min + ((rand() * (1.0 / RAND_MAX))*(max-min));}
@@ -294,7 +290,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 offset_y = (ARENA_Y*.1)/2;
                 goal_position.position_x = offset_x;
                 goal_position.position_y = offset_y;
-                set_vertices(&the_tree,((ARENA_X*.1)-0.02),((ARENA_Y*.1)-0.02));
+                set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 float expiring_dist = sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
                 set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1);
                 set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1);
@@ -376,7 +372,7 @@ void random_way_point_model(){
     if(init_received_B){
         select_new_point(false);
         int angleToGoal = AngleToGoal();
-        if(fabs(angleToGoal) <= 24){
+        if(fabs(angleToGoal) <= 36){
             set_motion(FORWARD);
             last_motion_ticks = kilo_ticks;
         }

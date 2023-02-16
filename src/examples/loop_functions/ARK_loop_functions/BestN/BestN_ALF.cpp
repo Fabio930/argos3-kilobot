@@ -331,6 +331,7 @@ CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     Node *leaf = vh_floor->get_best_leaf();
     if(leaf->isin(vec_position_on_plane)) color=CColor::GREEN;
+    if(abs(vec_position_on_plane.GetX())>.25 || abs(vec_position_on_plane.GetY())>.25) color=CColor::BLACK;
     return color;
 }
 
