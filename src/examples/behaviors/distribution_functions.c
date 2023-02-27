@@ -8,7 +8,7 @@
 double uniform_distribution(double a, double b)
 {
 
-  return (rand_soft() * (b - a) + a) / ((double)RAND_MAX + 1);
+  return (rand() * (b - a) + a) / ((double)RAND_MAX + 1);
 }
 // oppure
 /*

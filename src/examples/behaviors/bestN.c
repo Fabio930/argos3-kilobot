@@ -157,7 +157,7 @@ void sample_and_decide(tree_a **leaf){
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
-    float p = rand_soft() * (1.0 / RAND_MAX);
+    float p = rand() * (1.0 / RAND_MAX);
     int action = 0;
     my_state.previous_node = my_state.current_node;
     if     (p < commitment)                                                          {my_state.current_node = over_node->id;            action=1;}
@@ -170,7 +170,7 @@ void sample_and_decide(tree_a **leaf){
     printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
-int random_in_range(int min, int max){return min + ((rand_soft() * (1.0 / RAND_MAX))*(max-min));}
+int random_in_range(int min, int max){return min + ((rand() * (1.0 / RAND_MAX))*(max-min));}
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
