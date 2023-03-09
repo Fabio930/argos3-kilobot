@@ -5,3 +5,5 @@ firstcompile.sh
 run.sh
 runbatch.sh
 results*
+BestNResults.ipynb
+BestNresults.py

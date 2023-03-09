@@ -1,7 +1,7 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) fabio.oddi@diag.uniroma1.it
  */
-
+/* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
 #include "bestN.h"
 int get_leaf_vec_id_in(const int Leaf_id){
     return leafs_id[Leaf_id];
@@ -157,7 +157,7 @@ void sample_and_decide(tree_a **leaf){
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
-    float p = rand() * (1.0 / RAND_MAX);
+    float p = rand_soft() * (1.0 / 255);
     int action = 0;
     my_state.previous_node = my_state.current_node;
     if     (p < commitment)                                                          {my_state.current_node = over_node->id;            action=1;}
@@ -170,7 +170,7 @@ void sample_and_decide(tree_a **leaf){
     printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
-int random_in_range(int min, int max){return min + ((rand() * (1.0 / RAND_MAX))*(max-min));}
+int random_in_range(int min, int max){return min + ((rand_soft() * (1.0 / 255))*(max-min));}
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
@@ -199,19 +199,16 @@ void select_new_point(bool force){
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         my_state.current_level = actual_node->depth;
         float flag, min_dist;
-        if(force){min_dist=0;}
-        else{
-            flag = abs((int)((actual_node->brX-actual_node->tlX)*100))*.001;
-            min_dist = abs((int)((actual_node->brY-actual_node->tlY)*100))*.001;
-            if(flag > min_dist) min_dist = flag;
-        }
+        flag = (abs((int)((actual_node->brX-actual_node->tlX)*100))*.01)*.25;
+        min_dist = (abs((int)((actual_node->tlY-actual_node->brY)*100))*.01)*.25;
+        if(flag > min_dist) min_dist = flag;
         do{
             goal_position.position_x = random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100))*.01;
             goal_position.position_y = random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100))*.01;
             float dif_x,dif_y;
             dif_x = abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01;
             dif_y = abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01;
-            if (dif_x >= min_dist || dif_y >= min_dist ) break;
+            if (dif_x >= min_dist && dif_y >= min_dist ) break;
         }while(true);
         // printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
     }
