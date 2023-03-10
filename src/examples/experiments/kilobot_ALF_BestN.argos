@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="0"
+        <experiment length="3601"
         ticks_per_second="10"/>
     </framework>
     
@@ -51,9 +51,9 @@
         </variables>
 
         <hierarchicStruct
-            depth="2"
+            depth="1"
             branches="2"
-            k="1.0"
+            k="0.75"
             control_gain="1">
         </hierarchicStruct>
 

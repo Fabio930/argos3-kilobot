@@ -70,6 +70,7 @@ private:
     ChierarchicFloor *vh_floor;
 
     std::vector<CVector2> m_vecKilobotPositions;
+    std::vector<CVector2> m_vecKilobotChosenPoint;
     std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
     std::vector<int> m_vecStart_experiment;
@@ -96,11 +97,13 @@ private:
 
     /* output file for data acquisition */
     std::ofstream m_cLog;
+    std::ofstream m_cDecPos;
     unsigned int header = 0;
     long unsigned int logging_time = 0;
 
     /* output file name*/
     std::string m_strLogFileName;
+    std::string m_strDecPosFileName;
 
     /* data acquisition frequency in ticks */
     UInt16 m_unDataAcquisitionFrequency;

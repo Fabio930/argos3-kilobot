@@ -26,6 +26,10 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
     CALF::Init(t_node);
     /* Other initializations: Variables, Log file opening... */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
+    m_strDecPosFileName="";
+    for(unsigned long int i=0;i<m_strLogFileName.length()-4;i++) m_strDecPosFileName+=m_strLogFileName.at(i);
+    m_strDecPosFileName+="Pos.tsv";
+    m_cDecPos.open(m_strDecPosFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -34,8 +38,10 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
 void CBestN_ALF::Reset(){
     /* Close data file */
     m_cLog.close();
+    m_cDecPos.close();
     /* Reopen the file, erasing its contents */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
+    m_cDecPos.open(m_strDecPosFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -43,6 +49,7 @@ void CBestN_ALF::Reset(){
 
 void CBestN_ALF::Destroy(){
     /* Close data file */
+    m_cDecPos.close();
     m_cLog.close();
 }
 
@@ -81,6 +88,11 @@ void CBestN_ALF::UpdateLog(long unsigned int Time){
         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
     }
+    for(long unsigned int i=0;i<m_vecKilobotChosenPoint.size();i++){
+        m_cDecPos << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t';
+        m_vecKilobotChosenPoint[i] = CVector2(-1,-1);
+    }
+    m_cDecPos << std::endl;
 }
 
 /****************************************/
@@ -92,6 +104,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
+    m_vecKilobotChosenPoint.resize(m_tKilobotEntities.size());
     m_vecKilobotDistFromOpt.resize(m_tKilobotEntities.size());
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
     m_vecKilobotNodes.resize(m_tKilobotEntities.size());
@@ -117,6 +130,7 @@ void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     m_vecKilobotCommitments[unKilobotID] = 0;
     m_vecKilobotDistFromOpt[unKilobotID] = depth;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
+    m_vecKilobotChosenPoint[unKilobotID] = CVector2(-1,-1);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
 }
 
@@ -162,12 +176,14 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
     CColor kilo_color = GetKilobotLedColor(c_kilobot_entity);
-    if(kilo_color ==CColor::GREEN) std::cout<<unKilobotID<<'\n';
     if(m_vecKilobotMsgType[unKilobotID] == 0 && m_vecKilobotAskLevel[unKilobotID]>=0 && kilo_color!=CColor::BLACK){
         m_vecKilobotNodes[unKilobotID] = vh_floor->derive_node_id(m_vecKilobotAskLevel[unKilobotID],m_vecKilobotPositions[unKilobotID]);
         if (kilo_color == CColor::RED) m_vecKilobotCommitments[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_parent()->get_id();
         else if (kilo_color == CColor::BLUE) m_vecKilobotCommitments[unKilobotID] = m_vecKilobotNodes[unKilobotID];
         m_vecKilobotDistFromOpt[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_distance_from_opt();
+    }
+    if(kilo_color ==CColor::GREEN){
+        m_vecKilobotChosenPoint[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     }
 }
 

@@ -66,7 +66,8 @@
         "stddef.h": "c",
         "stdio.h": "c",
         "filter_structure.h": "c",
-        "bestn.h": "c"
+        "bestn.h": "c",
+        "hash_map": "cpp"
     },
     "cmake.sourceDirectory": "${workspaceFolder}/src",
     "C_Cpp.errorSquiggles": "enabled",
