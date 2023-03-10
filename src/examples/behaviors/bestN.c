@@ -165,9 +165,9 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; action=3;}
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; action=4;}
     erase_messages(&messages_array,&messages_list);
-    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
-    printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
-    printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
+    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
+    // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
 int random_in_range(int min, int max){return min + ((rand_soft() * (1.0 / 255))*(max-min));}
@@ -176,7 +176,9 @@ void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         tree_a *leaf = NULL;
+        
         if(!force){
+            set_color(RGB(0,3,0));
             for(unsigned int l = 0;l < num_leafs;l++){
                 leaf = get_node(&tree_array,leafs_id[l]);
                 last_sample_id = l;
@@ -211,6 +213,9 @@ void select_new_point(bool force){
             if (dif_x >= min_dist && dif_y >= min_dist ) break;
         }while(true);
         // printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
+    }
+    else{
+        set_color(led);
     }
 }
 
@@ -274,7 +279,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     switch (sa_type){
         case MSG_A:
             if(!init_received_A){   
-                set_color(RGB(3,3,0));
+                led = RGB(3,3,0);
+                set_color(led);
                 float k = data[1]*.01;
                 int best_leaf_id = (data[0] >> 2)+1;
                 control_parameter = (data[2] >> 4);
@@ -305,17 +311,25 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 select_new_point(true);
                 set_motion(FORWARD);
                 init_received_B = true;
-                set_color(RGB(0,0,0));
+                led = RGB(0,0,0);
+                set_color(led);
             }
             break;
         case MSG_C:
             if(my_state.current_level == (int)(data[0] >> 2)){
                 if(my_state.current_node == my_state.commitment_node){
-                    set_color(RGB(0,0,3));
+                    led = RGB(0,0,3);
+                    set_color(led);
                 }
-                else set_color(RGB(3,0,0));
+                else{
+                    led = RGB(3,0,0);
+                    set_color(led);
+                }
             }
-            else set_color(RGB(0,0,0));
+            else{
+                led = RGB(0,0,0);
+                set_color(led);
+            }
             break;
     }
 }
@@ -344,8 +358,14 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             break;
         case KILO_IDENTIFICATION:
             id1 = (msg->data[0] & 0b11111100) >> 2;
-            if (id1 == kilo_uid) set_color(RGB(0,0,3));
-            else set_color(RGB(3,0,0));
+            if (id1 == kilo_uid){
+                led = RGB(0,0,3);
+                set_color(led);
+            }
+            else{
+                led = RGB(3,0,0);
+                set_color(led);
+            }
             break;
     }
 }

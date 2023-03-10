@@ -129,6 +129,7 @@ message_a **messages_array;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 
+uint8_t led = RGB(0,0,0);
 /*-------------------------------------------------------------------*/
 /* Function for translating the relative ID of a leaf in the true ID */
 /*-------------------------------------------------------------------*/

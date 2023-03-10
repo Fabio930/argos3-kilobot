@@ -94,7 +94,7 @@ private:
     /* simulator seed */
     uint m_random_seed;
 
-    /* output file for data acquizition */
+    /* output file for data acquisition */
     std::ofstream m_cLog;
     unsigned int header = 0;
     long unsigned int logging_time = 0;

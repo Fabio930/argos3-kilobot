@@ -24,7 +24,7 @@ CBestN_ALF::~CBestN_ALF(){
 void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
-    /* Other initializations: Varibales, Log file opening... */
+    /* Other initializations: Variables, Log file opening... */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
@@ -162,6 +162,7 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
     CColor kilo_color = GetKilobotLedColor(c_kilobot_entity);
+    if(kilo_color ==CColor::GREEN) std::cout<<unKilobotID<<'\n';
     if(m_vecKilobotMsgType[unKilobotID] == 0 && m_vecKilobotAskLevel[unKilobotID]>=0 && kilo_color!=CColor::BLACK){
         m_vecKilobotNodes[unKilobotID] = vh_floor->derive_node_id(m_vecKilobotAskLevel[unKilobotID],m_vecKilobotPositions[unKilobotID]);
         if (kilo_color == CColor::RED) m_vecKilobotCommitments[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_parent()->get_id();
