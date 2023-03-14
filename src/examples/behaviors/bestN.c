@@ -48,10 +48,10 @@ void broadcast(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         sa_type = 0;
         for (int i = 0; i < 9; ++i) my_message.data[i]=0;
-        int utility_to_send;
+        int8_t utility_to_send;
         switch (sending_type){
             case MSG_A:
-                utility_to_send = (int)(last_sample_utility*10);
+                utility_to_send = (int8_t)(last_sample_utility*10);
                 my_message.data[0] = kilo_uid << 2 | sa_type;
                 my_message.data[1] = last_sample_committed << 7 | utility_to_send;
                 my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
@@ -63,21 +63,21 @@ void broadcast(){
     }
 }
 
-unsigned int check_quorum_trigger(quorum_a **Array[]){
-    unsigned int out = 0;
+uint8_t check_quorum_trigger(quorum_a **Array[]){
+    uint8_t out = 0;
     for(int i = 0;i < num_quorum_items;i++){
-        int msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
+        uint8_t msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
         if(msg_src == THISNODE || msg_src == SUBTREE) out++;
     }
     return out;
 }
 
 void check_quorum(quorum_a **Array[]){
-    unsigned int counter = check_quorum_trigger(Array) + 1;
+    uint8_t counter = check_quorum_trigger(Array) + 1;
     if(counter >= (num_quorum_items+1)*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
 }
 
-void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch){
+void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const uint8_t Msg_switch){
     if(my_state.commitment_node == my_state.current_node && Msg_switch != SIBLINGTREE){
         update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
         sort_q(&quorum_array);
@@ -91,7 +91,7 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
 void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
-    int message_switch = -1;
+    uint8_t message_switch = 0;
     message_a *rnd_msg = select_a_random_msg(&messages_array);
     if(rnd_msg != NULL){
         message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
@@ -101,7 +101,7 @@ void sample_and_decide(tree_a **leaf){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
         else if(num_quorum_items <= (min_quorum_length-1) && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
-    int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
+    // int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
     float commitment = 0;
     float recruitment = 0;
@@ -131,7 +131,7 @@ void sample_and_decide(tree_a **leaf){
         if(current_node->node_filter->utility <= 0) abandonment = 1;
         else abandonment = 1/(1 + current_node->node_filter->utility);
     }
-    int agent_node_flag = -1;
+    uint8_t agent_node_flag = 0;
     switch (message_switch){
         case SUBTREE:
             if(my_state.current_node == my_state.commitment_node){
@@ -158,12 +158,12 @@ void sample_and_decide(tree_a **leaf){
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
     float p = rand_soft() * (1.0 / 255);
-    int action = 0;
+    // int action = 0;
     my_state.previous_node = my_state.current_node;
-    if     (p < commitment)                                                          {my_state.current_node = over_node->id;            action=1;}
-    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;          action=2;}
-    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; action=3;}
-    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; action=4;}
+    if     (p < commitment)                                                          {my_state.current_node = over_node->id;            /*action=1;*/}
+    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;          /*action=2;*/}
+    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; /*action=3;*/}
+    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; /*action=4;*/}
     erase_messages(&messages_array,&messages_list);
     // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
     // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
@@ -171,13 +171,13 @@ void sample_and_decide(tree_a **leaf){
 }
 
 float random_in_range(float min, float max){
-    float r = (float)rand_soft() / 255.0;
+    float r = ((float)rand_soft()) / 255.0;
     return min + (r*(max-min));
     }
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
-    if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
+    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         tree_a *leaf = NULL;
         if(!force){
             set_color(RGB(0,3,0));
@@ -225,9 +225,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level){
+uint8_t derive_agent_node(const uint8_t Received_committed, const uint8_t Received_leaf, const uint8_t Received_level){
     tree_a *leaf = get_node(&tree_array,Received_leaf);
-    unsigned int level;
+    uint8_t level;
     if(received_committed) level = Received_level;
     else level = Received_level + 1;
     if(level == leaf->depth) return leaf->id;
@@ -238,11 +238,11 @@ int derive_agent_node(const unsigned int Received_committed, const unsigned int 
         }
         else break;
     }
-    return -1;
+    return 0;
 }
 
 void update_messages(){
-    int received_node = derive_agent_node(received_committed,received_leaf,received_level);
+    uint8_t received_node = derive_agent_node(received_committed,received_leaf,received_level);
     update_m(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
     sort_m(&messages_array);
 }
@@ -252,7 +252,7 @@ void parse_kilo_message(uint8_t data[9]){
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
     sa_payload = (((uint16_t)data[1]) << 8) | data[2];
-    int temp_leaf;
+    uint8_t temp_leaf;
     switch(sa_type){
         case MSG_A:
             received_id = sa_id;
@@ -294,9 +294,9 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
             break;
         case MSG_B:
             if(init_received_A && !init_received_B){   
-                int id1 = (data[0] & 0b11111100) >> 2;
-                int id2 = (data[3] & 0b11111100) >> 2;
-                int id3 = (data[6] & 0b11111100) >> 2;
+                uint8_t id1 = (data[0] & 0b11111100) >> 2;
+                uint8_t id2 = (data[3] & 0b11111100) >> 2;
+                uint8_t id3 = (data[6] & 0b11111100) >> 2;
                 if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
                 else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
                 else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
@@ -308,7 +308,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
             }
             break;
         case MSG_C:
-            if(my_state.current_level == (int)(data[0] >> 2)){
+            if(my_state.current_level == (data[0] >> 2)){
                 if(my_state.current_node == my_state.commitment_node){
                     led = RGB(0,0,3);
                     set_color(led);
@@ -327,12 +327,12 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
 }
 
 void message_rx(message_t *msg, distance_measurement_t *d){
-    sa_id = -1;
+    sa_id = 0;
     sa_type = 0;
     sa_payload = 0;
-    int id1;
-    int id2;
-    int id3;
+    uint8_t id1;
+    uint8_t id2;
+    uint8_t id3;
     switch (msg->type){
         case ARK_BROADCAST_MSG:
             parse_smart_arena_broadcast(msg->data);
@@ -362,7 +362,7 @@ void message_rx(message_t *msg, distance_measurement_t *d){
     }
 }
 
-void NormalizeAngle(int* angle){
+void NormalizeAngle(float* angle){
     while(*angle > 180){
         *angle = *angle-360;
     }
@@ -371,8 +371,8 @@ void NormalizeAngle(int* angle){
     }
 }
 
-int AngleToGoal(){
-    int angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
+float AngleToGoal(){
+    float angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
     NormalizeAngle(&angletogoal);
     return angletogoal;
 }
@@ -380,7 +380,7 @@ int AngleToGoal(){
 void random_way_point_model(){   
     if(init_received_B){
         select_new_point(false);
-        int angleToGoal = AngleToGoal();
+        float angleToGoal = AngleToGoal();
         if(fabs(angleToGoal) <= 36){
             set_motion(FORWARD);
             last_motion_ticks = kilo_ticks;
@@ -389,12 +389,12 @@ void random_way_point_model(){
             if(angleToGoal > 0){
                 set_motion(TURN_LEFT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks = (unsigned int) (fabs(angleToGoal)/(RotSpeed*32.0));
+                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
             else{
                 set_motion(TURN_RIGHT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks = (unsigned int) (fabs(angleToGoal)/(RotSpeed*32.0));
+                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
         }
         switch(current_motion_type){
@@ -453,7 +453,7 @@ void loop(){
     if(last_sensing) broadcast();
 }
 
-int main(){
+uint8_t main(){
     kilo_init();
     
     // register message transmission callback

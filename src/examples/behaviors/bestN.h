@@ -54,7 +54,7 @@ typedef enum{
 
 /* struct for the robot states */
 typedef struct state{
-    int previous_node,current_node,commitment_node,current_level;
+    uint8_t previous_node,current_node,commitment_node,current_level;
 }state_t;
 
 /* struct for the robot position */
@@ -73,19 +73,19 @@ position_t goal_position={0,0};
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
-int gps_angle;
+float gps_angle;
 float RotSpeed = 45.0;
 
 /* current state */
 state_t my_state={0,0,0};
 
-unsigned int turning_ticks = 0;
+uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
 
 /* Variables for Smart Arena messages */
-int sa_id = -1;
-int sa_type = 0;
-int sa_payload = 0;
+uint8_t sa_id = 0;
+uint8_t sa_type = 0;
+uint16_t sa_payload = 0;
 
 bool init_received_A = false;
 bool init_received_B = false;
@@ -97,14 +97,14 @@ bool last_sensing = false;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
-int sending_type = MSG_A;
+uint8_t sending_type = MSG_A;
 message_t my_message;
 
 /* lists for decision handling */
-unsigned int received_id;
-unsigned int received_level;
-unsigned int received_committed;
-unsigned int received_leaf;
+uint8_t received_id;
+uint8_t received_level;
+uint8_t received_committed;
+uint8_t received_leaf;
 float received_utility;
 bool ARK_sem_talking=false;
 
@@ -113,9 +113,9 @@ float gain_h;
 float gain_k;
 
 /* used only for noisy data generation */
-int last_sample_id = -1;
-unsigned int last_sample_level;
-unsigned int last_sample_committed;
+uint8_t last_sample_id = 0;
+uint8_t last_sample_level;
+uint8_t last_sample_committed;
 float last_sample_utility = -1;
 
 /* map of the environment */
@@ -163,11 +163,11 @@ void broadcast();
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */
 /*-------------------------------------------------------------------*/
-unsigned int check_quorum_trigger(quorum_a **Array[]);
+uint8_t check_quorum_trigger(quorum_a **Array[]);
 
 void check_quorum(quorum_a **Array[]);
 
-void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Msg_switch);
+void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const uint8_t Msg_switch);
 
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
@@ -189,7 +189,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
 /*-------------------------------------------------------------------*/
 /*         derive the agent position from the data received          */
 /*-------------------------------------------------------------------*/
-int derive_agent_node(const unsigned int Received_committed, const unsigned int Received_leaf, const unsigned int Received_level);
+uint8_t derive_agent_node(const uint8_t Received_committed, const uint8_t Received_leaf, const uint8_t Received_level);
 
 /*-------------------------------------------------------------------*/
 /*                   Check and save incoming data                    */
@@ -211,9 +211,9 @@ void message_rx(message_t *msg, distance_measurement_t *d);
 /*-------------------------------------------------------------------*/
 /*                      Compute angle to Goal                        */
 /*-------------------------------------------------------------------*/
-void NormalizeAngle(int* angle);
+void NormalizeAngle(float* angle);
 
-int AngleToGoal();
+float AngleToGoal();
 
 /*-------------------------------------------------------------------*/
 /*                      Random way point model                       */
@@ -233,6 +233,6 @@ void loop();
 /*-------------------------------------------------------------------*/
 /*                             main                                  */
 /*-------------------------------------------------------------------*/
-int main();
+uint8_t main();
 
 #endif
