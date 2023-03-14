@@ -15,10 +15,10 @@ class ChierarchicFloor{
             float x=-1,y=-1;
         }v_offset;
         std::vector<Node *> leafs;
-        int num_nodes=0;
-        int depth=-1;
-        long int branches=-1;
-        int swarm_size=-1;
+        UInt8 num_nodes=0;
+        UInt8 depth=0;
+        UInt8 branches=0;
+        UInt8 swarm_size=0;
         float max_utility=-1;
         float k=-1;
         float noise=-1;
@@ -26,29 +26,29 @@ class ChierarchicFloor{
     public:
         ChierarchicFloor();
 
-        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const int Depth,const int Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offset);
+        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offset);
 
         ~ChierarchicFloor();
         
         void complete_tree();
 
-        void complete_tree(Node **ToComplete,const int Deep);
+        void complete_tree(Node **ToComplete,const UInt8 Deep);
 
-        void assign_MAXutility(const int Index);
+        void assign_MAXutility(const UInt8 Index);
 
         void bottom_up_utility_update(Node **Start_node);
 
         void assign_distance_upTObottom(Node **Start_node);
 
-        void set_distances_from_opt_node(Node **Start_node,const int Distance);
+        void set_distances_from_opt_node(Node **Start_node,const UInt8 Distance);
 
         void set_vertices();
         
-        void loop_set_vertices(Node **Start_node,const int Index,const int Ref);
+        void loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref);
 
         void adjust_vertices(Node **Start_node);
 
-        int derive_node_id(const int Level, CVector2 Position);
+        UInt8 derive_node_id(const UInt8 Level, CVector2 Position);
 
         std::vector<Node *> get_leafs_from_node(Node **Start_node);
         
@@ -56,9 +56,9 @@ class ChierarchicFloor{
 
         Node* get_best_leaf();
 
-        Node* get_node(const int Id);
+        Node* get_node(const UInt8 Id);
 
-        Node* get_node(Node **Start_node,const int Id);
+        Node* get_node(Node **Start_node,const UInt8 Id);
 
         Node* get_leaf_from_position(CVector2 Position);
 

@@ -6,7 +6,7 @@
 
 Node::Node(){}
 
-Node::Node(const int Id,const float Utility,const float Noise){
+Node::Node(const UInt8 Id,const float Utility,const float Noise){
     id = Id;
     utility = Utility;
     noise = Noise;
@@ -15,7 +15,7 @@ Node::Node(const int Id,const float Utility,const float Noise){
 
 Node::~Node(){
     if(children.size()>0){
-        for(long unsigned int i = 0; i < children.size(); ++i){
+        for(UInt8 i = 0; i < children.size(); ++i){
             this->children[i]->~Node();
             delete [] children[i];
         }
@@ -32,7 +32,7 @@ void Node::add_child(Node **Child){
     children.push_back(*Child);
 }
 
-void Node::set_distance_from_opt(const int Distance){
+void Node::set_distance_from_opt(const UInt8 Distance){
     distance_from_opt = Distance;
 }
 
@@ -54,11 +54,11 @@ void Node::update_noise(const float Noise){
     noise = Noise;
 }
 
-int Node::get_distance_from_opt(){
+UInt8 Node::get_distance_from_opt(){
     return distance_from_opt;
 }
 
-int Node::get_id(){
+UInt8 Node::get_id(){
     return id;
 }
 

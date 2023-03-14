@@ -17,8 +17,8 @@ using namespace argos;
 
 class Node{
     private:
-        int id,depth;
-        int distance_from_opt=-1;
+        UInt8 id,depth;
+        UInt8 distance_from_opt=0;
         float utility=-1;
         float noise=-1;
         Node *parent=NULL;
@@ -30,7 +30,7 @@ class Node{
     public:
         Node();
 
-        Node(const int Id,const float Utility,const float Noise);
+        Node(const UInt8 Id,const float Utility,const float Noise);
 
         ~Node();
                 
@@ -38,7 +38,7 @@ class Node{
 
         void add_child(Node **Child);
         
-        void set_distance_from_opt(const int Distance);
+        void set_distance_from_opt(const UInt8 Distance);
 
         void set_vertices(CVector2 Tl,CVector2 Br);
         
@@ -48,9 +48,9 @@ class Node{
         
         void update_noise(const float Noise);
 
-        int get_distance_from_opt();
+        UInt8 get_distance_from_opt();
 
-        int get_id();
+        UInt8 get_id();
         
         CVector2 get_top_left_angle();
         
@@ -60,7 +60,7 @@ class Node{
         
         std::vector<Node *> get_children();
         
-        Node* get_sibling_node(int Node_id);
+        Node* get_sibling_node(UInt8 Node_id);
 
         bool isin(CVector2 Point);
 

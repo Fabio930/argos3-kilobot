@@ -27,7 +27,7 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Other initializations: Variables, Log file opening... */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
     m_strDecPosFileName="";
-    for(unsigned long int i=0;i<m_strLogFileName.length()-4;i++) m_strDecPosFileName+=m_strLogFileName.at(i);
+    for(UInt32 i=0;i<m_strLogFileName.length()-4;i++) m_strDecPosFileName+=m_strLogFileName.at(i);
     m_strDecPosFileName+="Pos.tsv";
     m_cDecPos.open(m_strDecPosFileName, std::ios_base::trunc | std::ios_base::out);
 }
@@ -74,21 +74,21 @@ void CBestN_ALF::PostStep(){
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::UpdateLog(long unsigned int Time){
+void CBestN_ALF::UpdateLog(UInt16 Time){
     if(Time == 0){
         m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t' << vh_floor->get_best_leaf()->get_top_left_angle().GetX() << '\t' <<  vh_floor->get_best_leaf()->get_top_left_angle().GetY() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetX() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetY() << '\t';
-        for(long unsigned int i=0;i< vh_floor->get_leafs().size();i++){
+        for(UInt8 i=0;i< vh_floor->get_leafs().size();i++){
             m_cLog << vh_floor->get_leafs()[i]->get_id();
             if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
         }
     }
     m_cLog << std::endl;
     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
-    for(long unsigned int i=0;i<m_vecKilobotPositions.size();i++){
+    for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
     }
-    for(long unsigned int i=0;i<m_vecKilobotChosenPoint.size();i++){
+    for(UInt8 i=0;i<m_vecKilobotChosenPoint.size();i++){
         m_cDecPos << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t';
         m_vecKilobotChosenPoint[i] = CVector2(-1,-1);
     }
@@ -112,7 +112,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
     vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
-    best_leaf = c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
+    best_leaf = 1; // c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
     vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
@@ -194,7 +194,7 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     if (m_fTimeInSeconds - m_vecLastTimeMessaged[unKilobotID]< m_fMinTimeBetweenTwoMsg) return; // if the time is too short, the kilobot cannot receive a message
-    for (int i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
+    for (UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
     if(!start_experiment){
         /* Send init information for environment representation*/
         switch (m_vecStart_experiment[unKilobotID]){
@@ -208,7 +208,7 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
             break;
         }
         start_experiment=true;
-        for(long unsigned int i=0;i<m_vecStart_experiment.size();i++){
+        for(UInt8 i=0;i<m_vecStart_experiment.size();i++){
             if(m_vecStart_experiment[i]!=2){
                 start_experiment=false;
                 break;
@@ -240,7 +240,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = 0;
-    tKilobotMessage.m_sID = control_gain << 7 | ((int)(k*100));
+    tKilobotMessage.m_sID = control_gain << 7 | ((UInt8)(k*100));
     tKilobotMessage.m_sData = (vh_floor->get_best_leaf()->get_id()-1) << 4;
     tKilobotMessage.m_sData = tKilobotMessage.m_sData | (depth-1) << 2 | (branches-1);
     // Fill the kilobot message by the ARK-type messages
@@ -248,7 +248,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
-    for (int i = 0; i < 3; ++i){
+    for (UInt8 i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
         }
@@ -266,7 +266,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type){
+void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
@@ -274,9 +274,9 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int 
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = Type;
     tKilobotMessage.m_sType = 1;
-    UInt8 angle = (int)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    UInt8 valX = (int)(((m_vecKilobotPositions[unKilobotID].GetX() + *(vh_floor->get_offset_x())) * 100) * .5);
-    UInt8 valY = (int)(((m_vecKilobotPositions[unKilobotID].GetY() + *(vh_floor->get_offset_y())) * 100) * .5);
+    UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
+    UInt8 valX = (UInt8)(((m_vecKilobotPositions[unKilobotID].GetX() + *(vh_floor->get_offset_x())) * 100) * .5);
+    UInt8 valY = (UInt8)(((m_vecKilobotPositions[unKilobotID].GetY() + *(vh_floor->get_offset_y())) * 100) * .5);
     tKilobotMessage.m_sType = (valY & 0b00000011) << 2 | tKilobotMessage.m_sType;
     tKilobotMessage.m_sID = unKilobotID << 4 | angle;
     tKilobotMessage.m_sData = valX << 4 | valY >> 2;
@@ -285,7 +285,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int 
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
-    for (int i = 0; i < 3; ++i){
+    for (UInt8 i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
         }
@@ -302,7 +302,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int 
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::AskForLevel(CKilobotEntity &c_kilobot_entity,const int Level){
+void CBestN_ALF::AskForLevel(CKilobotEntity &c_kilobot_entity,const UInt8 Level){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
@@ -318,7 +318,7 @@ void CBestN_ALF::AskForLevel(CKilobotEntity &c_kilobot_entity,const int Level){
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
-    for (int i = 0; i < 3; ++i){
+    for (UInt8 i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
         }

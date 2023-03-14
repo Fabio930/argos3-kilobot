@@ -50,13 +50,13 @@ public:
     void SendStructInitInformation(CKilobotEntity &c_kilobot_entity);
     
     /** Used to communicate gps position and angle*/
-    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const int Type);
+    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
     
-    void AskForLevel(CKilobotEntity &c_kilobot_entity, const int Level);
+    void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
 
     Real abs_distance(const CVector2 a,const CVector2 b);
 
-    void UpdateLog(long unsigned int Time);
+    void UpdateLog(UInt16 Time);
 
 private:
 
@@ -64,7 +64,7 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    int depth,branches,control_gain;
+    UInt8 depth,branches,control_gain;
     float k;
     CVector2 TL,BR;
     ChierarchicFloor *vh_floor;
@@ -73,17 +73,17 @@ private:
     std::vector<CVector2> m_vecKilobotChosenPoint;
     std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
-    std::vector<int> m_vecStart_experiment;
-    std::vector<int> m_vecKilobotNodes;
-    std::vector<int> m_vecKilobotCommitments;
-    std::vector<int> m_vecKilobotDistFromOpt;
-    std::vector<int> m_vecKilobotAskLevel;
-    std::vector<int> m_vecKilobotMsgType;
+    std::vector<UInt8> m_vecStart_experiment;
+    std::vector<UInt8> m_vecKilobotNodes;
+    std::vector<UInt8> m_vecKilobotCommitments;
+    std::vector<UInt8> m_vecKilobotDistFromOpt;
+    std::vector<UInt8> m_vecKilobotAskLevel;
+    std::vector<UInt8> m_vecKilobotMsgType;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
 
-    unsigned int log_counter = 0;
-    int best_leaf;
+    UInt16 log_counter = 0;
+    UInt8 best_leaf;
 
     /************************************/
     /*       Experiment variables       */
@@ -98,8 +98,8 @@ private:
     /* output file for data acquisition */
     std::ofstream m_cLog;
     std::ofstream m_cDecPos;
-    unsigned int header = 0;
-    long unsigned int logging_time = 0;
+    UInt8 header = 0;
+    UInt16 logging_time = 0;
 
     /* output file name*/
     std::string m_strLogFileName;
