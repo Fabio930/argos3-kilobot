@@ -1,8 +1,5 @@
 #! /bin/bash
 
-# in ARGoS folder run the following:
-# ./src/examples/experiments/batch/loop_runs.sh /src/examples/experiments/batch kilobot_ALF_BestN.argos
-
 if [ "$#" -ne 2 ]; then
     echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
     exit 11
