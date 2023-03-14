@@ -4,4 +4,5 @@ compilerun.sh
 firstcompile.sh
 run.sh
 runbatch.sh
-results*
+*results_loop*
+*log*
