@@ -1,6 +1,6 @@
 #include "filter_structure.h"
 
-void set_filter(filter_a *myfilter,const float Gain,const int Im_leaf){
+void set_filter(filter_a *myfilter,const float Gain,const uint8_t Im_leaf){
     myfilter->utility=-1;
     myfilter->distance=-1;
     myfilter->im_leaf=Im_leaf;

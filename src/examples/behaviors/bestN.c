@@ -3,7 +3,7 @@
  */
 /* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
 #include "bestN.h"
-int get_leaf_vec_id_in(const int Leaf_id){
+uint8_t get_leaf_vec_id_in(const uint8_t Leaf_id){
     return leafs_id[Leaf_id];
 }
 
@@ -170,13 +170,15 @@ void sample_and_decide(tree_a **leaf){
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
-int random_in_range(int min, int max){return min + ((rand_soft() * (1.0 / 255))*(max-min));}
+float random_in_range(float min, float max){
+    float r = (float)rand_soft() / 255.0;
+    return min + (r*(max-min));
+    }
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         tree_a *leaf = NULL;
-        
         if(!force){
             set_color(RGB(0,3,0));
             for(unsigned int l = 0;l < num_leafs;l++){
@@ -200,18 +202,8 @@ void select_new_point(bool force){
         }
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         my_state.current_level = actual_node->depth;
-        float flag, min_dist;
-        flag = (abs((int)((actual_node->brX-actual_node->tlX)*100))*.01)*.25;
-        min_dist = (abs((int)((actual_node->tlY-actual_node->brY)*100))*.01)*.25;
-        if(flag > min_dist) min_dist = flag;
-        do{
-            goal_position.position_x = random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100))*.01;
-            goal_position.position_y = random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100))*.01;
-            float dif_x,dif_y;
-            dif_x = abs((int)((gps_position.position_x-goal_position.position_x)*100))*.01;
-            dif_y = abs((int)((gps_position.position_y-goal_position.position_y)*100))*.01;
-            if (dif_x >= min_dist && dif_y >= min_dist ) break;
-        }while(true);
+        goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
+        goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
         // printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
     }
     else{
@@ -264,7 +256,7 @@ void parse_kilo_message(uint8_t data[9]){
     switch(sa_type){
         case MSG_A:
             received_id = sa_id;
-            received_utility = (float)(((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
+            received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
             received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
             temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
             received_leaf = get_leaf_vec_id_in(temp_leaf);
@@ -282,21 +274,21 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 led = RGB(3,3,0);
                 set_color(led);
                 float k = data[1]*.01;
-                int best_leaf_id = (data[0] >> 2)+1;
+                uint8_t best_leaf_id = (data[0] >> 2)+1;
                 control_parameter = (data[2] >> 4);
                 gain_h = control_parameter / (1+control_parameter);
                 gain_k = 1 / (1+control_parameter);
-                int depth = ((data[2] >> 2)& 0b00000011)+1;
-                int branches = (data[2] & 0b00000011)+1;
+                uint8_t depth = ((data[2] >> 2)& 0b00000011)+1;
+                uint8_t branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 offset_x = (ARENA_X*.1)/2;
                 offset_y = (ARENA_Y*.1)/2;
                 goal_position.position_x = offset_x;
                 goal_position.position_y = offset_y;
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
-                float expiring_dist = sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
-                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC * 1);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 1);
+                uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
+                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC);
                 init_received_A = true;
             }
             break;

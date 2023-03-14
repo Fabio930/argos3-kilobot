@@ -121,7 +121,7 @@ float last_sample_utility = -1;
 /* map of the environment */
 tree_a *the_tree = NULL;
 tree_a **tree_array;
-unsigned int leafs_id[16];
+uint8_t leafs_id[16];
 
 message_a *messages_list = NULL;
 message_a **messages_array;
@@ -133,7 +133,7 @@ uint8_t led = RGB(0,0,0);
 /*-------------------------------------------------------------------*/
 /* Function for translating the relative ID of a leaf in the true ID */
 /*-------------------------------------------------------------------*/
-int get_leaf_vec_id_in(const int Leaf_id);
+uint8_t get_leaf_vec_id_in(const uint8_t Leaf_id);
 
 /*-------------------------------------------------------------------*/
 /*              Function for setting the motor speed                 */
@@ -174,7 +174,7 @@ void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const int Ms
 /*-----------------------------------------------------------------------------------*/
 void sample_and_decide(tree_a **leaf);
 
-int random_in_range(int min, int max);
+float random_in_range(float min, float max);
 
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */

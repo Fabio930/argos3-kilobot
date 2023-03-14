@@ -1,12 +1,12 @@
 #include "message_structure.h"
 
-void set_expiring_ticks_message(const int Expiring_time){
+void set_expiring_ticks_message(const uint16_t Expiring_time){
     expiring_ticks_messages = Expiring_time;
 }
 
 void sort_m(message_a **Array[]){
-    for (int i = 0; i < num_messages-1; i++){
-        for (int j = i+1; j < num_messages; j++){
+    for(int i = 0; i < num_messages-1; i++){
+        for(int j = i+1; j < num_messages; j++){
             if((*Array)[i]->counter > (*Array)[j]->counter){
                 message_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
@@ -22,14 +22,14 @@ void init_array_msg(message_a **Array[]){
 }
 
 void print_m(message_a **Array[]){
-    for (int i = 0; i < num_messages; i++){
+    for(int i = 0; i < num_messages; i++){
         if((*Array)[i]!=NULL) printf("M__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
         else printf("NULL\n");
     }
 }
 
 void increment_messages_counter(message_a **Array[]){
-    for (int i = 0; i < num_messages; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
+    for(int i = 0; i < num_messages; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
 }
 
 void erase_expired_messages(message_a **Array[],message_a **Mymessage){
@@ -79,8 +79,8 @@ void destroy_messages_memory(message_a **Array[],message_a **Mymessage){
     *Mymessage=NULL;
 }
 
-int update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,const int Agent_id,const int Agent_node, const int Agent_leaf, const float Leaf_utility){
-    int out;
+uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node, const uint8_t Agent_leaf, const float Leaf_utility){
+    uint8_t out;
     out=1;
     if(*Mymessage!=NULL){
         if((*Mymessage)->agent_id==Agent_id){
@@ -111,7 +111,7 @@ int update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,const i
     return out;
 }
 
-int get_counter_from_id(message_a **Array[],const int Agent_id){
+uint16_t get_counter_from_id(message_a **Array[],const uint8_t Agent_id){
     for(int i=0;i<num_messages;i++) if((*Array)[i]->agent_id==Agent_id) return (*Array)[i]->counter;
     return -1;
 }

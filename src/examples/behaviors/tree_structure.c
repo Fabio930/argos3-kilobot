@@ -1,6 +1,6 @@
 #include "tree_structure.h"
 
-void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K){
+void loop_complete_tree(tree_a **Mytree,const uint8_t Depth,uint8_t *Leafs_id, const uint8_t Best_leaf_id,const float Max_utility, const float K){
     if(Depth>=0){
         (*Mytree)->children = (tree_a*)malloc(branches*sizeof(tree_a));
         tree_a *c = (*Mytree)->children;
@@ -23,7 +23,7 @@ void loop_complete_tree(tree_a **Mytree,const int Depth,unsigned int *Leafs_id, 
                 else (c+i)->gt_utility=Max_utility*K;
             }
             tree_a *cc= (c+i);
-            loop_complete_tree(&cc,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
+            if(Depth > 0) loop_complete_tree(&cc,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
         }
     }
 }
@@ -40,7 +40,7 @@ void sort_t(tree_a **Array[]){
     }
 }
 
-tree_a* get_node_from_3(tree_a **Mytree,const int Node_id){
+tree_a* get_node_from_3(tree_a **Mytree,const uint8_t Node_id){
     tree_a *out=NULL;
     if((*Mytree)->id==Node_id) return (*Mytree);
     else if ((*Mytree)->children!=NULL){
@@ -64,7 +64,7 @@ void fill_tree_array(tree_a **Array[],tree_a **Mytree){
     sort_t(Array);
 }
 
-void complete_tree(tree_a **Array[],tree_a **Mytree,const int Depth,const int Branches,unsigned int *Leafs_id, const unsigned int Best_leaf_id,const float Max_utility, const float K){
+void complete_tree(tree_a **Array[],tree_a **Mytree,const uint8_t Depth,const uint8_t Branches,uint8_t *Leafs_id, const uint8_t Best_leaf_id,const float Max_utility, const float K){
     branches=Branches;
     for(int i=0;i<16;i++) *(Leafs_id+i)=-1;
     *Mytree=(tree_a*)malloc(sizeof(tree_a));
@@ -75,22 +75,22 @@ void complete_tree(tree_a **Array[],tree_a **Mytree,const int Depth,const int Br
     (*Mytree)->children=NULL;
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
     set_filter((*Mytree)->node_filter,0.75,0);
-    loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
+    if(Depth > 0) loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
     fill_tree_array(Array,Mytree);
 }
 
-tree_a* get_node(tree_a **Array[],const int Node_id){
+tree_a* get_node(tree_a **Array[],const uint8_t Node_id){
     return (*Array)[Node_id];
 }
 
-int get_nearest_node(tree_a **Array[],const int MYnode,const int MSGnode){
+uint8_t get_nearest_node(tree_a **Array[],const uint8_t MYnode,const uint8_t MSGnode){
     tree_a *my_node=(*Array)[MYnode];
     tree_a *msg_node=(*Array)[MSGnode];
     for(int i=0;i<msg_node->depth-my_node->depth-1;i++) msg_node=msg_node->parent;
     return msg_node->id;
 }
 
-int msg_received_from(tree_a **Array[],const int Mynode_id,const int Messagednode_id){
+uint8_t msg_received_from(tree_a **Array[],const uint8_t Mynode_id,const uint8_t Messagednode_id){
     if(Mynode_id==Messagednode_id) return THISNODE;
     tree_a *my_node=get_node(Array,Mynode_id);
     if(my_node->parent!=NULL && my_node->parent->id==Messagednode_id) return PARENTNODE;
@@ -114,7 +114,7 @@ void complete_update(tree_a **node){
     if((*node)->parent!=NULL) complete_update(&((*node)->parent));
 }
 
-void bottom_up_utility_update(tree_a **Array[],const int Leaf_id,float Sensed_utility){
+void bottom_up_utility_update(tree_a **Array[],const uint8_t Leaf_id,float Sensed_utility){
     tree_a *leaf=get_node(Array,Leaf_id);
     update_filter(leaf->node_filter,Sensed_utility,0);
     if(leaf->parent!=NULL) complete_update(&(leaf->parent));
@@ -124,7 +124,7 @@ void bottom_up_utility_update(tree_a **Array[],const int Leaf_id,float Sensed_ut
 /*   calculate the top_left and bottom_right corners of each node    */
 /*           top to bottom partition in quad trees                   */
 /*-------------------------------------------------------------------*/
-void loop_set_vertices(tree_a **Mytree,const int Index,const int Ref){
+void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
     float w1=(*Mytree)->tlX;
     float w2=(*Mytree)->brX;
     float h1=(*Mytree)->tlY;
@@ -135,14 +135,14 @@ void loop_set_vertices(tree_a **Mytree,const int Index,const int Ref){
         w2=dif + w1;
         if((*Mytree)->children!=NULL){   
             tree_a *c=(*Mytree)->children;
-            int count=0;
+            uint8_t count=0;
             for(int i=0;i<branches;i++){
                 (c+i)->tlX=w1;
                 (c+i)->tlY=h1;
                 (c+i)->brX=w2;
                 (c+i)->brY=h2;
                 tree_a *cc=c+i;
-                loop_set_vertices(&cc,Index,-1);
+                loop_set_vertices(&cc,Index,2);
                 w1=w2;
                 w2=w2+dif;
                 count++;
@@ -216,14 +216,15 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     (*Mytree)->tlY=0.03;
     (*Mytree)->brX=BrX-.03;
     (*Mytree)->brY=BrY-.03;
-    int indx=0;
+    uint8_t indx=0;
     for(int i=1;i<=4;i++){
-        if(pow(4,i)==branches){
+        uint8_t Pow=pow(4,1);
+        if(Pow==branches){
             indx = i;
             break;
         }
     }
-    loop_set_vertices(Mytree,indx,-1);
+    loop_set_vertices(Mytree,indx,2);
 }
 
 void destroy_tree(tree_a **Array[],tree_a **Mytree){

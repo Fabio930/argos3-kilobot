@@ -1,6 +1,6 @@
 #include "quorum_structure.h"
 
-void set_expiring_ticks_quorum_item(const int Expiring_time){
+void set_expiring_ticks_quorum_item(const uint16_t Expiring_time){
     expiring_ticks_quorum = Expiring_time;
 }
 
@@ -70,7 +70,7 @@ void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
     *Myquorum=NULL;
 }
 
-int update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node){
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node){
     int out;
     out=1;
     if(*Myquorum!=NULL){

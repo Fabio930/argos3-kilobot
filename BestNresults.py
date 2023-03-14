@@ -390,57 +390,50 @@ class Results:
                                                 data_to_plot.update({(base,S,A,B,D,k,r):(mean_val,std_val,dist_0_val,dist_1_val,dist_2_val,no_decision_val)})
                                 self.plot_percentages(data_to_plot,date)
 ##########################################################################################################
-    def sort_positions_by_node(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+    def sort_positions_by_node(self):
         position_distribution={}
-        base=np.random.choice(BASES)
-        A=np.random.choice(N_AGENTS)
-        S=np.random.choice(MAX_STEPS)
-        B=np.random.choice(BRACHES)
-        if B==4:
-            D=1
-        else:
-            D=np.random.choice(DEPTH)
-        k=np.random.choice(K)
-        r=np.random.choice(R)
-        posX=data_in.get((base,A,S,B,D,k,r))[6]
-        posY=data_in.get((base,A,S,B,D,k,r))[7]
-        locations=data_in.get((base,A,S,B,D,k,r))[0]
-        if len(posX)>1:
-            for c in range(len(locations)): 
-                for l in range(len(locations[c])):
-                    for e in range(int(len(locations[c][l]))):
-                        Xvec,Yvec=np.array([]),np.array([])
-                        if position_distribution.keys().__contains__(locations[c][l][e]):
-                            Xvec=position_distribution.get(locations[c][l][e])[0]
-                            Yvec=position_distribution.get(locations[c][l][e])[1]
-                        Xvec=np.append(Xvec,posX[c][l][e])
-                        Yvec=np.append(Yvec,posY[c][l][e])
-                        position_distribution.update({locations[c][l][e]:(Xvec,Yvec)})
-        else:
-            print("\nNo data available.\n")
-            return None,None
-        return position_distribution,(base,A,S,B,D,k,r)
+        for dfold in os.listdir(self.base):
+            if dfold[:3]=="LOG":
+                branches=dfold.split('x')[0][-1]
+                depth=dfold.split('x')[-1]
+                dir_path = os.path.join(self.base,dfold)
+                for elem in os.listdir(dir_path):
+                    if '.' in elem and elem.split('_')[-1]=="LOGPos.tsv":
+                        with open(os.path.join(dfold, elem), newline='') as f:
+                            reader = csv.reader(f)
+                            for row in reader:
+                                for val in row:
+                                    val = val.split('\t')
+
+                                    x,y,n=-1,-1,-1
+                                    for i in range(0,len(val)-1):
+                                        z=i%3
+                                        if i%3==0:
+                                            x=float(val[i])
+                                        elif i%3==1:
+                                            y=float(val[i])
+                                        elif i%3==2:
+                                            n=int(val[i])
+                                            if x!=-1.0 and y!=-1.0:
+                                                xPOSvec,yPOSvec=[],[]
+                                                if position_distribution.get((branches,depth,n))!=None:
+                                                    xPOSvec=position_distribution.get((branches,depth,n))[0]
+                                                    yPOSvec=position_distribution.get((branches,depth,n))[1]
+                                                xPOSvec.append(x)
+                                                yPOSvec.append(y)
+                                                position_distribution.update({(branches,depth,n):(xPOSvec,yPOSvec)})    
+        return position_distribution
     
 ##########################################################################################################
-    def plot_positions_distribution(self,data,path_tuple):
+    def plot_positions_distribution(self,data):
         if data==None:
             print("\nNo data available.\n")
             return
-        print("\n# branches:",path_tuple[3],"\tdepth:",path_tuple[4],'\n')
         data_keys=list(data.keys())
         for dk in range(len(data_keys)):
             fig = plt.subplots(figsize=(12,6))
             positions=data.get(data_keys[dk])
-            px,py=[],[]
-            if data_keys[dk]==0:
-                for x in range(len(positions[0])):
-                    if positions[0][x]!=-1 and positions[1][x]!=-1:
-                        px.append(positions[0][x])
-                        py.append(positions[1][x])
-            else:
-                px=positions[0]
-                py=positions[1]
-            plt.hexbin(px,py,gridsize=(84,42),cmap='YlOrRd')
+            plt.hexbin(positions[0],positions[1],gridsize=(42,21),cmap='YlOrRd')
             plt.title(data_keys[dk])
             plt.colorbar()
             plt.tight_layout()

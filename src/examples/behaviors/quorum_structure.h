@@ -2,17 +2,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int expiring_ticks_quorum = 10000;
-unsigned int min_quorum_length = 3;
+uint16_t expiring_ticks_quorum = 10000;
+uint8_t min_quorum_length = 3;
 float quorum_scaling_factor = 1;
-unsigned int num_quorum_items = 0;
+uint8_t num_quorum_items = 0;
 
 typedef struct quorum_structure{
-    unsigned int agent_id, agent_node, counter;
+    uint16_t counter;
+    uint8_t agent_id, agent_node;
     struct quorum_structure *next,*prev;
 }quorum_a;
 
-void set_expiring_ticks_quorum_item(const int Expiring_time);
+void set_expiring_ticks_quorum_item(const uint16_t Expiring_time);
 
 void sort_q(quorum_a **Array[]);
 
@@ -26,4 +27,4 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
 
-int update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const int Agent_id,const int Agent_node);
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node);
