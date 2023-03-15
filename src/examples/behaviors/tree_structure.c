@@ -157,7 +157,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
         }
     }
     else{
-        if(Ref==-1){
+        if(Ref==2){
             float dif = (w2-w1)/branches;
             w2=((*Mytree)->brX/branches) + w1;
             tree_a *c=(*Mytree)->children;
@@ -212,10 +212,10 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
 }
 
 void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
-    (*Mytree)->tlX=0.03;
-    (*Mytree)->tlY=0.03;
-    (*Mytree)->brX=BrX-.03;
-    (*Mytree)->brY=BrY-.03;
+    (*Mytree)->tlX=0;
+    (*Mytree)->tlY=0;
+    (*Mytree)->brX=BrX;
+    (*Mytree)->brY=BrY;
     uint8_t indx=0;
     for(int i=1;i<=4;i++){
         uint8_t Pow=pow(4,1);

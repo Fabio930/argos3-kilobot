@@ -431,9 +431,9 @@ class Results:
             return
         data_keys=list(data.keys())
         for dk in range(len(data_keys)):
-            fig = plt.subplots(figsize=(12,6))
+            fig = plt.subplots(figsize=(8,6))
             positions=data.get(data_keys[dk])
-            plt.hexbin(positions[0],positions[1],gridsize=(42,21),cmap='YlOrRd')
+            plt.hexbin(positions[0],positions[1],gridsize=(100,100),cmap='YlOrRd')
             plt.title(data_keys[dk])
             plt.colorbar()
             plt.tight_layout()
