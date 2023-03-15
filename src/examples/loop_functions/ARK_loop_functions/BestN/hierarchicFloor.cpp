@@ -5,7 +5,7 @@
 
 ChierarchicFloor::ChierarchicFloor(){}
 
-ChierarchicFloor::ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offsety){
+ChierarchicFloor::ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const Real Offsetx,const Real Offsety){
     depth = Depth;
     branches = Branches;
     max_utility = Utility;
@@ -283,9 +283,9 @@ Node* ChierarchicFloor::get_leaf_from_position(CVector2 Position){
     return NULL;
 }
 
-float* ChierarchicFloor::get_offset_x(){
+Real* ChierarchicFloor::get_offset_x(){
     return& v_offset.x;
 }
-float* ChierarchicFloor::get_offset_y(){
+Real* ChierarchicFloor::get_offset_y(){
     return& v_offset.y;
 }

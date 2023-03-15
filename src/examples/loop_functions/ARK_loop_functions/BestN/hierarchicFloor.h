@@ -12,7 +12,7 @@ class ChierarchicFloor{
     private:
         Node *root=NULL;
         struct XYoffset{
-            float x=-1,y=-1;
+            Real x=-1,y=-1;
         }v_offset;
         std::vector<Node *> leafs;
         UInt8 num_nodes=0;
@@ -26,7 +26,7 @@ class ChierarchicFloor{
     public:
         ChierarchicFloor();
 
-        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const float Offsetx,const float Offset);
+        ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const Real Offsetx,const Real Offset);
 
         ~ChierarchicFloor();
         
@@ -62,7 +62,7 @@ class ChierarchicFloor{
 
         Node* get_leaf_from_position(CVector2 Position);
 
-        float* get_offset_x();
-        float* get_offset_y();
+        Real* get_offset_x();
+        Real* get_offset_y();
 };
 #endif
