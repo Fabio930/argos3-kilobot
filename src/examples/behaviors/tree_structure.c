@@ -212,52 +212,52 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
 }
 
 void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
-    (*Mytree)->tlX=0.1;
-    (*Mytree)->tlY=0.1;
-    (*Mytree)->brX=BrX;
-    (*Mytree)->brY=BrY;
+    (*Mytree)->tlX=0.05;
+    (*Mytree)->tlY=0.05;
+    (*Mytree)->brX=0.55;
+    (*Mytree)->brY=0.55;
     tree_a *c = (*Mytree)->children;
     if(branches==2){
         for(uint8_t i=0;i<branches;i++){
             if(i==0){
-                (c+i)->tlX=0.1;
-                (c+i)->tlY=0.1;
-                (c+i)->brX=0.5;
-                (c+i)->brY=0.25;
+                (c+i)->tlX=0.05;
+                (c+i)->tlY=0.05;
+                (c+i)->brX=0.55;
+                (c+i)->brY=0.275;
             }
             else if(i==1){
-                (c+i)->tlX=0.1;
-                (c+i)->tlY=0.25;
-                (c+i)->brX=0.5;
-                (c+i)->brY=0.5;
+                (c+i)->tlX=0.05;
+                (c+i)->tlY=0.275;
+                (c+i)->brX=0.55;
+                (c+i)->brY=0.55;
             }
         }
     }
     else if(branches==4){
         for(uint8_t i=0;i<branches;i++){
             if(i==0){
-                (c+i)->tlX=0.1;
-                (c+i)->tlY=0.1;
-                (c+i)->brX=0.25;
-                (c+i)->brY=0.25;
+                (c+i)->tlX=0.05;
+                (c+i)->tlY=0.05;
+                (c+i)->brX=0.275;
+                (c+i)->brY=0.275;
             }
             else if(i==1){
-                (c+i)->tlX=0.1;
-                (c+i)->tlY=0.25;
-                (c+i)->brX=0.25;
-                (c+i)->brY=0.5;
+                (c+i)->tlX=0.05;
+                (c+i)->tlY=0.275;
+                (c+i)->brX=0.275;
+                (c+i)->brY=0.55;
             }
             if(i==2){
-                (c+i)->tlX=0.25;
-                (c+i)->tlY=0.1;
-                (c+i)->brX=0.5;
-                (c+i)->brY=0.25;
+                (c+i)->tlX=0.275;
+                (c+i)->tlY=0.05;
+                (c+i)->brX=0.55;
+                (c+i)->brY=0.275;
             }
             else if(i==3){
-                (c+i)->tlX=0.25;
-                (c+i)->tlY=0.25;
-                (c+i)->brX=0.5;
-                (c+i)->brY=0.5;
+                (c+i)->tlX=0.275;
+                (c+i)->tlY=0.275;
+                (c+i)->brX=0.55;
+                (c+i)->brY=0.55;
             }
         }
     }
