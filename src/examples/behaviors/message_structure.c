@@ -5,8 +5,8 @@ void set_expiring_ticks_message(const uint16_t Expiring_time){
 }
 
 void sort_m(message_a **Array[]){
-    for(int i = 0; i < num_messages-1; i++){
-        for(int j = i+1; j < num_messages; j++){
+    for(uint8_t i = 0; i < num_messages-1; i++){
+        for(uint8_t j = i+1; j < num_messages; j++){
             if((*Array)[i]->counter > (*Array)[j]->counter){
                 message_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
@@ -18,22 +18,22 @@ void sort_m(message_a **Array[]){
 
 void init_array_msg(message_a **Array[]){
     *Array = (message_a**)malloc(64*sizeof(message_a*));
-    for(int i=0;i<64;i++) (*Array)[i] = NULL;
+    for(uint8_t i=0;i<64;i++) (*Array)[i] = NULL;
 }
 
 void print_m(message_a **Array[]){
-    for(int i = 0; i < num_messages; i++){
+    for(uint8_t i = 0; i < num_messages; i++){
         if((*Array)[i]!=NULL) printf("M__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
         else printf("NULL\n");
     }
 }
 
 void increment_messages_counter(message_a **Array[]){
-    for(int i = 0; i < num_messages; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
+    for(uint8_t i = 0; i < num_messages; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
 }
 
 void erase_expired_messages(message_a **Array[],message_a **Mymessage){
-    for(int i=num_messages-1;i>=0;i--){
+    for(int8_t i=num_messages-1;i>=0;i--){
         if((*Array)[i]->counter>=expiring_ticks_messages){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
@@ -64,7 +64,7 @@ void erase_expired_messages(message_a **Array[],message_a **Mymessage){
 }
 
 void erase_messages(message_a **Array[],message_a **Mymessage){
-    for(int i=0;i<num_messages;i++){
+    for(uint8_t i=0;i<num_messages;i++){
         free((*Array)[i]);
         (*Array)[i] = NULL;
     }
@@ -73,7 +73,7 @@ void erase_messages(message_a **Array[],message_a **Mymessage){
 }
 
 void destroy_messages_memory(message_a **Array[],message_a **Mymessage){
-    for(int i=0;i<num_messages;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    for(uint8_t i=0;i<num_messages;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
     free(*Array);
     num_messages = 0;
     *Mymessage=NULL;
@@ -112,7 +112,7 @@ uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,con
 }
 
 uint16_t get_counter_from_id(message_a **Array[],const uint8_t Agent_id){
-    for(int i=0;i<num_messages;i++) if((*Array)[i]->agent_id==Agent_id) return (*Array)[i]->counter;
+    for(uint8_t i=0;i<num_messages;i++) if((*Array)[i]->agent_id==Agent_id) return (*Array)[i]->counter;
     return -1;
 }
 

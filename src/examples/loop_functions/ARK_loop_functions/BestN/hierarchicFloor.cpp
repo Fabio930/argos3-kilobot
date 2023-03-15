@@ -93,18 +93,54 @@ void ChierarchicFloor::set_distances_from_opt_node(Node **Start_node,const UInt8
 }
 
 void ChierarchicFloor::set_vertices(){
-    UInt8 indx=0;
-    for(UInt8 i=0;i<12;i++){
-        UInt8 Pow = pow(4,i);
-        if(Pow==branches){
-            indx = i;
-            break;
+    v_offset.x=0.3;
+    v_offset.y=0.3;
+    root->set_vertices(CVector2(-0.3,-0.3),CVector2(0.3,0.3));
+    root->set_vertices_offset(CVector2(0,0),CVector2(0.6,0.6));
+    if(branches==2){
+        for(uint8_t i=0;i<root->children.size();i++){
+            if(i==0){
+                (root)->children[i]->set_vertices(CVector2(-0.3,-0.3),CVector2(0.3,0));
+                (root)->children[i]->set_vertices_offset(CVector2(0,0),CVector2(0.6,0.3));
+            }
+            else if(i==1){
+                (root)->children[i]->set_vertices(CVector2(-0.3,0),CVector2(0.3,0.3));
+                (root)->children[i]->set_vertices_offset(CVector2(0,0.3),CVector2(0.6,0.6));
+            }
         }
     }
-    loop_set_vertices(&root,indx,2);
-    root->set_vertices_offset(CVector2(root->get_top_left_angle().GetX(),root->get_top_left_angle().GetY()),CVector2(root->get_bottom_right_angle().GetX(),root->get_bottom_right_angle().GetY()));
-    root->set_vertices(CVector2(root->get_top_left_angle().GetX()-v_offset.x,root->get_top_left_angle().GetY()-v_offset.y),CVector2(root->get_bottom_right_angle().GetX()-v_offset.x,root->get_bottom_right_angle().GetY()-v_offset.y));
-    for(UInt8 i=0;i<branches;i++) adjust_vertices(&(root->children[i]));
+    else if(branches==4){
+        for(uint8_t i=0;i<(root)->children.size();i++){
+            if(i==0){
+                (root)->children[i]->set_vertices(CVector2(-0.3,-0.3),CVector2(0,0));
+                (root)->children[i]->set_vertices_offset(CVector2(0,0),CVector2(0.3,0.3));
+            }
+            else if(i==1){
+                (root)->children[i]->set_vertices(CVector2(0,-0.3),CVector2(0.3,0));
+                (root)->children[i]->set_vertices_offset(CVector2(0.3,0),CVector2(0.6,0.3));
+            }
+            if(i==2){
+                (root)->children[i]->set_vertices(CVector2(-0.3,0),CVector2(0,0.3));
+                (root)->children[i]->set_vertices_offset(CVector2(0,0.3),CVector2(0.3,0.6));
+            }
+            else if(i==3){
+                (root)->children[i]->set_vertices(CVector2(0,0),CVector2(0.3,0.3));
+                (root)->children[i]->set_vertices_offset(CVector2(0.3,0.3),CVector2(0.6,0.6));
+            }
+        }
+    }
+    // UInt8 indx=0;
+    // for(UInt8 i=0;i<12;i++){
+    //     UInt8 Pow = pow(4,i);
+    //     if(Pow==branches){
+    //         indx = i;
+    //         break;
+    //     }
+    // }
+    // loop_set_vertices(&root,indx,2);
+    // root->set_vertices_offset(CVector2(root->get_top_left_angle().GetX(),root->get_top_left_angle().GetY()),CVector2(root->get_bottom_right_angle().GetX(),root->get_bottom_right_angle().GetY()));
+    // root->set_vertices(CVector2(root->get_top_left_angle().GetX()-v_offset.x,root->get_top_left_angle().GetY()-v_offset.y),CVector2(root->get_bottom_right_angle().GetX()-v_offset.x,root->get_bottom_right_angle().GetY()-v_offset.y));
+    // for(UInt8 i=0;i<branches;i++) adjust_vertices(&(root->children[i]));
 }
 
 void ChierarchicFloor::loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref){   

@@ -112,7 +112,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
     vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
-    best_leaf = c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
+    best_leaf = 1; //c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
     vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);

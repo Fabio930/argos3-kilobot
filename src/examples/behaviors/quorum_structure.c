@@ -5,8 +5,8 @@ void set_expiring_ticks_quorum_item(const uint16_t Expiring_time){
 }
 
 void sort_q(quorum_a **Array[]){
-    for (int i = 0; i < num_quorum_items-1; i++){
-        for (int j = i+1; j < num_quorum_items; j++){
+    for (uint8_t i = 0; i < num_quorum_items-1; i++){
+        for (uint8_t j = i+1; j < num_quorum_items; j++){
             if(((*Array)[i] == NULL && (*Array)[j] != NULL) || (*Array)[i]->counter > (*Array)[j]->counter){
                 quorum_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
@@ -18,22 +18,22 @@ void sort_q(quorum_a **Array[]){
 
 void init_array_qrm(quorum_a **Array[]){
     *Array = (quorum_a**)malloc(64*sizeof(quorum_a*));
-    for(int i=0;i<64;i++) (*Array)[i] = NULL;
+    for(uint8_t i=0;i<64;i++) (*Array)[i] = NULL;
 }
 
 void print_q(quorum_a **Array[]){
-    for (int i = 0; i < num_quorum_items; i++){
+    for (uint8_t i = 0; i < num_quorum_items; i++){
         if((*Array)[i]!=NULL) printf("Q__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
         else printf("NULL\n");
     }
 }
 
 void increment_quorum_counter(quorum_a **Array[]){
-    for (int i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
+    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
-    for(int i=num_quorum_items-1;i>=0;i--){
+    for(int8_t i=num_quorum_items-1;i>=0;i--){
         if((*Array)[i]->counter>=expiring_ticks_quorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
@@ -64,14 +64,14 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
 }
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
-    for(int i=0;i<num_quorum_items;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    for(uint8_t i=0;i<num_quorum_items;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
     free(*Array);
     num_quorum_items = 0;
     *Myquorum=NULL;
 }
 
 uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node){
-    int out;
+    uint8_t out;
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){

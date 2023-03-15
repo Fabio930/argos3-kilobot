@@ -47,7 +47,7 @@ void message_tx_success(){
 void broadcast(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         sa_type = 0;
-        for (int i = 0; i < 9; ++i) my_message.data[i]=0;
+        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
         int8_t utility_to_send;
         switch (sending_type){
             case MSG_A:
@@ -65,7 +65,7 @@ void broadcast(){
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
     uint8_t out = 0;
-    for(int i = 0;i < num_quorum_items;i++){
+    for(uint8_t i = 0;i < num_quorum_items;i++){
         uint8_t msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
         if(msg_src == THISNODE || msg_src == SUBTREE) out++;
     }
@@ -116,7 +116,7 @@ void sample_and_decide(tree_a **leaf){
     if(last_sample_utility > 10) last_sample_utility=10;
     else if(last_sample_utility < 0) last_sample_utility=0;
     if(c != NULL){
-        for(int i = 0;i < branches;i++){
+        for(uint8_t i = 0;i < branches;i++){
             over_node = c+i;
             if(pos_isin_node(goal_position.position_x,goal_position.position_y,&over_node)) break;
             over_node = NULL;
@@ -157,7 +157,7 @@ void sample_and_decide(tree_a **leaf){
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
-    float p = rand_soft() * (1.0 / 255);
+    float p = rand_soft() / 255.0;
     // int action = 0;
     my_state.previous_node = my_state.current_node;
     if     (p < commitment)                                                          {my_state.current_node = over_node->id;            /*action=1;*/}
@@ -172,6 +172,7 @@ void sample_and_decide(tree_a **leaf){
 
 float random_in_range(float min, float max){
     float r = ((float)rand_soft()) / 255.0;
+    r = roundf(r * 100) / 100;
     return min + (r*(max-min));
     }
 
@@ -181,7 +182,7 @@ void select_new_point(bool force){
         tree_a *leaf = NULL;
         if(!force){
             set_color(RGB(0,3,0));
-            for(unsigned int l = 0;l < num_leafs;l++){
+            for(uint8_t l = 0;l < num_leafs;l++){
                 leaf = get_node(&tree_array,leafs_id[l]);
                 last_sample_id = l;
                 if(pos_isin_node(goal_position.position_x,goal_position.position_y,&leaf)) break;
@@ -202,9 +203,12 @@ void select_new_point(bool force){
         }
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         my_state.current_level = actual_node->depth;
+
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
-        // printf("A_id:%d, gx:%f, gy:%f\n",kilo_uid,goal_position.position_x,goal_position.position_y);
+        printf("node:%d, gx:%f, gy:%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
+        printf("\tpx:%f, py:%f\n",gps_position.position_x,gps_position.position_y);
+        printf("\ttopLeft:%f,%f, bottomRight:%f,%f\n\n",actual_node->tlX,actual_node->tlY,actual_node->brX,actual_node->brY);
     }
     else{
         set_color(led);
@@ -218,8 +222,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
     switch(sa_type){
         case MSG_B:
-            gps_position.position_x = (sa_payload >> 10) * 0.02;
-            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.02;
+            gps_position.position_x = (sa_payload >> 10) * 0.01 * 2;
+            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01 * 2;
             gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
             break;
     }
