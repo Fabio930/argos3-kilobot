@@ -153,10 +153,10 @@ void sample_and_decide(tree_a **leaf){
             }
             break;
     }
-    commitment = commitment * gain_k;
-    abandonment = abandonment * gain_k;
-    recruitment = recruitment * gain_h;
-    cross_inhibition = cross_inhibition * gain_h;
+    commitment = 0; //commitment * gain_k;
+    abandonment = 0; //abandonment * gain_k;
+    recruitment = 0; //recruitment * gain_h;
+    cross_inhibition = 0;//cross_inhibition * gain_h;
     float p = rand_soft() / 255.0;
     // int action = 0;
     my_state.previous_node = my_state.current_node;
