@@ -148,8 +148,8 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"k",k);
     GetNodeAttribute(tHierarchicalStructNode,"control_gain",control_gain);
     /* Get the coordinates for the top left and bottom right corners of the arena */
-    TL = CVector2(float(this->GetSpace().GetArenaLimits().GetMin()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float(this->GetSpace().GetArenaLimits().GetMin()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
-    BR = CVector2(float(this->GetSpace().GetArenaLimits().GetMax()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float(this->GetSpace().GetArenaLimits().GetMax()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
+    TL = CVector2(float_t(this->GetSpace().GetArenaLimits().GetMin()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float_t(this->GetSpace().GetArenaLimits().GetMin()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
+    BR = CVector2(float_t(this->GetSpace().GetArenaLimits().GetMax()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float_t(this->GetSpace().GetArenaLimits().GetMax()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
 }
 
 /****************************************/
@@ -275,10 +275,17 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt
     m_tMessages[unKilobotID].type = Type;
     tKilobotMessage.m_sType = 1;
     UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    // use normalized position plus the sign -> must be readble by a kilobot and mappable in 0.05 and 0.55
-    // I want to make rid of the division by 2 -> it's likely to be the source of all problems!!
-    UInt8 valX = (UInt8)(((m_vecKilobotPositions[unKilobotID].GetX() + *(vh_floor->get_offset_x())) * 100) * .5);
-    UInt8 valY = (UInt8)(((m_vecKilobotPositions[unKilobotID].GetY() + *(vh_floor->get_offset_y())) * 100) * .5);
+
+    // float biased_x = m_vecKilobotPositions[unKilobotID].GetX() + 0.3;
+    // float biased_y = m_vecKilobotPositions[unKilobotID].GetY() + 0.3;
+    // float normal_x = biased_x / 0.6;
+    // float normal_y = biased_y / 0.6;
+    // UInt8 valX = (UInt8)(normal_x * 100);
+    // UInt8 valY = (UInt8)(normal_y * 100);
+
+    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + 0.3) * 100);
+    UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + 0.3) * 100);
+   
     tKilobotMessage.m_sType = (valY & 0b00000011) << 2 | tKilobotMessage.m_sType;
     tKilobotMessage.m_sID = unKilobotID << 4 | angle;
     tKilobotMessage.m_sData = valX << 4 | valY >> 2;

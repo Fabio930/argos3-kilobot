@@ -172,9 +172,8 @@ void sample_and_decide(tree_a **leaf){
 
 float random_in_range(float min, float max){
     float r = ((float)rand_soft()) / 255.0;
-    r = roundf(r * 100) / 100;
     return min + (r*(max-min));
-    }
+}
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
@@ -222,8 +221,12 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
     switch(sa_type){
         case MSG_B:
-            gps_position.position_x = (sa_payload >> 10) * 0.01 * 2;
-            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01 * 2;
+            // gps_position.position_x = ((uint8_t)(sa_payload >> 10) * 0.01) * 6;
+            // gps_position.position_y = (((uint8_t)sa_payload >> 2) * 0.01) * 6;
+
+            gps_position.position_x = (sa_payload >> 10) * 0.01;
+            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01;
+
             gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
             break;
     }
