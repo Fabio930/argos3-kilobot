@@ -99,7 +99,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= (min_quorum_length-1) && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     // int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
