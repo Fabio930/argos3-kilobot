@@ -3,9 +3,9 @@
 #include <stdio.h>
 
 uint16_t expiring_ticks_quorum = 10000;
-uint8_t min_quorum_length = 7;
-uint8_t min_quorum_items = 3;
-float quorum_scaling_factor = .85;
+uint8_t min_quorum_length = 3;
+uint8_t min_quorum_items = 2;
+float quorum_scaling_factor = 1;
 uint8_t num_quorum_items = 0;
 
 typedef struct quorum_structure{
