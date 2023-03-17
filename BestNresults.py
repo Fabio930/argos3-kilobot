@@ -389,8 +389,9 @@ class Results:
                                                 writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"dist_0":dist_0_val,"dist_1":dist_1_val,"dist_2":dist_2_val,"no_decision":no_decision_val})
                                                 data_to_plot.update({(base,S,A,B,D,k,r):(mean_val,std_val,dist_0_val,dist_1_val,dist_2_val,no_decision_val)})
                                 self.plot_percentages(data_to_plot,date)
+
 ##########################################################################################################
-    def sort_positions_by_node(self):
+    def sort_ark_positions_by_node(self):
         position_distribution={}
         for dfold in os.listdir(self.base):
             if dfold[:3]=="LOG":
@@ -425,6 +426,22 @@ class Results:
         return position_distribution
     
 ##########################################################################################################
+    def sort_kilo_positions_by_node(self):
+        position_distribution={}
+        for elem in os.listdir(self.base):
+            if '.' in elem and elem=="POStrial.tsv":
+                with open(os.path.join(self.base, elem), newline='') as f:
+                    xPOSvec,yPOSvec=[],[]
+                    reader = csv.reader(f)
+                    for row in reader:
+                        for val in row:
+                            val = val.split('\t')
+                            xPOSvec.append(val[0])
+                            yPOSvec.append(val[1])
+        position_distribution.update({0:(xPOSvec,yPOSvec)})    
+        return position_distribution
+    
+##########################################################################################################
     def plot_positions_distribution(self,data):
         if data==None:
             print("\nNo data available.\n")
@@ -433,7 +450,7 @@ class Results:
         for dk in range(len(data_keys)):
             fig = plt.subplots(figsize=(8,6))
             positions=data.get(data_keys[dk])
-            plt.hexbin(positions[0],positions[1],gridsize=(200,200),cmap='YlOrRd')
+            plt.hexbin(positions[0],positions[1],gridsize=(100,100),cmap='YlOrRd')
             plt.title(data_keys[dk])
             plt.colorbar()
             plt.tight_layout()
