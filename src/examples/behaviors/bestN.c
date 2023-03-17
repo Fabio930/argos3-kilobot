@@ -171,7 +171,8 @@ void sample_and_decide(tree_a **leaf){
 }
 
 float random_in_range(float min, float max){
-    float r = ((float)rand_soft()) / 255.0;
+    // float r = ((float)rand_soft()) / 255.0;
+    float r = ((float)rand()) / RAND_MAX;
     return min + (r*(max-min));
 }
 
