@@ -205,6 +205,10 @@ void select_new_point(bool force){
 
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+        FILE * fp;
+        fp = fopen ("POStrial.tsv", "a");
+        fprintf(fp, "%f\t%f\n",goal_position.position_x,goal_position.position_y);
+        fclose(fp);
         // printf("node:%d, gx:%f, gy:%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
         // printf("\tpx:%f, py:%f\n",gps_position.position_x,gps_position.position_y);
         // printf("\ttopLeft:%f,%f, bottomRight:%f,%f\n\n",actual_node->tlX,actual_node->tlY,actual_node->brX,actual_node->brY);
