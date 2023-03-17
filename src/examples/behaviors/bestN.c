@@ -175,7 +175,7 @@ float random_in_range(float min, float max){
     return min + (r*(max-min));
 }
 
-void select_new_point(bool force){
+void select_new_point(bool force,float rand_p){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         tree_a *leaf = NULL;
@@ -202,9 +202,14 @@ void select_new_point(bool force){
         }
         tree_a *actual_node = get_node(&tree_array,my_state.current_node);
         my_state.current_level = actual_node->depth;
-
-        goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
-        goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+        if(rand_p<.5){
+            goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
+            goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+        }
+        else{
+            goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+            goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
+        }
         FILE * fp;
         fp = fopen ("POStrial.tsv", "a");
         fprintf(fp, "%f\t%f\n",goal_position.position_x,goal_position.position_y);
@@ -307,7 +312,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
                 else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
                 else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
-                select_new_point(true);
+                select_new_point(true,0);
                 set_motion(FORWARD);
                 init_received_B = true;
                 led = RGB(0,0,0);
@@ -384,9 +389,9 @@ float AngleToGoal(){
     return angletogoal;
 }
 
-void random_way_point_model(){   
+void random_way_point_model(float rand_pos){   
     if(init_received_B){
-        select_new_point(false);
+        select_new_point(false,rand_pos);
         float angleToGoal = AngleToGoal();
         if(fabs(angleToGoal) <= 36){
             set_motion(FORWARD);
@@ -452,11 +457,12 @@ void setup(){
 }
 
 void loop(){
+    float rand_pos = rand_soft()/255.0;
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
     erase_expired_messages(&messages_array,&messages_list);
     erase_expired_items(&quorum_array,&quorum_list);
-    random_way_point_model();
+    random_way_point_model(rand_pos);
     if(last_sensing) broadcast();
 }
 
