@@ -245,6 +245,10 @@ std::vector<Node *> ChierarchicFloor::get_leafs(){
     return leafs;
 }
 
+int ChierarchicFloor::get_size(){
+    return num_nodes;
+}
+
 Node* ChierarchicFloor::get_best_leaf(){
     for(UInt8 i=0;i<leafs.size();i++) if(leafs[i]->distance_from_opt==0) return leafs[i];
     return NULL;

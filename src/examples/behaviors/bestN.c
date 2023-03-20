@@ -160,7 +160,7 @@ void sample_and_decide(tree_a **leaf){
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
-    float p = (float)rand_soft() / 255.0;
+    float p = (float)rand_hard() / 255.0;
     // int action = 0;
     my_state.previous_node = my_state.current_node;
     if     (p < commitment)                                                          {my_state.current_node = over_node->id;            /*action=1;*/}
@@ -460,7 +460,7 @@ void setup(){
 }
 
 void loop(){
-    float rand_pos = (float)rand_soft()/255.0;
+    float rand_pos = (float)rand_hard()/255.0;
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
     erase_expired_messages(&messages_array,&messages_list);

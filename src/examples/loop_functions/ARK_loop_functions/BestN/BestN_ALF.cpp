@@ -124,7 +124,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
 void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     /* The kilobots begins in the root node with a random goal position inside it */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecKilobotAskLevel[unKilobotID] = -1;
+    m_vecKilobotAskLevel[unKilobotID] = 0;
     m_vecKilobotMsgType[unKilobotID] = 0;
     m_vecKilobotNodes[unKilobotID] = 0;
     m_vecKilobotCommitments[unKilobotID] = 0;

@@ -28,7 +28,7 @@ class ChierarchicFloor{
 
         ChierarchicFloor(const CVector2 Tl,const CVector2 Br,const UInt8 Depth,const UInt8 Branches,const float Utility,const float K,const float Noise,const Real Offsetx,const Real Offset);
 
-        ~ChierarchicFloor();
+        virtual ~ChierarchicFloor();
         
         void complete_tree();
 
@@ -53,6 +53,8 @@ class ChierarchicFloor{
         std::vector<Node *> get_leafs_from_node(Node **Start_node);
         
         std::vector<Node *> get_leafs();
+
+        int get_size();
 
         Node* get_best_leaf();
 

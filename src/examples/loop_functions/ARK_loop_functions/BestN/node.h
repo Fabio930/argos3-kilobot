@@ -32,7 +32,7 @@ class Node{
 
         Node(const UInt8 Id,const float Utility,const float Noise);
 
-        ~Node();
+        virtual ~Node();
                 
         void set_parent(Node **Parent);
 
