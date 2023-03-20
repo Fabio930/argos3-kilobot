@@ -451,25 +451,29 @@ class Results:
             print("\nNo data available.\n")
             return
         data_keys=list(data.keys())
+        X,Y=[],[]
         for dk in range(len(data_keys)):
-            fig = plt.subplots(figsize=(8,6))
             positions=data.get(data_keys[dk])
-            MAXx,MAXy=0,0
-            minx,miny=999,999
-            for x in positions[0]:
-                if x>MAXx: MAXx=x
-                if x<minx: minx=x
-            for y in positions[1]:
-                if y>MAXy: MAXy=y
-                if y<miny: miny=y
-            plt.hexbin(positions[0],positions[1],gridsize=(100,100),cmap='YlOrRd')
-            plt.title(data_keys[dk])
-            plt.colorbar()
-            plt.xlim(minx,MAXx)
-            plt.ylim(miny,MAXy)
-            plt.tight_layout()
-            plt.show(fig)
-            plt.close()
+            for x in range(len(positions[0])):
+                X.append(positions[0][x])
+                Y.append(positions[1][x])
+        fig = plt.subplots(figsize=(8,6))
+        MAXx,MAXy=0,0
+        minx,miny=999,999
+        for x in X:
+            if x>MAXx: MAXx=x
+            if x<minx: minx=x
+        for y in Y:
+            if y>MAXy: MAXy=y
+            if y<miny: miny=y
+        plt.hexbin(X,Y,gridsize=(100,100),cmap='YlOrRd')
+        plt.title(0)
+        plt.colorbar()
+        plt.xlim(minx,MAXx)
+        plt.ylim(miny,MAXy)
+        plt.tight_layout()
+        plt.show(fig)
+        plt.close()
 
 ##########################################################################################################
     def plot_percentages(self,data,date):

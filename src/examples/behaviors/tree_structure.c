@@ -223,11 +223,11 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.55;
-                (c+i)->brY=0.275;
+                (c+i)->brY=0.3;
             }
             else if(i==1){
                 (c+i)->tlX=0.05;
-                (c+i)->tlY=0.275;
+                (c+i)->tlY=0.3;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.55;
             }
@@ -238,24 +238,24 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
             if(i==0){
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
-                (c+i)->brX=0.275;
-                (c+i)->brY=0.275;
+                (c+i)->brX=0.3;
+                (c+i)->brY=0.3;
             }
             else if(i==1){
                 (c+i)->tlX=0.05;
-                (c+i)->tlY=0.275;
-                (c+i)->brX=0.275;
+                (c+i)->tlY=0.3;
+                (c+i)->brX=0.3;
                 (c+i)->brY=0.55;
             }
             else if(i==2){
-                (c+i)->tlX=0.275;
+                (c+i)->tlX=0.3;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.55;
-                (c+i)->brY=0.275;
+                (c+i)->brY=0.3;
             }
             else if(i==3){
-                (c+i)->tlX=0.275;
-                (c+i)->tlY=0.275;
+                (c+i)->tlX=0.3;
+                (c+i)->tlY=0.3;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.55;
             }
