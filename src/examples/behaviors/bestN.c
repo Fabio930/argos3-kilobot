@@ -212,7 +212,7 @@ void select_new_point(bool force,float rand_p){
         }
         FILE * fp;
         fp = fopen ("POStrial.tsv", "a");
-        fprintf(fp, "%f\t%f\n",goal_position.position_x,goal_position.position_y);
+        fprintf(fp, "%d\t%f\t%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
         fclose(fp);
         // printf("node:%d, gx:%f, gy:%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
         // printf("\tpx:%f, py:%f\n",gps_position.position_x,gps_position.position_y);
