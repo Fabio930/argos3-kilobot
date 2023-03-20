@@ -153,11 +153,11 @@ void sample_and_decide(tree_a **leaf){
             }
             break;
     }
-    commitment = 0; //commitment * gain_k;
-    abandonment = 0; //abandonment * gain_k;
-    recruitment = 0; //recruitment * gain_h;
-    cross_inhibition = 0;//cross_inhibition * gain_h;
-    float p = rand_soft() / 255.0;
+    commitment = commitment * gain_k;
+    abandonment = abandonment * gain_k;
+    recruitment = recruitment * gain_h;
+    cross_inhibition = cross_inhibition * gain_h;
+    float p = (float)rand_soft() / 255.0;
     // int action = 0;
     my_state.previous_node = my_state.current_node;
     if     (p < commitment)                                                          {my_state.current_node = over_node->id;            /*action=1;*/}
@@ -171,8 +171,7 @@ void sample_and_decide(tree_a **leaf){
 }
 
 float random_in_range(float min, float max){
-    // float r = ((float)rand_soft()) / 255.0;
-    float r = ((float)rand()) / RAND_MAX;
+    float r = (float)rand_hard() / 255.0;
     return min + (r*(max-min));
 }
 
@@ -458,7 +457,7 @@ void setup(){
 }
 
 void loop(){
-    float rand_pos = rand_soft()/255.0;
+    float rand_pos = (float)rand_soft()/255.0;
     increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
     erase_expired_messages(&messages_array,&messages_list);
