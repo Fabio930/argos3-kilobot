@@ -440,8 +440,8 @@ class Results:
                             if position_distribution.get(n)!=None:
                                 xPOSvec=position_distribution.get(n)[0]
                                 yPOSvec=position_distribution.get(n)[1]
-                            xPOSvec.append(val[1])
-                            yPOSvec.append(val[2])
+                            xPOSvec.append(float(val[1]))
+                            yPOSvec.append(float(val[2]))
                             position_distribution.update({n:(xPOSvec,yPOSvec)})    
         return position_distribution
     
@@ -454,9 +454,19 @@ class Results:
         for dk in range(len(data_keys)):
             fig = plt.subplots(figsize=(8,6))
             positions=data.get(data_keys[dk])
+            MAXx,MAXy=0,0
+            minx,miny=999,999
+            for x in positions[0]:
+                if x>MAXx: MAXx=x
+                if x<minx: minx=x
+            for y in positions[1]:
+                if y>MAXy: MAXy=y
+                if y<miny: miny=y
             plt.hexbin(positions[0],positions[1],gridsize=(100,100),cmap='YlOrRd')
             plt.title(data_keys[dk])
             plt.colorbar()
+            plt.xlim(minx,MAXx)
+            plt.ylim(miny,MAXy)
             plt.tight_layout()
             plt.show(fig)
             plt.close()
@@ -575,8 +585,6 @@ class Results:
                                         if row[4] not in options: options.append(int(row[4]))
                                         if row[5] not in types: types.append(row[5])
                                         results_dict.update({(row[0],row[2],row[3],row[4],row[5]):(float(row[6]),float(row[8]))})
-# per ongi numero di robot esiste la caretlla 'images' qui va creata un'altra cartella 'resume' dove mettere i pareto plot e gli accuracy plot
-# qui bisogna fare distinzione tra i vari tempi massimi, poi per ogni K printare i plot come per la tesi
                     img_folder = os.path.join(pre_path,"/images")
                     if not os.path.exists(img_folder):
                         os.mkdir(img_folder)
