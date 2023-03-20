@@ -108,8 +108,8 @@ uint8_t received_leaf;
 float received_utility;
 bool ARK_sem_talking=false;
 
-float control_parameter;
 uint8_t control_gain;
+float control_parameter;
 float gain_h;
 float gain_k;
 

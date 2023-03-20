@@ -466,11 +466,11 @@ class Results:
         for y in Y:
             if y>MAXy: MAXy=y
             if y<miny: miny=y
-        plt.hexbin(X,Y,gridsize=(100,100),cmap='YlOrRd')
+        plt.hexbin(Y,X,gridsize=(100,100),cmap='YlOrRd')
         plt.title(0)
         plt.colorbar()
-        plt.xlim(minx,MAXx)
-        plt.ylim(miny,MAXy)
+        plt.ylim(minx,MAXx)
+        plt.xlim(miny,MAXy)
         plt.tight_layout()
         plt.show(fig)
         plt.close()

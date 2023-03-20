@@ -30,7 +30,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 # experiment_length is in seconds
 #################################
 experiment_length="3601"
-RUNS=500
+RUNS=1000
 numrobots="5"
 kappa="0.75"
 branches="2"

@@ -291,8 +291,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 float k = data[1]*.01;
                 uint8_t best_leaf_id = (data[0] >> 2)+1;
                 control_gain = (data[2] >> 4);
-                gain_h = control_gain / (1+control_gain);
-                gain_k = 1 / (1+control_gain);
+                gain_h = (float)control_gain / (1+control_gain);
+                gain_k = 1.0 / (1+control_gain);
                 uint8_t depth = ((data[2] >> 2)& 0b00000011)+1;
                 uint8_t branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
