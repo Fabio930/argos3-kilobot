@@ -247,7 +247,7 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->brX=0.275;
                 (c+i)->brY=0.55;
             }
-            if(i==2){
+            else if(i==2){
                 (c+i)->tlX=0.275;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.55;

@@ -116,12 +116,12 @@ void ChierarchicFloor::set_vertices(){
                 (root)->children[i]->set_vertices_offset(CVector2(0,0),CVector2(0.3,0.3));
             }
             else if(i==1){
-                (root)->children[i]->set_vertices(CVector2(0,-0.3),CVector2(0.3,0));
-                (root)->children[i]->set_vertices_offset(CVector2(0.3,0),CVector2(0.6,0.3));
-            }
-            if(i==2){
                 (root)->children[i]->set_vertices(CVector2(-0.3,0),CVector2(0,0.3));
                 (root)->children[i]->set_vertices_offset(CVector2(0,0.3),CVector2(0.3,0.6));
+            }
+            if(i==2){
+                (root)->children[i]->set_vertices(CVector2(0,-0.3),CVector2(0.3,0));
+                (root)->children[i]->set_vertices_offset(CVector2(0.3,0),CVector2(0.6,0.3));
             }
             else if(i==3){
                 (root)->children[i]->set_vertices(CVector2(0,0),CVector2(0.3,0.3));

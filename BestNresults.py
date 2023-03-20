@@ -431,14 +431,18 @@ class Results:
         for elem in os.listdir(self.base):
             if '.' in elem and elem=="POStrial.tsv":
                 with open(os.path.join(self.base, elem), newline='') as f:
-                    xPOSvec,yPOSvec=[],[]
                     reader = csv.reader(f)
                     for row in reader:
                         for val in row:
+                            xPOSvec,yPOSvec=[],[]
                             val = val.split('\t')
-                            xPOSvec.append(val[0])
-                            yPOSvec.append(val[1])
-        position_distribution.update({0:(xPOSvec,yPOSvec)})    
+                            n = val[0]
+                            if position_distribution.get(n)!=None:
+                                xPOSvec=position_distribution.get(n)[0]
+                                yPOSvec=position_distribution.get(n)[1]
+                            xPOSvec.append(val[1])
+                            yPOSvec.append(val[2])
+                            position_distribution.update({n:(xPOSvec,yPOSvec)})    
         return position_distribution
     
 ##########################################################################################################
