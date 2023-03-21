@@ -65,7 +65,7 @@ for nrob in $numrobots; do
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi
-                    for it in $(seq 1 $RUNS); do
+                    for it in $(seq 501 $RUNS); do
                         config=`printf 'config_nrob%d_branches%d_depth%d_K%d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
                         echo config $config
                         cp $base_config $config
