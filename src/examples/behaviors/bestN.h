@@ -180,7 +180,7 @@ float random_in_range(float min, float max);
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */
 /*-----------------------------------------------------------------------------------*/
-void select_new_point(bool force,float rand_p);
+void select_new_point(bool force);
 
 /*-------------------------------------------------------------------*/
 /*                   Parse smart messages                            */
@@ -219,7 +219,7 @@ float AngleToGoal();
 /*-------------------------------------------------------------------*/
 /*                      Random way point model                       */
 /*-------------------------------------------------------------------*/
-void random_way_point_model(float rand_pos);
+void random_way_point_model();
 
 /*-------------------------------------------------------------------*/
 /*                          Init function                            */
