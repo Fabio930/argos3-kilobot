@@ -455,8 +455,8 @@ class Results:
         for dk in range(len(data_keys)):
             positions=data.get(data_keys[dk])
             for x in range(len(positions[0])):
-                X.append(positions[0][x])
-                Y.append(positions[1][x])
+                X.append(float(positions[0][x]))
+                Y.append(float(positions[1][x]))
         fig = plt.subplots(figsize=(8,6))
         MAXx,MAXy=0,0
         minx,miny=999,999
