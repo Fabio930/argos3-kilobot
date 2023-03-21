@@ -117,7 +117,7 @@ uint16_t get_counter_from_id(message_a **Array[],const uint8_t Agent_id){
 }
 
 message_a *select_a_random_msg(message_a **Array[]){
-    if(num_messages>1) return (*Array)[rand_hard()%(num_messages-1)];
+    if(num_messages>1) return (*Array)[rand_soft()%(num_messages-1)];
     else if(num_messages==1) return (*Array)[0];
     else return NULL;
 }
