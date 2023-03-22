@@ -163,7 +163,6 @@ class Results:
                                                                                 if s==0:
                                                                                     seed=int(val[0])
                                                                                     best_leaf=int(val[1])
-                                                                                    # aggiunti angoli della best leaf dopo id...fai dopo aver sistemato
                                                                                     if len(leafs)==0:
                                                                                         for i in range(6,len(val)):
                                                                                             leafs.append(int(val[i]))
@@ -309,7 +308,7 @@ class Results:
         return (data,times)
 
 ##########################################################################################################
-    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date):
+    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,checkNodesDistr=False):
         data_0,data_1 = data[0],data[1]
         for base in BASES:
             for A in N_AGENTS:
@@ -329,10 +328,6 @@ class Results:
                                             type="quad"
                                         SEMprint=True
                                         if data_0.get((base,A,S,B,D,k,r)) is not None:
-                                            dist_0=0
-                                            dist_1=0
-                                            dist_2=0
-                                            no_decision=0
                                             times=data_0.get((base,A,S,B,D,k,r))[0]
                                             # locations=data_0.get((base,A,S,B,D,k,r))[1]
                                             commitments=data_0.get((base,A,S,B,D,k,r))[2]
@@ -342,37 +337,65 @@ class Results:
                                             leafs=data_0.get((base,A,S,B,D,k,r))[6]
                                             mean=data_1.get((base,A,S,B,D,k,r))[0]
                                             std=data_1.get((base,A,S,B,D,k,r))[1]
+                                            dist_0=[0]
+                                            dist_1=[0]
+                                            dist_2=[0]
+                                            no_decision=[0]
+                                            if checkNodesDistr:
+                                                dist_0=[0]*len(leafs)
+                                                dist_1=[0]*len(leafs)
+                                                dist_2=[0]*len(leafs)
+                                                no_decision=[0]*len(leafs)
                                             for t in range(len(times)):
-                                                # print(best_leafs[t],'\n',times[t],'\t',commitments[t],'\t',distances[t],'\t',leafs[t],'\n\n')
                                                 if times[t]<=S:
                                                     check_4_succes=0
                                                     for d in range(len(distances[t])):
                                                         if distances[t][d]==0 and commitments[t][d]==best_leafs[t]:
                                                             check_4_succes+=1
                                                     if check_4_succes>=len(distances[t])*.9:
-                                                        dist_0+=1
+                                                        if checkNodesDistr:
+                                                            dist_0[np.where(leafs == best_leafs[t])[0][0]]+=1
+                                                        else:
+                                                            dist_0[0]+=1
                                                     else:
                                                         check_4_succes=0
                                                         for d in range(len(distances[t])):
                                                             if distances[t][d]==1 and commitments[t][d] in leafs:
                                                                 check_4_succes+=1
                                                         if check_4_succes>=len(distances[t])*.9:
-                                                            dist_1+=1
+                                                            if checkNodesDistr:
+                                                                dist_1[np.where(leafs == best_leafs[t])[0][0]]+=1
+                                                            else:
+                                                                dist_1[0]+=1
                                                         else:
                                                             check_4_succes=0
                                                             for d in range(len(distances[t])):
                                                                 if distances[t][d]==2 and commitments[t][d] in leafs:
                                                                     check_4_succes+=1
                                                             if check_4_succes>=len(distances[t])*.9:
-                                                                dist_2+=1
+                                                                if checkNodesDistr:
+                                                                    dist_2[np.where(leafs == best_leafs[t])[0][0]]+=1
+                                                                else:
+                                                                    dist_2[0]+=1
                                                             else:
-                                                                no_decision+=1
+                                                                if checkNodesDistr:
+                                                                    no_decision[np.where(leafs == best_leafs[t])[0][0]]+=1
+                                                                else:
+                                                                    no_decision[0]+=1
                                                 else:
-                                                    no_decision+=1
-                                            dist_0_val=round(dist_0/len(times),3)
-                                            dist_1_val=round(dist_1/len(times),3)
-                                            dist_2_val=round(dist_2/len(times),3)
-                                            no_decision_val=round(no_decision/len(times),3)
+                                                    if checkNodesDistr:
+                                                        no_decision[np.where(leafs == best_leafs[t])[0][0]]+=1
+                                                    else:
+                                                        no_decision[0]+=1
+                                            dist_0_val=[0]*len(dist_0)
+                                            dist_1_val=[0]*len(dist_1)
+                                            dist_2_val=[0]*len(dist_2)
+                                            no_decision_val=[0]*len(no_decision)
+                                            for xd in range(len(dist_0)):
+                                                dist_0_val[xd]=round(dist_0[xd]/len(times),3)
+                                                dist_1_val[xd]=round(dist_1[xd]/len(times),3)
+                                                dist_2_val[xd]=round(dist_2[xd]/len(times),3)
+                                                no_decision_val[xd]=round(no_decision[xd]/len(times),3)
                                             mean_val=round(mean,3)
                                             std_val=round(std,3)
                                         else:
@@ -381,19 +404,24 @@ class Results:
                                             is_new = True
                                             if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
                                                 is_new=False
-                                            fieldnames = ["max_steps","agents","k","r","options","type","mean","std","dist_0","dist_1","dist_2","no_decision"]
+                                            fieldnames = ["max_steps","agents","k","r","options","type","mean","std","leaf","dist_0","dist_1","dist_2","no_decision"]
                                             with open(base+"/Robots#"+str(A)+"/resume_"+date+".csv","a") as f:
                                                 writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
                                                 if is_new:
                                                     writer.writeheader()
-                                                writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"dist_0":dist_0_val,"dist_1":dist_1_val,"dist_2":dist_2_val,"no_decision":no_decision_val})
-                                                data_to_plot.update({(base,S,A,B,D,k,r):(mean_val,std_val,dist_0_val,dist_1_val,dist_2_val,no_decision_val)})
+                                                if not checkNodesDistr:
+                                                    writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":-1,"dist_0":dist_0_val[0],"dist_1":dist_1_val[0],"dist_2":dist_2_val[0],"no_decision":no_decision_val[0]})
+                                                    data_to_plot.update({(base,S,A,B,D,k,r,-1):(mean_val,std_val,dist_0_val[0],dist_1_val[0],dist_2_val[0],no_decision_val[0])})
+                                                else:
+                                                    for l in range(len(leafs)):
+                                                        writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":leafs[l],"dist_0":dist_0_val[l],"dist_1":dist_1_val[l],"dist_2":dist_2_val[l],"no_decision":no_decision_val[l]})
+                                                        data_to_plot.update({(base,S,A,B,D,k,r,leafs[l]):(mean_val,std_val,dist_0_val[l],dist_1_val[l],dist_2_val[l],no_decision_val[l])})
                                 self.plot_percentages(data_to_plot,date)
 
 ##########################################################################################################
     def sort_ark_positions_by_node(self):
         position_distribution={}
-        for dfold in os.listdir(self.base):
+        for dfold in os.listdir(self.bases):
             if dfold[:3]=="LOG":
                 branches=dfold.split('x')[0][-1]
                 depth=dfold.split('x')[-1]
@@ -428,7 +456,7 @@ class Results:
 ##########################################################################################################
     def sort_kilo_positions_by_node(self):
         position_distribution={}
-        for elem in os.listdir(self.base):
+        for elem in os.listdir(self.bases):
             if '.' in elem and elem=="POStrial.tsv":
                 with open(os.path.join(self.base, elem), newline='') as f:
                     reader = csv.reader(f)
@@ -484,6 +512,7 @@ class Results:
         depth=[]
         Ks=[]
         Rs=[]
+        Leafs=[]
         for key in data.keys():
             if key[0] not in bases: bases.append(key[0])
             if key[1] not in times: times.append(key[1])
@@ -492,7 +521,10 @@ class Results:
             if key[4] not in depth: depth.append(key[4])
             if key[5] not in Ks: Ks.append(key[5])
             if key[6] not in Rs: Rs.append(key[6])
+            if key[7] not in Leafs: Leafs.append(key[7])
+        Ks=np.sort(Ks)
         Rs=np.sort(Rs)
+        Leafs=np.sort(Leafs)
         for ba in bases:
             saving_path=ba
             if os.path.exists(saving_path):
@@ -510,133 +542,134 @@ class Results:
                                             saving_path4=saving_path3+"/K#"+Sk
                                             if os.path.exists(saving_path4):
                                                 for ti in times:
-                                                    gotta_print=False
-                                                    group_labels=[]
-                                                    group_bars={}
-                                                    for r in Rs: # arrange the arrays for plotting
-                                                        data_tuple=data.get((ba,ti,a,b,d,k,r))
-                                                        if data_tuple is not None:
-                                                            gotta_print=True
-                                                            group_labels.append("R:"+str(r))
-                                                            arrFlag0,arrFlag1,arrFlag2,arrFlag3 = [],[],[],[]
-                                                            if len(group_bars.keys())>0:
-                                                                arrFlag0=group_bars.get("distance 0")
-                                                                arrFlag1=group_bars.get("distance 1")
-                                                                arrFlag2=group_bars.get("distance 2")
-                                                                arrFlag3=group_bars.get("no decision")
-                                                            arrFlag0.append(data_tuple[2])
-                                                            arrFlag1.append(data_tuple[3])
-                                                            arrFlag2.append(data_tuple[4])
-                                                            arrFlag3.append(data_tuple[5])
-                                                            group_bars.update({"distance 0":arrFlag0})
-                                                            group_bars.update({"distance 1":arrFlag1})
-                                                            group_bars.update({"distance 2":arrFlag2})
-                                                            group_bars.update({"no decision":arrFlag3})
-                                                    if gotta_print:
-                                                        x = np.arange(len(group_labels))
-                                                        saving_path5=saving_path4+"_percentages__"+str(ti)+"_"+date
-                                                        width = 0.1
-                                                        multiplier = 0
-                                                        fig,ax = plt.subplots(figsize=(12,6))
-                                                        for bkey,value in group_bars.items():
-                                                            offset = width * multiplier
-                                                            rects = ax.bar(x+offset,value,width,label=bkey)
-                                                            multiplier += 1
-                                                        ax.bar_label(rects)
-                                                        ax.set_ylabel("percentages")
-                                                        ax.set_xlabel("configurations")
-                                                        ax.set_title("Distances R:"+str(a)+",B:"+str(b)+",D:"+str(d)+",K:"+str(Sk))
-                                                        ax.set_xticks(x + width, group_labels)
-                                                        ax.legend(loc='best')
-                                                        ax.set_ylim(0,1.025)
-                                                        plt.grid(True)
-                                                        plt.tight_layout()
-                                                        # plt.show(fig)
-                                                        plt.savefig(saving_path5+".png")
-                                                        plt.close()
-                                                    else: print("Nothing to plot")
+                                                    for l in Leafs:
+                                                        gotta_print=False
+                                                        group_labels=[]
+                                                        group_bars={}
+                                                        for r in Rs: # arrange the arrays for plotting
+                                                            data_tuple=data.get((ba,ti,a,b,d,k,r,l))
+                                                            if data_tuple is not None:
+                                                                gotta_print=True
+                                                                group_labels.append("R:"+str(r))
+                                                                arrFlag0,arrFlag1,arrFlag2,arrFlag3 = [],[],[],[]
+                                                                if len(group_bars.keys())>0:
+                                                                    arrFlag0=group_bars.get("distance 0")
+                                                                    arrFlag1=group_bars.get("distance 1")
+                                                                    arrFlag2=group_bars.get("distance 2")
+                                                                    arrFlag3=group_bars.get("no decision")
+                                                                arrFlag0.append(data_tuple[2])
+                                                                arrFlag1.append(data_tuple[3])
+                                                                arrFlag2.append(data_tuple[4])
+                                                                arrFlag3.append(data_tuple[5])
+                                                                group_bars.update({"distance 0":arrFlag0})
+                                                                group_bars.update({"distance 1":arrFlag1})
+                                                                group_bars.update({"distance 2":arrFlag2})
+                                                                group_bars.update({"no decision":arrFlag3})
+                                                        if gotta_print:
+                                                            x = np.arange(len(group_labels))
+                                                            saving_path5=saving_path4+"_percentages__"+str(ti)+"_"+str(abs(l))+"_"+date
+                                                            width = 0.1
+                                                            multiplier = 0
+                                                            fig,ax = plt.subplots(figsize=(12,6))
+                                                            for bkey,value in group_bars.items():
+                                                                offset = width * multiplier
+                                                                rects = ax.bar(x+offset,value,width,label=bkey)
+                                                                multiplier += 1
+                                                            ax.bar_label(rects)
+                                                            ax.set_ylabel("percentages")
+                                                            ax.set_xlabel("configurations")
+                                                            ax.set_title("Distances R:"+str(a)+",B:"+str(b)+",D:"+str(d)+",K:"+str(Sk)+"leaf:"+str(l))
+                                                            ax.set_xticks(x + width, group_labels)
+                                                            ax.legend(loc='best')
+                                                            ax.set_ylim(0,1.025)
+                                                            plt.grid(True)
+                                                            plt.tight_layout()
+                                                            # plt.show(fig)
+                                                            plt.savefig(saving_path5+".png")
+                                                            plt.close()
+                                                        else: print("Nothing to plot")
 
 ##########################################################################################################
     def plot_pareto_diagram(self):
-        plt.rcParams.update({"font.size":18})
-        colors=['#5ec962', '#21918c','#3b528b','#440154']
-        par_colors=['#fde725','#21918c','#440154']
-        styles=[':', '--','-.','-']
-        alphas = np.linspace(0.3, 1, num=3)
-        for base in self.bases:
-            for dir in os.listdir(base):
-                if '.' not in dir and '#' in dir:
-                    results_dict={}
-                    times=[]
-                    Ks=[]
-                    Rs=[]
-                    options=[]
-                    types=[]
-                    pre_path=os.path.join(base, dir)
-                    for elem in os.listdir(pre_path):
-                        if ".csv" in elem and elem.split('_')[0]=="resume":
-                            resuming_file=os.path.join(pre_path,elem)
-                            with open(resuming_file,newline="") as the_file:
-                                the_reader = csv.reader(the_file)
-                                sem_reader = 0
-                                for row in the_reader:
-                                    if sem_reader==0:
-                                        sem_reader = 1
-                                    else:
-                                        if row[0] not in times: times.append(int(row[0]))
-                                        if row[2] not in Ks: Ks.append(float(row[2]))
-                                        if row[3] not in Rs: Rs.append(int(row[3]))
-                                        if row[4] not in options: options.append(int(row[4]))
-                                        if row[5] not in types: types.append(row[5])
-                                        results_dict.update({(row[0],row[2],row[3],row[4],row[5]):(float(row[6]),float(row[8]))})
-                    img_folder = os.path.join(pre_path,"/images")
-                    if not os.path.exists(img_folder):
-                        os.mkdir(img_folder)
-                    folder = os.path.join(img_folder,"/resume")
-                    if not os.path.exists(folder):
-                        os.mkdir(folder)
-                    dots = [np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-                    lines=[np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-                    fig,ax = plt.subplots(figsize=(10, 9))
-                    ##########################################################################################################################
-                    #LABELS
-                    four = mlines.Line2D([], [], color='#5ec962', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=4')
-                    sixteen = mlines.Line2D([], [], color='#3b528b', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=16')
-                    flat = mlines.Line2D([], [], color='silver', marker='o', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Flat tree')
-                    quad = mlines.Line2D([], [], color='silver', marker='s', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Quad tree')
-                    binary = mlines.Line2D([], [], color='silver', marker='^', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Binary tree')
+        # plt.rcParams.update({"font.size":18})
+        # colors=['#5ec962', '#21918c','#3b528b','#440154']
+        # par_colors=['#fde725','#21918c','#440154']
+        # styles=[':', '--','-.','-']
+        # alphas = np.linspace(0.3, 1, num=3)
+        # for base in self.bases:
+        #     for dir in os.listdir(base):
+        #         if '.' not in dir and '#' in dir:
+        #             results_dict={}
+        #             times=[]
+        #             Ks=[]
+        #             Rs=[]
+        #             options=[]
+        #             types=[]
+        #             pre_path=os.path.join(base, dir)
+        #             for elem in os.listdir(pre_path):
+        #                 if ".csv" in elem and elem.split('_')[0]=="resume":
+        #                     resuming_file=os.path.join(pre_path,elem)
+        #                     with open(resuming_file,newline="") as the_file:
+        #                         the_reader = csv.reader(the_file)
+        #                         sem_reader = 0
+        #                         for row in the_reader:
+        #                             if sem_reader==0:
+        #                                 sem_reader = 1
+        #                             else:
+        #                                 if row[0] not in times: times.append(int(row[0]))
+        #                                 if row[2] not in Ks: Ks.append(float(row[2]))
+        #                                 if row[3] not in Rs: Rs.append(int(row[3]))
+        #                                 if row[4] not in options: options.append(int(row[4]))
+        #                                 if row[5] not in types: types.append(row[5])
+        #                                 results_dict.update({(row[0],row[2],row[3],row[4],row[5]):(float(row[6]),float(row[8]))})
+        #             img_folder = os.path.join(pre_path,"/images")
+        #             if not os.path.exists(img_folder):
+        #                 os.mkdir(img_folder)
+        #             folder = os.path.join(img_folder,"/resume")
+        #             if not os.path.exists(folder):
+        #                 os.mkdir(folder)
+        #             dots = [np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
+        #             lines=[np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
+        #             fig,ax = plt.subplots(figsize=(10, 9))
+        #             ##########################################################################################################################
+        #             #LABELS
+        #             four = mlines.Line2D([], [], color='#5ec962', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=4')
+        #             sixteen = mlines.Line2D([], [], color='#3b528b', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=16')
+        #             flat = mlines.Line2D([], [], color='silver', marker='o', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Flat tree')
+        #             quad = mlines.Line2D([], [], color='silver', marker='s', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Quad tree')
+        #             binary = mlines.Line2D([], [], color='silver', marker='^', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Binary tree')
 
-                    void = mlines.Line2D([], [], linestyle='None')
+        #             void = mlines.Line2D([], [], linestyle='None')
 
-                    r1 = mlines.Line2D([], [], color='#cfd3d7', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=1')
-                    r2 = mlines.Line2D([], [], color='#98a1a8', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=2')
-                    r3 = mlines.Line2D([], [], color='#000000', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=3')
+        #             r1 = mlines.Line2D([], [], color='#cfd3d7', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=1')
+        #             r2 = mlines.Line2D([], [], color='#98a1a8', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=2')
+        #             r3 = mlines.Line2D([], [], color='#000000', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=3')
 
-                    handles_t = [flat, quad, binary]
-                    handles_n = [void,four, sixteen]
-                    handles_r = [r1, r2, r3]
-                    plt.legend(handles=handles_n+handles_t+handles_r, ncol=3,loc='lower right',framealpha=.4)
-                    times=[]
-                    Ks=[]
-                    Rs=[]
-                    options=[]
-                    types=[]
-                    for t in times:
-                        for o in options:
-                            for ty in types:
-                                for k in Ks:
-                                    for r in Rs:
-                                        vals=results_dict.get((t,k,r,o,ty))
-                                        i,j=-1,-1
-                                        mark=""
-                                        if r==1.0: j=0
-                                        elif r==2.0: j=1
-                                        elif r==3.0: j=2
-                                        if o==4: i=0
-                                        elif o==16: i=1
-                                        if ty=="flat": mark='o'
-                                        elif ty=="binary": mark='^'
-                                        elif ty=="quad": mark='s'
+        #             handles_t = [flat, quad, binary]
+        #             handles_n = [void,four, sixteen]
+        #             handles_r = [r1, r2, r3]
+        #             plt.legend(handles=handles_n+handles_t+handles_r, ncol=3,loc='lower right',framealpha=.4)
+        #             times=[]
+        #             Ks=[]
+        #             Rs=[]
+        #             options=[]
+        #             types=[]
+        #             for t in times:
+        #                 for o in options:
+        #                     for ty in types:
+        #                         for k in Ks:
+        #                             for r in Rs:
+        #                                 vals=results_dict.get((t,k,r,o,ty))
+        #                                 i,j=-1,-1
+        #                                 mark=""
+        #                                 if r==1.0: j=0
+        #                                 elif r==2.0: j=1
+        #                                 elif r==3.0: j=2
+        #                                 if o==4: i=0
+        #                                 elif o==16: i=1
+        #                                 if ty=="flat": mark='o'
+        #                                 elif ty=="binary": mark='^'
+        #                                 elif ty=="quad": mark='s'
 
         return
     

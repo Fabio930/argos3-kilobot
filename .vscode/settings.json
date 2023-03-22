@@ -72,5 +72,6 @@
     "cmake.sourceDirectory": "${workspaceFolder}/src",
     "C_Cpp.errorSquiggles": "enabled",
     "C_Cpp.intelliSenseEngineFallback": "enabled",
-    "problems.showCurrentInStatus": true
+    "problems.showCurrentInStatus": true,
+    "python.analysis.typeCheckingMode": "off"
 }
