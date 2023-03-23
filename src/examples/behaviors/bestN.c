@@ -168,7 +168,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; /*action=3;*/}
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; /*action=4;*/}
     erase_messages(&messages_array,&messages_list);
-    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
     // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }

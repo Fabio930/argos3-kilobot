@@ -24,7 +24,7 @@ class Node{
         Node *parent=NULL;
         std::vector<Node *> children;
         struct Vertices{
-            CVector2 tl=CVector2(),br=CVector2(),tl_offset=CVector2(),br_offset=CVector2();
+            CVector2 tl=CVector2(),br=CVector2();
         }tl_br;
 
     public:
@@ -42,8 +42,6 @@ class Node{
 
         void set_vertices(CVector2 Tl,CVector2 Br);
         
-        void set_vertices_offset(CVector2 Tl,CVector2 Br);
-
         void update_utility(const float Utility);
         
         void update_noise(const float Noise);

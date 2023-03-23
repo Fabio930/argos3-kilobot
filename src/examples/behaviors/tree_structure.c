@@ -129,8 +129,48 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
     float w2=(*Mytree)->brX;
     float h1=(*Mytree)->tlY;
     float h2=(*Mytree)->brY;
-    if(Index!=0){
-        float dif = (w2-w1)/(pow(2,Index));
+    float dif;
+    switch ((Index)){
+    case 0:
+        switch (Ref){
+        case 1:
+            dif = (h2-h1)/2.0;
+            h2=h1+dif;
+            if((*Mytree)->children!=NULL){
+                tree_a *c=(*Mytree)->children;
+                for(uint8_t i=0;i<branches;i++){
+                    (c+i)->tlX=w1;
+                    (c+i)->tlY=h1;
+                    (c+i)->brX=w2;
+                    (c+i)->brY=h2;
+                    tree_a *cc=c+i;
+                    loop_set_vertices(&cc,Index,0);
+                    h1=h1+dif;
+                    h2=h2+dif;
+                }
+            }
+            break;
+        default:
+            dif = (w2-w1)/2.0;
+            w2=w1+dif;
+            if((*Mytree)->children!=NULL){
+                tree_a *c=(*Mytree)->children;
+                for(uint8_t i=0;i<branches;i++){
+                    (c+i)->tlX=w1;
+                    (c+i)->tlY=h1;
+                    (c+i)->brX=w2;
+                    (c+i)->brY=h2;
+                    tree_a *cc=c+i;
+                    loop_set_vertices(&cc,Index,1);
+                    w1=w1+dif;
+                    w2=w2+dif;
+                }
+            }
+            break;
+        }
+        break;
+    case 1:
+        dif = (w2-w1)/2.0;
         h2=dif + h1;
         w2=dif + w1;
         if((*Mytree)->children!=NULL){   
@@ -142,11 +182,11 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                 (c+i)->brX=w2;
                 (c+i)->brY=h2;
                 tree_a *cc=c+i;
-                loop_set_vertices(&cc,Index,2);
+                loop_set_vertices(&cc,Index,0);
                 w1=w2;
                 w2=w2+dif;
                 count++;
-                if(count == pow(2,Index)){
+                if(count == 2){
                     count=0;
                     w1=(*Mytree)->tlX;
                     w2=dif + w1;
@@ -155,59 +195,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                 }
             }
         }
-    }
-    else{
-        if(Ref==2){
-            float dif = (w2-w1)/branches;
-            w2=((*Mytree)->brX/branches) + w1;
-            tree_a *c=(*Mytree)->children;
-            for(uint8_t i=0;i<branches;i++){
-                (c+i)->tlX=w1;
-                (c+i)->tlY=h1;
-                (c+i)->brX=w2;
-                (c+i)->brY=h2;
-                tree_a *cc=c+i;
-                loop_set_vertices(&cc,Index,1);
-                w1=w1+dif;
-                w2=w2+dif;
-            }
-        }
-        else{
-            if(Ref==1){
-                float dif = (h2-h1)/branches;
-                h2=h1+dif;
-                if((*Mytree)->children!=NULL){
-                    tree_a *c=(*Mytree)->children;
-                    for(uint8_t i=0;i<branches;i++){
-                        (c+i)->tlX=w1;
-                        (c+i)->tlY=h1;
-                        (c+i)->brX=w2;
-                        (c+i)->brY=h2;
-                        tree_a *cc=c+i;
-                        loop_set_vertices(&cc,Index,0);
-                        h1=h1+dif;
-                        h2=h2+dif;
-                    }
-                }
-            }                   
-            else{
-                float dif = (w2-w1)/branches;
-                w2=w1+dif;
-                if((*Mytree)->children!=NULL){
-                    tree_a *c=(*Mytree)->children;
-                    for(uint8_t i=0;i<branches;i++){
-                        (c+i)->tlX=w1;
-                        (c+i)->tlY=h1;
-                        (c+i)->brX=w2;
-                        (c+i)->brY=h2;
-                        tree_a *cc=c+i;
-                        loop_set_vertices(&cc,Index,1);
-                        w1=w1+dif;
-                        w2=w2+dif;
-                    }
-                }
-            }
-        }
+        break;
     }
 }
 
@@ -217,59 +205,64 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     (*Mytree)->brX=0.55;
     (*Mytree)->brY=0.55;
     tree_a *c = (*Mytree)->children;
-    if(branches==2){
+    switch (branches){
+    case 2:
         for(uint8_t i=0;i<branches;i++){
-            if(i==0){
+            switch (i){
+            case 0:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.3;
-            }
-            else if(i==1){
+                break;
+            
+            case 1:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.3;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.55;
+                break;
             }
+            tree_a *cc=c+i;
+            if((c+i)->children!=NULL) loop_set_vertices(&cc,0,1);
         }
-    }
-    else if(branches==4){
+        break;
+    case 4:
         for(uint8_t i=0;i<branches;i++){
-            if(i==0){
+            switch (i){
+            case 0:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.3;
                 (c+i)->brY=0.3;
-            }
-            else if(i==1){
+                break;
+            case 1:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.3;
                 (c+i)->brX=0.3;
                 (c+i)->brY=0.55;
-            }
-            else if(i==2){
+                break;
+            case 2:
                 (c+i)->tlX=0.3;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.3;
-            }
-            else if(i==3){
+                break;
+            case 3:
                 (c+i)->tlX=0.3;
                 (c+i)->tlY=0.3;
                 (c+i)->brX=0.55;
                 (c+i)->brY=0.55;
+                break;
             }
+            tree_a *cc=c+i;
+            if((c+i)->children!=NULL) loop_set_vertices(&cc,1,0);
         }
+        break;
+    default:
+        printf("Structure not supported.\n");
+        return 0;
     }
-    // uint8_t indx=0;
-    // for(uint8_t i=1;i<=4;i++){
-    //     uint8_t Pow=pow(4,1);
-    //     if(Pow==branches){
-    //         indx = i;
-    //         break;
-    //     }
-    // }
-    // loop_set_vertices(Mytree,indx,2);
 }
 
 void destroy_tree(tree_a **Array[],tree_a **Mytree){

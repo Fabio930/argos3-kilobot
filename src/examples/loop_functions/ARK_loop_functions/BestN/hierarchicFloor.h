@@ -44,9 +44,7 @@ class ChierarchicFloor{
 
         void set_vertices();
         
-        void loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref);
-
-        void adjust_vertices(Node **Start_node);
+        void loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref,const float minX,const float maxX,const float minY,const float maxY);
 
         UInt8 derive_node_id(const UInt8 Level, CVector2 Position);
 

@@ -93,128 +93,113 @@ void ChierarchicFloor::set_distances_from_opt_node(Node **Start_node,const UInt8
 }
 
 void ChierarchicFloor::set_vertices(){
-    v_offset.x=0.3;
-    v_offset.y=0.3;
-    root->set_vertices(CVector2(-0.3,-0.3),CVector2(0.3,0.3));
-    root->set_vertices_offset(CVector2(0,0),CVector2(0.6,0.6));
-    if(branches==2){
+    switch (branches){
+    case 2:
         for(uint8_t i=0;i<root->children.size();i++){
-            if(i==0){
-                (root)->children[i]->set_vertices(CVector2(-0.3,-0.3),CVector2(0.3,0));
-                (root)->children[i]->set_vertices_offset(CVector2(0,0),CVector2(0.6,0.3));
+            switch (i){
+            case 0:
+                (root)->children[i]->set_vertices(CVector2(root->get_top_left_angle().GetY(),root->get_top_left_angle().GetX()),CVector2(root->get_bottom_right_angle().GetY(),0));
+                break;
+            case 1:
+                (root)->children[i]->set_vertices(CVector2(root->get_top_left_angle().GetY(),0),CVector2(root->get_bottom_right_angle().GetY(),root->get_bottom_right_angle().GetX()));
+                break;
             }
-            else if(i==1){
-                (root)->children[i]->set_vertices(CVector2(-0.3,0),CVector2(0.3,0.3));
-                (root)->children[i]->set_vertices_offset(CVector2(0,0.3),CVector2(0.6,0.6));
-            }
+            if(root->children[i]->children.size()!=0) loop_set_vertices(&(root->children[i]),0,1,root->get_top_left_angle().GetY()+.05,root->get_bottom_right_angle().GetY()-.05,root->get_top_left_angle().GetX()+.05,root->get_bottom_right_angle().GetX()-.05);
         }
-    }
-    else if(branches==4){
+        break;
+    case 4:
         for(uint8_t i=0;i<(root)->children.size();i++){
-            if(i==0){
-                (root)->children[i]->set_vertices(CVector2(-0.3,-0.3),CVector2(0,0));
-                (root)->children[i]->set_vertices_offset(CVector2(0,0),CVector2(0.3,0.3));
+            switch (i){
+            case 0:
+                (root)->children[i]->set_vertices(CVector2(root->get_top_left_angle().GetY(),root->get_top_left_angle().GetX()),CVector2(0,0));
+                break;
+            case 1:
+                (root)->children[i]->set_vertices(CVector2(root->get_top_left_angle().GetY(),0),CVector2(0,root->get_bottom_right_angle().GetX()));
+                break;
+            case 2:
+                (root)->children[i]->set_vertices(CVector2(0,root->get_top_left_angle().GetX()),CVector2(root->get_bottom_right_angle().GetY(),0));
+                break;
+            case 3:
+                (root)->children[i]->set_vertices(CVector2(0,0),CVector2(root->get_bottom_right_angle().GetY(),root->get_bottom_right_angle().GetX()));
+                break;
             }
-            else if(i==1){
-                (root)->children[i]->set_vertices(CVector2(-0.3,0),CVector2(0,0.3));
-                (root)->children[i]->set_vertices_offset(CVector2(0,0.3),CVector2(0.3,0.6));
-            }
-            else if(i==2){
-                (root)->children[i]->set_vertices(CVector2(0,-0.3),CVector2(0.3,0));
-                (root)->children[i]->set_vertices_offset(CVector2(0.3,0),CVector2(0.6,0.3));
-            }
-            else if(i==3){
-                (root)->children[i]->set_vertices(CVector2(0,0),CVector2(0.3,0.3));
-                (root)->children[i]->set_vertices_offset(CVector2(0.3,0.3),CVector2(0.6,0.6));
-            }
+            if(root->children[i]->children.size()!=0) loop_set_vertices(&(root->children[i]),1,0,root->get_top_left_angle().GetY()+.05,root->get_bottom_right_angle().GetY()-.05,root->get_top_left_angle().GetX()+.05,root->get_bottom_right_angle().GetX()-.05);
         }
+        break;
+    default:
+        std::cout<<"Structure not supported.\n";
+        return;
     }
-    // UInt8 indx=0;
-    // for(UInt8 i=0;i<12;i++){
-    //     UInt8 Pow = pow(4,i);
-    //     if(Pow==branches){
-    //         indx = i;
-    //         break;
-    //     }
-    // }
-    // loop_set_vertices(&root,indx,2);
-    // root->set_vertices_offset(CVector2(root->get_top_left_angle().GetX(),root->get_top_left_angle().GetY()),CVector2(root->get_bottom_right_angle().GetX(),root->get_bottom_right_angle().GetY()));
-    // root->set_vertices(CVector2(root->get_top_left_angle().GetX()-v_offset.x,root->get_top_left_angle().GetY()-v_offset.y),CVector2(root->get_bottom_right_angle().GetX()-v_offset.x,root->get_bottom_right_angle().GetY()-v_offset.y));
-    // for(UInt8 i=0;i<branches;i++) adjust_vertices(&(root->children[i]));
 }
 
-void ChierarchicFloor::loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref){   
+void ChierarchicFloor::loop_set_vertices(Node **Start_node,const UInt8 Index,const UInt8 Ref,const float minX,const float maxX,const float minY,const float maxY){
     float w1 = (*Start_node)->get_top_left_angle().GetX();
     float w2 = (*Start_node)->get_bottom_right_angle().GetX();
     float h1 = (*Start_node)->get_top_left_angle().GetY();
     float h2 = (*Start_node)->get_bottom_right_angle().GetY();
-    if(Index != 0){
-        float dif = (w2-w1)/(pow(2,Index));
+    w1+=v_offset.x;
+    w2+=v_offset.x;
+    h1+=v_offset.y;
+    h2+=v_offset.x;
+    if(w1<minY+v_offset.y) w1=minY+v_offset.y;
+    if(w2>maxY+v_offset.y) w2=maxY+v_offset.y;
+    if(h1<minX+v_offset.x) h1=minX+v_offset.x;
+    if(h2>maxX+v_offset.x) h2=maxX+v_offset.x;
+    float dif;
+    switch (Index){
+    case 0:
+        switch (Ref){
+        case 1:
+            dif = (w2-w1)/2.0;
+            w2=w1+dif;
+            if((*Start_node)->children.size()!=0){
+                for(UInt8 c=0;c<branches;c++){
+                    (*Start_node)->children[c]->set_vertices(CVector2(w1-v_offset.x,h1-v_offset.y),CVector2(w2-v_offset.x,h2-v_offset.y));
+                    loop_set_vertices(&((*Start_node)->children[c]),Index,0,minX,maxX,minY,maxY);
+                    w1=w1+dif;
+                    w2=w2+dif;
+                }
+            }
+        break;
+        default:
+            dif = (h2-h1)/2.0;
+            h2=h1+dif;
+            if((*Start_node)->children.size()!=0){
+                for(UInt8 c=0;c<branches;c++){
+                    (*Start_node)->children[c]->set_vertices(CVector2(w1-v_offset.x,h1-v_offset.y),CVector2(w2-v_offset.x,h2-v_offset.y));
+                    loop_set_vertices(&((*Start_node)->children[c]),Index,1,minX,maxX,minY,maxY);
+                    h1=h1+dif;
+                    h2=h2+dif;
+                }
+            }
+        break;
+        }
+    break;
+    case 1:
+        dif = (h2-h1)/2.0;
         h2=dif + h1;
         w2=dif + w1;
         if((*Start_node)->children.size()!=0){
             UInt8 count=0;
             for(UInt8 c=0;c<branches;c++){
-                (*Start_node)->children[c]->set_vertices(CVector2(w1,h1),CVector2(w2,h2));
-                loop_set_vertices(&((*Start_node)->children[c]),Index,2);
-                w1=w2;
-                w2=w2+dif;
+                (*Start_node)->children[c]->set_vertices(CVector2(w1-v_offset.x,h1-v_offset.y),CVector2(w2-v_offset.x,h2-v_offset.y));
+                loop_set_vertices(&((*Start_node)->children[c]),Index,0,minX,maxX,minY,maxY);
+                h1=h2;
+                h2=h2+dif;
                 count++;
-                if(count == pow(2,Index)){
+                if(count == 2){
                     count=0;
-                    w1=(*Start_node)->get_top_left_angle().GetX();
+                    w1=w2;
+                    h1=(*Start_node)->get_top_left_angle().GetY();
+                    h1+= v_offset.y;
+                    if(h1<minY+v_offset.x) h1=minY+v_offset.x;
                     w2=dif + w1;
-                    h1=h2;
                     h2=dif + h1;
                 }
             }
         }
+    break;
     }
-    else{
-        if(Ref==2){
-            float dif = (w2-w1)/(*Start_node)->children.size();
-            w2=((*Start_node)->get_bottom_right_angle().GetX()/(*Start_node)->children.size()) + w1;
-            for(UInt8 c=0;c<branches;c++){
-                (*Start_node)->children[c]->set_vertices(CVector2(w1,h1),CVector2(w2,h2));
-                loop_set_vertices(&((*Start_node)->children[c]),Index,1);
-                w1=w1+dif;
-                w2=w2+dif;
-            }
-        }
-        else{
-            if(Ref==1){
-                float dif = (h2-h1)/(*Start_node)->children.size();
-                h2=h1+dif;
-                if((*Start_node)->children.size()!=0){
-                    for(UInt8 c=0;c<branches;c++){
-                        (*Start_node)->children[c]->set_vertices(CVector2(w1,h1),CVector2(w2,h2));
-                        loop_set_vertices(&((*Start_node)->children[c]),Index,0);
-                        h1=h1+dif;
-                        h2=h2+dif;
-                    }
-                }
-            }                   
-            else{
-                float dif = (w2-w1)/(*Start_node)->children.size();
-                w2=w1+dif;
-                if((*Start_node)->children.size()!=0){
-                    for(UInt8 c=0;c<branches;c++){
-                        (*Start_node)->children[c]->set_vertices(CVector2(w1,h1),CVector2(w2,h2));
-                        loop_set_vertices(&((*Start_node)->children[c]),Index,1);
-                        w1=w1+dif;
-                        w2=w2+dif;
-                    }
-                }
-
-            }
-        }   
-    }
-}
-
-void ChierarchicFloor::adjust_vertices(Node **Start_node){   
-    (*Start_node)->set_vertices_offset(CVector2((*Start_node)->get_top_left_angle().GetX(),(*Start_node)->get_top_left_angle().GetY()),CVector2((*Start_node)->get_bottom_right_angle().GetX(),(*Start_node)->get_bottom_right_angle().GetY()));
-    (*Start_node)->set_vertices(CVector2((*Start_node)->get_top_left_angle().GetX()-v_offset.x,(*Start_node)->get_top_left_angle().GetY()-v_offset.y),CVector2((*Start_node)->get_bottom_right_angle().GetX()-v_offset.x,(*Start_node)->get_bottom_right_angle().GetY()-v_offset.y));
-    if((*Start_node)->children.size()!=0) for(UInt8 i=0;i<branches;i++) adjust_vertices(&((*Start_node)->children[i]));
 }
 
 UInt8 ChierarchicFloor::derive_node_id(const UInt8 Level, CVector2 Position){

@@ -41,11 +41,6 @@ void Node::set_vertices(CVector2 Tl,CVector2 Br){
     tl_br.br = Br;
 }
 
-void Node::set_vertices_offset(CVector2 Tl,CVector2 Br){
-    tl_br.tl_offset = Tl;
-    tl_br.br_offset = Br;
-}
-
 void Node::update_utility(const float Utility){
     utility = Utility;
 }

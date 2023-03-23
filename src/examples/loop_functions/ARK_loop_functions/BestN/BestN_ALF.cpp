@@ -148,8 +148,8 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"k",k);
     GetNodeAttribute(tHierarchicalStructNode,"control_gain",control_gain);
     /* Get the coordinates for the top left and bottom right corners of the arena */
-    TL = CVector2(float_t(this->GetSpace().GetArenaLimits().GetMin()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float_t(this->GetSpace().GetArenaLimits().GetMin()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
-    BR = CVector2(float_t(this->GetSpace().GetArenaLimits().GetMax()[0]+this->GetSpace().GetArenaLimits().GetMax()[0]),float_t(this->GetSpace().GetArenaLimits().GetMax()[1]+this->GetSpace().GetArenaLimits().GetMax()[1]));
+    TL = CVector2(Real(this->GetSpace().GetArenaLimits().GetMin()[0]),Real(this->GetSpace().GetArenaLimits().GetMin()[1]));
+    BR = CVector2(Real(this->GetSpace().GetArenaLimits().GetMax()[0]),Real(this->GetSpace().GetArenaLimits().GetMax()[1]));
 }
 
 /****************************************/
@@ -348,7 +348,7 @@ CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     Node *leaf = vh_floor->get_best_leaf();
     if(leaf->isin(vec_position_on_plane)) color=CColor::GREEN;
-    if(abs(vec_position_on_plane.GetX())>.25 || abs(vec_position_on_plane.GetY())>.25) color=CColor::BLACK;
+    if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
     return color;
 }
 
