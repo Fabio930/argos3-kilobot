@@ -8,10 +8,6 @@ void loop_complete_tree(tree_a **Mytree,const uint8_t Depth,uint8_t *Leafs_id, c
             (c+i)->id=num_nodes++;
             (c+i)->parent=*Mytree;
             (c+i)->children=NULL;
-            (c+i)->tlX=0;
-            (c+i)->tlY=0;
-            (c+i)->brX=0;
-            (c+i)->brY=0;
             (c+i)->depth=(*Mytree)->depth + 1;
             (c+i)->node_filter=(filter_a*)malloc(sizeof(filter_a));
             if(Depth > 0) set_filter((c+i)->node_filter,0.75,0);
@@ -150,7 +146,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                 }
             }
             break;
-        default:
+        case 0:
             dif = (w2-w1)/2.0;
             w2=w1+dif;
             if((*Mytree)->children!=NULL){
@@ -212,15 +208,15 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
             case 0:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
-                (c+i)->brX=0.55;
+                (c+i)->brX=BrX+0.05;
                 (c+i)->brY=0.3;
                 break;
             
             case 1:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.3;
-                (c+i)->brX=0.55;
-                (c+i)->brY=0.55;
+                (c+i)->brX=BrX+0.05;
+                (c+i)->brY=BrY+0.05;
                 break;
             }
             tree_a *cc=(c+i);
@@ -240,19 +236,19 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.3;
                 (c+i)->brX=0.3;
-                (c+i)->brY=0.55;
+                (c+i)->brY=BrY+0.05;
                 break;
             case 2:
                 (c+i)->tlX=0.3;
                 (c+i)->tlY=0.05;
-                (c+i)->brX=0.55;
+                (c+i)->brX=BrX+0.05;
                 (c+i)->brY=0.3;
                 break;
             case 3:
                 (c+i)->tlX=0.3;
                 (c+i)->tlY=0.3;
-                (c+i)->brX=0.55;
-                (c+i)->brY=0.55;
+                (c+i)->brX=BrX+0.05;
+                (c+i)->brY=BrY+0.05;
                 break;
             }
             tree_a *cc=(c+i);

@@ -128,7 +128,7 @@ void ChierarchicFloor::set_vertices(){
         break;
     default:
         std::cout<<"Structure not supported.\n";
-        return;
+        break;
     }
 }
 
@@ -265,8 +265,16 @@ Node* ChierarchicFloor::get_node(Node **Start_node,const UInt8 Id){
 
 Node* ChierarchicFloor::get_leaf_from_position(CVector2 Position){
     for(UInt8 i=0;i<leafs.size();i++){
-        if((Position.GetX()>=leafs[i]->tl_br.tl.GetX()) && (Position.GetX()<=leafs[i]->tl_br.br.GetX())){
-            if((Position.GetY()>=leafs[i]->tl_br.tl.GetY()) && (Position.GetY()<=leafs[i]->tl_br.br.GetY())) return leafs[i];
+        float sx = leafs[i]->tl_br.tl.GetX();
+        float rx = leafs[i]->tl_br.br.GetX();
+        float ty = leafs[i]->tl_br.tl.GetY();
+        float by = leafs[i]->tl_br.br.GetY();
+        if(sx==-0.25) sx = -0.3;
+        if(ty==-0.25) ty = -0.3;
+        if(rx==0.25) rx = 0.3;
+        if(by==0.25) by = 0.3;
+        if((Position.GetX()>=sx) && (Position.GetX()<=rx)){
+            if((Position.GetY()>=ty) && (Position.GetY()<=by)) return leafs[i];
         }
     }
     return NULL;

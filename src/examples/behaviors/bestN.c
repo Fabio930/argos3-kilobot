@@ -101,7 +101,6 @@ void sample_and_decide(tree_a **leaf){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
         else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
-    // int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
     float commitment = 0;
     float recruitment = 0;
@@ -161,16 +160,12 @@ void sample_and_decide(tree_a **leaf){
     recruitment = recruitment * gain_h;
     cross_inhibition = cross_inhibition * gain_h;
     float p = (float)rand_hard() / 255.0;
-    // int action = 0;
     my_state.previous_node = my_state.current_node;
-    if     (p < commitment)                                                          {my_state.current_node = over_node->id;            /*action=1;*/}
-    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;          /*action=2;*/}
-    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; /*action=3;*/}
-    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; /*action=4;*/}
+    if     (p < commitment)                                                          {my_state.current_node = over_node->id;           }
+    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;         }
+    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id;}
+    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id;}
     erase_messages(&messages_array,&messages_list);
-    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
-    // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
-    // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
 
 float random_in_range(float min, float max){
@@ -181,8 +176,8 @@ float random_in_range(float min, float max){
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
-        tree_a *leaf = NULL;
         if(!force){
+            tree_a *leaf = NULL;
             set_color(RGB(0,3,0));
             for(uint8_t l = 0;l < num_leafs;l++){
                 leaf = get_node(&tree_array,leafs_id[l]);
@@ -207,9 +202,6 @@ void select_new_point(bool force){
         my_state.current_level = actual_node->depth;
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
-        // printf("node:%d, gx:%f, gy:%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
-        // printf("\tpx:%f, py:%f\n",gps_position.position_x,gps_position.position_y);
-        // printf("\ttopLeft:%f,%f, bottomRight:%f,%f\n\n",actual_node->tlX,actual_node->tlY,actual_node->brX,actual_node->brY);
     }
     else{
         set_color(led);
@@ -431,6 +423,7 @@ void setup(){
     my_state.previous_node = 0;
     my_state.current_node = 0;
     my_state.commitment_node = 0;
+    my_state.current_level = 0;
     my_message.type = KILO_BROADCAST_MSG;
     init_array_msg(&messages_array);
     init_array_qrm(&quorum_array);

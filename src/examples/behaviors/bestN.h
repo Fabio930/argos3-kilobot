@@ -62,7 +62,6 @@ typedef struct position{
     float position_x,position_y;
 }position_t;
 
-
 /* current motion type */
 motion_t current_motion_type = STOP;
 
@@ -75,7 +74,7 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 /* current state */
-state_t my_state={0,0,0};
+state_t my_state={0,0,0,0};
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -104,7 +103,6 @@ uint8_t received_level;
 uint8_t received_committed;
 uint8_t received_leaf;
 float received_utility;
-bool ARK_sem_talking=false;
 
 uint8_t control_gain;
 float control_parameter;

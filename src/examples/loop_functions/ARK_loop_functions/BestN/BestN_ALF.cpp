@@ -15,8 +15,7 @@ CBestN_ALF::CBestN_ALF() :
 /****************************************/
 /****************************************/
 
-CBestN_ALF::~CBestN_ALF(){
-}
+CBestN_ALF::~CBestN_ALF(){}
 
 /****************************************/
 /****************************************/
@@ -92,7 +91,6 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
-    m_vecKilobotChosenPoint.resize(m_tKilobotEntities.size());
     m_vecKilobotDistFromOpt.resize(m_tKilobotEntities.size());
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
     m_vecKilobotNodes.resize(m_tKilobotEntities.size());
@@ -118,7 +116,6 @@ void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     m_vecKilobotCommitments[unKilobotID] = 0;
     m_vecKilobotDistFromOpt[unKilobotID] = depth;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
-    m_vecKilobotChosenPoint[unKilobotID] = CVector2(-1,-1);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
 }
 
@@ -169,9 +166,6 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
         if (kilo_color == CColor::RED) m_vecKilobotCommitments[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_parent()->get_id();
         else if (kilo_color == CColor::BLUE) m_vecKilobotCommitments[unKilobotID] = m_vecKilobotNodes[unKilobotID];
         m_vecKilobotDistFromOpt[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_distance_from_opt();
-    }
-    if(kilo_color ==CColor::GREEN){
-        m_vecKilobotChosenPoint[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     }
 }
 
