@@ -97,13 +97,11 @@ private:
 
     /* output file for data acquisition */
     std::ofstream m_cLog;
-    std::ofstream m_cDecPos;
     UInt8 header = 0;
     UInt16 logging_time = 0;
 
     /* output file name*/
     std::string m_strLogFileName;
-    std::string m_strDecPosFileName;
 
     /* data acquisition frequency in ticks */
     UInt16 m_unDataAcquisitionFrequency;

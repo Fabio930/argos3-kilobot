@@ -26,10 +26,6 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
     CALF::Init(t_node);
     /* Other initializations: Variables, Log file opening... */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
-    m_strDecPosFileName="";
-    for(UInt32 i=0;i<m_strLogFileName.length()-4;i++) m_strDecPosFileName+=m_strLogFileName.at(i);
-    m_strDecPosFileName+="Pos.tsv";
-    m_cDecPos.open(m_strDecPosFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -38,10 +34,8 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
 void CBestN_ALF::Reset(){
     /* Close data file */
     m_cLog.close();
-    m_cDecPos.close();
     /* Reopen the file, erasing its contents */
     m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
-    m_cDecPos.open(m_strDecPosFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -49,7 +43,6 @@ void CBestN_ALF::Reset(){
 
 void CBestN_ALF::Destroy(){
     /* Close data file */
-    m_cDecPos.close();
     m_cLog.close();
 }
 
@@ -88,11 +81,6 @@ void CBestN_ALF::UpdateLog(UInt16 Time){
         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
     }
-    for(UInt8 i=0;i<m_vecKilobotChosenPoint.size();i++){
-        m_cDecPos << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotChosenPoint[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t';
-        m_vecKilobotChosenPoint[i] = CVector2(-1,-1);
-    }
-    m_cDecPos << std::endl;
 }
 
 /****************************************/

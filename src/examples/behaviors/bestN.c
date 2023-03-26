@@ -99,7 +99,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items < min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     // int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
@@ -168,7 +168,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; /*action=3;*/}
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; /*action=4;*/}
     erase_messages(&messages_array,&messages_list);
-    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
     // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
@@ -207,10 +207,6 @@ void select_new_point(bool force){
         my_state.current_level = actual_node->depth;
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
-        FILE * fp;
-        fp = fopen ("POStrial.tsv", "a");
-        fprintf(fp, "%d\t%f\t%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
-        fclose(fp);
         // printf("node:%d, gx:%f, gy:%f\n",actual_node->id,goal_position.position_x,goal_position.position_y);
         // printf("\tpx:%f, py:%f\n",gps_position.position_x,gps_position.position_y);
         // printf("\ttopLeft:%f,%f, bottomRight:%f,%f\n\n",actual_node->tlX,actual_node->tlY,actual_node->brX,actual_node->brY);

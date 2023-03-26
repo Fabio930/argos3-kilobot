@@ -204,7 +204,6 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     (*Mytree)->tlY=0.05;
     (*Mytree)->brX=BrX+0.05;
     (*Mytree)->brY=BrY+0.05;
-    printf("%f\t%f\t%f\t%f\t%d\n",(*Mytree)->tlX,(*Mytree)->tlY,(*Mytree)->brX,(*Mytree)->brY,(*Mytree)->id);
     tree_a *c = (*Mytree)->children;
     switch (branches){
     case 2:
