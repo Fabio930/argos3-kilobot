@@ -129,7 +129,10 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
     float w2=(*Mytree)->brX;
     float h1=(*Mytree)->tlY;
     float h2=(*Mytree)->brY;
+<<<<<<< HEAD
     printf("%f\t%f\t%f\t%f\t%d\n",w1,h1,w2,h2,(*Mytree)->id);
+=======
+>>>>>>> 6e9530c... .
     float dif;
     switch (Index){
     case 0:
