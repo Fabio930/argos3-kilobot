@@ -75,7 +75,7 @@ void complete_tree(tree_a **Array[],tree_a **Mytree,const uint8_t Depth,const ui
     (*Mytree)->children=NULL;
     (*Mytree)->node_filter = (filter_a*)malloc(sizeof(filter_a));
     set_filter((*Mytree)->node_filter,0.75,0);
-    if(Depth > 0) loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
+    loop_complete_tree(Mytree,Depth-1,Leafs_id,Best_leaf_id,Max_utility,K);
     fill_tree_array(Array,Mytree);
 }
 
