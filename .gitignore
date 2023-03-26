@@ -1,1 +1,10 @@
 build
+compile.sh
+compilerun.sh
+firstcompile.sh
+run.sh
+runbatch.sh
+*results_loop*
+*log*
+*LOG*
+*res*

@@ -1,96 +1,31 @@
-#ifndef QUORUM_STRCUCT_H
-#define QUORUM_STRCUCT_H
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-int expiring_time_quorum=11;
+uint16_t expiring_ticks_quorum = 10000;
+uint8_t min_quorum_length = 3;
+uint8_t min_quorum_items = 2;
+float quorum_scaling_factor = .9;
+uint8_t num_quorum_items = 0;
 
-typedef struct quorum_structure
-{
-    int agent_id, agent_node, counter;
+typedef struct quorum_structure{
+    uint16_t counter;
+    uint8_t agent_id, agent_node;
     struct quorum_structure *next,*prev;
-} quorum_a;
+}quorum_a;
 
-void set_expiring_time_quorum_item(const int Expiring_time)
-{
-    expiring_time_quorum=Expiring_time;
-}
+void set_expiring_ticks_quorum_item(const uint16_t Expiring_time);
 
-void add_an_item(quorum_a **myquorum,const int Agent_id,const int Agent_node)
-{
-    if((*myquorum)==NULL)
-    {
-        (*myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
-        (*myquorum)->agent_id=Agent_id;
-        (*myquorum)->agent_node=Agent_node;
-        (*myquorum)->counter=0;
-        (*myquorum)->next=NULL;
-        (*myquorum)->prev=NULL;
-    }
-    else
-    {
-        quorum_a *temp_quorum = (*myquorum);
-        while (temp_quorum->next!=NULL) temp_quorum=temp_quorum->next;
-        quorum_a *prev_quorum = temp_quorum;
-        temp_quorum=temp_quorum->next;
-        temp_quorum=(quorum_a*)malloc(sizeof(quorum_a));
-        temp_quorum->agent_id=Agent_id;
-        temp_quorum->agent_node=Agent_node;
-        temp_quorum->counter=0;
-        temp_quorum->next=NULL;
-        temp_quorum->prev=prev_quorum;
-    }
-}
+void sort_q(quorum_a **Array[]);
 
-void erase_expired_items(quorum_a **myquorum)
-{
-    quorum_a *current_item=(*myquorum);
-    if(current_item->counter >= expiring_time_quorum)
-    {
-        if(current_item->prev==NULL)
-        {
-            (*myquorum)=current_item->next;
-            current_item->next=NULL;
-            free(current_item);
-            current_item=(*myquorum);
-        }
-        else if(current_item->next==NULL)
-        {
-            current_item->prev=NULL;
-            free(current_item);
-            current_item=NULL;
-        }
-        else
-        {
-            quorum_a *prev_item=current_item->prev;
-            quorum_a *next_item=current_item->next;
-            prev_item->next=next_item;
-            next_item->prev=prev_item;
-            current_item->prev=NULL;
-            current_item->next=NULL;
-            free(current_item);
-            current_item=next_item;
-        }
-    }
-    else current_item=current_item->next;
-    if(current_item!=NULL) erase_expired_items(&current_item);
-}
+void init_array_qrm(quorum_a **Array[]);
 
-void increment_counter_quorum(quorum_a **myquorum)
-{
-    (*myquorum)->counter++;
-    quorum_a *q=(*myquorum)->next;
-    if (q!=NULL) increment_counter_quorum(&q);
-}
+void print_q(quorum_a **Array[]);
 
-void erase_quorum_list(quorum_a **myquorum)
-{   
-    quorum_a *q=(*myquorum)->next;
-    if(q!=NULL)
-    {
-        erase_quorum_list(&q);
-        q=NULL;
-    }
-    (*myquorum)->prev=NULL;
-    free((*myquorum));
-}
+void increment_quorum_counter(quorum_a **Array[]);
 
-#endif
+void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
+
+void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
+
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node);

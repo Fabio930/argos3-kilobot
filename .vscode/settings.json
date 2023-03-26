@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.txt": "makefile",
         "tree_structure.h": "c",
         "new": "cpp",
         "array": "cpp",
@@ -54,6 +55,23 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "wordsize.h": "c"
-    }
+        "wordsize.h": "c",
+        "message_structure.h": "c",
+        "stdlib.h": "c",
+        "kilolib.h": "c",
+        "stdint.h": "c",
+        "message.h": "c",
+        "test_debug.h": "c",
+        "quorum_structure.h": "c",
+        "stddef.h": "c",
+        "stdio.h": "c",
+        "filter_structure.h": "c",
+        "bestn.h": "c",
+        "hash_map": "cpp"
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/src",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngineFallback": "enabled",
+    "problems.showCurrentInStatus": true,
+    "python.analysis.typeCheckingMode": "off"
 }

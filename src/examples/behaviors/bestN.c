@@ -1,417 +1,405 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) fabio.oddi@diag.uniroma1.it
  */
+/* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
+#include "bestN.h"
+uint8_t get_leaf_vec_id_in(const uint8_t Leaf_id){
+    return leafs_id[Leaf_id];
+}
 
-#include "kilolib.h"
-#include <stdlib.h>
-#include<stdio.h>
-#include "tree_structure.h"
-#include "message_structure.h"
-#include "quorum_structure.h"
-
-#define PI 3.14159265358979323846
-/* used only for noisy data generation */
-typedef enum {
-    MAX_UTILITY = 10,
-    NOISE = 1
-} signal;
-
-/* Enum for messages type */
-typedef enum {
-  ARK_INIT_MSG = 0,
-  ARK_INDIVIDUAL_MSG = 1,
-  KILO_BROADCAST_MSG = 255,
-  KILO_IDENTIFICATION = 120
-} received_message_type;
-
-typedef enum {
-  MSG_A = 0,
-  MSG_B = 1,
-  MSG_GPS_A = 2,
-  MSG_GPS_B = 3
-} message_type;
-/* Enum for motion */
-
-typedef enum {
-    FORWARD = 0,
-    TURN_LEFT = 1,
-    TURN_RIGHT = 2,
-    STOP = 3,
-} motion_t;
-
-/* Enum for boolean flags */
-typedef enum {
-    false = 0,
-    true = 1,
-} bool;
-
-/* struct for the robot states */
-typedef struct state
-{
-    int current_node,previous_node,commitment_node;
-}state_t;
-
-/* struct for the robot position */
-typedef struct position
-{
-    float position_x,position_y;
-}position_t;
-
-/* offsets of map axes*/
-float offset_x, offset_y;
-
-/* current motion type */
-motion_t current_motion_type = STOP;
-
-/* goal position */
-position_t goal_position={0,0};
-
-/* position and angle given from ARK */
-position_t gps_position={0,0};
-int gps_angle=-1;
-float RotSpeed=38.0;
-float min_dist;
-uint32_t lastWaypointTime;
-uint32_t maxWaypointTime=1800;//3600; // about 2 minutes
-
-/* current state */
-state_t my_state={0,0,0};
-
-unsigned int turning_ticks = 0;
-const uint8_t max_turning_ticks = 160; /* constant to allow a maximum rotation of 180 degrees with \omega=\pi/5 */
-const uint16_t max_straight_ticks = 320; /* set the \tau_m period to 2.5 s: n_m = \tau_m/\delta_t = 2.5/(1/32) */
-uint32_t last_motion_ticks = 0;
-
-/* Variables for Smart Arena messages */
-int sa_type = 0;
-int sa_payload = 0;
-
-bool init_received_A=false;
-bool init_received_B=false;
-bool received_GPS_A=false;
-bool received_GPS_B=false;
-
-/* map of the environment */
-tree_a *theTree=NULL;
-
-/* lists for decision handling */
-message_a *inputBuffer=NULL;
-message_a *messagesList=NULL;
-quorum_a *quorumList=NULL;
-
-/* used only for noisy data generation */
-unsigned int leafs_size=0;
-unsigned int leafs_id[16];
-
-/*-------------------------------------------------------------------*/
-/* Function for setting the motor speed                              */
-/*-------------------------------------------------------------------*/
-void set_motion( motion_t new_motion_type ) {
-    bool calibrated = true;
-    if ( current_motion_type != new_motion_type ){
+void set_motion( motion_t new_motion_type){
+    if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
-        case FORWARD:
-            spinup_motors();
-            if (calibrated)
+            case FORWARD:
+                spinup_motors();
                 set_motors(kilo_straight_left,kilo_straight_right);
-            else
-                set_motors(70,70);
-            break;
-        case TURN_LEFT:
-            spinup_motors();
-            if (calibrated)
+                break;
+            case TURN_LEFT:
+                spinup_motors();
                 set_motors(kilo_turn_left,0);
-            else
-                set_motors(70,0);
-            break;
-        case TURN_RIGHT:
-            spinup_motors();
-            if (calibrated)
+                break;
+            case TURN_RIGHT:
+                spinup_motors();
                 set_motors(0,kilo_turn_right);
-            else
-                set_motors(0,70);
-            break;
-        case STOP:
-        default:
-            set_motors(0,0);
+                break;
+            case STOP:
+            default:
+                set_motors(0,0);
         }
         current_motion_type = new_motion_type;
     }
 }
 
-void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index)
-{
+bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
+    if(((*Node) != NULL) && (PositionX >= (*Node)->tlX && PositionX <= (*Node)->brX)&&(PositionY >= (*Node)->tlY && PositionY <= (*Node)->brY)) return true;
+    return false;
+}
+
+message_t *message_tx(){    
+    if (sending_msg) return &my_message;
+    return 0;
+}
+
+void message_tx_success(){
+    sending_msg = false;
+}
+
+void broadcast(){
+    if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
+        sa_type = 0;
+        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+        int8_t utility_to_send;
+        switch (sending_type){
+            case MSG_A:
+                utility_to_send = (int8_t)(last_sample_utility*10);
+                my_message.data[0] = kilo_uid << 2 | sa_type;
+                my_message.data[1] = last_sample_committed << 7 | utility_to_send;
+                my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
+                break;
+        }
+        my_message.crc = message_crc(&my_message);
+        last_broadcast_ticks = kilo_ticks;
+        sending_msg = true;
+    }
+}
+
+uint8_t check_quorum_trigger(quorum_a **Array[]){
+    uint8_t out = 0;
+    for(uint8_t i = 0;i < num_quorum_items;i++){
+        uint8_t msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
+        if(msg_src == THISNODE || msg_src == SUBTREE) out++;
+    }
+    return out;
+}
+
+void check_quorum(quorum_a **Array[]){
+    uint8_t counter = check_quorum_trigger(Array) + 1;
+    if(counter >= (num_quorum_items+1)*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
+}
+
+void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const uint8_t Msg_switch){
+    if(my_state.commitment_node == my_state.current_node && Msg_switch != SIBLINGTREE){
+        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+        sort_q(&quorum_array);
+    }
+    else if(my_state.commitment_node == (*Current_node)->parent->id){
+        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
+        sort_q(&quorum_array);
+    }
+}
+
+void sample_and_decide(tree_a **leaf){
+    tree_a *current_node = get_node(&tree_array,my_state.current_node);
+    // select a random message
+    uint8_t message_switch = 0;
+    message_a *rnd_msg = select_a_random_msg(&messages_array);
+    if(rnd_msg != NULL){
+        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
+        update_quorum_list(&current_node,&rnd_msg,message_switch);
+    }
+    if(quorum_list != NULL){
+        if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
+        else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+    }
+    // decide to commit or abandon
+    float commitment = 0;
+    float recruitment = 0;
+    float abandonment = 0;
+    float cross_inhibition = 0;
+    tree_a *over_node = NULL;
+    tree_a *c = current_node->children;
+    last_sensing = true;
+    float random_sample = levy(NOISE*1.0,2) + (*leaf)->gt_utility;
+    bottom_up_utility_update(&tree_array,(*leaf)->id,random_sample);
+    last_sample_utility = get_utility((*leaf)->node_filter);
+    if(last_sample_utility > 10) last_sample_utility=10;
+    else if(last_sample_utility < 0) last_sample_utility=0;
+    if(c != NULL){
+        for(uint8_t i = 0;i < branches;i++){
+            over_node = c+i;
+            if(pos_isin_node(goal_position.position_x,goal_position.position_y,&over_node)) break;
+            over_node = NULL;
+        }
+        if(over_node != NULL && my_state.current_node == my_state.commitment_node){
+            if(over_node->node_filter->utility < 0) commitment = 0;
+            else if(over_node->node_filter->utility < MAX_UTILITY) commitment = over_node->node_filter->utility/MAX_UTILITY;
+            else commitment = 1;
+        }
+    }
+    if(current_node->parent != NULL && my_state.commitment_node == current_node->parent->id){
+        if(current_node->node_filter->utility <= 0) abandonment = 1;
+        else abandonment = 1/(1 + current_node->node_filter->utility);
+    }
+    uint8_t agent_node_flag = 0;
+    switch (message_switch){
+        case SUBTREE:
+            if(my_state.current_node == my_state.commitment_node){
+                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
+                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
+                if(utility_flag <= 0) recruitment = 0;
+                else if(utility_flag<MAX_UTILITY) recruitment = utility_flag/MAX_UTILITY;
+                else recruitment = 1;
+                agent_node_flag = get_nearest_node(&tree_array,my_state.current_node,rnd_msg->agent_node);
+            }
+            break;
+        case SIBLINGTREE:
+            if(current_node->parent->id == my_state.commitment_node){
+                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
+                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
+                if(utility_flag <= 0) cross_inhibition = 0;
+                else if(utility_flag < MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
+                else cross_inhibition = 1;
+            }
+            break;
+    }
+    // control_parameter = control_gain * (1 - current_node->node_filter->distance);
+    // gain_h = control_parameter / (1+control_parameter);
+    // gain_k = 1 / (1+control_parameter);
+    commitment = commitment * gain_k;
+    abandonment = abandonment * gain_k;
+    recruitment = recruitment * gain_h;
+    cross_inhibition = cross_inhibition * gain_h;
+    float p = (float)rand_hard() / 255.0;
+    my_state.previous_node = my_state.current_node;
+    if     (p < commitment)                                                          {my_state.current_node = over_node->id;           }
+    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;         }
+    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id;}
+    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id;}
+    erase_messages(&messages_array,&messages_list);
+}
+
+float random_in_range(float min, float max){
+    float r = (float)rand_hard() / 255.0;
+    return min + (r*(max-min));
+}
+
+void select_new_point(bool force){
+    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
+    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
+        if(!force){
+            tree_a *leaf = NULL;
+            set_color(RGB(0,3,0));
+            for(uint8_t l = 0;l < num_leafs;l++){
+                leaf = get_node(&tree_array,leafs_id[l]);
+                last_sample_id = l;
+                if(pos_isin_node(goal_position.position_x,goal_position.position_y,&leaf)) break;
+            }
+            last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
+            if(my_state.commitment_node == my_state.current_node){
+                last_sample_committed = 1;
+                if(last_sample_level == 4){
+                    last_sample_level = last_sample_level - 1;
+                    last_sample_committed = 0;
+                }
+            }
+            else{   
+                last_sample_level = last_sample_level - 1;
+                last_sample_committed = 0;
+            }
+            sample_and_decide(&leaf);
+        }
+        tree_a *actual_node = get_node(&tree_array,my_state.current_node);
+        my_state.current_level = actual_node->depth;
+        goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
+        goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+    }
+    else{
+        set_color(led);
+    }
+}
+
+void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
-    sa_type = data[shift + 1] >> 6;
-    sa_payload = ((data[shift + 1] & 0b00111111) << 8) | (data[shift + 2]);
-    switch(sa_type)
-    {
-        case MSG_GPS_A:
-            gps_position.position_x=((sa_payload & 0b1111111110000000)>>7)*.01;
-            gps_position.position_y=(sa_payload & 0b0000000001111111)*.01;
-            break;
-        case MSG_GPS_B:
-            gps_angle=((sa_payload & 0b0000000001111111)*.1)*30;
+    sa_type = data[shift] & 0b00000011;
+    sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
+    switch(sa_type){
+        case MSG_B:
+            gps_position.position_x = (sa_payload >> 10) * 0.01;
+            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01;
+            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
             break;
     }
 }
 
-void parse_smart_arena_broadcast(uint8_t data[9])
-{   
-    sa_type = (int)(data[1] >> 6);
+uint8_t derive_agent_node(const uint8_t Received_committed, const uint8_t Received_leaf, const uint8_t Received_level){
+    tree_a *leaf = get_node(&tree_array,Received_leaf);
+    uint8_t level;
+    if(received_committed) level = Received_level;
+    else level = Received_level + 1;
+    if(level == leaf->depth) return leaf->id;
+    while(true){
+        if(leaf->parent != NULL){
+            leaf = leaf->parent;
+            if(level == leaf->depth) return leaf->id;
+        }
+        else break;
+    }
+    return 0;
+}
+
+void update_messages(){
+    uint8_t received_node = derive_agent_node(received_committed,received_leaf,received_level);
+    update_m(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
+    sort_m(&messages_array);
+}
+
+void parse_kilo_message(uint8_t data[9]){
+    received_utility = 0;
+    sa_id = (data[0] & 0b11111100) >> 2;
+    sa_type = data[0] & 0b00000011;
+    sa_payload = (((uint16_t)data[1]) << 8) | data[2];
+    uint8_t temp_leaf;
+    switch(sa_type){
+        case MSG_A:
+            received_id = sa_id;
+            received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
+            received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
+            temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
+            received_leaf = get_leaf_vec_id_in(temp_leaf);
+            received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
+            update_messages();
+            break;
+    }
+}
+
+void parse_smart_arena_broadcast(uint8_t data[9]){   
+    sa_type = data[0] & 0b00000011;
     switch (sa_type){
         case MSG_A:
-            if(!init_received_A)
-            {   
-                float k = data[0]*.01;
-                int best_leaf_id = (data[1] & 0b00011111)+1;
-                int branches = (data[2]>>2)+1;
-                int depth = (data[2] & 0b00000011)+1;
-                complete_tree(&theTree,depth,branches,&leafs_id,&leafs_size,best_leaf_id,MAX_UTILITY,k);
-                init_received_A=true;
-                set_color(RGB(0,3,0));
+            if(!init_received_A){   
+                led = RGB(3,3,0);
+                set_color(led);
+                float k = data[1]*.01;
+                uint8_t best_leaf_id = (data[0] >> 2)+1;
+                control_gain = (data[2] >> 4);
+                gain_h = (float)control_gain / (1+control_gain);
+                gain_k = 1.0 / (1+control_gain);
+                uint8_t depth = ((data[2] >> 2)& 0b00000011)+1;
+                uint8_t branches = (data[2] & 0b00000011)+1;
+                complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
+                set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
+                uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
+                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC);
+                init_received_A = true;
             }
             break;
         case MSG_B:
-            if(!init_received_B)
-            {   
-                float brX = (float)data[0] * .1;
-                float brY = (float)(data[1] & 0b00011111) * .1;
-                offset_x=brX/2;
-                offset_y=brY/2;
-                goal_position.position_x=offset_x;
-                goal_position.position_y=offset_y;
-                set_vertices(&theTree,brX,brY);
-                init_received_B=true;
-            }
-            break;
-        case MSG_GPS_A:
-            if(!received_GPS_A)
-            {
-                int id1 = data[0];
-                int id2 = data[3];
-                int id3 = data[6];
-                if (id1 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 0);
-                }
-                else if (id2 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 1);
-                }
-                else if (id3 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 2);
-                }
-                received_GPS_A=true;
-            }
-            break;
-        case MSG_GPS_B:
-            if(!received_GPS_B)
-            {
-                int id1 = data[0];
-                int id2 = data[3];
-                int id3 = data[6];
-                if (id1 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 0);
-                }
-                else if (id2 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 1);
-                }
-                else if (id3 == kilo_uid)
-                {
-                    parse_smart_arena_message(data, 2);
-                }
-                set_motion(FORWARD);
-                set_color(RGB(0,0,0));
+            if(init_received_A && !init_received_B){   
+                uint8_t id1 = (data[0] & 0b11111100) >> 2;
+                uint8_t id2 = (data[3] & 0b11111100) >> 2;
+                uint8_t id3 = (data[6] & 0b11111100) >> 2;
+                if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
+                else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
+                else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
                 select_new_point(true);
-                received_GPS_B=true;
+                set_motion(FORWARD);
+                init_received_B = true;
+                led = RGB(0,0,0);
+                set_color(led);
+            }
+            break;
+        case MSG_C:
+            if(my_state.current_level == (data[0] >> 2)){
+                if(my_state.current_node == my_state.commitment_node){
+                    led = RGB(0,0,3);
+                    set_color(led);
+                }
+                else{
+                    led = RGB(3,0,0);
+                    set_color(led);
+                }
+            }
+            else{
+                led = RGB(0,0,0);
+                set_color(led);
             }
             break;
     }
 }
-/*-------------------------------------------------------------------*/
-/* Callback function for message reception                           */
-/*-------------------------------------------------------------------*/
-void message_rx(message_t *msg, distance_measurement_t *d) {
+
+void message_rx(message_t *msg, distance_measurement_t *d){
+    sa_id = 0;
     sa_type = 0;
     sa_payload = 0;
-    switch (msg->type)
-    {
-        case ARK_INIT_MSG:{
+    uint8_t id1;
+    uint8_t id2;
+    uint8_t id3;
+    switch (msg->type){
+        case ARK_BROADCAST_MSG:
             parse_smart_arena_broadcast(msg->data);
             break;
-        }
-        case ARK_INDIVIDUAL_MSG:{
-            int id1 = msg->data[0];
-            int id2 = msg->data[3];
-            int id3 = msg->data[6];
-
-            if (id1 == kilo_uid)
-            {
-                parse_smart_arena_message(msg->data, 0);
+        case ARK_INDIVIDUAL_MSG:
+            id1 = (msg->data[0] & 0b11111100) >> 2;
+            id2 = (msg->data[3] & 0b11111100) >> 2;
+            id3 = (msg->data[6] & 0b11111100) >> 2;
+            if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
+            else if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
+            else if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            break;
+        case KILO_BROADCAST_MSG:
+            parse_kilo_message(msg->data);
+            break;
+        case KILO_IDENTIFICATION:
+            id1 = (msg->data[0] & 0b11111100) >> 2;
+            if (id1 == kilo_uid){
+                led = RGB(0,0,3);
+                set_color(led);
             }
-            else if (id2 == kilo_uid)
-            {
-                parse_smart_arena_message(msg->data, 1);
-            }
-            else if (id3 == kilo_uid)
-            {
-                parse_smart_arena_message(msg->data, 2);
+            else{
+                led = RGB(3,0,0);
+                set_color(led);
             }
             break;
-        }
-        case KILO_BROADCAST_MSG:{
-            break;
-        }
-        case KILO_IDENTIFICATION:{
-            int id = (msg->data[0] << 8) | msg->data[1];
-            if (id == kilo_uid) {
-                set_color(RGB(0,0,3));
-            } else {
-                set_color(RGB(3,0,0));
-            }
-            break;
-        }
     }
 }
 
-/*-------------------------------------------------------------------*/
-/* Function implementing the uncorrelated random walk                */
-/*-------------------------------------------------------------------*/
-void random_walk()
-{
-    switch( current_motion_type ) {
-    case TURN_LEFT:
-        if( kilo_ticks > last_motion_ticks + turning_ticks ) {
-            /* start moving forward */
-            // last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-            last_motion_ticks = rand() % max_straight_ticks + 1;  // random time FORWARD
-            set_motion(FORWARD);
-        }
-    case TURN_RIGHT:
-        if( kilo_ticks > last_motion_ticks + turning_ticks ) {
-            /* start moving forward */
-            // last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-            last_motion_ticks = rand() % max_straight_ticks + 1;  // random time FORWARD
-            set_motion(FORWARD);
-        }
-        break;
-    case FORWARD:
-        if( kilo_ticks > last_motion_ticks + max_straight_ticks ) {
-            /* perform a radnom turn */
-            last_motion_ticks = kilo_ticks;
-            if( rand()%2 ) {
-                set_motion(TURN_LEFT);
-            }
-            else {
-                set_motion(TURN_RIGHT);
-            }
-            turning_ticks = rand()%max_turning_ticks + 1;
-        }
-        break;
-    case STOP:
-    default:
-        set_motion(STOP);
+void NormalizeAngle(float* angle){
+    while(*angle > 180){
+        *angle = *angle-360;
+    }
+    while(*angle < -180){
+        *angle = *angle+360;
     }
 }
 
-/*-------------------------------------------------------------------*/
-/* Compute angle to Goal                                             */
-/*-------------------------------------------------------------------*/
-void NormalizeAngle(int* angle)
-{
-    while(*angle>180){
-        *angle=*angle-360;
-    }
-    while(*angle<-180){
-        *angle=*angle+360;
-    }
-    *angle=*angle*-1;
-}
-int AngleToGoal() {
-
-    int angletogoal=(atan2(goal_position.position_y-gps_position.position_y,goal_position.position_x-gps_position.position_x)/PI)*180 - (gps_angle - 180);
+float AngleToGoal(){
+    float angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
     NormalizeAngle(&angletogoal);
     return angletogoal;
 }
 
-int random_in_range(int min, int max){
-   return min + (rand()%(max-min));
-}
-/*-----------------------------------------------------------------------------------*/
-/* Function implementing the uncorrelated random walk with the random waypoint model */
-/*-----------------------------------------------------------------------------------*/
-void select_new_point(bool force)
-{
-    
-    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the correspective leaf*/
-    if (force || (gps_position.position_x==goal_position.position_x) && (gps_position.position_y==goal_position.position_y) || kilo_ticks >= lastWaypointTime + maxWaypointTime)
-    {
-        if(kilo_ticks >= lastWaypointTime + maxWaypointTime) set_color(RGB(1,2,0));
-        else if(force) set_color(RGB(0,0,0));
-        else
-        {
-            set_color(RGB(3,0,3));
-            tree_a *leaf=NULL;
-            // for(unsigned int l=0;l<leafs_size;l++)
-            // {
-            //     leaf = get_node(&theTree,leafs_id[l]);
-            //     if((gps_position.position_x >= leaf->tlX && gps_position.position_x <= leaf->brX)&&(gps_position.position_y >= leaf->tlY && gps_position.position_y <= leaf->brY)) break;
-            //     else leaf=NULL;
-            // }
-        }
-        lastWaypointTime = kilo_ticks;
-        tree_a *actual_node = get_node(&theTree,my_state.current_node);
-        float flag=abs(actual_node->brX-actual_node->tlX);
-        min_dist=abs(actual_node->brY-actual_node->tlY);
-        if(flag>min_dist) min_dist=flag;
-        do {
-            goal_position.position_x=(float)(random_in_range((int)((actual_node->tlX)*100),(int)((actual_node->brX)*100)))*.01;
-            goal_position.position_y=(float)(random_in_range((int)((actual_node->tlY)*100),(int)((actual_node->brY)*100)))*.01;
-            if ( abs(gps_position.position_x-goal_position.position_x) >= min_dist || abs(gps_position.position_y-goal_position.position_y) >= min_dist ) break;
-        } while(true);
-    }
-    else set_color(RGB(0,0,0));
-}
-
-void random_way_point_model()
-{   
-    if(gps_angle!=-1)
-    {
-        double angleToGoal = AngleToGoal();
-        if(fabs(angleToGoal) <= 20)
-        {
+void random_way_point_model(){   
+    if(init_received_B){
+        select_new_point(false);
+        float angleToGoal = AngleToGoal();
+        if(fabs(angleToGoal) <= 36){
             set_motion(FORWARD);
             last_motion_ticks = kilo_ticks;
         }
         else{
-            if(angleToGoal>0){
+            if(angleToGoal > 0){
                 set_motion(TURN_LEFT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks=(unsigned int) ( fabs(angleToGoal)/RotSpeed*32.0 );
+                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
             else{
                 set_motion(TURN_RIGHT);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks=(unsigned int) ( fabs(angleToGoal)/RotSpeed*32.0 );
+                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
         }
-        select_new_point(false);
-        switch( current_motion_type )
-        {
+        switch(current_motion_type){
             case TURN_LEFT:
-                if( kilo_ticks > last_motion_ticks + turning_ticks ) {
+                if(kilo_ticks > last_motion_ticks + turning_ticks){
                     /* start moving forward */
                     last_motion_ticks = kilo_ticks;  // fixed time FORWARD
                     set_motion(FORWARD);
                 }
                 break;
             case TURN_RIGHT:
-                if( kilo_ticks > last_motion_ticks + turning_ticks ) {
+                if(kilo_ticks > last_motion_ticks + turning_ticks){
                     /* start moving forward */
                     last_motion_ticks = kilo_ticks;  // fixed time FORWARD
                     set_motion(FORWARD);
@@ -419,27 +407,27 @@ void random_way_point_model()
                 break;
             case FORWARD:
                 break;
-
             case STOP:
             default:
                 set_motion(STOP);
         }
     }
-    else set_motion(STOP);
 }
 
-/*-------------------------------------------------------------------*/
-/* Init function                                                     */
-/*-------------------------------------------------------------------*/
-void setup()
-{
+void setup(){
     /* Initialise LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-    my_state.current_node=0;
-    my_state.previous_node=0;
-    my_state.commitment_node=0;
     
+    /* Initialise state, message type and control parameters*/
+    my_state.previous_node = 0;
+    my_state.current_node = 0;
+    my_state.commitment_node = 0;
+    my_state.current_level = 0;
+    my_message.type = KILO_BROADCAST_MSG;
+    init_array_msg(&messages_array);
+    init_array_qrm(&quorum_array);
+
     /* Initialise random seed */
     uint8_t seed = rand_hard();
     rand_seed(seed);
@@ -447,25 +435,34 @@ void setup()
     srand(seed);
 
     /* Initialise motion variables */
-    last_motion_ticks=rand()%max_straight_ticks;
     set_motion(STOP);
 }
 
-/*-------------------------------------------------------------------*/
-/* Main loop                                                         */
-/*-------------------------------------------------------------------*/
-void loop() {
+void loop(){
+    increment_messages_counter(&messages_array);
+    increment_quorum_counter(&quorum_array);
+    erase_expired_messages(&messages_array,&messages_list);
+    erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
+    if(last_sensing) broadcast();
 }
 
-int main()
-{
+uint8_t main(){
     kilo_init();
+    
+    // register message transmission callback
+    kilo_message_tx = message_tx;
+
+    // register tranmsission success callback
+    kilo_message_tx_success = message_tx_success;
+
     // register message reception callback
     kilo_message_rx = message_rx;
 
     kilo_start(setup, loop);
     
-    // erase_tree(&theTree);
+    destroy_tree(&tree_array,&the_tree);
+    destroy_messages_memory(&messages_array,&messages_list);
+    destroy_quorum_memory(&quorum_array,&quorum_list);
     return 0;
 }

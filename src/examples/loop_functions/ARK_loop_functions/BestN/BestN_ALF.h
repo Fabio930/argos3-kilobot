@@ -1,59 +1,15 @@
 /**
  * @file <BestN_ALF.h>
- *
- * @brief This is the header file of ALF, the ARK (Augmented Reality for Kilobots) loop function.
- *
- * @cite Reina, A., Cope, A. J., Nikolaidis, E., Marshall, J. A. R., & Sabo, C. (2017). ARK: Augmented Reality for Kilobots.
- * IEEE Robotics and Automation Letters, 2(3), 1755–1761. https://doi.org/10.1109/LRA.2017.2700059
- *
  * @author Fabio Oddi <fabio.oddi@diag.uniroma1.it>
- */
+**/
+
 #ifndef BESTN_ALF_H
 #define BESTN_ALF_H
 
-namespace argos {
-class CSpace;
-class CFloorEntity;
-class CSimulator;
-}
-
-#include <math.h>
-#include "floor.h"
-
-#include <argos3/core/simulator/loop_functions.h>
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
-#include <argos3/core/simulator/simulator.h>
-#include <argos3/core/simulator/physics_engine/physics_engine.h>
+#include "hierarchicFloor.h"
 
-
-#include <argos3/core/utility/math/vector3.h>
-#include <argos3/core/utility/math/vector2.h>
-#include <argos3/core/utility/math/ray2.h>
-#include <argos3/core/utility/math/quaternion.h>
-#include <argos3/core/utility/math/rng.h>
-#include <argos3/core/utility/logging/argos_log.h>
-
-#include <argos3/core/simulator/entity/embodied_entity.h>
-#include <argos3/core/simulator/entity/composable_entity.h>
-#include <argos3/plugins/simulator/entities/led_equipped_entity.h>
-#include <argos3/core/simulator/entity/floor_entity.h>
-
-#include <argos3/plugins/robots/kilobot/simulator/kilobot_entity.h>
-#include <argos3/plugins/robots/kilobot/simulator/kilobot_communication_entity.h>
-#include <argos3/plugins/robots/kilobot/simulator/kilobot_communication_medium.h>
-#include <argos3/plugins/robots/kilobot/simulator/kilobot_communication_default_actuator.h>
-
-//kilobot messaging
-#include <argos3/plugins/robots/kilobot/control_interface/kilolib.h>
-#include <argos3/plugins/robots/kilobot/control_interface/message_crc.h>
-#include <argos3/plugins/robots/kilobot/control_interface/message.h>
-
-#include <array>
-
-using namespace argos;
-
-class CBestN_ALF : public CALF
-{
+class CBestN_ALF : public CALF{
 
 public:
 
@@ -66,6 +22,8 @@ public:
     virtual void Reset();
 
     virtual void Destroy();
+
+    virtual void PostStep();
 
     /** Setup the initial state of the Kilobots in the space */
     void SetupInitialKilobotStates();
@@ -89,10 +47,16 @@ public:
     virtual CColor GetFloorColor(const CVector2& vec_position_on_plane);
 
     /** Used to communicate intial field data and construct the hierarchic map*/
-    void SendStructInitInformationA(CKilobotEntity &c_kilobot_entity);
-    void SendStructInitInformationB(CKilobotEntity &c_kilobot_entity);
-    void SendInformationGPS_A(CKilobotEntity &c_kilobot_entity, const int Type);
-    void SendInformationGPS_B(CKilobotEntity &c_kilobot_entity, const int Type);
+    void SendStructInitInformation(CKilobotEntity &c_kilobot_entity);
+    
+    /** Used to communicate gps position and angle*/
+    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
+    
+    void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
+
+    Real abs_distance(const CVector2 a,const CVector2 b);
+
+    void UpdateLog(UInt16 Time);
 
 private:
 
@@ -100,38 +64,43 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    int depth,branches;
+    UInt8 depth,branches,control_gain;
     float k;
     CVector2 TL,BR;
-    hierarchicFloor *v_floor;
+    ChierarchicFloor *vh_floor;
 
-    typedef struct
-    {
-        int current_node,previous_node,commitment_node;
-    } SRobotNodes;
-
-    std::vector<SRobotNodes> m_vecKilobotNodes;
+    std::vector<CVector2> m_vecKilobotPositions;
+    std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
-    std::vector<int> m_vecStart_experiment;
-    std::vector<int> m_vecGpsData;
+    std::vector<UInt8> m_vecStart_experiment;
+    std::vector<UInt8> m_vecKilobotNodes;
+    std::vector<UInt8> m_vecKilobotCommitments;
+    std::vector<UInt8> m_vecKilobotDistFromOpt;
+    std::vector<UInt8> m_vecKilobotAskLevel;
+    std::vector<UInt8> m_vecKilobotMsgType;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
 
-    /* Number of GPS cells */
-    UInt16 m_unGpsCells;
-
-    /* GPS cell length in meters */
-    Real m_fCellLength;
+    UInt16 log_counter = 0;
+    UInt8 best_leaf;
 
     /************************************/
     /*       Experiment variables       */
     /************************************/
 
-    /* output file for data acquizition */
-    std::ofstream m_cOutput;
+    /* random number generator */
+    CRandom::CRNG* c_rng;
+    
+    /* simulator seed */
+    uint m_random_seed;
+
+    /* output file for data acquisition */
+    std::ofstream m_cLog;
+    UInt8 header = 0;
+    UInt16 logging_time = 0;
 
     /* output file name*/
-    std::string m_strOutputFileName;
+    std::string m_strLogFileName;
 
     /* data acquisition frequency in ticks */
     UInt16 m_unDataAcquisitionFrequency;
