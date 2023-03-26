@@ -62,8 +62,6 @@ typedef struct position{
     float position_x,position_y;
 }position_t;
 
-/* offsets of map axes*/
-float offset_x, offset_y;
 
 /* current motion type */
 motion_t current_motion_type = STOP;

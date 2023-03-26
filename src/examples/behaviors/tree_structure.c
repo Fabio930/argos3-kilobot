@@ -46,7 +46,7 @@ tree_a* get_node_from_3(tree_a **Mytree,const uint8_t Node_id){
     else if ((*Mytree)->children!=NULL){
         tree_a *c=(*Mytree)->children;
         for(uint8_t i=0;i<branches;i++){
-            tree_a *cc=c+i;
+            tree_a *cc=(c+i);
             out=get_node_from_3(&cc,Node_id);
             if(out!=NULL) break;
         }
@@ -129,8 +129,9 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
     float w2=(*Mytree)->brX;
     float h1=(*Mytree)->tlY;
     float h2=(*Mytree)->brY;
+    printf("%f\t%f\t%f\t%f\t%d\n",w1,h1,w2,h2,(*Mytree)->id);
     float dif;
-    switch ((Index)){
+    switch (Index){
     case 0:
         switch (Ref){
         case 1:
@@ -143,7 +144,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                     (c+i)->tlY=h1;
                     (c+i)->brX=w2;
                     (c+i)->brY=h2;
-                    tree_a *cc=c+i;
+                    tree_a *cc=(c+i);
                     loop_set_vertices(&cc,Index,0);
                     h1=h1+dif;
                     h2=h2+dif;
@@ -160,7 +161,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                     (c+i)->tlY=h1;
                     (c+i)->brX=w2;
                     (c+i)->brY=h2;
-                    tree_a *cc=c+i;
+                    tree_a *cc=(c+i);
                     loop_set_vertices(&cc,Index,1);
                     w1=w1+dif;
                     w2=w2+dif;
@@ -181,7 +182,7 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
                 (c+i)->tlY=h1;
                 (c+i)->brX=w2;
                 (c+i)->brY=h2;
-                tree_a *cc=c+i;
+                tree_a *cc=(c+i);
                 loop_set_vertices(&cc,Index,0);
                 w1=w2;
                 w2=w2+dif;
@@ -202,8 +203,9 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
 void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     (*Mytree)->tlX=0.05;
     (*Mytree)->tlY=0.05;
-    (*Mytree)->brX=0.55;
-    (*Mytree)->brY=0.55;
+    (*Mytree)->brX=BrX+0.05;
+    (*Mytree)->brY=BrY+0.05;
+    printf("%f\t%f\t%f\t%f\t%d\n",(*Mytree)->tlX,(*Mytree)->tlY,(*Mytree)->brX,(*Mytree)->brY,(*Mytree)->id);
     tree_a *c = (*Mytree)->children;
     switch (branches){
     case 2:
@@ -223,8 +225,8 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->brY=0.55;
                 break;
             }
-            tree_a *cc=c+i;
-            if((c+i)->children!=NULL) loop_set_vertices(&cc,0,1);
+            tree_a *cc=(c+i);
+            if(cc->children!=NULL) loop_set_vertices(&cc,0,0);
         }
         break;
     case 4:
@@ -255,13 +257,13 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->brY=0.55;
                 break;
             }
-            tree_a *cc=c+i;
-            if((c+i)->children!=NULL) loop_set_vertices(&cc,1,0);
+            tree_a *cc=(c+i);
+            if(cc->children!=NULL) loop_set_vertices(&cc,1,0);
         }
         break;
     default:
         printf("Structure not supported.\n");
-        return 0;
+        break;
     }
 }
 

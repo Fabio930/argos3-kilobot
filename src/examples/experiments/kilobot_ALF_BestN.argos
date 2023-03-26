@@ -51,7 +51,7 @@
         </variables>
 
         <hierarchicStruct
-            depth="2"
+            depth="1"
             branches="2"
             k="0.75"
             control_gain="1">

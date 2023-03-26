@@ -18,22 +18,27 @@ void update_filter(filter_a *myfilter,const float Sensed_utility, const float Re
         myfilter->distance = 1;
     }
     else myfilter->utility = (myfilter->utility*myfilter->gain) + (1-myfilter->gain)*Sensed_utility;
-    if(myfilter->im_leaf==1){
-        if(myfilter->data_switch==1){
+    switch (myfilter->im_leaf){
+    case 1:
+        switch (myfilter->data_switch){
+        case 1:
             myfilter->count_1++;
             myfilter->data_1[0] = myfilter->data_1[0] + (Sensed_utility-myfilter->data_1[0])/myfilter->count_1;
             if(myfilter->count_1 > 1) myfilter->data_1[1] = myfilter->data_1[1]*((myfilter->count_1-2)/(myfilter->count_1-1)) + pow(Sensed_utility-myfilter->data_1[0],2)/myfilter->count_1;
             myfilter->data_switch = 0;
-        }
-        else{
+            break;
+        default:
             myfilter->count_2++;
             myfilter->data_2[0] = myfilter->data_2[0] + (Sensed_utility-myfilter->data_2[0])/myfilter->count_2;
             if(myfilter->count_2 > 1) myfilter->data_2[1] = myfilter->data_2[1]*((myfilter->count_2-2)/(myfilter->count_2-1)) + pow(Sensed_utility-myfilter->data_2[0],2)/myfilter->count_2;
             myfilter->data_switch = 1;
+            break;
         }
-        if(myfilter->count_1>1 && myfilter->count_2>1) myfilter->distance = 1 - sqrt(2*sqrt(myfilter->data_1[1])*sqrt(myfilter->data_2[1])/(.0000000001 + myfilter->data_1[1] + myfilter->data_2[1])) * exp(-.25*((pow(myfilter->data_1[0]-myfilter->data_2[0],2))/(.0000000001 + myfilter->data_1[1] + myfilter->data_2[1])));
+        break;
+    default:
+        myfilter->distance=Ref_distance;
+        break;
     }
-    else myfilter->distance=Ref_distance;
 }
 
 void destroy_filter(filter_a *myfilter){

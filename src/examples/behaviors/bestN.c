@@ -99,7 +99,7 @@ void sample_and_decide(tree_a **leaf){
     }
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
+        else if(num_quorum_items < min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
     }
     // int flag_num_messages=num_messages,flag_num_quorum_items=num_quorum_items;
     // decide to commit or abandon
@@ -168,7 +168,7 @@ void sample_and_decide(tree_a **leaf){
     else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id; /*action=3;*/}
     else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id; /*action=4;*/}
     erase_messages(&messages_array,&messages_list);
-    printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
+    // printf("A_id:%d, prev_n:%d, curr_n:%d, com_n:%d, c:%f, a:%f, r:%f, i:%f\n",kilo_uid,my_state.previous_node,my_state.current_node,my_state.commitment_node,commitment,abandonment,recruitment,cross_inhibition);
     // printf("p:%f, act:%d, msgsw:%d, #msgs:%d, #qrm:%d \n",p,action,message_switch,flag_num_messages,flag_num_quorum_items);
     // printf("rs:%f, fs:%f, lid:%d \n\n",random_sample,last_sample_utility,(*leaf)->id);
 }
@@ -290,10 +290,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t depth = ((data[2] >> 2)& 0b00000011)+1;
                 uint8_t branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
-                offset_x = (ARENA_X*.1)/2;
-                offset_y = (ARENA_Y*.1)/2;
-                goal_position.position_x = offset_x;
-                goal_position.position_y = offset_y;
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
                 set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
