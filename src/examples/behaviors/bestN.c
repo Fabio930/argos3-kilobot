@@ -202,9 +202,17 @@ void select_new_point(bool force){
         my_state.current_level = actual_node->depth;
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+        
+        uint32_t expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+        reaching_goal_ticks = expiring_dist * TICKS_PER_SEC * 1.5;
     }
     else{
         set_color(led);
+        if(--reaching_goal_ticks<=0) {
+            select_new_point(true);
+            set_color(RGB(3,0,3));
+            printf("%d\tchange goal\n",kilo_uid);
+        }
     }
 }
 
@@ -279,8 +287,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
-                uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2);
+                uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2 );
                 init_received_A = true;
             }
             break;

@@ -1,6 +1,6 @@
 #include "quorum_structure.h"
 
-void set_expiring_ticks_quorum_item(const uint16_t Expiring_time){
+void set_expiring_ticks_quorum_item(const uint32_t Expiring_time){
     expiring_ticks_quorum = Expiring_time;
 }
 

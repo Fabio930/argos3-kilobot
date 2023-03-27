@@ -67,6 +67,7 @@ motion_t current_motion_type = STOP;
 
 /* goal position */
 position_t goal_position={0,0};
+uint32_t reaching_goal_ticks;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
