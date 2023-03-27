@@ -269,10 +269,10 @@ Node* ChierarchicFloor::get_leaf_from_position(CVector2 Position){
         float rx = leafs[i]->tl_br.br.GetX();
         float ty = leafs[i]->tl_br.tl.GetY();
         float by = leafs[i]->tl_br.br.GetY();
-        if(sx==-0.25) sx = -0.3;
-        if(ty==-0.25) ty = -0.3;
-        if(rx==0.25) rx = 0.3;
-        if(by==0.25) by = 0.3;
+        if(sx==0.05-v_offset.x) sx = -v_offset.x;
+        if(ty==0.05-v_offset.y) ty = -v_offset.y;
+        if(rx==v_offset.x-0.05) rx = v_offset.x;
+        if(by==v_offset.x-0.05) by = v_offset.y;
         if((Position.GetX()>=sx) && (Position.GetX()<=rx)){
             if((Position.GetY()>=ty) && (Position.GetY()<=by)) return leafs[i];
         }

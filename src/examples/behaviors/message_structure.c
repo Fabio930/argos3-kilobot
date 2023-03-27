@@ -113,7 +113,7 @@ uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,con
 
 uint16_t get_counter_from_id(message_a **Array[],const uint8_t Agent_id){
     for(uint8_t i=0;i<num_messages;i++) if((*Array)[i]->agent_id==Agent_id) return (*Array)[i]->counter;
-    return -1;
+    return 0;
 }
 
 message_a *select_a_random_msg(message_a **Array[]){

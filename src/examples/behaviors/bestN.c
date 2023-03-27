@@ -280,8 +280,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
-                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC);
+                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2);
                 init_received_A = true;
             }
             break;
@@ -439,9 +438,7 @@ void setup(){
 }
 
 void loop(){
-    increment_messages_counter(&messages_array);
     increment_quorum_counter(&quorum_array);
-    erase_expired_messages(&messages_array,&messages_list);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(last_sensing) broadcast();
