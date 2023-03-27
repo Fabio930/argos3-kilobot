@@ -211,7 +211,6 @@ void select_new_point(bool force){
         if(--reaching_goal_ticks<=0) {
             select_new_point(true);
             set_color(RGB(3,0,3));
-            printf("%d\tchange goal\n",kilo_uid);
         }
     }
 }
