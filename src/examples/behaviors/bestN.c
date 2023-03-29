@@ -252,12 +252,10 @@ void parse_kilo_message(uint8_t data[9]){
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
     sa_payload = (((uint16_t)data[1]) << 8) | data[2];
-    uint8_t temp_leaf;
     received_id = sa_id;
     received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
     received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
-    temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
-    received_leaf = get_leaf_vec_id_in(temp_leaf);
+    received_leaf = get_leaf_vec_id_in((((uint8_t)sa_payload) & 0b11110000) >> 4);
     received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
     update_messages();
 }
