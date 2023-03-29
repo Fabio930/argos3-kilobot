@@ -17,13 +17,12 @@
         
         <kilobot_controller id="bestN">
             <actuators>
-                <differential_steering implementation="default"
-                />
-                <kilobot_communication implementation="default" />
+                <differential_steering implementation="default"/>
+                <kilobot_communication implementation="default"/>
                 <kilobot_led implementation="default" />
             </actuators>
             <sensors>
-                <kilobot_communication implementation="default" medium="kilocomm" show_rays="false" />
+                <kilobot_communication implementation="default" medium="kilocomm" show_rays="true"/>
             </sensors>
             <params behavior="build/examples/behaviors/bestN" />
         </kilobot_controller>
@@ -57,9 +56,6 @@
             control_gain="1">
         </hierarchicStruct>
 
-        <environments>
-        </environments>
-    
     </loop_functions>
     <!-- *********************** -->
     <!-- * Arena configuration * -->
@@ -110,7 +106,7 @@
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
             <entity quantity="10" max_trials="100">
-                <kilobot id="kb">
+                <kilobot id="kb" communication_range="10">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>

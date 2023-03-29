@@ -42,7 +42,7 @@
       <orientation method="constant" values="0,0,0" />
       <entity quantity="16" max_trials="1">
         <kilobot id="kb">
-          <controller config="kbc" />>
+          <controller config="kbc" />
         </kilobot>
       </entity>
     </distribute>
