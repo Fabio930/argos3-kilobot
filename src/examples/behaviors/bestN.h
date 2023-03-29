@@ -95,7 +95,6 @@ bool last_sensing = false;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
-uint8_t sending_type = MSG_A;
 message_t my_message;
 
 /* lists for decision handling */

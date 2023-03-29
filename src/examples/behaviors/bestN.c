@@ -49,14 +49,10 @@ void broadcast(){
         sa_type = 0;
         for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
         int8_t utility_to_send;
-        switch (sending_type){
-            case MSG_A:
-                utility_to_send = (int8_t)(last_sample_utility*10);
-                my_message.data[0] = kilo_uid << 2 | sa_type;
-                my_message.data[1] = last_sample_committed << 7 | utility_to_send;
-                my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
-                break;
-        }
+        utility_to_send = (int8_t)(last_sample_utility*10);
+        my_message.data[0] = kilo_uid << 2 | sa_type;
+        my_message.data[1] = last_sample_committed << 7 | utility_to_send;
+        my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
         my_message.crc = message_crc(&my_message);
         last_broadcast_ticks = kilo_ticks;
         sending_msg = true;
@@ -257,17 +253,13 @@ void parse_kilo_message(uint8_t data[9]){
     sa_type = data[0] & 0b00000011;
     sa_payload = (((uint16_t)data[1]) << 8) | data[2];
     uint8_t temp_leaf;
-    switch(sa_type){
-        case MSG_A:
-            received_id = sa_id;
-            received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
-            received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
-            temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
-            received_leaf = get_leaf_vec_id_in(temp_leaf);
-            received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
-            update_messages();
-            break;
-    }
+    received_id = sa_id;
+    received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
+    received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
+    temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
+    received_leaf = get_leaf_vec_id_in(temp_leaf);
+    received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
+    update_messages();
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
