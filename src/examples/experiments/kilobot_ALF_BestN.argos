@@ -22,7 +22,7 @@
                 <kilobot_led implementation="default" />
             </actuators>
             <sensors>
-                <kilobot_communication implementation="default" medium="kilocomm" show_rays="true"/>
+                <kilobot_communication implementation="default" medium="kilocomm" show_rays="false"/>
             </sensors>
             <params behavior="build/examples/behaviors/bestN" />
         </kilobot_controller>

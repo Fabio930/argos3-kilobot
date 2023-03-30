@@ -198,15 +198,29 @@ void select_new_point(bool force){
         my_state.current_level = actual_node->depth;
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
-        
-        uint32_t expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
-        reaching_goal_ticks = expiring_dist * TICKS_PER_SEC * 1.5;
+        expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+        reaching_goal_ticks = expiring_dist * goal_ticks_sec;
     }
     else{
         set_color(led);
-        if(--reaching_goal_ticks<=0) {
-            select_new_point(true);
-            set_color(RGB(3,0,3));
+        uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+        if(flag < expiring_dist){
+            expiring_dist = flag;
+            reaching_goal_ticks = expiring_dist * goal_ticks_sec;
+        }
+        else if(--reaching_goal_ticks<=0){
+            switch (rand_soft()%2){
+            case 1:
+                printf("%d\trecomputing\n",kilo_uid);
+                select_new_point(true);
+                break;
+            
+            default:
+                printf("%d\tonLocoSensing\n",kilo_uid);
+                goal_position=gps_position;
+                select_new_point(false);
+                break;
+            }
         }
     }
 }
@@ -277,7 +291,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
                 uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC * 2 );
+                set_expiring_ticks_quorum_item(expiring_dist * quorum_ticks_sec);
                 init_received_A = true;
             }
             break;
