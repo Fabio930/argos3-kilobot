@@ -7,7 +7,7 @@ void set_expiring_ticks_message(const uint16_t Expiring_time){
 void sort_m(message_a **Array[]){
     for(uint8_t i = 0; i < num_messages-1; i++){
         for(uint8_t j = i+1; j < num_messages; j++){
-            if((*Array)[i]->counter > (*Array)[j]->counter){
+            if((*Array)[i]->agent_id < (*Array)[j]->agent_id){
                 message_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
@@ -23,43 +23,8 @@ void init_array_msg(message_a **Array[]){
 
 void print_m(message_a **Array[]){
     for(uint8_t i = 0; i < num_messages; i++){
-        if((*Array)[i]!=NULL) printf("M__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+        if((*Array)[i]!=NULL) printf("M__%d\n",(*Array)[i]->agent_id);
         else printf("NULL\n");
-    }
-}
-
-void increment_messages_counter(message_a **Array[]){
-    for(uint8_t i = 0; i < num_messages; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
-}
-
-void erase_expired_messages(message_a **Array[],message_a **Mymessage){
-    for(int8_t i=num_messages-1;i>=0;i--){
-        if((*Array)[i]->counter>=expiring_ticks_messages){
-            if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
-                free((*Array)[i]);
-                (*Array)[i] = NULL;
-                *Mymessage = NULL;
-            }
-            else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
-                *Mymessage = (*Array)[i]->next;
-                (*Mymessage)->prev = NULL;
-                free((*Array)[i]);
-                (*Array)[i] = NULL;
-            }
-            else if((*Array)[i]->next == NULL && (*Array)[i]->prev != NULL){
-                (*Array)[i]->prev->next = NULL;
-                free((*Array)[i]);
-                (*Array)[i] = NULL;
-            }
-            else{
-                (*Array)[i]->next->prev = (*Array)[i]->prev;
-                (*Array)[i]->prev->next = (*Array)[i]->next;
-                free((*Array)[i]);
-                (*Array)[i] = NULL;
-            }
-            num_messages--;
-        }
-        else break;
     }
 }
 
@@ -88,7 +53,6 @@ uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,con
             (*Mymessage)->agent_node = Agent_node;
             (*Mymessage)->agent_leaf = Agent_leaf;
             (*Mymessage)->leaf_utility = Leaf_utility;
-            (*Mymessage)->counter = 0;
         }
         if(out==1) out=update_m(Array,&((*Mymessage)->next),Mymessage,Agent_id,Agent_node,Agent_leaf,Leaf_utility);
     }
@@ -97,7 +61,6 @@ uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,con
         (*Mymessage)->agent_id=Agent_id;
         (*Mymessage)->agent_node=Agent_node;
         (*Mymessage)->agent_leaf=Agent_leaf;
-        (*Mymessage)->counter=0;
         (*Mymessage)->leaf_utility=Leaf_utility;
         num_messages++;
         if (Prev!=NULL && *Prev!=NULL){
@@ -109,11 +72,6 @@ uint8_t update_m(message_a **Array[], message_a **Mymessage,message_a **Prev,con
         (*Array)[num_messages-1] = *Mymessage;
     }
     return out;
-}
-
-uint16_t get_counter_from_id(message_a **Array[],const uint8_t Agent_id){
-    for(uint8_t i=0;i<num_messages;i++) if((*Array)[i]->agent_id==Agent_id) return (*Array)[i]->counter;
-    return 0;
 }
 
 message_a *select_a_random_msg(message_a **Array[]){
