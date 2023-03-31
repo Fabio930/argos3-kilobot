@@ -209,7 +209,7 @@ void select_new_point(bool force){
             reaching_goal_ticks = expiring_dist * goal_ticks_sec;
         }
         else if(--reaching_goal_ticks<=0){
-            switch ((rand_soft()+1)%2){
+            switch ((rand_soft()+1)%4){
             case 1:
                 select_new_point(true);
                 break;
