@@ -209,18 +209,8 @@ void select_new_point(bool force){
             reaching_goal_ticks = expiring_dist * goal_ticks_sec;
         }
         else if(--reaching_goal_ticks<=0){
-            switch ((rand_soft()+1)%2){
-            case 1:
-                // printf("%d\trecomputing\n",kilo_uid);
-                select_new_point(true);
-                break;
-            
-            default:
-                // printf("%d\tonLocoSensing\n",kilo_uid);
-                goal_position=gps_position;
-                select_new_point(false);
-                break;
-            }
+            goal_position = gps_position;
+            select_new_point(false);
         }
     }
 }
