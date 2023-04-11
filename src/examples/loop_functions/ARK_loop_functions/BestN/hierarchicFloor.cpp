@@ -265,14 +265,14 @@ Node* ChierarchicFloor::get_node(Node **Start_node,const UInt8 Id){
 
 Node* ChierarchicFloor::get_leaf_from_position(CVector2 Position){
     for(UInt8 i=0;i<leafs.size();i++){
-        float sx = leafs[i]->tl_br.tl.GetX();
-        float rx = leafs[i]->tl_br.br.GetX();
-        float ty = leafs[i]->tl_br.tl.GetY();
-        float by = leafs[i]->tl_br.br.GetY();
-        if(sx==0.05-v_offset.x) sx = -v_offset.x;
-        if(ty==0.05-v_offset.y) ty = -v_offset.y;
-        if(rx==v_offset.x-0.05) rx = v_offset.x;
-        if(by==v_offset.x-0.05) by = v_offset.y;
+        argos::Real sx = leafs[i]->tl_br.tl.GetX();
+        argos::Real rx = leafs[i]->tl_br.br.GetX();
+        argos::Real ty = leafs[i]->tl_br.tl.GetY();
+        argos::Real by = leafs[i]->tl_br.br.GetY();
+        if(sx >= ((argos::Real)0.05 - v_offset.x)-.01 && sx <= ((argos::Real)0.05 - v_offset.x)+.01) sx = -v_offset.x;
+        if(ty >= ((argos::Real)0.05 - v_offset.y)-.01 && ty <= ((argos::Real)0.05 - v_offset.y)+.01) ty = -v_offset.y;
+        if(rx >= (v_offset.x - (argos::Real)0.05)-.01 && rx <= (v_offset.x - (argos::Real)0.05)+.01 ) rx = v_offset.x;
+        if(by >= (v_offset.y - (argos::Real)0.05)-.01 && by <= (v_offset.y - (argos::Real)0.05)+.01 ) by = v_offset.y;
         if((Position.GetX()>=sx) && (Position.GetX()<=rx)){
             if((Position.GetY()>=ty) && (Position.GetY()<=by)) return leafs[i];
         }
