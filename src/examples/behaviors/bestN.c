@@ -440,7 +440,7 @@ void setup(){
 
 void loop(){
     increment_quorum_counter(&quorum_array);
-    if(kilo_uid==0 && num_quorum_items>0) printf("%d\t\t%d\t%d\n",num_quorum_items,(int)(kilo_ticks/3.1),quorum_array[num_quorum_items-1]->counter);
+    // if(kilo_uid==0 && num_quorum_items>0) printf("%d\t\t%d\t%d\n",num_quorum_items,(int)(kilo_ticks/3.1),quorum_array[num_quorum_items-1]->counter);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(last_sensing) broadcast();
