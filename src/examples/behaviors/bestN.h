@@ -19,8 +19,8 @@ typedef enum{
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
+    ARENA_X = 10,
+    ARENA_Y = 10
 }arena_size;
 
 /* Enum for messages type */
