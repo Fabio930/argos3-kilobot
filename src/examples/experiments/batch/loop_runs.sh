@@ -31,7 +31,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #################################
 experiment_length="3601"
 RUNS=100
-numrobots="20"
+numrobots="10"
 kappa="0.75"
 branches="2"
 control_param="1 3"
