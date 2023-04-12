@@ -83,6 +83,10 @@ for nrob in $numrobots; do
                         echo "argos3 -c $1$config"
                         argos3 -c './'$config
                         mv $kilo_file $dir4
+                        rename="quorum_log_${it}.tsv"
+                        mv "quorum_log.tsv" $rename
+                        rm -rf "quorum_log.tsv"
+                        mv $rename $dir4
                     done
                 done
             done

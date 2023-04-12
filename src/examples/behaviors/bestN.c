@@ -415,11 +415,11 @@ void random_way_point_model(){
 }
 
 void setup(){
-    /* Initialise LED and motors */
+    /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
     
-    /* Initialise state, message type and control parameters*/
+    /* Init state, message type and control parameters*/
     my_state.previous_node = 0;
     my_state.current_node = 0;
     my_state.commitment_node = 0;
@@ -428,19 +428,21 @@ void setup(){
     init_array_msg(&messages_array);
     init_array_qrm(&quorum_array);
 
-    /* Initialise random seed */
+    /* Init random seed */
     uint8_t seed = rand_hard();
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
 
-    /* Initialise motion variables */
+    /* Init motion variables */
     set_motion(STOP);
 }
 
 void loop(){
+    fp = fopen("quorum_log.tsv","a");
+    fprintf(fp,"%d\t%d\n",kilo_uid,num_quorum_items);
+    fclose(fp);
     increment_quorum_counter(&quorum_array);
-    // if(kilo_uid==0 && num_quorum_items>0) printf("%d\t\t%d\t%d\n",num_quorum_items,(int)(kilo_ticks/3.1),quorum_array[num_quorum_items-1]->counter);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(last_sensing) broadcast();
