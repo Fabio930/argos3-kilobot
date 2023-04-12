@@ -83,8 +83,8 @@
                 <kilobot id="kb" communication_range="10">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
-            </entity> -->
-        </distribute>
+            </entity>
+        </distribute> -->
 
     <arena size=".6, .6, 1" center="0,0,0">
 
