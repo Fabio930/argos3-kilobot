@@ -255,20 +255,22 @@ class Results:
                                                         if '.' in elem:
                                                             selem=elem.split('.')
                                                             if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                                                                seed = selem[0].split('_')[-1]
+                                                                seed = (int)(selem[0].split('_')[-1])
                                                                 M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                                                 with open(os.path.join(sub_path, elem), newline='') as f:
                                                                     reader = csv.reader(f)
                                                                     for row in reader:
                                                                         for val in row:
                                                                             val = val.split('\t')
-                                                                            M[val[0]] = np.append(M[val[0]],val[1])    # controllare se printa id kilob o numero riga su indx 0
+                                                                            id = (int)(val[0])
+                                                                            qv = (int)(val[1])
+                                                                            M[id] = np.append(M[id],qv)    # controllare se printa id kilob o numero riga su indx 0
                                                                 bigM[seed-1] = M
                                                     results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
 ##########################################################################################################
-    def do_somenthing_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
          for base in BASES:
             for A in N_AGENTS:
                 for S in MAX_STEPS:
@@ -276,11 +278,11 @@ class Results:
                         for D in DEPTH:
                             for k in K:
                             ##############################################################
-                                to_print = np.array([])
+                                to_print = [[]]
                                 for r in R:
                                     if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                        flag2=[-1]*len(bigM[i][0]) # andamento medio del quorum generale
                                         bigM = data_in.get((base,A,S,B,D,k,r))
+                                        flag2=[-1]*len(bigM[0][0]) # andamento medio del quorum generale
                                         for i in range(len(bigM)): # len = numero run
                                             flag1=[-1]*len(bigM[i][0]) # andamento medio del quorum lungo una run
                                             for k in range(len(bigM[i][0])): # len = numero elementi registrari
@@ -297,12 +299,10 @@ class Results:
                                                 else:
                                                     flag2[k]=flag1[k]+flag2[k]
                                         for i in range(len(flag2)):
-                                            flag2[k]=flag2[k]/len(bigM)
-                                        to_print = np.append(to_print,flag2)
+                                            flag2[i]=flag2[i]/len(bigM)
+                                        to_print = np.append(to_print,[flag2],1)
                                         print(to_print)
-
-                                            
-
+                                        
                             #############################################################
 
 
