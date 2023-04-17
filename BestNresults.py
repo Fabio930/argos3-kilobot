@@ -87,8 +87,8 @@ class Results:
                                                     unordered_Bleafs = np.array([])
                                                     unordered_seeds = np.array([])
                                                     for elem in os.listdir(sub_path):
-                                                    #==================================================================
-                                                    # check if a resume file 'older' than date exists
+                                                        #==================================================================
+                                                        # check if a resume file 'older' than date exists
                                                         if '.' in elem:
                                                             selem=elem.split('.')
                                                             if selem[-1]=="tsv" and selem[0].split('_')[-1]=="LOG":
@@ -134,7 +134,7 @@ class Results:
                                                                                         if minutes<=Mminutes:   
                                                                                             proceed = False
                                                                                             break
-                                                    #==================================================================
+                                                                #==================================================================
                                                                 if proceed:
                                                                     seed=-1
                                                                     best_leaf=-1
@@ -202,7 +202,111 @@ class Results:
                                                                         unordered_posY = np.append(unordered_posY,[agents_posY],0)
                                                     results.update({(base,n_agents,max_steps,branches,depth,k,r):(unordered_locations,unordered_commitments,unordered_distances,list(unordered_seeds),list(unordered_Bleafs),leafs,unordered_posX,unordered_posY)})
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,dateToStore
+
+##########################################################################################################
+##########################################################################################################
+    def extract_k_quorum_data(self):
+        BRACHES=[]
+        BASES=[]
+        DEPTH=[]
+        K=[]
+        N_AGENTS=[]
+        R=[]
+        MAX_STEPS=[]
+        results = {}
+        for base in self.bases:
+            if base not in BASES:
+                BASES.append(base)
+            for dir in os.listdir(base):
+                if '.' not in dir and '#' in dir:
+                    pre_path=os.path.join(base, dir)
+                    n_agents=int(dir.split('#')[1])
+                    if n_agents not in N_AGENTS:
+                        N_AGENTS.append(int(n_agents))
+                    for zdir in os.listdir(pre_path):
+                        if '.' not in zdir and '#' in zdir:
+                            branches=int(zdir.split('#')[1])
+                            if branches not in BRACHES:
+                                BRACHES.append(int(branches))
+                            dtemp=os.path.join(pre_path, zdir)
+                            for sdir in os.listdir(dtemp):
+                                if '.' not in sdir and '#' in sdir:
+                                    depth=int(sdir.split('#')[1])
+                                    if depth not in DEPTH:
+                                        DEPTH.append(int(depth))
+                                    stemp=os.path.join(dtemp, sdir)
+                                    for ssdir in os.listdir(stemp):
+                                        if '.' not in ssdir and '#' in ssdir:
+                                            k=float(ssdir.split('#')[1].replace("_","."))
+                                            if k not in K:
+                                                K.append(float(k))
+                                            path_temp=os.path.join(stemp, ssdir)
+                                            for folder in os.listdir(path_temp):
+                                                if '.' not in folder:
+                                                    params = folder.split('_')
+                                                    r , max_steps = float(params[0].split('#')[1]) , int(params[1].split('#')[1])-1
+                                                    if r not in R:
+                                                        R.append(float(r))
+                                                    if max_steps not in MAX_STEPS:
+                                                        MAX_STEPS.append(int(max_steps))
+                                                    sub_path=os.path.join(path_temp,folder)
+                                                    bigM = [np.array([])] * 100
+                                                    for elem in os.listdir(sub_path):
+                                                        if '.' in elem:
+                                                            selem=elem.split('.')
+                                                            if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                                                seed = selem[0].split('_')[-1]
+                                                                M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                    reader = csv.reader(f)
+                                                                    for row in reader:
+                                                                        for val in row:
+                                                                            val = val.split('\t')
+                                                                            M[val[0]] = np.append(M[val[0]],val[1])    # controllare se printa id kilob o numero riga su indx 0
+                                                                bigM[seed-1] = M
+                                                    results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
+        return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
+##########################################################################################################
+    def do_somenthing_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+         for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                            ##############################################################
+                                to_print = np.array([])
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        flag2=[-1]*len(bigM[i][0]) # andamento medio del quorum generale
+                                        bigM = data_in.get((base,A,S,B,D,k,r))
+                                        for i in range(len(bigM)): # len = numero run
+                                            flag1=[-1]*len(bigM[i][0]) # andamento medio del quorum lungo una run
+                                            for k in range(len(bigM[i][0])): # len = numero elementi registrari
+                                                for j in range(len(bigM[i])): # len = numero agenti
+                                                    val=bigM[i][j][k]
+                                                    if flag1[k]==-1:
+                                                        flag1[k]=val
+                                                    else:
+                                                        flag1[k]=flag1[k]+val
+                                            for k in range(len(flag1)):
+                                                flag1[k]=flag1[k]/len(bigM[i])
+                                                if flag2[k]==-1:
+                                                    flag2[k]=flag1[k]
+                                                else:
+                                                    flag2[k]=flag1[k]+flag2[k]
+                                        for i in range(len(flag2)):
+                                            flag2[k]=flag2[k]/len(bigM)
+                                        to_print = np.append(to_print,flag2)
+                                        print(to_print)
+
+                                            
+
+                            #############################################################
+
+
+##########################################################################################################
 ##########################################################################################################
     def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date):
         c_map = plt.cm.get_cmap('viridis')
