@@ -250,7 +250,7 @@ class Results:
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    bigM = [np.array([])] * 100
+                                                    bigM = [np.array([])] * 10
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
@@ -270,41 +270,61 @@ class Results:
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
 ##########################################################################################################
-    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,collapse_means):
          for base in BASES:
             for A in N_AGENTS:
                 for S in MAX_STEPS:
                     for B in BRACHES:
                         for D in DEPTH:
                             for k in K:
-                            ##############################################################
-                                to_print = [[]]
+                                to_print = []
                                 for r in R:
                                     if data_in.get((base,A,S,B,D,k,r)) is not None:
                                         bigM = data_in.get((base,A,S,B,D,k,r))
                                         flag2=[-1]*len(bigM[0][0]) # andamento medio del quorum generale
                                         for i in range(len(bigM)): # len = numero run
                                             flag1=[-1]*len(bigM[i][0]) # andamento medio del quorum lungo una run
-                                            for k in range(len(bigM[i][0])): # len = numero elementi registrari
+                                            for z in range(len(bigM[i][0])): # len = numero elementi registrari
                                                 for j in range(len(bigM[i])): # len = numero agenti
-                                                    val=bigM[i][j][k]
-                                                    if flag1[k]==-1:
-                                                        flag1[k]=val
+                                                    val=bigM[i][j][z]
+                                                    if flag1[z]==-1:
+                                                        flag1[z]=val
                                                     else:
-                                                        flag1[k]=flag1[k]+val
-                                            for k in range(len(flag1)):
-                                                flag1[k]=flag1[k]/len(bigM[i])
-                                                if flag2[k]==-1:
-                                                    flag2[k]=flag1[k]
+                                                        flag1[z]=flag1[z]+val
+                                            for z in range(len(flag1)):
+                                                flag1[z]=flag1[z]/len(bigM[i])
+                                                if flag2[z]==-1:
+                                                    flag2[z]=flag1[z]
                                                 else:
-                                                    flag2[k]=flag1[k]+flag2[k]
+                                                    flag2[z]=flag1[z]+flag2[z]
                                         for i in range(len(flag2)):
                                             flag2[i]=flag2[i]/len(bigM)
-                                        to_print = np.append(to_print,[flag2],1)
-                                        print(to_print)
-                                        
-                            #############################################################
-
+                                        if len(to_print)==0:
+                                            to_print = [flag2]
+                                        else:
+                                            to_print = np.append(to_print,[flag2],0)
+                                if collapse_means:
+                                    flag=to_print[0]
+                                    for z in range(1,len(to_print)):
+                                        for i in range(len(to_print[z])):
+                                            flag[i]+=to_print[z][i]
+                                    for z in range(len(flag)):
+                                        flag[z]=flag[z]/len(to_print)
+                                    to_print = [flag]                                    
+                                fig, ax = plt.subplots(figsize=(12, 6))
+                                for i in range(len(to_print)): plt.plot(to_print[i])
+                                plt.grid(True,linestyle=':')
+                                plt.ylabel("mean quorum level")
+                                plt.xlabel("kilo ticks")
+                                plt.tight_layout()
+                                if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                    os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
+                                    os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
+                                fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                plt.savefig(fig_path)
+                                # plt.show(fig)
+                                plt.close(fig)
 
 ##########################################################################################################
 ##########################################################################################################
@@ -405,7 +425,7 @@ class Results:
                                             os.mkdir(base+"/Robots#"+str(A)+"/images")
                                         if not os.path.exists(base+"/Robots#"+str(A)+"/images/Weibulls"):
                                             os.mkdir(base+"/Robots#"+str(A)+"/images/Weibulls")
-                                        fig_path=base+"/Robots#"+str(A)+"/images/Weibulls/CONFIGc__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
+                                        fig_path=base+"/Robots#"+str(A)+"/images/Weibulls/CONFIGw__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                         plt.savefig(fig_path)
                                     # plt.show(fig)
                                     plt.close(fig)
@@ -671,7 +691,6 @@ class Results:
                                                                 group_bars.update({"no decision":arrFlag3})
                                                         if gotta_print:
                                                             x = np.arange(len(group_labels))
-                                                            saving_path5=saving_path4+"_percentages__"+str(ti)+"_"+str(abs(l))+"_"+date
                                                             width = 0.1
                                                             multiplier = 0
                                                             fig,ax = plt.subplots(figsize=(12,6))
@@ -688,8 +707,13 @@ class Results:
                                                             ax.set_ylim(0,1.025)
                                                             plt.grid(True)
                                                             plt.tight_layout()
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images"):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images")
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/percentages"):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/percentages")
+                                                            fig_path=ba+"/Robots#"+str(a)+"/images/percentages/CONFIGp__A#"+str(a)+"_"+"S#"+str(ti)+"_"+"B#"+str(b)+"_"+"D#"+str(d)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                                             # plt.show(fig)
-                                                            plt.savefig(saving_path5+".png")
+                                                            plt.savefig(fig_path)
                                                             plt.close()
                                                         else: print("Nothing to plot")
 
