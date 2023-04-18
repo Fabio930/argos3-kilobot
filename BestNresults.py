@@ -88,7 +88,6 @@ class Results:
                                                     unordered_seeds = np.array([])
                                                     for elem in os.listdir(sub_path):
                                                         #==================================================================
-                                                        # check if a resume file 'older' than date exists
                                                         if '.' in elem:
                                                             selem=elem.split('.')
                                                             if selem[-1]=="tsv" and selem[0].split('_')[-1]=="LOG":
@@ -284,11 +283,11 @@ class Results:
                                     if data_in.get((base,A,S,B,D,k,r)) is not None:
                                         we_will_print=True
                                         bigM = data_in.get((base,A,S,B,D,k,r))
-                                        flag2=[-1]*len(bigM[0][0]) # andamento medio del quorum generale
-                                        for i in range(len(bigM)): # len = numero run
-                                            flag1=[-1]*len(bigM[i][0]) # andamento medio del quorum lungo una run
-                                            for z in range(len(bigM[i][0])): # len = numero elementi registrari
-                                                for j in range(len(bigM[i])): # len = numero agenti
+                                        flag2=[-1]*len(bigM[0][0])
+                                        for i in range(len(bigM)):
+                                            flag1=[-1]*len(bigM[i][0])
+                                            for z in range(len(bigM[i][0])):
+                                                for j in range(len(bigM[i])):
                                                     val=bigM[i][j][z]
                                                     if flag1[z]==-1:
                                                         flag1[z]=val
@@ -310,7 +309,7 @@ class Results:
                                             legend = np.append(legend,r)
                                 if we_will_print:
                                     if collapse_means:
-                                        flag=to_print[0]
+                                        flag = to_print[0]
                                         for z in range(1,len(to_print)):
                                             for i in range(len(to_print[z])):
                                                 flag[i]+=to_print[z][i]
