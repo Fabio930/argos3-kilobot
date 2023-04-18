@@ -277,10 +277,12 @@ class Results:
                     for B in BRACHES:
                         for D in DEPTH:
                             for k in K:
+                                we_will_print=False
                                 to_print = []
                                 legend = []
                                 for r in R:
                                     if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
                                         bigM = data_in.get((base,A,S,B,D,k,r))
                                         flag2=[-1]*len(bigM[0][0]) # andamento medio del quorum generale
                                         for i in range(len(bigM)): # len = numero run
@@ -306,31 +308,32 @@ class Results:
                                         else:
                                             to_print = np.append(to_print,[flag2],0)
                                             legend = np.append(legend,r)
-                                if collapse_means:
-                                    flag=to_print[0]
-                                    for z in range(1,len(to_print)):
-                                        for i in range(len(to_print[z])):
-                                            flag[i]+=to_print[z][i]
-                                    for z in range(len(flag)):
-                                        flag[z]=flag[z]/len(to_print)
-                                    to_print = [flag]
-                                    legend = ['global']
-                                fig, ax = plt.subplots(figsize=(12, 6))
-                                for i in range(len(to_print)): plt.plot(to_print[i])
-                                plt.grid(True,linestyle=':')
-                                plt.ylabel("mean quorum level")
-                                plt.xlabel("kilo ticks")
-                                plt.tight_layout()
-                                if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                    os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
-                                    os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
-                                fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                plt.xlim((-1,12000))
-                                plt.legend(legend,loc='best')
-                                plt.savefig(fig_path)
-                                # plt.show(fig)
-                                plt.close(fig)
+                                if we_will_print:
+                                    if collapse_means:
+                                        flag=to_print[0]
+                                        for z in range(1,len(to_print)):
+                                            for i in range(len(to_print[z])):
+                                                flag[i]+=to_print[z][i]
+                                        for z in range(len(flag)):
+                                            flag[z]=flag[z]/len(to_print)
+                                        to_print = [flag]
+                                        legend = ['global']
+                                    fig, ax = plt.subplots(figsize=(12, 6))
+                                    for i in range(len(to_print)): plt.plot(to_print[i])
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean quorum level")
+                                    plt.xlabel("kilo ticks")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    plt.xlim((-1,12000))
+                                    plt.legend(legend,loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
 
 ##########################################################################################################
 ##########################################################################################################
