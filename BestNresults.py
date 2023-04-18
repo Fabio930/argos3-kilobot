@@ -250,7 +250,7 @@ class Results:
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    bigM = [np.array([])] * 10
+                                                    bigM = [np.array([])] * 100
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
@@ -264,7 +264,7 @@ class Results:
                                                                             val = val.split('\t')
                                                                             id = (int)(val[0])
                                                                             qv = (int)(val[1])
-                                                                            M[id] = np.append(M[id],qv)    # controllare se printa id kilob o numero riga su indx 0
+                                                                            M[id] = np.append(M[id],qv)
                                                                 bigM[seed-1] = M
                                                     results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
@@ -278,6 +278,7 @@ class Results:
                         for D in DEPTH:
                             for k in K:
                                 to_print = []
+                                legend = []
                                 for r in R:
                                     if data_in.get((base,A,S,B,D,k,r)) is not None:
                                         bigM = data_in.get((base,A,S,B,D,k,r))
@@ -301,8 +302,10 @@ class Results:
                                             flag2[i]=flag2[i]/len(bigM)
                                         if len(to_print)==0:
                                             to_print = [flag2]
+                                            legend = [r]
                                         else:
                                             to_print = np.append(to_print,[flag2],0)
+                                            legend = np.append(legend,r)
                                 if collapse_means:
                                     flag=to_print[0]
                                     for z in range(1,len(to_print)):
@@ -310,7 +313,8 @@ class Results:
                                             flag[i]+=to_print[z][i]
                                     for z in range(len(flag)):
                                         flag[z]=flag[z]/len(to_print)
-                                    to_print = [flag]                                    
+                                    to_print = [flag]
+                                    legend = ['global']
                                 fig, ax = plt.subplots(figsize=(12, 6))
                                 for i in range(len(to_print)): plt.plot(to_print[i])
                                 plt.grid(True,linestyle=':')
@@ -322,6 +326,8 @@ class Results:
                                 if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
                                     os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                 fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                plt.xlim((-1,12000))
+                                plt.legend(legend,loc='best')
                                 plt.savefig(fig_path)
                                 # plt.show(fig)
                                 plt.close(fig)
