@@ -84,7 +84,7 @@
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
             <entity quantity="__NUMROBOTS__" max_trials="200">
-                <kilobot id="kb" communication_range="10">
+                <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
@@ -110,7 +110,7 @@
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
             <entity quantity="__NUMROBOTS__" max_trials="200">
-                <kilobot id="kb" communication_range="10">
+                <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
@@ -118,7 +118,7 @@
 
         <floor id="floor"
         source="loop_functions"
-        pixels_per_meter="300" />
+        pixels_per_meter="150" />
         
     </arena>
     

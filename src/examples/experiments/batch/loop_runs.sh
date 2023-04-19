@@ -33,7 +33,7 @@ experiment_length="3601"
 RUNS=100
 numrobots="10"
 kappa="0.75"
-branches="2"
+branches="2 4"
 control_param="1 3"
 
 for nrob in $numrobots; do
