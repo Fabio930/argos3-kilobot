@@ -1,10 +1,8 @@
 build
-compile.sh
-compilerun.sh
-firstcompile.sh
-run.sh
-runbatch.sh
+**/*.sh
 *results_loop*
 *log*
 *LOG*
 *res*
+*/.vscode
+**/*RES

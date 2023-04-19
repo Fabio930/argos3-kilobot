@@ -328,7 +328,7 @@ class Results:
                                     if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                    plt.xlim((-1,12000))
+                                    # plt.xlim((-1,12000))
                                     plt.legend(legend,loc='best')
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
