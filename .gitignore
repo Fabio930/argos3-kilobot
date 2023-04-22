@@ -1,9 +1,8 @@
 build
 **/*.sh
-*results_loop*
-*log*
-*LOG*
-*res*
-*/.vscode
-**/*RES
-*/*cache*
+**/*vscode*
+**/*LOG*
+**/*log*
+**/*RES*
+**/*res*
+**/*cache*

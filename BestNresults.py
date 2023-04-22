@@ -336,60 +336,55 @@ class Results:
 
 ##########################################################################################################
 ##########################################################################################################
-    def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date):
+    def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment'):
         c_map = plt.cm.get_cmap('viridis')
         N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
         data={}
         times={}
         for base in BASES:
             for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                     for S in MAX_STEPS:
                         for B in BRACHES:
                             for D in DEPTH:
                                 for k in K:
                                     for r in R:
                                         if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                            locations=data_in.get((base,A,S,B,D,k,r))[0]
-                                            commitments=data_in.get((base,A,S,B,D,k,r))[1]
+                                            dataTOeval = data_in.get((base,A,S,B,D,k,r))[1] if POSorCOM=="commitment" else data_in.get((base,A,S,B,D,k,r))[0]
                                             distances=data_in.get((base,A,S,B,D,k,r))[2]
                                             seeds=data_in.get((base,A,S,B,D,k,r))[3]
                                             best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
                                             leafs=data_in.get((base,A,S,B,D,k,r))[5]
-                                            stored_times = [S+1]*len(commitments)
-                                            stored_distances = [[-1]*A]*len(commitments)
-                                            stored_commitments = [[0]*A]*len(commitments)
-                                            stored_locations = [[0]*A]*len(commitments)
+                                            stored_times = [S+1]*len(dataTOeval)
+                                            stored_distances = [[-1]*A]*len(dataTOeval)
+                                            stored_eval_data = [[0]*A]*len(dataTOeval)
                                             # ===============================================
                                             # extract data for weibulls plotting
-                                            for c in range(len(commitments)): 
+                                            for c in range(len(dataTOeval)): 
                                                 semc = 0
                                                 timec = S+1
                                                 distances_to_store = [-1]*A
-                                                commitments_to_store = [0]*A
-                                                locations_to_store = [0]*A
-                                                for l in range(len(commitments[c])):
+                                                eval_to_store = [0]*A
+                                                for l in range(len(dataTOeval[c])):
                                                     if semc==0:
-                                                        for e in range(int(len(commitments[c][l]))):
-                                                            if commitments[c][l][e] in leafs:
+                                                        for e in range(int(len(dataTOeval[c][l]))):
+                                                            if dataTOeval[c][l][e] in leafs:
                                                                 sum = 1
-                                                                for ce in range(len(commitments[c][l])):
-                                                                    if e!=ce and commitments[c][l][e]==commitments[c][l][ce]:
+                                                                for ce in range(len(dataTOeval[c][l])):
+                                                                    if e!=ce and dataTOeval[c][l][e]==dataTOeval[c][l][ce]: # derive weibulls and % over position
                                                                         sum += 1
-                                                                if sum >= len(commitments[c][l])*.9:
+                                                                if sum >= len(dataTOeval[c][l])*.9:
                                                                     semc = 1
                                                                     timec = l+1
                                                                     distances_to_store = distances[c][l]
-                                                                    commitments_to_store = commitments[c][l]
-                                                                    locations_to_store = locations[c][l]
+                                                                    eval_to_store = dataTOeval[c][l]
                                                                     break
                                                     if semc==1: break
                                                 stored_times[c] = timec
                                                 stored_distances[c] = list(distances_to_store)
-                                                stored_commitments[c] = list(commitments_to_store)
-                                                stored_locations[c] = list(locations_to_store)
+                                                stored_eval_data[c] = list(eval_to_store)
                                                 # print(best_leafs[c],'\n',stored_times[c],'\t',stored_commitments[c],'\t',stored_distances[c],'\t',leafs,'\n\n')
-                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_locations,stored_commitments,stored_distances,list(seeds),list(best_leafs),list(leafs))})
+                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,stored_distances,list(seeds),list(best_leafs),list(leafs))})
                                 for k in K:
                                     x = 0
                                     fig, ax = plt.subplots(figsize=(12, 6))
@@ -431,20 +426,22 @@ class Results:
                                         plt.tight_layout()
                                         if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
                                             os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/Weibulls"):
-                                            os.mkdir(base+"/Robots#"+str(A)+"/images/Weibulls")
-                                        fig_path=base+"/Robots#"+str(A)+"/images/Weibulls/CONFIGw__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
+                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM):
+                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM)
+                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls"):
+                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls")
+                                        fig_path=base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls/CONFIGw_"+POSorCOM+"__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                         plt.savefig(fig_path)
                                     # plt.show(fig)
                                     plt.close(fig)
         return (data,times)
 
 ##########################################################################################################
-    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,checkNodesDistr=False):
+    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment',checkNodesDistr=False):
         data_0,data_1 = data[0],data[1]
         for base in BASES:
             for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                     for S in MAX_STEPS:
                         for B in BRACHES:
                             for D in DEPTH:
@@ -461,12 +458,11 @@ class Results:
                                         SEMprint=True
                                         if data_0.get((base,A,S,B,D,k,r)) is not None:
                                             times=data_0.get((base,A,S,B,D,k,r))[0]
-                                            # locations=data_0.get((base,A,S,B,D,k,r))[1]
-                                            commitments=data_0.get((base,A,S,B,D,k,r))[2]
-                                            distances=data_0.get((base,A,S,B,D,k,r))[3]
-                                            # seeds=data_0.get((base,A,S,B,D,k,r))[4]
-                                            best_leafs=data_0.get((base,A,S,B,D,k,r))[5]
-                                            leafs=data_0.get((base,A,S,B,D,k,r))[6]
+                                            dataTOprint = data_0.get((base,A,S,B,D,k,r))[1]
+                                            distances=data_0.get((base,A,S,B,D,k,r))[2]
+                                            # seeds=data_0.get((base,A,S,B,D,k,r))[3]
+                                            best_leafs=data_0.get((base,A,S,B,D,k,r))[4]
+                                            leafs=data_0.get((base,A,S,B,D,k,r))[5]
                                             mean=data_1.get((base,A,S,B,D,k,r))[0]
                                             std=data_1.get((base,A,S,B,D,k,r))[1]
                                             dist_0=[0]
@@ -482,7 +478,7 @@ class Results:
                                                 if times[t]<=S:
                                                     check_4_succes=0
                                                     for d in range(len(distances[t])):
-                                                        if distances[t][d]==0 and commitments[t][d]==best_leafs[t]:
+                                                        if distances[t][d]==0 and dataTOprint[t][d]==best_leafs[t]:
                                                             check_4_succes+=1
                                                     if check_4_succes>=len(distances[t])*.9:
                                                         if checkNodesDistr:
@@ -492,7 +488,7 @@ class Results:
                                                     else:
                                                         check_4_succes=0
                                                         for d in range(len(distances[t])):
-                                                            if distances[t][d]==1 and commitments[t][d] in leafs:
+                                                            if distances[t][d]==1 and dataTOprint[t][d] in leafs:
                                                                 check_4_succes+=1
                                                         if check_4_succes>=len(distances[t])*.9:
                                                             if checkNodesDistr:
@@ -502,7 +498,7 @@ class Results:
                                                         else:
                                                             check_4_succes=0
                                                             for d in range(len(distances[t])):
-                                                                if distances[t][d]==2 and commitments[t][d] in leafs:
+                                                                if distances[t][d]==2 and dataTOprint[t][d] in leafs:
                                                                     check_4_succes+=1
                                                             if check_4_succes>=len(distances[t])*.9:
                                                                 if checkNodesDistr:
@@ -534,10 +530,10 @@ class Results:
                                             SEMprint=False
                                         if SEMprint:
                                             is_new = True
-                                            if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                                            if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                                                 is_new=False
                                             fieldnames = ["max_steps","agents","k","r","options","type","mean","std","leaf","dist_0","dist_1","dist_2","no_decision"]
-                                            with open(base+"/Robots#"+str(A)+"/resume_"+date+".csv","a") as f:
+                                            with open(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv","a") as f:
                                                 writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
                                                 if is_new:
                                                     writer.writeheader()
@@ -548,7 +544,7 @@ class Results:
                                                     for l in range(len(leafs)):
                                                         writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":leafs[l],"dist_0":dist_0_val[l],"dist_1":dist_1_val[l],"dist_2":dist_2_val[l],"no_decision":no_decision_val[l]})
                                                         data_to_plot.update({(base,S,A,B,D,k,r,leafs[l]):(mean_val,std_val,dist_0_val[l],dist_1_val[l],dist_2_val[l],no_decision_val[l])})
-                                self.plot_percentages(data_to_plot,date)
+                                self.plot_percentages(data_to_plot,date,POSorCOM)
 
 ##########################################################################################################
     def sort_ark_positions_by_node(self):
@@ -636,7 +632,7 @@ class Results:
         plt.close()
 
 ##########################################################################################################
-    def plot_percentages(self,data,date):
+    def plot_percentages(self,data,date,POSorCOM='commitment'):
         bases=[]
         times=[]
         agents=[]
@@ -717,9 +713,11 @@ class Results:
                                                             plt.tight_layout()
                                                             if not os.path.exists(ba+"/Robots#"+str(a)+"/images"):
                                                                 os.mkdir(ba+"/Robots#"+str(a)+"/images")
-                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/percentages"):
-                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/percentages")
-                                                            fig_path=ba+"/Robots#"+str(a)+"/images/percentages/CONFIGp__A#"+str(a)+"_"+"S#"+str(ti)+"_"+"B#"+str(b)+"_"+"D#"+str(d)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM)
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages"):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages")
+                                                            fig_path=ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages/CONFIGp_"+POSorCOM+"__A#"+str(a)+"_"+"S#"+str(ti)+"_"+"B#"+str(b)+"_"+"D#"+str(d)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                                             # plt.show(fig)
                                                             plt.savefig(fig_path)
                                                             plt.close()
