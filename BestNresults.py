@@ -1,6 +1,8 @@
 import numpy as np
 import os, csv
 import matplotlib.lines as mlines
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 from scipy.special import gamma
 from matplotlib import pyplot as plt
 from lifelines import KaplanMeierFitter
@@ -249,7 +251,7 @@ class Results:
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    bigM = [np.array([])] * 100
+                                                    bigM = [np.array([])] * 10
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
@@ -269,7 +271,7 @@ class Results:
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
 ##########################################################################################################
-    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,collapse_means):
+    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
          for base in BASES:
             for A in N_AGENTS:
                 for S in MAX_STEPS:
@@ -284,44 +286,50 @@ class Results:
                                         we_will_print=True
                                         bigM = data_in.get((base,A,S,B,D,k,r))
                                         flag2=[-1]*len(bigM[0][0])
+                                        flag3=[flag2]*(len(bigM)+1)
+                                        tmp=[flag2]*len(bigM)
                                         for i in range(len(bigM)):
                                             flag1=[-1]*len(bigM[i][0])
                                             for z in range(len(bigM[i][0])):
                                                 for j in range(len(bigM[i])):
-                                                    val=bigM[i][j][z]
                                                     if flag1[z]==-1:
-                                                        flag1[z]=val
+                                                        flag1[z]=bigM[i][j][z]
                                                     else:
-                                                        flag1[z]=flag1[z]+val
+                                                        flag1[z]=flag1[z]+bigM[i][j][z]
                                             for z in range(len(flag1)):
                                                 flag1[z]=flag1[z]/len(bigM[i])
                                                 if flag2[z]==-1:
                                                     flag2[z]=flag1[z]
                                                 else:
                                                     flag2[z]=flag1[z]+flag2[z]
+                                            tmp[i] = flag1
                                         for i in range(len(flag2)):
                                             flag2[i]=flag2[i]/len(bigM)
+                                        for i in range(len(flag3)):
+                                            flag3[i] = flag2 if i==0 else tmp[i-1]
                                         if len(to_print)==0:
-                                            to_print = [flag2]
-                                            legend = [r]
+                                            to_print = [flag3]
+                                            legend = ["R: "+str(r)]
                                         else:
-                                            to_print = np.append(to_print,[flag2],0)
-                                            legend = np.append(legend,r)
+                                            to_print = np.append(to_print,[flag3],0)
+                                            legend = np.append(legend,"R: "+str(r))
                                 if we_will_print:
-                                    if collapse_means:
-                                        flag = to_print[0]
-                                        for z in range(1,len(to_print)):
-                                            for i in range(len(to_print[z])):
-                                                flag[i]+=to_print[z][i]
-                                        for z in range(len(flag)):
-                                            flag[z]=flag[z]/len(to_print)
-                                        to_print = [flag]
-                                        legend = ['global']
-                                    fig, ax = plt.subplots(figsize=(12, 6))
-                                    for i in range(len(to_print)): plt.plot(to_print[i])
+                                    handls=[]
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                the_plot, = plt.plot(to_print[i][j],lw=2,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                handls = np.append(handls,the_plot)
+                                            else:
+                                                plt.plot(to_print[i][j],lw=.7,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.6)
                                     plt.grid(True,linestyle=':')
                                     plt.ylabel("mean quorum level")
-                                    plt.xlabel("kilo ticks")
+                                    plt.xlabel("simulation ticks")
                                     plt.tight_layout()
                                     if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
                                         os.mkdir(base+"/Robots#"+str(A)+"/images")
@@ -329,7 +337,7 @@ class Results:
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
                                     # plt.xlim((-1,12000))
-                                    plt.legend(legend,loc='best')
+                                    plt.legend(handles=handls.tolist(),loc='best')
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
                                     plt.close(fig)
@@ -387,7 +395,7 @@ class Results:
                                             data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,stored_distances,list(seeds),list(best_leafs),list(leafs))})
                                 for k in K:
                                     x = 0
-                                    fig, ax = plt.subplots(figsize=(12, 6))
+                                    fig, ax = plt.subplots(figsize=(12,6))
                                     gottaPrint=False
                                     for r in R:
                                         if data.get((base,A,S,B,D,k,r)) is not None:
