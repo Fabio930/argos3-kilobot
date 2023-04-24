@@ -323,10 +323,10 @@ class Results:
                                     for i in range(len(to_print)):
                                         for j in range(len(to_print[i])):
                                             if j==0:
-                                                the_plot, = plt.plot(to_print[i][j],lw=2,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.5,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
                                                 handls = np.append(handls,the_plot)
                                             else:
-                                                plt.plot(to_print[i][j],lw=.7,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.6)
+                                                plt.plot(to_print[i][j],lw=.75,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.6)
                                     plt.grid(True,linestyle=':')
                                     plt.ylabel("mean quorum level")
                                     plt.xlabel("simulation ticks")
@@ -337,6 +337,8 @@ class Results:
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
                                     # plt.xlim((-1,12000))
+                                    plt.ylim((-.5,A+.5))
+                                    plt.yticks(np.arange(0,A+1))
                                     plt.legend(handles=handls.tolist(),loc='best')
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
@@ -345,7 +347,6 @@ class Results:
 ##########################################################################################################
 ##########################################################################################################
     def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment'):
-        c_map = plt.cm.get_cmap('viridis')
         N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
         data={}
         times={}
@@ -394,9 +395,13 @@ class Results:
                                                 # print(best_leafs[c],'\n',stored_times[c],'\t',stored_commitments[c],'\t',stored_distances[c],'\t',leafs,'\n\n')
                                             data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,stored_distances,list(seeds),list(best_leafs),list(leafs))})
                                 for k in K:
-                                    x = 0
                                     fig, ax = plt.subplots(figsize=(12,6))
+                                    values = range(len(R))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
                                     gottaPrint=False
+                                    indx = 0
                                     for r in R:
                                         if data.get((base,A,S,B,D,k,r)) is not None:
                                             gottaPrint=True
@@ -413,7 +418,7 @@ class Results:
                                             ts = ci.index
                                             low,high = np.transpose(ci.values)
                                             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=c_map(round(x/len(R),1)))
+                                            kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=scalarMap.to_rgba(values[indx]))
                                             sorted_times,censored = np.insert(sorted_times,0,1),np.insert(censored,0,0)
                                             we = WeibullFitter()
                                             we.fit(sorted_times,censored,label="R:"+str(r)+" Weibull")
@@ -421,10 +426,10 @@ class Results:
                                             ts = ci.index
                                             low,high = np.transpose(ci.values)
                                             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=c_map(round(x/len(R),1)))
-                                            x += 1
+                                            we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=scalarMap.to_rgba(values[indx]))
                                             values=self.get_mean_and_std(we)
                                             times.update({(base,A,S,B,D,k,r):[values[0],values[1]]})
+                                        indx+=1
                                     if gottaPrint:
                                         plt.grid(True,linestyle=':')
                                         plt.ylabel("consensus cumulative density")
@@ -443,6 +448,80 @@ class Results:
                                     # plt.show(fig)
                                     plt.close(fig)
         return (data,times)
+
+##########################################################################################################
+    def plot_percentages_on_leaf(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                                we_will_print=False
+                                to_print = []
+                                legend = []
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
+                                        locations = data_in.get((base,A,S,B,D,k,r))[0]
+                                        best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
+                                        leafs=data_in.get((base,A,S,B,D,k,r))[5]
+                                        best_leaf_mean = [0]*len(locations[0])
+                                        other_leaf_mean = [0]*len(locations[0])
+                                        no_leaf_mean = [0]*len(locations[0])
+                                        for nr in range(len(locations)):
+                                            for ns in range(len(locations[nr])):
+                                                for na in range(len(locations[nr][ns])):
+                                                    if locations[nr][ns][na]==best_leafs[nr]: best_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                                    elif np.isin(locations[nr][ns][na],leafs) : other_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                                    else: no_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                        for ns in range(len(best_leaf_mean)):
+                                            best_leaf_mean[ns]/=len(locations)
+                                            other_leaf_mean[ns]/=len(locations)
+                                            no_leaf_mean[ns]/=len(locations)
+                                        tmpP=[0]*3
+                                        tmpL=[0]*3
+                                        tmpP[0]=best_leaf_mean
+                                        tmpP[1]=other_leaf_mean
+                                        tmpP[2]=no_leaf_mean
+                                        tmpL[0]="R: "+str(r)+" over_best_leaf"
+                                        tmpL[1]="         over_other_leaf"
+                                        tmpL[2]="         over_no_leaf"
+                                        if len(to_print)==0:
+                                            to_print = [tmpP]
+                                            legend = [tmpL]
+                                        else:
+                                            to_print = np.append(to_print,[tmpP],0)
+                                            legend = np.append(legend,[tmpL],0)
+                                if we_will_print:
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                plt.plot(to_print[i][j],lw=1.5,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+                                            elif j==1:
+                                                plt.plot(to_print[i][j],lw=1.5,ls=':',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+                                            else:
+                                                plt.plot(to_print[i][j],lw=1.5,ls='--',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean location percentages")
+                                    plt.xlabel("simulation seconds")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/leafs"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/leafs")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/leafs/CONFIGl__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    plt.legend(loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
 
 ##########################################################################################################
     def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment',checkNodesDistr=False):
