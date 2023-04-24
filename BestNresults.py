@@ -121,7 +121,7 @@ class Results:
                                                                 for CHECKfile in os.listdir(base+"/Robots#"+str(n_agents)):
                                                                     if ".csv" in CHECKfile:
                                                                         temp_str=CHECKfile.split('.')[0]
-                                                                        Mdmy=temp_str.split('_')[1]
+                                                                        Mdmy=temp_str.split('_')[2]
                                                                         Mhms=temp_str.split('_')[-1]
                                                                         Mday=int(Mdmy.split('-')[0])
                                                                         Mmonth=int(Mdmy.split('-')[1])
@@ -251,7 +251,7 @@ class Results:
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    bigM = [np.array([])] * 10
+                                                    bigM = [np.array([])] * 100
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
