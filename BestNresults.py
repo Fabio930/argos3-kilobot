@@ -290,8 +290,8 @@ class Results:
                                         tmp=[flag2]*len(bigM)
                                         for i in range(len(bigM)):
                                             flag1=[-1]*len(bigM[i][0])
-                                            for z in range(len(bigM[i][0])):
-                                                for j in range(len(bigM[i])):
+                                            for j in range(len(bigM[i])):
+                                                for z in range(len(bigM[i][j])):
                                                     if flag1[z]==-1:
                                                         flag1[z]=bigM[i][j][z]
                                                     else:
@@ -323,10 +323,10 @@ class Results:
                                     for i in range(len(to_print)):
                                         for j in range(len(to_print[i])):
                                             if j==0:
-                                                the_plot, = plt.plot(to_print[i][j],lw=1.5,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
                                                 handls = np.append(handls,the_plot)
                                             else:
-                                                plt.plot(to_print[i][j],lw=.75,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.6)
+                                                plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                                     plt.grid(True,linestyle=':')
                                     plt.ylabel("mean quorum level")
                                     plt.xlabel("simulation ticks")
@@ -336,9 +336,10 @@ class Results:
                                     if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                    # plt.xlim((-1,12000))
-                                    plt.ylim((-.5,A+.5))
-                                    plt.yticks(np.arange(0,A+1))
+                                    maxA = A
+                                    if maxA>20: maxA=20
+                                    plt.ylim((-.5,maxA+.5))
+                                    plt.yticks(np.arange(0,maxA+1))
                                     plt.legend(handles=handls.tolist(),loc='best')
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
