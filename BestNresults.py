@@ -206,7 +206,7 @@ class Results:
 
 ##########################################################################################################
 ##########################################################################################################
-    def extract_k_quorum_data(self):
+    def extract_k_quorum_data(self,position="all"):
         BRACHES=[]
         BASES=[]
         DEPTH=[]
@@ -251,28 +251,71 @@ class Results:
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    bigM = [np.array([])] * 100
+                                                    dim = len(os.listdir(sub_path))//2
+                                                    bigM = [np.array([])] * dim if position=="all" else np.array([])
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
-                                                            if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                                                                seed = (int)(selem[0].split('_')[-1])
-                                                                M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                                                with open(os.path.join(sub_path, elem), newline='') as f:
-                                                                    reader = csv.reader(f)
-                                                                    for row in reader:
-                                                                        for val in row:
-                                                                            val = val.split('\t')
-                                                                            id = (int)(val[0])
-                                                                            qv = (int)(val[1])
-                                                                            M[id] = np.append(M[id],qv)
-                                                                bigM[seed-1] = M
-                                                    results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
+                                                            if position == "all":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM[seed-1] = M
+                                                            elif position == "first":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]=="1":
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                            elif position == "last":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==str(len(os.listdir(sub_path))//2):
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                            elif position == "rand":
+                                                                p = np.random.choice(np.arange(len(os.listdir(sub_path))//2))
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==p:
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                        results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
 ##########################################################################################################
     def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
-         for base in BASES:
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
             for A in N_AGENTS:
                 for S in MAX_STEPS:
                     for B in BRACHES:
@@ -336,6 +379,77 @@ class Results:
                                     if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    maxA = A
+                                    if maxA>20: maxA=20
+                                    plt.ylim((-.5,maxA+.5))
+                                    plt.yticks(np.arange(0,maxA+1))
+                                    plt.legend(handles=handls.tolist(),loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
+
+##########################################################################################################
+    def print_single_run_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,position='first',taken='all'):
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                                we_will_print = False
+                                to_print = []
+                                legend = []
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
+                                        run = bigM = data_in.get((base,A,S,B,D,k,r))
+                                        if taken=='all':
+                                            p = 0
+                                            if position=='rand': p = np.random.choice(np.arange(len(bigM)))
+                                            elif position=='last': p = len(bigM)-1
+                                            run = bigM[p]
+                                        mean = [-1]*len(run[0])
+                                        flag = [mean]*(len(run)+1)
+                                        for i in range(len(run)):
+                                            flag[i+1] = run[i]
+                                            for j in range(len(run[i])):
+                                                if mean[j] == -1:
+                                                    mean[j] = run[i][j]
+                                                else:
+                                                    mean[j] = mean[j]+run[i][j]
+                                        for z in range(len(mean)):
+                                            mean[z] = mean[z]/len(run)
+                                        flag[0] = mean
+                                        if len(to_print)==0:
+                                            to_print = [flag]
+                                            legend = ["R: "+str(r)]
+                                        else:
+                                            to_print = np.append(to_print,[flag],0)
+                                            legend = np.append(legend,"R: "+str(r))
+                                if we_will_print:
+                                    handls=[]
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                handls = np.append(handls,the_plot)
+                                            else:
+                                                plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean quorum level")
+                                    plt.xlabel("simulation ticks")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__"+position+"_A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
                                     maxA = A
                                     if maxA>20: maxA=20
                                     plt.ylim((-.5,maxA+.5))
