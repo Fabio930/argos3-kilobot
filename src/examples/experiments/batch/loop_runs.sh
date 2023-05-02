@@ -26,12 +26,12 @@ base_dir=`dirname $base_config`
 echo base_dir $base_dir
 echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 
-#################################
-# experiment_length is in seconds
-#################################
+#######################################
+### experiment_length is in seconds ###
+#######################################
 experiment_length="3601"
 RUNS=100
-numrobots="10"
+numrobots="20"
 kappa="0.75"
 branches="2 4"
 control_param="1 3"
