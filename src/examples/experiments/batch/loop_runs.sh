@@ -34,11 +34,11 @@ RUNS=100
 numrobots="10"
 kappa="0.75"
 branches="2"
+depth="2"
 control_param="1 3"
 
 for nrob in $numrobots; do
     dir=$res_dir/"Robots#"$nrob
-    depth="2"
     if [[ ! -e $dir ]]; then
         mkdir $dir
     fi
