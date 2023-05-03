@@ -345,11 +345,11 @@ class Results:
                                                     flag2[z]=flag1[z]
                                                 else:
                                                     flag2[z]=flag1[z]+flag2[z]
-                                            tmp[i] = np.round(flag1,2)
+                                            tmp[i] = np.round(flag1,2).tolist()
                                         for i in range(len(flag2)):
                                             flag2[i]=flag2[i]/len(bigM)
                                         for i in range(len(flag3)):
-                                            flag3[i] = np.round(flag2,2) if i==0 else tmp[i-1]
+                                            flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
                                         if len(to_print)==0:
                                             to_print = [flag3]
                                             legend = ["R: "+str(r)]
@@ -420,7 +420,7 @@ class Results:
                                                     mean[j] = mean[j]+run[i][j]
                                         for z in range(len(mean)):
                                             mean[z] = mean[z]/len(run)
-                                        flag[0] = np.round(mean,2)
+                                        flag[0] = np.round(mean,2).tolist()
                                         if len(to_print)==0:
                                             to_print = [flag]
                                             legend = ["R: "+str(r)]
@@ -600,9 +600,9 @@ class Results:
                                         no_leaf_mean=np.round(no_leaf_mean,3)
                                         tmpP=[0]*3
                                         tmpL=[0]*3
-                                        tmpP[0]=best_leaf_mean
-                                        tmpP[1]=other_leaf_mean
-                                        tmpP[2]=no_leaf_mean
+                                        tmpP[0]=best_leaf_mean.tolist()
+                                        tmpP[1]=other_leaf_mean.tolist()
+                                        tmpP[2]=no_leaf_mean.tolist()
                                         tmpL[0]="R: "+str(r)+" over_best_leaf"
                                         tmpL[1]="         over_other_leaf"
                                         tmpL[2]="         over_no_leaf"
