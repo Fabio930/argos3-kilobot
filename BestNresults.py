@@ -451,7 +451,7 @@ class Results:
                                         os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
                                     fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__"+position+"_A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
                                     maxA = A
-                                    if maxA>20: maxA=20
+                                    if maxA>20: maxA-=10
                                     plt.ylim((-.5,maxA+.5))
                                     plt.yticks(np.arange(0,maxA+1))
                                     plt.legend(handles=handls.tolist(),loc='best')
