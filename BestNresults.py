@@ -345,11 +345,11 @@ class Results:
                                                     flag2[z]=flag1[z]
                                                 else:
                                                     flag2[z]=flag1[z]+flag2[z]
-                                            tmp[i] = flag1
+                                            tmp[i] = np.round(flag1,2)
                                         for i in range(len(flag2)):
                                             flag2[i]=flag2[i]/len(bigM)
                                         for i in range(len(flag3)):
-                                            flag3[i] = flag2 if i==0 else tmp[i-1]
+                                            flag3[i] = np.round(flag2,2) if i==0 else tmp[i-1]
                                         if len(to_print)==0:
                                             to_print = [flag3]
                                             legend = ["R: "+str(r)]
@@ -420,7 +420,7 @@ class Results:
                                                     mean[j] = mean[j]+run[i][j]
                                         for z in range(len(mean)):
                                             mean[z] = mean[z]/len(run)
-                                        flag[0] = mean
+                                        flag[0] = np.round(mean,2)
                                         if len(to_print)==0:
                                             to_print = [flag]
                                             legend = ["R: "+str(r)]
@@ -595,6 +595,9 @@ class Results:
                                             best_leaf_mean[ns]/=len(locations)
                                             other_leaf_mean[ns]/=len(locations)
                                             no_leaf_mean[ns]/=len(locations)
+                                        best_leaf_mean=np.round(best_leaf_mean,3)
+                                        other_leaf_mean=np.round(other_leaf_mean,3)
+                                        no_leaf_mean=np.round(no_leaf_mean,3)
                                         tmpP=[0]*3
                                         tmpL=[0]*3
                                         tmpP[0]=best_leaf_mean
