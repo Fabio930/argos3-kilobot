@@ -203,11 +203,6 @@ void select_new_point(bool force){
     }
     else{
         set_color(led);
-        // uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
-        // if(flag < expiring_dist){
-        //     expiring_dist = flag;
-        //     reaching_goal_ticks = expiring_dist * goal_ticks_sec;
-        // }
         if(--reaching_goal_ticks<=0){
             goal_position = gps_position;
             select_new_point(false);
