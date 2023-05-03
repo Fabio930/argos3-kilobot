@@ -544,7 +544,7 @@ class Results:
                                             we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=scalarMap.to_rgba(values[indx]))
                                             values=self.get_mean_and_std(we)
                                             times.update({(base,A,S,B,D,k,r):[values[0],values[1]]})
-                                        indx+=1
+                                            indx+=1
                                     if gottaPrint:
                                         plt.grid(True,linestyle=':')
                                         plt.ylabel("consensus cumulative density")
