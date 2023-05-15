@@ -1,6 +1,6 @@
 build
 **/*.sh
-**/*vscode*
+**/*vscode
 **/*LOG*
 **/*log*
 **/*RES*
