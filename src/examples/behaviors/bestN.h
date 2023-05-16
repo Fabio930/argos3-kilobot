@@ -21,8 +21,8 @@ FILE *fp;
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
+    ARENA_X = 10,
+    ARENA_Y = 10
 }arena_size;
 
 /* Enum for messages type */
@@ -73,7 +73,7 @@ uint32_t reaching_goal_ticks;
 uint32_t expiring_dist;
 
 float goal_ticks_sec = TICKS_PER_SEC * 1.3;
-float quorum_ticks_sec = TICKS_PER_SEC * 2;
+float quorum_ticks_sec = TICKS_PER_SEC * 4;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};

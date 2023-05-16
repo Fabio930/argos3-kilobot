@@ -29,12 +29,12 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="3601"
+experiment_length="7201"
 RUNS=100
-numrobots="10"
+numrobots="40"
 kappa="0.75"
 branches="2"
-depth="2"
+depth="2 4"
 control_param="1 3"
 
 for nrob in $numrobots; do
