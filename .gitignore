@@ -3,6 +3,7 @@ build
 **/*vscode
 **/*LOG*
 **/*log*
-**/*RES*
-**/*res*
+**/*RES_*
+**/*res_*
+**/*results_*
 **/*cache*
