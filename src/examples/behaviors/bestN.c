@@ -88,11 +88,12 @@ void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
     uint8_t message_switch = 0;
-    message_a *rnd_msg = select_a_random_msg(&messages_array);
-    if(rnd_msg != NULL){
-        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
+    for(uint8_t m = 0;m<num_messages;m++){
         update_quorum_list(&current_node,&rnd_msg,message_switch);
+        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
     }
+    message_a *rnd_msg = select_a_random_msg(&messages_array);
+    if(rnd_msg != NULL) message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
         else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
