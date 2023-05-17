@@ -89,8 +89,8 @@ void sample_and_decide(tree_a **leaf){
     // select a random message
     uint8_t message_switch = 0;
     for(uint8_t m = 0;m<num_messages;m++){
-        update_quorum_list(&current_node,&rnd_msg,message_switch);
-        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
+        update_quorum_list(&current_node,&messages_array[m],message_switch);
+        message_switch = msg_received_from(&tree_array,my_state.current_node,messages_array[m]->agent_node);
     }
     message_a *rnd_msg = select_a_random_msg(&messages_array);
     if(rnd_msg != NULL) message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
