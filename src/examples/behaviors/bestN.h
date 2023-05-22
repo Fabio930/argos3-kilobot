@@ -71,9 +71,10 @@ motion_t current_motion_type = STOP;
 position_t goal_position={0,0};
 uint32_t reaching_goal_ticks;
 uint32_t expiring_dist;
+uint8_t avoid_tmmts;
 
 float goal_ticks_sec = TICKS_PER_SEC * 1.3;
-float quorum_ticks_sec = TICKS_PER_SEC * 4;
+float quorum_ticks_sec = TICKS_PER_SEC * 2;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};

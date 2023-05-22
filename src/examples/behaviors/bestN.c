@@ -201,9 +201,24 @@ void select_new_point(bool force){
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         reaching_goal_ticks = expiring_dist * goal_ticks_sec;
+
     }
     else{
         set_color(led);
+        if(avoid_tmmts==0){
+            uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+            if(flag >= expiring_dist + 1){
+                set_motion(TURN_LEFT);
+                avoid_tmmts=1;
+            }
+        }
+        else{
+            if(current_motion_type==TURN_LEFT) set_motion(FORWARD);
+            else set_motion(TURN_LEFT);
+            uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+            if(flag < expiring_dist) avoid_tmmts=0;
+        }
+        expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         if(--reaching_goal_ticks<=0){
             goal_position = gps_position;
             select_new_point(false);
@@ -369,43 +384,45 @@ float AngleToGoal(){
 void random_way_point_model(){   
     if(init_received_B){
         select_new_point(false);
-        float angleToGoal = AngleToGoal();
-        if(fabs(angleToGoal) <= 36){
-            set_motion(FORWARD);
-            last_motion_ticks = kilo_ticks;
-        }
-        else{
-            if(angleToGoal > 0){
-                set_motion(TURN_LEFT);
+        if(avoid_tmmts == 0){
+            float angleToGoal = AngleToGoal();
+            if(fabs(angleToGoal) <= 36){
+                set_motion(FORWARD);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
             else{
-                set_motion(TURN_RIGHT);
-                last_motion_ticks = kilo_ticks;
-                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                if(angleToGoal > 0){
+                    set_motion(TURN_LEFT);
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                }
+                else{
+                    set_motion(TURN_RIGHT);
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                }
             }
-        }
-        switch(current_motion_type){
-            case TURN_LEFT:
-                if(kilo_ticks > last_motion_ticks + turning_ticks){
-                    /* start moving forward */
-                    last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-                    set_motion(FORWARD);
-                }
-                break;
-            case TURN_RIGHT:
-                if(kilo_ticks > last_motion_ticks + turning_ticks){
-                    /* start moving forward */
-                    last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-                    set_motion(FORWARD);
-                }
-                break;
-            case FORWARD:
-                break;
-            case STOP:
-            default:
-                set_motion(STOP);
+            switch(current_motion_type){
+                case TURN_LEFT:
+                    if(kilo_ticks > last_motion_ticks + turning_ticks){
+                        /* start moving forward */
+                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        set_motion(FORWARD);
+                    }
+                    break;
+                case TURN_RIGHT:
+                    if(kilo_ticks > last_motion_ticks + turning_ticks){
+                        /* start moving forward */
+                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        set_motion(FORWARD);
+                    }
+                    break;
+                case FORWARD:
+                    break;
+                case STOP:
+                default:
+                    set_motion(STOP);
+            }
         }
     }
 }
@@ -414,7 +431,6 @@ void setup(){
     /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-    
     /* Init state, message type and control parameters*/
     my_state.previous_node = 0;
     my_state.current_node = 0;
