@@ -66,6 +66,7 @@ typedef struct position{
 
 /* current motion type */
 motion_t current_motion_type = STOP;
+motion_t prev_motion_type = STOP;
 
 /* goal position */
 position_t goal_position={0,0};
