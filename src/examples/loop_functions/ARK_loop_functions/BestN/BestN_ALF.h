@@ -7,7 +7,6 @@
 #define BESTN_ALF_H
 
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
-#include "hierarchicFloor.h"
 
 class CBestN_ALF : public CALF{
 
@@ -52,8 +51,6 @@ public:
     /** Used to communicate gps position and angle*/
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
     
-    // void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
-
     Real abs_distance(const CVector2 a,const CVector2 b);
 
     void UpdateLog(UInt16 Time);
@@ -73,10 +70,7 @@ private:
     std::vector<CDegrees> m_vecKilobotOrientations;
     std::vector<Real> m_vecLastTimeMessaged;
     std::vector<UInt8> m_vecStart_experiment;
-    std::vector<UInt8> m_vecKilobotNodes;
-    std::vector<UInt8> m_vecKilobotCommitments;
-    std::vector<UInt8> m_vecKilobotDistFromOpt;
-    std::vector<UInt8> m_vecKilobotAskState;
+    std::vector<UInt8> m_vecKilobotStates;
     std::vector<UInt8> m_vecKilobotMsgType;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;

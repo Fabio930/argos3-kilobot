@@ -67,17 +67,12 @@ void CBestN_ALF::PostStep(){
 /****************************************/
 
 void CBestN_ALF::UpdateLog(UInt16 Time){
-    if(Time == 0){
-        m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t' << vh_floor->get_best_leaf()->get_top_left_angle().GetX() << '\t' <<  vh_floor->get_best_leaf()->get_top_left_angle().GetY() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetX() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetY() << '\t';
-        for(UInt8 i=0;i< vh_floor->get_leafs().size();i++){
-            m_cLog << vh_floor->get_leafs()[i]->get_id();
-            if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
-        }
-    }
-    m_cLog << std::endl;
+    if(Time == 0) m_cLog << m_random_seed << '\t' <<().GetY() << std::endl;
     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
     for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
-        m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
+        m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
+        << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
+        << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i]; 
         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
     }
 }
@@ -97,7 +92,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecKilobotCommitments.resize(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
-    vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
+    vh_floor = new ChierarchicFloor(TL,BR,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
     best_leaf = c_rng->Uniform(CRange<SInt32>(0, vh_floor->get_leafs().size()));
     vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
@@ -327,6 +322,7 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
+    if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
     return color;
 }
 
