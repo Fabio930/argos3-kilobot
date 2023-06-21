@@ -52,7 +52,7 @@ public:
     /** Used to communicate gps position and angle*/
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
     
-    void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
+    // void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
 
     Real abs_distance(const CVector2 a,const CVector2 b);
 
@@ -64,7 +64,7 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    UInt8 depth,branches,control_gain;
+    UInt8 re_broadcast,control_gain;
     float k;
     CVector2 TL,BR;
     ChierarchicFloor *vh_floor;
@@ -76,13 +76,12 @@ private:
     std::vector<UInt8> m_vecKilobotNodes;
     std::vector<UInt8> m_vecKilobotCommitments;
     std::vector<UInt8> m_vecKilobotDistFromOpt;
-    std::vector<UInt8> m_vecKilobotAskLevel;
+    std::vector<UInt8> m_vecKilobotAskState;
     std::vector<UInt8> m_vecKilobotMsgType;
     bool start_experiment = false;
     Real m_fMinTimeBetweenTwoMsg;
 
     UInt16 log_counter = 0;
-    UInt8 best_leaf;
 
     /************************************/
     /*       Experiment variables       */

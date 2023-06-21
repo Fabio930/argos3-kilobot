@@ -222,9 +222,8 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = 0;
-    tKilobotMessage.m_sID = control_gain << 7 | ((UInt8)(k*100));
-    tKilobotMessage.m_sData = (vh_floor->get_best_leaf()->get_id()-1) << 4;
-    tKilobotMessage.m_sData = tKilobotMessage.m_sData | (depth-1) << 2 | (branches-1);
+    tKilobotMessage.m_sID = control_gain; // k non serve più , mettere flag per rebroadcast
+    tKilobotMessage.m_sData = re_broadcast; // best leaf non serve più
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
@@ -328,9 +327,6 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
-    Node *leaf = vh_floor->get_best_leaf();
-    if(leaf->isin(vec_position_on_plane)) color=CColor::GREEN;
-    if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
     return color;
 }
 

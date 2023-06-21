@@ -149,9 +149,6 @@ void sample_and_decide(tree_a **leaf){
             }
             break;
     }
-    // control_parameter = control_gain * (1 - current_node->node_filter->distance);
-    // gain_h = control_parameter / (1+control_parameter);
-    // gain_k = 1 / (1+control_parameter);
     commitment = commitment * gain_k;
     abandonment = abandonment * gain_k;
     recruitment = recruitment * gain_h;
