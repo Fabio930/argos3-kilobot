@@ -61,10 +61,9 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    UInt8 re_broadcast,control_gain;
+    uint8_t committed_percentage;
+    bool rebroadcast;
     float k;
-    CVector2 TL,BR;
-    ChierarchicFloor *vh_floor;
 
     std::vector<CVector2> m_vecKilobotPositions;
     std::vector<CDegrees> m_vecKilobotOrientations;
@@ -72,7 +71,7 @@ private:
     std::vector<UInt8> m_vecStart_experiment;
     std::vector<UInt8> m_vecKilobotStates;
     std::vector<UInt8> m_vecKilobotMsgType;
-    bool start_experiment = false;
+    uint8_t start_experiment = 0;
     Real m_fMinTimeBetweenTwoMsg;
 
     UInt16 log_counter = 0;

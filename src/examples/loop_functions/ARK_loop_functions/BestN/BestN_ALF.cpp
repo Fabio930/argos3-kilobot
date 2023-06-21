@@ -49,7 +49,7 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 
 void CBestN_ALF::PostStep(){
-    if(start_experiment){
+    if(start_experiment == 1){
         log_counter++;
         if(log_counter == m_unDataAcquisitionFrequency){
             logging_time++;
@@ -67,12 +67,13 @@ void CBestN_ALF::PostStep(){
 /****************************************/
 
 void CBestN_ALF::UpdateLog(UInt16 Time){
-    if(Time == 0) m_cLog << m_random_seed << '\t' <<().GetY() << std::endl;
+    if(Time == 0) m_cLog << m_random_seed << '\t' <<().GetY();
+    m_cLog << std::endl;
     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
     for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
         << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
-        << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i]; 
+        << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotStates[i]; 
         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
     }
 }
@@ -82,19 +83,12 @@ void CBestN_ALF::UpdateLog(UInt16 Time){
 
 void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecKilobotMsgType.resize(m_tKilobotEntities.size());
-    m_vecKilobotAskLevel.resize(m_tKilobotEntities.size());
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
-    m_vecKilobotDistFromOpt.resize(m_tKilobotEntities.size());
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
-    m_vecKilobotNodes.resize(m_tKilobotEntities.size());
-    m_vecKilobotCommitments.resize(m_tKilobotEntities.size());
+    m_vecKilobotStates.resize(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
-    /* Create the virtual hierarchic environment over the arena */
-    vh_floor = new ChierarchicFloor(TL,BR,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
-    best_leaf = c_rng->Uniform(CRange<SInt32>(0, vh_floor->get_leafs().size()));
-    vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
 }
@@ -105,11 +99,8 @@ void CBestN_ALF::SetupInitialKilobotStates(){
 void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     /* The kilobots begins in the root node with a random goal position inside it */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecKilobotAskLevel[unKilobotID] = 0;
     m_vecKilobotMsgType[unKilobotID] = 0;
-    m_vecKilobotNodes[unKilobotID] = 0;
-    m_vecKilobotCommitments[unKilobotID] = 0;
-    m_vecKilobotDistFromOpt[unKilobotID] = depth;
+    m_vecKilobotStates[unKilobotID] = 0;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
 }
@@ -123,13 +114,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     /* Get the structure variables from the .argos file*/
     TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"hierarchicStruct");
     /* Get dimensions and quality scaling factor*/
-    GetNodeAttribute(tHierarchicalStructNode,"depth",depth);
-    GetNodeAttribute(tHierarchicalStructNode,"branches",branches);
-    GetNodeAttribute(tHierarchicalStructNode,"k",k);
-    GetNodeAttribute(tHierarchicalStructNode,"control_gain",control_gain);
-    /* Get the coordinates for the top left and bottom right corners of the arena */
-    TL = CVector2(Real(this->GetSpace().GetArenaLimits().GetMin()[0]),Real(this->GetSpace().GetArenaLimits().GetMin()[1]));
-    BR = CVector2(Real(this->GetSpace().GetArenaLimits().GetMax()[0]),Real(this->GetSpace().GetArenaLimits().GetMax()[1]));
+    GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
 }
 
 /****************************************/
@@ -155,13 +140,6 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
-    CColor kilo_color = GetKilobotLedColor(c_kilobot_entity);
-    if(m_vecKilobotMsgType[unKilobotID] == 0 && m_vecKilobotAskLevel[unKilobotID]>=0 && kilo_color!=CColor::BLACK){
-        m_vecKilobotNodes[unKilobotID] = vh_floor->derive_node_id(m_vecKilobotAskLevel[unKilobotID],m_vecKilobotPositions[unKilobotID]);
-        if (kilo_color == CColor::RED) m_vecKilobotCommitments[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_parent()->get_id();
-        else if (kilo_color == CColor::BLUE) m_vecKilobotCommitments[unKilobotID] = m_vecKilobotNodes[unKilobotID];
-        m_vecKilobotDistFromOpt[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_distance_from_opt();
-    }
 }
 
 /****************************************/
@@ -172,37 +150,31 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     if (m_fTimeInSeconds - m_vecLastTimeMessaged[unKilobotID]< m_fMinTimeBetweenTwoMsg) return; // if the time is too short, the kilobot cannot receive a message
     for (UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
-    if(!start_experiment){
-        /* Send init information for environment representation*/
-        switch (m_vecStart_experiment[unKilobotID]){
+    switch (start_experiment){
         case 0:
-            m_vecStart_experiment[unKilobotID]=1;
-            SendStructInitInformation(c_kilobot_entity);
-            break;
-        case 1:
-            m_vecStart_experiment[unKilobotID]=2;
-            SendInformationGPS(c_kilobot_entity,0);
-            break;
-        }
-        start_experiment=true;
-        for(UInt8 i=0;i<m_vecStart_experiment.size();i++){
-            if(m_vecStart_experiment[i]!=2){
-                start_experiment=false;
-                break;
+            /* Send init information for environment representation*/
+            switch (m_vecStart_experiment[unKilobotID]){
+                case 0:
+                    m_vecStart_experiment[unKilobotID]=1;
+                    SendStructInitInformation(c_kilobot_entity);
+                    break;
+                case 1:
+                    m_vecStart_experiment[unKilobotID]=2;
+                    SendInformationGPS(c_kilobot_entity,0);
+                    break;
             }
-        }
-    }
-    else{
-        if(m_vecKilobotMsgType[unKilobotID] == 0){
+            start_experiment=1;
+            for(UInt8 i=0;i<m_vecStart_experiment.size();i++){
+                if(m_vecStart_experiment[i]!=2){
+                    start_experiment=0;
+                    break;
+                }
+            }
+            break;
+        
+        default:
             SendInformationGPS(c_kilobot_entity,1);
-            m_vecKilobotMsgType[unKilobotID] = 1;
-            if(m_vecKilobotAskLevel[unKilobotID] < depth) m_vecKilobotAskLevel[unKilobotID]++;
-            else m_vecKilobotAskLevel[unKilobotID] = 0;
-        }
-        else{
-            AskForLevel(c_kilobot_entity,m_vecKilobotAskLevel[unKilobotID]);
-            m_vecKilobotMsgType[unKilobotID] = 0;
-        }
+            break;
     }
 }
 
@@ -217,8 +189,8 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = 0;
-    tKilobotMessage.m_sID = control_gain; // k non serve più , mettere flag per rebroadcast
-    tKilobotMessage.m_sData = re_broadcast; // best leaf non serve più
+    tKilobotMessage.m_sID = rebroadcast;
+    tKilobotMessage.m_sData = 0;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
@@ -271,37 +243,6 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt
         m_tMessages[unKilobotID].data[i*3] = ((tMessage.m_sID >> 4) << 2) | (tMessage.m_sType & 0b0011);
         m_tMessages[unKilobotID].data[1+i*3] = ((tMessage.m_sData >> 4) << 2) | ((tMessage.m_sID & 0b0000001111) >> 2);
         m_tMessages[unKilobotID].data[2+i*3] = ((tMessage.m_sData & 0b0000001111) << 4) | (tMessage.m_sType & 0b1100) | (tMessage.m_sID & 0b0000000011);
-    }
-    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
-}
-
-/****************************************/
-/****************************************/
-
-void CBestN_ALF::AskForLevel(CKilobotEntity &c_kilobot_entity,const UInt8 Level){
-    /* Get the kilobot ID */
-    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
-    m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = 2;
-    tKilobotMessage.m_sID = Level;
-    tKilobotMessage.m_sData = 0;
-
-    // Fill the kilobot message by the ARK-type messages
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3] = tMessage.m_sID << 2 | tMessage.m_sType;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
