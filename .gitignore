@@ -1,8 +1,9 @@
 build
-*.sh
-*results_loop*
-*log*
-*LOG*
-*res*
-*.py
-*.ipynb
+**/*.sh
+**/*vscode
+**/*LOG*
+**/*log*
+**/*RES_*
+**/*res_*
+**/*results_*
+**/*cache*

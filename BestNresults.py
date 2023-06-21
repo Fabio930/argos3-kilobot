@@ -1,6 +1,8 @@
 import numpy as np
 import os, csv
 import matplotlib.lines as mlines
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 from scipy.special import gamma
 from matplotlib import pyplot as plt
 from lifelines import KaplanMeierFitter
@@ -87,8 +89,7 @@ class Results:
                                                     unordered_Bleafs = np.array([])
                                                     unordered_seeds = np.array([])
                                                     for elem in os.listdir(sub_path):
-                                                    #==================================================================
-                                                    # check if a resume file 'older' than date exists
+                                                        #==================================================================
                                                         if '.' in elem:
                                                             selem=elem.split('.')
                                                             if selem[-1]=="tsv" and selem[0].split('_')[-1]=="LOG":
@@ -120,7 +121,7 @@ class Results:
                                                                 for CHECKfile in os.listdir(base+"/Robots#"+str(n_agents)):
                                                                     if ".csv" in CHECKfile:
                                                                         temp_str=CHECKfile.split('.')[0]
-                                                                        Mdmy=temp_str.split('_')[1]
+                                                                        Mdmy=temp_str.split('_')[2]
                                                                         Mhms=temp_str.split('_')[-1]
                                                                         Mday=int(Mdmy.split('-')[0])
                                                                         Mmonth=int(Mdmy.split('-')[1])
@@ -134,7 +135,7 @@ class Results:
                                                                                         if minutes<=Mminutes:   
                                                                                             proceed = False
                                                                                             break
-                                                    #==================================================================
+                                                                #==================================================================
                                                                 if proceed:
                                                                     seed=-1
                                                                     best_leaf=-1
@@ -202,66 +203,318 @@ class Results:
                                                                         unordered_posY = np.append(unordered_posY,[agents_posY],0)
                                                     results.update({(base,n_agents,max_steps,branches,depth,k,r):(unordered_locations,unordered_commitments,unordered_distances,list(unordered_seeds),list(unordered_Bleafs),leafs,unordered_posX,unordered_posY)})
         return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,dateToStore
+
+##########################################################################################################
+##########################################################################################################
+    def extract_k_quorum_data(self,position="all"):
+        BRACHES=[]
+        BASES=[]
+        DEPTH=[]
+        K=[]
+        N_AGENTS=[]
+        R=[]
+        MAX_STEPS=[]
+        results = {}
+        for base in self.bases:
+            if base not in BASES:
+                BASES.append(base)
+            for dir in os.listdir(base):
+                if '.' not in dir and '#' in dir:
+                    pre_path=os.path.join(base, dir)
+                    n_agents=int(dir.split('#')[1])
+                    if n_agents not in N_AGENTS:
+                        N_AGENTS.append(int(n_agents))
+                    for zdir in os.listdir(pre_path):
+                        if '.' not in zdir and '#' in zdir:
+                            branches=int(zdir.split('#')[1])
+                            if branches not in BRACHES:
+                                BRACHES.append(int(branches))
+                            dtemp=os.path.join(pre_path, zdir)
+                            for sdir in os.listdir(dtemp):
+                                if '.' not in sdir and '#' in sdir:
+                                    depth=int(sdir.split('#')[1])
+                                    if depth not in DEPTH:
+                                        DEPTH.append(int(depth))
+                                    stemp=os.path.join(dtemp, sdir)
+                                    for ssdir in os.listdir(stemp):
+                                        if '.' not in ssdir and '#' in ssdir:
+                                            k=float(ssdir.split('#')[1].replace("_","."))
+                                            if k not in K:
+                                                K.append(float(k))
+                                            path_temp=os.path.join(stemp, ssdir)
+                                            for folder in os.listdir(path_temp):
+                                                if '.' not in folder:
+                                                    params = folder.split('_')
+                                                    r , max_steps = float(params[0].split('#')[1]) , int(params[1].split('#')[1])-1
+                                                    if r not in R:
+                                                        R.append(float(r))
+                                                    if max_steps not in MAX_STEPS:
+                                                        MAX_STEPS.append(int(max_steps))
+                                                    sub_path=os.path.join(path_temp,folder)
+                                                    dim = len(os.listdir(sub_path))//2
+                                                    bigM = [np.array([])] * dim if position=="all" else np.array([])
+                                                    for elem in os.listdir(sub_path):
+                                                        if '.' in elem:
+                                                            selem=elem.split('.')
+                                                            if position == "all":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM[seed-1] = M
+                                                            elif position == "first":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]=="1":
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                            elif position == "last":
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==str(len(os.listdir(sub_path))//2):
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                            elif position == "rand":
+                                                                p = np.random.choice(np.arange(len(os.listdir(sub_path))//2))
+                                                                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==p:
+                                                                    seed = (int)(selem[0].split('_')[-1])
+                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    with open(os.path.join(sub_path, elem), newline='') as f:
+                                                                        reader = csv.reader(f)
+                                                                        for row in reader:
+                                                                            for val in row:
+                                                                                val = val.split('\t')
+                                                                                id = (int)(val[0])
+                                                                                qv = (int)(val[1])
+                                                                                M[id] = np.append(M[id],qv)
+                                                                    bigM = M
+                                                        results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
+        return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
     
 ##########################################################################################################
-    def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date):
-        c_map = plt.cm.get_cmap('viridis')
+    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                                we_will_print=False
+                                to_print = []
+                                legend = []
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
+                                        bigM = data_in.get((base,A,S,B,D,k,r))
+                                        flag2=[-1]*len(bigM[0][0])
+                                        flag3=[flag2]*(len(bigM)+1)
+                                        tmp=[flag2]*len(bigM)
+                                        for i in range(len(bigM)):
+                                            flag1=[-1]*len(bigM[i][0])
+                                            for j in range(len(bigM[i])):
+                                                for z in range(len(bigM[i][j])):
+                                                    if flag1[z]==-1:
+                                                        flag1[z]=bigM[i][j][z]
+                                                    else:
+                                                        flag1[z]=flag1[z]+bigM[i][j][z]
+                                            for z in range(len(flag1)):
+                                                flag1[z]=flag1[z]/len(bigM[i])
+                                                if flag2[z]==-1:
+                                                    flag2[z]=flag1[z]
+                                                else:
+                                                    flag2[z]=flag1[z]+flag2[z]
+                                            tmp[i] = np.round(flag1,2).tolist()
+                                        for i in range(len(flag2)):
+                                            flag2[i]=flag2[i]/len(bigM)
+                                        for i in range(len(flag3)):
+                                            flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+                                        if len(to_print)==0:
+                                            to_print = [flag3]
+                                            legend = ["R: "+str(r)]
+                                        else:
+                                            to_print = np.append(to_print,[flag3],0)
+                                            legend = np.append(legend,"R: "+str(r))
+                                if we_will_print:
+                                    handls=[]
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                handls = np.append(handls,the_plot)
+                                            else:
+                                                plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean quorum level")
+                                    plt.xlabel("simulation ticks")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    maxA = A
+                                    plt.ylim((-.5,maxA+.5))
+                                    plt.yticks(np.arange(0,maxA+1))
+                                    plt.legend(handles=handls.tolist(),loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
+
+##########################################################################################################
+    def print_single_run_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,position='first',taken='all'):
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                                we_will_print = False
+                                to_print = []
+                                legend = []
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
+                                        run = bigM = data_in.get((base,A,S,B,D,k,r))
+                                        if taken=='all':
+                                            p = 0
+                                            if position=='rand': p = np.random.choice(np.arange(len(bigM)))
+                                            elif position=='last': p = len(bigM)-1
+                                            run = bigM[p]
+                                        mean = [-1]*len(run[0])
+                                        flag = [mean]*(len(run)+1)
+                                        for i in range(len(run)):
+                                            flag[i+1] = run[i]
+                                            for j in range(len(run[i])):
+                                                if mean[j] == -1:
+                                                    mean[j] = run[i][j]
+                                                else:
+                                                    mean[j] = mean[j]+run[i][j]
+                                        for z in range(len(mean)):
+                                            mean[z] = mean[z]/len(run)
+                                        flag[0] = np.round(mean,2).tolist()
+                                        if len(to_print)==0:
+                                            to_print = [flag]
+                                            legend = ["R: "+str(r)]
+                                        else:
+                                            to_print = np.append(to_print,[flag],0)
+                                            legend = np.append(legend,"R: "+str(r))
+                                if we_will_print:
+                                    handls=[]
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                handls = np.append(handls,the_plot)
+                                            else:
+                                                plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean quorum level")
+                                    plt.xlabel("simulation ticks")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__"+position+"_A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    maxA = A
+                                    plt.ylim((-.5,maxA+.5))
+                                    plt.yticks(np.arange(0,maxA+1))
+                                    plt.legend(handles=handls.tolist(),loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
+
+##########################################################################################################
+##########################################################################################################
+    def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment'):
         N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
         data={}
         times={}
         for base in BASES:
             for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                     for S in MAX_STEPS:
                         for B in BRACHES:
                             for D in DEPTH:
                                 for k in K:
                                     for r in R:
                                         if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                            locations=data_in.get((base,A,S,B,D,k,r))[0]
-                                            commitments=data_in.get((base,A,S,B,D,k,r))[1]
+                                            dataTOeval = data_in.get((base,A,S,B,D,k,r))[1] if POSorCOM=="commitment" else data_in.get((base,A,S,B,D,k,r))[0]
                                             distances=data_in.get((base,A,S,B,D,k,r))[2]
                                             seeds=data_in.get((base,A,S,B,D,k,r))[3]
                                             best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
                                             leafs=data_in.get((base,A,S,B,D,k,r))[5]
-                                            stored_times = [S+1]*len(commitments)
-                                            stored_distances = [[-1]*A]*len(commitments)
-                                            stored_commitments = [[0]*A]*len(commitments)
-                                            stored_locations = [[0]*A]*len(commitments)
+                                            stored_times = [S+1]*len(dataTOeval)
+                                            stored_distances = [[-1]*A]*len(dataTOeval)
+                                            stored_eval_data = [[0]*A]*len(dataTOeval)
                                             # ===============================================
                                             # extract data for weibulls plotting
-                                            for c in range(len(commitments)): 
+                                            for c in range(len(dataTOeval)): 
                                                 semc = 0
                                                 timec = S+1
                                                 distances_to_store = [-1]*A
-                                                commitments_to_store = [0]*A
-                                                locations_to_store = [0]*A
-                                                for l in range(len(commitments[c])):
+                                                eval_to_store = [0]*A
+                                                for l in range(len(dataTOeval[c])):
                                                     if semc==0:
-                                                        for e in range(int(len(commitments[c][l]))):
-                                                            if commitments[c][l][e] in leafs:
+                                                        for e in range(int(len(dataTOeval[c][l]))):
+                                                            if dataTOeval[c][l][e] in leafs:
                                                                 sum = 1
-                                                                for ce in range(len(commitments[c][l])):
-                                                                    if e!=ce and commitments[c][l][e]==commitments[c][l][ce]:
+                                                                for ce in range(len(dataTOeval[c][l])):
+                                                                    if e!=ce and dataTOeval[c][l][e]==dataTOeval[c][l][ce]: # derive weibulls and % over position
                                                                         sum += 1
-                                                                if sum >= len(commitments[c][l])*.9:
+                                                                if sum >= len(dataTOeval[c][l])*.9:
                                                                     semc = 1
                                                                     timec = l+1
                                                                     distances_to_store = distances[c][l]
-                                                                    commitments_to_store = commitments[c][l]
-                                                                    locations_to_store = locations[c][l]
+                                                                    eval_to_store = dataTOeval[c][l]
                                                                     break
                                                     if semc==1: break
                                                 stored_times[c] = timec
                                                 stored_distances[c] = list(distances_to_store)
-                                                stored_commitments[c] = list(commitments_to_store)
-                                                stored_locations[c] = list(locations_to_store)
+                                                stored_eval_data[c] = list(eval_to_store)
                                                 # print(best_leafs[c],'\n',stored_times[c],'\t',stored_commitments[c],'\t',stored_distances[c],'\t',leafs,'\n\n')
-                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_locations,stored_commitments,stored_distances,list(seeds),list(best_leafs),list(leafs))})
+                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,stored_distances,list(seeds),list(best_leafs),list(leafs))})
                                 for k in K:
-                                    x = 0
-                                    fig, ax = plt.subplots(figsize=(12, 6))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    values = range(len(R))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
                                     gottaPrint=False
+                                    indx = 0
                                     for r in R:
                                         if data.get((base,A,S,B,D,k,r)) is not None:
                                             gottaPrint=True
@@ -278,7 +531,7 @@ class Results:
                                             ts = ci.index
                                             low,high = np.transpose(ci.values)
                                             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=c_map(round(x/len(R),1)))
+                                            kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=scalarMap.to_rgba(values[indx]))
                                             sorted_times,censored = np.insert(sorted_times,0,1),np.insert(censored,0,0)
                                             we = WeibullFitter()
                                             we.fit(sorted_times,censored,label="R:"+str(r)+" Weibull")
@@ -286,10 +539,10 @@ class Results:
                                             ts = ci.index
                                             low,high = np.transpose(ci.values)
                                             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=c_map(round(x/len(R),1)))
-                                            x += 1
+                                            we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=scalarMap.to_rgba(values[indx]))
                                             values=self.get_mean_and_std(we)
                                             times.update({(base,A,S,B,D,k,r):[values[0],values[1]]})
+                                            indx+=1
                                     if gottaPrint:
                                         plt.grid(True,linestyle=':')
                                         plt.ylabel("consensus cumulative density")
@@ -299,20 +552,99 @@ class Results:
                                         plt.tight_layout()
                                         if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
                                             os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/Weibulls"):
-                                            os.mkdir(base+"/Robots#"+str(A)+"/images/Weibulls")
-                                        fig_path=base+"/Robots#"+str(A)+"/images/Weibulls/CONFIGc__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
+                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM):
+                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM)
+                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls"):
+                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls")
+                                        fig_path=base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls/CONFIGw_"+POSorCOM+"__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                         plt.savefig(fig_path)
                                     # plt.show(fig)
                                     plt.close(fig)
         return (data,times)
 
 ##########################################################################################################
-    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,checkNodesDistr=False):
+    def plot_percentages_on_leaf(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
+        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+        for base in BASES:
+            for A in N_AGENTS:
+                for S in MAX_STEPS:
+                    for B in BRACHES:
+                        for D in DEPTH:
+                            for k in K:
+                                we_will_print=False
+                                to_print = []
+                                legend = []
+                                for r in R:
+                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                        we_will_print=True
+                                        locations = data_in.get((base,A,S,B,D,k,r))[0]
+                                        best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
+                                        leafs=data_in.get((base,A,S,B,D,k,r))[5]
+                                        best_leaf_mean = [0]*len(locations[0])
+                                        other_leaf_mean = [0]*len(locations[0])
+                                        no_leaf_mean = [0]*len(locations[0])
+                                        for nr in range(len(locations)):
+                                            for ns in range(len(locations[nr])):
+                                                for na in range(len(locations[nr][ns])):
+                                                    if locations[nr][ns][na]==best_leafs[nr]: best_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                                    elif np.isin(locations[nr][ns][na],leafs) : other_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                                    else: no_leaf_mean[ns] += 1/len(locations[nr][ns])
+                                        for ns in range(len(best_leaf_mean)):
+                                            best_leaf_mean[ns]/=len(locations)
+                                            other_leaf_mean[ns]/=len(locations)
+                                            no_leaf_mean[ns]/=len(locations)
+                                        best_leaf_mean=np.round(best_leaf_mean,3)
+                                        other_leaf_mean=np.round(other_leaf_mean,3)
+                                        no_leaf_mean=np.round(no_leaf_mean,3)
+                                        tmpP=[0]*3
+                                        tmpL=[0]*3
+                                        tmpP[0]=best_leaf_mean.tolist()
+                                        tmpP[1]=other_leaf_mean.tolist()
+                                        tmpP[2]=no_leaf_mean.tolist()
+                                        tmpL[0]="R: "+str(r)+" over_best_leaf"
+                                        tmpL[1]="         over_other_leaf"
+                                        tmpL[2]="         over_no_leaf"
+                                        if len(to_print)==0:
+                                            to_print = [tmpP]
+                                            legend = [tmpL]
+                                        else:
+                                            to_print = np.append(to_print,[tmpP],0)
+                                            legend = np.append(legend,[tmpL],0)
+                                if we_will_print:
+                                    values = range(len(to_print))
+                                    fig, ax = plt.subplots(figsize=(12,6))
+                                    cm = plt.get_cmap('viridis') 
+                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                    for i in range(len(to_print)):
+                                        for j in range(len(to_print[i])):
+                                            if j==0:
+                                                plt.plot(to_print[i][j],lw=1.5,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+                                            elif j==1:
+                                                plt.plot(to_print[i][j],lw=1.5,ls=':',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+                                            else:
+                                                plt.plot(to_print[i][j],lw=1.5,ls='--',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
+
+                                    plt.grid(True,linestyle=':')
+                                    plt.ylabel("mean location percentages")
+                                    plt.xlabel("simulation seconds")
+                                    plt.tight_layout()
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/leafs"):
+                                        os.mkdir(base+"/Robots#"+str(A)+"/images/leafs")
+                                    fig_path=base+"/Robots#"+str(A)+"/images/leafs/CONFIGl__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
+                                    plt.legend(loc='best')
+                                    plt.savefig(fig_path)
+                                    # plt.show(fig)
+                                    plt.close(fig)
+
+##########################################################################################################
+    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment',checkNodesDistr=False):
         data_0,data_1 = data[0],data[1]
         for base in BASES:
             for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                     for S in MAX_STEPS:
                         for B in BRACHES:
                             for D in DEPTH:
@@ -329,12 +661,11 @@ class Results:
                                         SEMprint=True
                                         if data_0.get((base,A,S,B,D,k,r)) is not None:
                                             times=data_0.get((base,A,S,B,D,k,r))[0]
-                                            # locations=data_0.get((base,A,S,B,D,k,r))[1]
-                                            commitments=data_0.get((base,A,S,B,D,k,r))[2]
-                                            distances=data_0.get((base,A,S,B,D,k,r))[3]
-                                            # seeds=data_0.get((base,A,S,B,D,k,r))[4]
-                                            best_leafs=data_0.get((base,A,S,B,D,k,r))[5]
-                                            leafs=data_0.get((base,A,S,B,D,k,r))[6]
+                                            dataTOprint = data_0.get((base,A,S,B,D,k,r))[1]
+                                            distances=data_0.get((base,A,S,B,D,k,r))[2]
+                                            # seeds=data_0.get((base,A,S,B,D,k,r))[3]
+                                            best_leafs=data_0.get((base,A,S,B,D,k,r))[4]
+                                            leafs=data_0.get((base,A,S,B,D,k,r))[5]
                                             mean=data_1.get((base,A,S,B,D,k,r))[0]
                                             std=data_1.get((base,A,S,B,D,k,r))[1]
                                             dist_0=[0]
@@ -350,7 +681,7 @@ class Results:
                                                 if times[t]<=S:
                                                     check_4_succes=0
                                                     for d in range(len(distances[t])):
-                                                        if distances[t][d]==0 and commitments[t][d]==best_leafs[t]:
+                                                        if distances[t][d]==0 and dataTOprint[t][d]==best_leafs[t]:
                                                             check_4_succes+=1
                                                     if check_4_succes>=len(distances[t])*.9:
                                                         if checkNodesDistr:
@@ -360,7 +691,7 @@ class Results:
                                                     else:
                                                         check_4_succes=0
                                                         for d in range(len(distances[t])):
-                                                            if distances[t][d]==1 and commitments[t][d] in leafs:
+                                                            if distances[t][d]==1 and dataTOprint[t][d] in leafs:
                                                                 check_4_succes+=1
                                                         if check_4_succes>=len(distances[t])*.9:
                                                             if checkNodesDistr:
@@ -370,7 +701,7 @@ class Results:
                                                         else:
                                                             check_4_succes=0
                                                             for d in range(len(distances[t])):
-                                                                if distances[t][d]==2 and commitments[t][d] in leafs:
+                                                                if distances[t][d]==2 and dataTOprint[t][d] in leafs:
                                                                     check_4_succes+=1
                                                             if check_4_succes>=len(distances[t])*.9:
                                                                 if checkNodesDistr:
@@ -402,10 +733,10 @@ class Results:
                                             SEMprint=False
                                         if SEMprint:
                                             is_new = True
-                                            if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+date+".csv"):
+                                            if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
                                                 is_new=False
                                             fieldnames = ["max_steps","agents","k","r","options","type","mean","std","leaf","dist_0","dist_1","dist_2","no_decision"]
-                                            with open(base+"/Robots#"+str(A)+"/resume_"+date+".csv","a") as f:
+                                            with open(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv","a") as f:
                                                 writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
                                                 if is_new:
                                                     writer.writeheader()
@@ -416,7 +747,7 @@ class Results:
                                                     for l in range(len(leafs)):
                                                         writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":leafs[l],"dist_0":dist_0_val[l],"dist_1":dist_1_val[l],"dist_2":dist_2_val[l],"no_decision":no_decision_val[l]})
                                                         data_to_plot.update({(base,S,A,B,D,k,r,leafs[l]):(mean_val,std_val,dist_0_val[l],dist_1_val[l],dist_2_val[l],no_decision_val[l])})
-                                self.plot_percentages(data_to_plot,date)
+                                self.plot_percentages(data_to_plot,date,POSorCOM)
 
 ##########################################################################################################
     def sort_ark_positions_by_node(self):
@@ -504,7 +835,7 @@ class Results:
         plt.close()
 
 ##########################################################################################################
-    def plot_percentages(self,data,date):
+    def plot_percentages(self,data,date,POSorCOM='commitment'):
         bases=[]
         times=[]
         agents=[]
@@ -567,7 +898,6 @@ class Results:
                                                                 group_bars.update({"no decision":arrFlag3})
                                                         if gotta_print:
                                                             x = np.arange(len(group_labels))
-                                                            saving_path5=saving_path4+"_percentages__"+str(ti)+"_"+str(abs(l))+"_"+date
                                                             width = 0.1
                                                             multiplier = 0
                                                             fig,ax = plt.subplots(figsize=(12,6))
@@ -584,8 +914,15 @@ class Results:
                                                             ax.set_ylim(0,1.025)
                                                             plt.grid(True)
                                                             plt.tight_layout()
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images"):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images")
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM)
+                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages"):
+                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages")
+                                                            fig_path=ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages/CONFIGp_"+POSorCOM+"__A#"+str(a)+"_"+"S#"+str(ti)+"_"+"B#"+str(b)+"_"+"D#"+str(d)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
                                                             # plt.show(fig)
-                                                            plt.savefig(saving_path5+".png")
+                                                            plt.savefig(fig_path)
                                                             plt.close()
                                                         else: print("Nothing to plot")
 

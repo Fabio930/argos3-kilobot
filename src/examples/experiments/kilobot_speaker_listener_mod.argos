@@ -46,17 +46,17 @@
   <arena size="2, 2, 1" center="0,0,0.5">
     <kilobot id="kb1">
       <body position="0,0,0" orientation="0,0,0" />
-      <controller config="speaker" />>
+      <controller config="speaker" />
     </kilobot>
 
     <kilobot id="kb2">
       <body position="0.04,0,0" orientation="0,0,0" />
-      <controller config="listener" />>
+      <controller config="listener" />
     </kilobot>
 
     <kilobot id="kb3">
       <body position="0,0.08,0" orientation="0,0,0" />
-      <controller config="listener" />>
+      <controller config="listener" />
     </kilobot>
 
   </arena>

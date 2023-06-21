@@ -33,7 +33,7 @@
   <arena size="2, 2, 1" center="0,0,0.5">
     <kilobot id="kb1">
       <body position="0,0,0" orientation="0,0,0" />
-      <controller config="kbc" />>
+      <controller config="kbc" />
     </kilobot>
   </arena>
 

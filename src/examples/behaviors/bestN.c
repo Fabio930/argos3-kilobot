@@ -1,5 +1,5 @@
 /* Kilobot control software for the simple ALF experment : clustering
- * author: Fabio Oddi (Università la Sapienza di Roma) fabio.oddi@diag.uniroma1.it
+ * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
 /* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
 #include "bestN.h"
@@ -49,14 +49,10 @@ void broadcast(){
         sa_type = 0;
         for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
         int8_t utility_to_send;
-        switch (sending_type){
-            case MSG_A:
-                utility_to_send = (int8_t)(last_sample_utility*10);
-                my_message.data[0] = kilo_uid << 2 | sa_type;
-                my_message.data[1] = last_sample_committed << 7 | utility_to_send;
-                my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
-                break;
-        }
+        utility_to_send = (int8_t)(last_sample_utility*10);
+        my_message.data[0] = kilo_uid << 2 | sa_type;
+        my_message.data[1] = last_sample_committed << 7 | utility_to_send;
+        my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
         my_message.crc = message_crc(&my_message);
         last_broadcast_ticks = kilo_ticks;
         sending_msg = true;
@@ -92,11 +88,12 @@ void sample_and_decide(tree_a **leaf){
     tree_a *current_node = get_node(&tree_array,my_state.current_node);
     // select a random message
     uint8_t message_switch = 0;
-    message_a *rnd_msg = select_a_random_msg(&messages_array);
-    if(rnd_msg != NULL){
-        message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
-        update_quorum_list(&current_node,&rnd_msg,message_switch);
+    for(uint8_t m = 0;m<num_messages;m++){
+        update_quorum_list(&current_node,&messages_array[m],message_switch);
+        message_switch = msg_received_from(&tree_array,my_state.current_node,messages_array[m]->agent_node);
     }
+    message_a *rnd_msg = select_a_random_msg(&messages_array);
+    if(rnd_msg != NULL) message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
     if(quorum_list != NULL){
         if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
         else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
@@ -202,9 +199,34 @@ void select_new_point(bool force){
         my_state.current_level = actual_node->depth;
         goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
         goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+        expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+        reaching_goal_ticks = expiring_dist * goal_ticks_sec;
+
     }
     else{
         set_color(led);
+        if(avoid_tmmts==0){
+            uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+            if(flag >= expiring_dist + .01){
+                if(rand_soft()/255.0 < .5) set_motion(TURN_LEFT);
+                else set_motion(TURN_RIGHT);
+                avoid_tmmts=1;
+            }
+        }
+        else{
+            if(current_motion_type==TURN_LEFT || current_motion_type==TURN_RIGHT){
+                prev_motion_type = current_motion_type;
+                set_motion(FORWARD);
+                }
+            else set_motion(prev_motion_type);
+            uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+            if(flag < expiring_dist) avoid_tmmts=0;
+        }
+        expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
+        if(--reaching_goal_ticks<=0){
+            goal_position = gps_position;
+            select_new_point(false);
+        }
     }
 }
 
@@ -215,8 +237,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
     switch(sa_type){
         case MSG_B:
-            gps_position.position_x = (sa_payload >> 10) * 0.01;
-            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01;
+            gps_position.position_x = (sa_payload >> 10) * 0.01 *2;
+            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01 *2;
             gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
             break;
     }
@@ -249,18 +271,12 @@ void parse_kilo_message(uint8_t data[9]){
     sa_id = (data[0] & 0b11111100) >> 2;
     sa_type = data[0] & 0b00000011;
     sa_payload = (((uint16_t)data[1]) << 8) | data[2];
-    uint8_t temp_leaf;
-    switch(sa_type){
-        case MSG_A:
-            received_id = sa_id;
-            received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
-            received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
-            temp_leaf = (((uint8_t)sa_payload) & 0b11110000) >> 4;
-            received_leaf = get_leaf_vec_id_in(temp_leaf);
-            received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
-            update_messages();
-            break;
-    }
+    received_id = sa_id;
+    received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
+    received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
+    received_leaf = get_leaf_vec_id_in((((uint8_t)sa_payload) & 0b11110000) >> 4);
+    received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
+    update_messages();
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
@@ -279,9 +295,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t branches = (data[2] & 0b00000011)+1;
                 complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
                 set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
-                uint16_t expiring_dist = (uint16_t)sqrt(pow((ARENA_X*.1)*100,2)+pow((ARENA_Y*.1)*100,2));
-                set_expiring_ticks_message(expiring_dist * TICKS_PER_SEC);
-                set_expiring_ticks_quorum_item(expiring_dist * TICKS_PER_SEC);
+                uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                set_expiring_ticks_quorum_item(expiring_dist * quorum_ticks_sec);
                 init_received_A = true;
             }
             break;
@@ -373,53 +388,54 @@ float AngleToGoal(){
 void random_way_point_model(){   
     if(init_received_B){
         select_new_point(false);
-        float angleToGoal = AngleToGoal();
-        if(fabs(angleToGoal) <= 36){
-            set_motion(FORWARD);
-            last_motion_ticks = kilo_ticks;
-        }
-        else{
-            if(angleToGoal > 0){
-                set_motion(TURN_LEFT);
+        if(avoid_tmmts == 0){
+            float angleToGoal = AngleToGoal();
+            if(fabs(angleToGoal) <= 48){
+                set_motion(FORWARD);
                 last_motion_ticks = kilo_ticks;
-                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
             }
             else{
-                set_motion(TURN_RIGHT);
-                last_motion_ticks = kilo_ticks;
-                turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                if(angleToGoal > 0){
+                    set_motion(TURN_LEFT);
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                }
+                else{
+                    set_motion(TURN_RIGHT);
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                }
             }
-        }
-        switch(current_motion_type){
-            case TURN_LEFT:
-                if(kilo_ticks > last_motion_ticks + turning_ticks){
-                    /* start moving forward */
-                    last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-                    set_motion(FORWARD);
-                }
-                break;
-            case TURN_RIGHT:
-                if(kilo_ticks > last_motion_ticks + turning_ticks){
-                    /* start moving forward */
-                    last_motion_ticks = kilo_ticks;  // fixed time FORWARD
-                    set_motion(FORWARD);
-                }
-                break;
-            case FORWARD:
-                break;
-            case STOP:
-            default:
-                set_motion(STOP);
+            switch(current_motion_type){
+                case TURN_LEFT:
+                    if(kilo_ticks > last_motion_ticks + turning_ticks){
+                        /* start moving forward */
+                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        set_motion(FORWARD);
+                    }
+                    break;
+                case TURN_RIGHT:
+                    if(kilo_ticks > last_motion_ticks + turning_ticks){
+                        /* start moving forward */
+                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        set_motion(FORWARD);
+                    }
+                    break;
+                case FORWARD:
+                    break;
+                case STOP:
+                default:
+                    set_motion(STOP);
+            }
         }
     }
 }
 
 void setup(){
-    /* Initialise LED and motors */
+    /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-    
-    /* Initialise state, message type and control parameters*/
+    /* Init state, message type and control parameters*/
     my_state.previous_node = 0;
     my_state.current_node = 0;
     my_state.commitment_node = 0;
@@ -428,20 +444,21 @@ void setup(){
     init_array_msg(&messages_array);
     init_array_qrm(&quorum_array);
 
-    /* Initialise random seed */
+    /* Init random seed */
     uint8_t seed = rand_hard();
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
 
-    /* Initialise motion variables */
+    /* Init motion variables */
     set_motion(STOP);
 }
 
 void loop(){
-    increment_messages_counter(&messages_array);
+    fp = fopen("quorum_log.tsv","a");
+    fprintf(fp,"%d\t%d\n",kilo_uid,num_quorum_items);
+    fclose(fp);
     increment_quorum_counter(&quorum_array);
-    erase_expired_messages(&messages_array,&messages_list);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(last_sensing) broadcast();

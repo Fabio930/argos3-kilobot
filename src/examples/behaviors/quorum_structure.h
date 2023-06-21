@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-uint16_t expiring_ticks_quorum = 10000;
-uint8_t min_quorum_length = 3;
-uint8_t min_quorum_items = 2;
-float quorum_scaling_factor = .9;
+uint32_t expiring_ticks_quorum = 10000;
+uint8_t min_quorum_length = 11;
+uint8_t min_quorum_items = 3;
+float quorum_scaling_factor = .8;
 uint8_t num_quorum_items = 0;
 
 typedef struct quorum_structure{
@@ -14,7 +14,7 @@ typedef struct quorum_structure{
     struct quorum_structure *next,*prev;
 }quorum_a;
 
-void set_expiring_ticks_quorum_item(const uint16_t Expiring_time);
+void set_expiring_ticks_quorum_item(const uint32_t Expiring_time);
 
 void sort_q(quorum_a **Array[]);
 

@@ -98,7 +98,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     /* Create the virtual hierarchic environment over the arena */
     vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
-    best_leaf = 0; //c_rng->Uniform(CRange<int>(0, vh_floor->get_leafs().size()));
+    best_leaf = c_rng->Uniform(CRange<SInt32>(0, vh_floor->get_leafs().size()));
     vh_floor->assign_MAXutility(best_leaf);
     /* Setup the virtual states of a kilobot */
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
@@ -257,8 +257,8 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt
     m_tMessages[unKilobotID].type = Type;
     tKilobotMessage.m_sType = 1;
     UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100);
-    UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + this->GetSpace().GetArenaLimits().GetMax()[1]) * 100);   
+    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100)*.5;
+    UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + this->GetSpace().GetArenaLimits().GetMax()[1]) * 100)*.5;   
     tKilobotMessage.m_sType = (valY & 0b00000011) << 2 | tKilobotMessage.m_sType;
     tKilobotMessage.m_sID = unKilobotID << 4 | angle;
     tKilobotMessage.m_sData = valX << 4 | valY >> 2;

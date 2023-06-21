@@ -1,5 +1,5 @@
 /* Kilobot control software for the simple ALF experment : clustering
- * author: Fabio Oddi (Università la Sapienza di Roma) fabio.oddi@diag.uniroma1.it
+ * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
 #ifndef BESTN_H
 #define BESTN_H
@@ -17,10 +17,12 @@ typedef enum{
     NOISE = 1
 }signal;
 
+FILE *fp;
+
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
+    ARENA_X = 10,
+    ARENA_Y = 10
 }arena_size;
 
 /* Enum for messages type */
@@ -64,9 +66,16 @@ typedef struct position{
 
 /* current motion type */
 motion_t current_motion_type = STOP;
+motion_t prev_motion_type = STOP;
 
 /* goal position */
 position_t goal_position={0,0};
+uint32_t reaching_goal_ticks;
+uint32_t expiring_dist;
+uint8_t avoid_tmmts;
+
+float goal_ticks_sec = TICKS_PER_SEC * 1.3;
+float quorum_ticks_sec = TICKS_PER_SEC * 2;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
@@ -94,7 +103,6 @@ bool last_sensing = false;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
-uint8_t sending_type = MSG_A;
 message_t my_message;
 
 /* lists for decision handling */

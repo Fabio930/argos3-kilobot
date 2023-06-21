@@ -209,12 +209,12 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=BrX+0.05;
-                (c+i)->brY=0.3;
+                (c+i)->brY=(*Mytree)->brY/2.0;
                 break;
             
             case 1:
                 (c+i)->tlX=0.05;
-                (c+i)->tlY=0.3;
+                (c+i)->tlY=(*Mytree)->brY/2.0;
                 (c+i)->brX=BrX+0.05;
                 (c+i)->brY=BrY+0.05;
                 break;
@@ -229,24 +229,24 @@ void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
             case 0:
                 (c+i)->tlX=0.05;
                 (c+i)->tlY=0.05;
-                (c+i)->brX=0.3;
-                (c+i)->brY=0.3;
+                (c+i)->brX=(*Mytree)->brX/2.0;
+                (c+i)->brY=(*Mytree)->brY/2.0;
                 break;
             case 1:
                 (c+i)->tlX=0.05;
-                (c+i)->tlY=0.3;
-                (c+i)->brX=0.3;
+                (c+i)->tlY=(*Mytree)->brY/2.0;
+                (c+i)->brX=(*Mytree)->brX/2.0;
                 (c+i)->brY=BrY+0.05;
                 break;
             case 2:
-                (c+i)->tlX=0.3;
+                (c+i)->tlX=(*Mytree)->brX/2.0;
                 (c+i)->tlY=0.05;
                 (c+i)->brX=BrX+0.05;
-                (c+i)->brY=0.3;
+                (c+i)->brY=(*Mytree)->brY/2.0;
                 break;
             case 3:
-                (c+i)->tlX=0.3;
-                (c+i)->tlY=0.3;
+                (c+i)->tlX=(*Mytree)->brX/2.0;
+                (c+i)->tlY=(*Mytree)->brY/2.0;
                 (c+i)->brX=BrX+0.05;
                 (c+i)->brY=BrY+0.05;
                 break;
