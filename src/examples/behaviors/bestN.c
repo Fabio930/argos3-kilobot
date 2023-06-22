@@ -36,26 +36,34 @@ void message_tx_success(){
     sending_msg = false;
 }
 
-void broadcast(){
+void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
-        sa_type = 0;
-        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-        my_message.data[0] = kilo_uid;
-        my_message.data[1] = sa_type;
-        my_message.data[2] = my_state;
-        my_message.crc = message_crc(&my_message);
         last_broadcast_ticks = kilo_ticks;
         sending_msg = true;
     }
 }
 
-void rebroadcast(){
-    int a = 0;
+void broadcast(){
+    sa_type = 0;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    my_message.data[0] = kilo_uid;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = my_state;
+    my_message.crc = message_crc(&my_message);
+}
+
+void rebroadcast(quorum_a *rnd_msg){
+    sa_type = 0;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    my_message.data[0] = rnd_msg->agent_id;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = rnd_msg->agent_state;
+    my_message.crc = message_crc(&my_message);
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
     uint8_t out = 0;
-    for(uint8_t i = 0;i < num_quorum_items;i++) if((*Array)[i] == 1)out++;
+    for(uint8_t i = 0;i < num_quorum_items;i++) if((*Array)[i]->agent_state == committed) out++;
     return out;
 }
 
@@ -65,16 +73,19 @@ void check_quorum(quorum_a **Array[]){
     if(counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = true;
 }
 
-void sample_and_decide(arena_a **leaf){
+void check_quorum_and_prepare_messages(){
     // select a random message
-    if(broadcasting_flag == 1){
-        quorum_a *rnd_msg = select_a_random_msg(&quorum_array);
-        if(rnd_msg != NULL && rnd_msg->delivered == 0){
-            // preparere info per rebroadcast
-        }
-        else{
-            //preparare info per broadcast
-        }
+    quorum_a *rnd_msg;
+    switch (broadcasting_flag){
+        case 1:
+            rnd_msg = select_a_random_message(&quorum_array);
+            if(rnd_msg != NULL && rnd_msg->delivered == 0) rebroadcast(rnd_msg);
+            else broadcast();
+            break;
+        
+        default:
+            broadcast();
+            break;
     }
     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
 }
@@ -126,13 +137,27 @@ void select_new_point(bool force){
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
-    sa_type = data[shift] & 0b00000011;
-    sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
+    sa_type = (data[shift] & 0b00000001) << 1 | (data[shift + 1] & 0b00000001);
+    sa_payload = ((uint16_t)data[shift + 1] >> 1) << 8 | data[shift + 2];
     switch(sa_type){
         case MSG_B:
-            gps_position.position_x = (sa_payload >> 10) * 0.01 *2;
-            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01 *2;
-            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
+            gps_position.position_x = (((sa_payload >> 8) & 0b01111110) >> 1) * 0.01 * 3;
+            gps_position.position_y = ((uint8_t)sa_payload & 0b00011111) * 0.01 * 3;
+            gps_angle = (((sa_payload >> 8) & 0b00000001) << 3 | ((uint8_t)sa_payload & 0b11100000) >> 5) * 24;
+            break;
+        case MSG_C:
+            switch (sa_payload){
+                case 0:
+                    led = RGB(3,0,0);
+                    my_state = uncommitted;
+                    break;
+                
+                case 1:
+                    led = RGB(0,0,3);
+                    my_state = committed;
+                    break;
+            }
+            set_color(led);
             break;
     }
 }
@@ -152,7 +177,9 @@ void parse_kilo_message(uint8_t data[9]){
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
-    sa_type = data[0] & 0b00000011;
+    sa_type = (data[0] & 0b00000001) << 1 | (data[1] & 0b00000001);
+    uint8_t extra_payload = data[2];
+    sa_payload = ((uint16_t)data[0]>>1) << 8 | (data[1]>>1) ;
     switch (sa_type){
         case MSG_A:
             if(!init_received_A){   
@@ -161,23 +188,33 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 complete_tree(&the_arena);
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
                 uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                set_expiring_ticks_quorum_item(expiring_dist * quorum_ticks_sec);
+                broadcasting_flag = extra_payload;
+                set_quorum_vars(expiring_dist * quorum_ticks_sec,sa_payload>>8,sa_payload);
                 init_received_A = true;
             }
             break;
         case MSG_B:
             if(init_received_A && !init_received_B){   
-                uint8_t id1 = (data[0] & 0b11111100) >> 2;
-                uint8_t id2 = (data[3] & 0b11111100) >> 2;
-                uint8_t id3 = (data[6] & 0b11111100) >> 2;
+                uint8_t id1 = (data[0] & 0b11111110) >> 1;
+                uint8_t id2 = (data[3] & 0b11111110) >> 1;
+                uint8_t id3 = (data[6] & 0b11111110) >> 1;
                 if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
                 else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
                 else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
+                init_received_B = true;
+            }
+            break;
+        case MSG_C:
+            if(init_received_A && init_received_B && !init_received_C){
+                uint8_t id1 = (data[0] & 0b11111110) >> 1;
+                uint8_t id2 = (data[3] & 0b11111110) >> 1;
+                uint8_t id3 = (data[6] & 0b11111110) >> 1;
+                if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
+                else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
+                else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
+                init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
-                init_received_B = true;
-                led = RGB(0,0,0);
-                set_color(led);
             }
             break;
     }
@@ -195,9 +232,9 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             parse_smart_arena_broadcast(msg->data);
             break;
         case ARK_INDIVIDUAL_MSG:
-            id1 = (msg->data[0] & 0b11111100) >> 2;
-            id2 = (msg->data[3] & 0b11111100) >> 2;
-            id3 = (msg->data[6] & 0b11111100) >> 2;
+            id1 = (msg->data[0] & 0b11111110) >> 1;
+            id2 = (msg->data[3] & 0b11111110) >> 1;
+            id3 = (msg->data[6] & 0b11111110) >> 1;
             if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
             else if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
             else if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
@@ -206,7 +243,7 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             parse_kilo_message(msg->data);
             break;
         case KILO_IDENTIFICATION:
-            id1 = (msg->data[0] & 0b11111100) >> 2;
+            id1 = (msg->data[0] & 0b11111110) >> 1;
             if (id1 == kilo_uid){
                 led = RGB(0,0,3);
                 set_color(led);
@@ -235,11 +272,11 @@ float AngleToGoal(){
 }
 
 void random_way_point_model(){   
-    if(init_received_B){
+    if(init_received_C){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
-            if(fabs(angleToGoal) <= 48){
+            if(fabs(angleToGoal) <= 25){
                 set_motion(FORWARD);
                 last_motion_ticks = kilo_ticks;
             }
@@ -299,21 +336,15 @@ void setup(){
 }
 
 void loop(){
+    printf("%f , %f;\t%f , %f\n",gps_position.position_x,gps_position.position_y,goal_position.position_x,goal_position.position_y);
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\n",kilo_uid,num_quorum_items,quorum_percentage);
+    fprintf(fp,"%d\t%d\t%d\n",kilo_uid,num_quorum_items,quorum_percentage);
     fclose(fp);
     increment_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
+    check_quorum_and_prepare_messages();
     random_way_point_model();
-    switch (broadcasting_flag){
-        case 1:
-            rebroadcast();
-            break;
-        
-        default:
-            broadcast();
-            break;
-    }
+    talk();
 }
 
 uint8_t main(){

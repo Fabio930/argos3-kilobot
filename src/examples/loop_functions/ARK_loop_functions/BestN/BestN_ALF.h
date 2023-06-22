@@ -28,7 +28,7 @@ public:
     void SetupInitialKilobotStates();
 
     /** Setup the initial state of the kilobot pc_kilobot_entity */
-    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity);
+    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity, UInt8 state);
 
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
@@ -50,6 +50,8 @@ public:
     
     /** Used to communicate gps position and angle*/
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
+
+    void SendStateInformation(CKilobotEntity &c_kilobot_entity);
     
     Real abs_distance(const CVector2 a,const CVector2 b);
 
@@ -61,9 +63,9 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    uint8_t committed_percentage;
-    bool rebroadcast;
-    float k;
+    UInt8 minimum_quorum_length;
+    float committed_percentage,quorum_scaling_factor;
+    UInt8 rebroadcast;
 
     std::vector<CVector2> m_vecKilobotPositions;
     std::vector<CDegrees> m_vecKilobotOrientations;
@@ -71,7 +73,7 @@ private:
     std::vector<UInt8> m_vecStart_experiment;
     std::vector<UInt8> m_vecKilobotStates;
     std::vector<UInt8> m_vecKilobotMsgType;
-    uint8_t start_experiment = 0;
+    UInt8 start_experiment = 0;
     Real m_fMinTimeBetweenTwoMsg;
 
     UInt16 log_counter = 0;

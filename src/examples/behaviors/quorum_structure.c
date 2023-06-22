@@ -1,7 +1,9 @@
 #include "quorum_structure.h"
 
-void set_expiring_ticks_quorum_item(const uint32_t Expiring_time){
+void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
     expiring_ticks_quorum = Expiring_time;
+    min_quorum_length = Min_quorum_length;
+    quorum_scaling_factor = Quorum_scaling_factor;
 }
 
 void sort_q(quorum_a **Array[]){
@@ -70,22 +72,21 @@ void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
     *Myquorum=NULL;
 }
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t Agent_node){
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state){
     uint8_t out;
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
             out=0;
-            (*Myquorum)->agent_node = Agent_node;
             (*Myquorum)->counter = 0;
         }
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,Agent_node);
+        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state);
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
         (*Myquorum)->agent_id=Agent_id;
-        (*Myquorum)->agent_node=Agent_node;
         (*Myquorum)->counter=0;
+        (*Myquorum)->delivered=0;
         num_quorum_items++;
         if (Prev!=NULL && *Prev!=NULL){
             (*Myquorum)->prev=*Prev;

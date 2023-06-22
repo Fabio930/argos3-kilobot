@@ -83,7 +83,7 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 /* current state */
-state_t my_state = uncommitted;
+state_t my_state;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -95,6 +95,7 @@ uint16_t sa_payload = 0;
 
 bool init_received_A = false;
 bool init_received_B = false;
+bool init_received_C = false;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
@@ -137,9 +138,11 @@ void message_tx_success();
 /*-------------------------------------------------------------------*/
 /*                      Broadcasting functions                       */
 /*-------------------------------------------------------------------*/
+void talk();
+
 void broadcast();
 
-void rebroadcast();//TODO
+void rebroadcast(quorum_a *rnd_msg);//TODO
 
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */
@@ -151,7 +154,7 @@ void check_quorum(quorum_a **Array[]);
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-void sample_and_decide(arena_a **leaf);
+void check_quorum_and_prepare_messages();
 
 float random_in_range(float min, float max);
 
