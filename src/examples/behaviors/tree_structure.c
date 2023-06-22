@@ -198,8 +198,8 @@ void loop_set_vertices(tree_a **Mytree,const uint8_t Index,const uint8_t Ref){
 void set_vertices(tree_a **Mytree,const float BrX,const float BrY){
     (*Mytree)->tlX=0.05;
     (*Mytree)->tlY=0.05;
-    (*Mytree)->brX=BrX+0.05;
-    (*Mytree)->brY=BrY+0.05;
+    (*Mytree)->brX=BrX-0.05;
+    (*Mytree)->brY=BrY-0.05;
     tree_a *c = (*Mytree)->children;
     switch (branches){
     case 2:
