@@ -35,7 +35,7 @@ void increment_quorum_counter(quorum_a **Array[]){
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
-    for(int8_t i=num_quorum_items-1;i>=0;i--){
+    for(uint8_t i=num_quorum_items-1;i>=0;i--){
         if((*Array)[i]->counter>=expiring_ticks_quorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
@@ -99,6 +99,6 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     return out;
 }
 
-uint8_t select_a_random_message(quorum_a **Array[]){
-
+quorum_a* select_a_random_message(quorum_a **Array[]){
+    return (*Array)[rand()%num_quorum_items];
 }

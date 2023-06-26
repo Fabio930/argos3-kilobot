@@ -39,6 +39,7 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
+        my_message.crc = message_crc(&my_message);
         sending_msg = true;
     }
 }
@@ -49,7 +50,6 @@ void broadcast(){
     my_message.data[0] = kilo_uid;
     my_message.data[1] = sa_type;
     my_message.data[2] = my_state;
-    my_message.crc = message_crc(&my_message);
 }
 
 void rebroadcast(quorum_a *rnd_msg){
@@ -58,7 +58,7 @@ void rebroadcast(quorum_a *rnd_msg){
     my_message.data[0] = rnd_msg->agent_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = rnd_msg->agent_state;
-    my_message.crc = message_crc(&my_message);
+    rnd_msg->delivered = 1;
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
@@ -141,7 +141,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     sa_payload = ((uint16_t)data[shift + 1] >> 1) << 8 | data[shift + 2];
     switch(sa_type){
         case MSG_B:
-            gps_position.position_x = (((sa_payload >> 8) & 0b01111110) >> 1) * 0.01 * 3;
+            gps_position.position_x = (((sa_payload >> 8) & 0b01111110) >> 1) * 0.01 * 2;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00011111) * 0.01 * 3;
             gps_angle = (((sa_payload >> 8) & 0b00000001) << 3 | ((uint8_t)sa_payload & 0b11100000) >> 5) * 24;
             break;
@@ -336,7 +336,7 @@ void setup(){
 }
 
 void loop(){
-    printf("%f , %f;\t%f , %f\n",gps_position.position_x,gps_position.position_y,goal_position.position_x,goal_position.position_y);
+    // printf("agent id:%d;\t%f , %f;\t%f , %f\n",kilo_uid,gps_position.position_x,gps_position.position_y,goal_position.position_x,goal_position.position_y);
     fp = fopen("quorum_log.tsv","a");
     fprintf(fp,"%d\t%d\t%d\n",kilo_uid,num_quorum_items,quorum_percentage);
     fclose(fp);
