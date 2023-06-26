@@ -39,7 +39,6 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        my_message.crc = message_crc(&my_message);
         sending_msg = true;
     }
 }
@@ -50,6 +49,7 @@ void broadcast(){
     my_message.data[0] = kilo_uid;
     my_message.data[1] = sa_type;
     my_message.data[2] = my_state;
+    my_message.crc = message_crc(&my_message);
 }
 
 void rebroadcast(quorum_a *rnd_msg){
@@ -59,6 +59,7 @@ void rebroadcast(quorum_a *rnd_msg){
     my_message.data[1] = sa_type;
     my_message.data[2] = rnd_msg->agent_state;
     rnd_msg->delivered = 1;
+    my_message.crc = message_crc(&my_message);
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
