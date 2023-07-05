@@ -45,6 +45,8 @@ void talk(){
 
 void broadcast(){
     sa_type = 0;
+    sa_id = 0;
+    sa_payload = 0;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     my_message.data[0] = kilo_uid;
     my_message.data[1] = sa_type;
@@ -54,11 +56,13 @@ void broadcast(){
 
 void rebroadcast(quorum_a *rnd_msg){
     sa_type = 0;
+    sa_id = 0;
+    sa_payload = 0;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    rnd_msg->delivered = 1;
     my_message.data[0] = rnd_msg->agent_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = rnd_msg->agent_state;
-    rnd_msg->delivered = 1;
     my_message.crc = message_crc(&my_message);
 }
 
@@ -69,9 +73,17 @@ uint8_t check_quorum_trigger(quorum_a **Array[]){
 }
 
 void check_quorum(quorum_a **Array[]){
-    uint8_t counter = (check_quorum_trigger(Array) + 1);
-    quorum_percentage = (uint8_t)((counter/num_quorum_items) * 100);
-    if(counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = true;
+    uint8_t commit_counter;
+    switch (my_state){
+        case committed:
+            commit_counter = (check_quorum_trigger(Array) + 1);
+            break;
+        default:
+            commit_counter = check_quorum_trigger(Array);
+            break;
+    }
+    quorum_percentage = commit_counter*(1.0/num_quorum_items);
+    if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = true;
 }
 
 void check_quorum_and_prepare_messages(){
@@ -88,6 +100,8 @@ void check_quorum_and_prepare_messages(){
             broadcast();
             break;
     }
+    quorum_percentage = 0.f;
+    quorum_reached = false;
     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
 }
 
@@ -113,7 +127,7 @@ void select_new_point(bool force){
         if(avoid_tmmts==0){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag >= expiring_dist + .01){
-                if(rand_soft()/255.0 < .5) set_motion(TURN_LEFT);
+                if(rand_soft()/255.0 <= .5) set_motion(TURN_LEFT);
                 else set_motion(TURN_RIGHT);
                 avoid_tmmts=1;
             }
@@ -173,7 +187,7 @@ void parse_kilo_message(uint8_t data[9]){
     sa_type = data[1];
     sa_payload = data[2];
     received_id = sa_id;
-    received_committed = sa_payload;
+    received_committed = (uint8_t)sa_payload;
     update_messages();
 }
 
@@ -190,7 +204,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
                 uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
                 broadcasting_flag = extra_payload;
-                set_quorum_vars(expiring_dist * quorum_ticks_sec,sa_payload>>8,sa_payload);
+                set_quorum_vars(expiring_dist * quorum_ticks_sec,(uint8_t)(sa_payload>>8),(uint8_t)sa_payload);
                 init_received_A = true;
             }
             break;
@@ -337,9 +351,8 @@ void setup(){
 }
 
 void loop(){
-    // printf("agent id:%d;\t%f , %f;\t%f , %f\n",kilo_uid,gps_position.position_x,gps_position.position_y,goal_position.position_x,goal_position.position_y);
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\n",kilo_uid,num_quorum_items,quorum_percentage);
+    fprintf(fp,"%d\t%d\t%f\n",kilo_uid,num_quorum_items,quorum_percentage);
     fclose(fp);
     increment_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);

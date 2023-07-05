@@ -3,7 +3,7 @@
 void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
     expiring_ticks_quorum = Expiring_time;
     min_quorum_length = Min_quorum_length;
-    quorum_scaling_factor = Quorum_scaling_factor;
+    quorum_scaling_factor = Quorum_scaling_factor*.01;
 }
 
 void sort_q(quorum_a **Array[]){
@@ -19,8 +19,8 @@ void sort_q(quorum_a **Array[]){
 }
 
 void init_array_qrm(quorum_a **Array[]){
-    *Array = (quorum_a**)malloc(64*sizeof(quorum_a*));
-    for(uint8_t i=0;i<64;i++) (*Array)[i] = NULL;
+    *Array = (quorum_a**)malloc(128*sizeof(quorum_a*));
+    for(uint8_t i=0;i<128;i++) (*Array)[i] = NULL;
 }
 
 void print_q(quorum_a **Array[]){
@@ -35,7 +35,7 @@ void increment_quorum_counter(quorum_a **Array[]){
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
-    for(uint8_t i=num_quorum_items-1;i>=0;i--){
+    for(int8_t i=num_quorum_items-1;i>=0;i--){
         if((*Array)[i]->counter>=expiring_ticks_quorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
@@ -86,6 +86,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
         (*Myquorum)->agent_id=Agent_id;
         (*Myquorum)->counter=0;
+        (*Myquorum)->agent_state=received_state;
         (*Myquorum)->delivered=0;
         num_quorum_items++;
         if (Prev!=NULL && *Prev!=NULL){

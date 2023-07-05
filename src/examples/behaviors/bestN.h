@@ -20,8 +20,8 @@ FILE *fp;
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 10,
-    ARENA_Y = 10
+    ARENA_X = 5,
+    ARENA_Y = 5
 }arena_size;
 
 /* Enum for messages type */
@@ -115,7 +115,7 @@ arena_a *the_arena = NULL;
 
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-uint8_t quorum_percentage = 0;
+float quorum_percentage;
 bool quorum_reached = false;
 
 uint8_t led = RGB(0,0,0);

@@ -205,7 +205,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = rebroadcast;
     tKilobotMessage.m_sID = minimum_quorum_length;
-    tKilobotMessage.m_sData = quorum_scaling_factor;
+    tKilobotMessage.m_sData = quorum_scaling_factor*100;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
