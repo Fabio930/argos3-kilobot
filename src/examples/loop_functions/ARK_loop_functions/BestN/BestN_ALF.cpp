@@ -92,12 +92,22 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     /* Setup the virtual states of a kilobot */
     std::vector<UInt8> assigned_kilo_states;
     assigned_kilo_states.resize(m_tKilobotEntities.size());
+    for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
     UInt8 count = 0;
-    for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-        UInt8 p = rand()%2;
-        if(p == 1 && ++count <= m_tKilobotEntities.size()*committed_percentage) assigned_kilo_states[it]=1;
-        else assigned_kilo_states[it]=0;
+    UInt8 p;
+    while (true){
+        for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+            if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*committed_percentage){
+                p = rand()%2;
+                if(p==1){
+                    assigned_kilo_states[it]=1;
+                    count++;
+                }
+            }
+        }
+        if(count>=m_vecKilobotStates.size()*committed_percentage) break;
     }
+    
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
 

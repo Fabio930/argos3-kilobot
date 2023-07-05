@@ -53,7 +53,7 @@
             rebroadcast = "0"
             minimum_quorum_length = "10"
             quorum_scaling_factor = "0.9"
-            committed_percentage = "1">
+            committed_percentage = ".9">
         </hierarchicStruct>
 
     </loop_functions>
