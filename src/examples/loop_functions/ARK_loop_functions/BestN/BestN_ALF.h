@@ -49,7 +49,7 @@ public:
     void SendStructInitInformation(CKilobotEntity &c_kilobot_entity);
     
     /** Used to communicate gps position and angle*/
-    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
+    void SendInformationGPS(CKilobotEntity &c_kilobot_entity);
 
     void SendStateInformation(CKilobotEntity &c_kilobot_entity);
     

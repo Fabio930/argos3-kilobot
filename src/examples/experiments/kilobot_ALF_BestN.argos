@@ -52,15 +52,15 @@
         <hierarchicStruct
             rebroadcast = "0"
             minimum_quorum_length = "10"
-            quorum_scaling_factor = "0.9"
-            committed_percentage = ".9">
+            quorum_scaling_factor = "0.8"
+            committed_percentage = ".8">
         </hierarchicStruct>
 
     </loop_functions>
     <!-- *********************** -->
     <!-- * Arena configuration * -->
     <!-- *********************** -->
-    <!-- <arena size="1.1, 1.1, 1.1" center="0,0,0">
+    <arena size="1.1, 1.1, 1.1" center="0,0,0">
         
         <box id="wall_north" size="1.1,0.01,0.1" movable="false">
             <body position="0,.55,0" orientation="0,0,0" />
@@ -77,15 +77,15 @@
 
 
         <distribute>
-            <position method="uniform" min="-.4,-0.4,0" max="0.4,0.4,0" />
+            <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="60" max_trials="200">
+            <entity quantity="40" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
-        </distribute> -->
-
+        </distribute>
+<!-- 
     <arena size=".6, .6, 1" center="0,0,0">
 
         <box id="wall_north" size=".6,0.01,0.1" movable="false">
@@ -111,11 +111,11 @@
                 </kilobot>
             </entity>
         </distribute> 
+         -->
 
         <floor id="floor"
         source="loop_functions"
         pixels_per_meter="100" />
-        
     </arena>
     
     <!-- ******************* -->

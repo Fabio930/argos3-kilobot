@@ -84,6 +84,8 @@ void check_quorum(quorum_a **Array[]){
     }
     quorum_percentage = commit_counter*(1.0/num_quorum_items);
     if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = true;
+    if(quorum_reached && my_state==uncommitted) led = RGB(3,0,0);
+    else if(quorum_reached && my_state==committed) led = RGB(0,3,0);
 }
 
 void check_quorum_and_prepare_messages(){
@@ -114,7 +116,7 @@ void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
         if(!force){
-            set_color(RGB(0,3,0));
+            set_color(RGB(0,3,3));
         }
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
@@ -152,18 +154,19 @@ void select_new_point(bool force){
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
-    sa_type = (data[shift] & 0b00000001) << 1 | (data[shift + 1] & 0b00000001);
-    sa_payload = ((uint16_t)data[shift + 1] >> 1) << 8 | data[shift + 2];
+    sa_type = data[shift] & 0b00000001;
+    sa_payload = ((uint16_t)(data[shift + 1]) << 8) | data[shift + 2];
     switch(sa_type){
-        case MSG_B:
-            gps_position.position_x = (((sa_payload >> 8) & 0b01111110) >> 1) * 0.01 * 2;
-            gps_position.position_y = ((uint8_t)sa_payload & 0b00011111) * 0.01 * 3;
-            gps_angle = (((sa_payload >> 8) & 0b00000001) << 3 | ((uint8_t)sa_payload & 0b11100000) >> 5) * 24;
+        case MSG_A:
+            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
+            gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
+            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b0000000011000000) >> 6) * 24;
+            if(!init_received_B) init_received_B = true;
             break;
-        case MSG_C:
+        case MSG_B:
             switch (sa_payload){
                 case 0:
-                    led = RGB(3,0,0);
+                    led = RGB(0,0,0);
                     my_state = uncommitted;
                     break;
                 
@@ -172,7 +175,12 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                     my_state = committed;
                     break;
             }
-            set_color(led);
+            if(init_received_B && !init_received_C){
+                init_received_C = true;
+                select_new_point(true);
+                set_motion(FORWARD);
+                set_color(led);
+            }
             break;
     }
 }
@@ -192,7 +200,7 @@ void parse_kilo_message(uint8_t data[9]){
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
-    sa_type = (data[0] & 0b00000001) << 1 | (data[1] & 0b00000001);
+    sa_type = data[0] & 0b00000001;
     uint8_t extra_payload = data[2];
     sa_payload = ((uint16_t)data[0]>>1) << 8 | (data[1]>>1) ;
     switch (sa_type){
@@ -206,30 +214,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 broadcasting_flag = extra_payload;
                 set_quorum_vars(expiring_dist * quorum_ticks_sec,(uint8_t)(sa_payload>>8),(uint8_t)sa_payload);
                 init_received_A = true;
-            }
-            break;
-        case MSG_B:
-            if(init_received_A && !init_received_B){   
-                uint8_t id1 = (data[0] & 0b11111110) >> 1;
-                uint8_t id2 = (data[3] & 0b11111110) >> 1;
-                uint8_t id3 = (data[6] & 0b11111110) >> 1;
-                if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
-                else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
-                else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
-                init_received_B = true;
-            }
-            break;
-        case MSG_C:
-            if(init_received_A && init_received_B && !init_received_C){
-                uint8_t id1 = (data[0] & 0b11111110) >> 1;
-                uint8_t id2 = (data[3] & 0b11111110) >> 1;
-                uint8_t id3 = (data[6] & 0b11111110) >> 1;
-                if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
-                else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
-                else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
-                init_received_C = true;
-                select_new_point(true);
-                set_motion(FORWARD);
             }
             break;
     }
@@ -291,7 +275,7 @@ void random_way_point_model(){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
-            if(fabs(angleToGoal) <= 25){
+            if(fabs(angleToGoal) <= 48){
                 set_motion(FORWARD);
                 last_motion_ticks = kilo_ticks;
             }
