@@ -97,7 +97,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     return out;
 }
 
-quorum_a* select_a_random_message(quorum_a **Array[]){
-    if(num_quorum_items>0)return (*Array)[rand()%num_quorum_items];
-    else return NULL;
+uint16_t select_a_random_message(){
+    if(num_quorum_items>0)return rand()%num_quorum_items;
+    else return 0b1111111111111111;
 }

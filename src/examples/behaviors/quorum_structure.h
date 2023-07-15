@@ -29,6 +29,6 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
 
-quorum_a* select_a_random_message(quorum_a **Array[]);
+uint16_t select_a_random_message();
 
 uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state);

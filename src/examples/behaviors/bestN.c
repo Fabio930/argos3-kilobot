@@ -42,10 +42,10 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        rnd_msg = select_a_random_message(&quorum_array);
+        rnd_msg_indx = select_a_random_message();
         switch (broadcasting_flag){
             case 1:
-                if(rnd_msg != NULL && rnd_msg->delivered == 0) rebroadcast();
+                if(rnd_msg_indx != 0b1111111111111111 && quorum_array[rnd_msg_indx]->delivered == 0) rebroadcast();
                 else broadcast();
                 break;
             
@@ -53,7 +53,7 @@ void talk(){
                 broadcast();
                 break;
         }
-        rnd_msg = NULL;
+        rnd_msg_indx = 0b1111111111111111;
         sending_msg = true;
     }
 }
@@ -73,15 +73,10 @@ void rebroadcast(){
     sa_id = 0;
     sa_payload = 0;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    for(long unsigned int i =0 ; i<num_quorum_items ; i++){
-        if(quorum_array[i]->agent_id == rnd_msg->agent_id){
-            quorum_array[i]->delivered = 1;
-            break;
-        }
-    }
-    my_message.data[0] = rnd_msg->agent_id;
+    quorum_array[rnd_msg_indx]->delivered = 1;
+    my_message.data[0] = quorum_array[rnd_msg_indx]->agent_id;
     my_message.data[1] = sa_type;
-    my_message.data[2] = rnd_msg->agent_state;
+    my_message.data[2] = quorum_array[rnd_msg_indx]->agent_state;
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
