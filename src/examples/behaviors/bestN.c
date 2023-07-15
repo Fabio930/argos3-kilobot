@@ -33,12 +33,27 @@ message_t *message_tx(){
 }
 
 void message_tx_success(){
+    my_message.data[0] = 0;
+    my_message.data[1] = 0;
+    my_message.data[2] = 0;
     sending_msg = false;
 }
 
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
+        rnd_msg = select_a_random_message(&quorum_array);
+        switch (broadcasting_flag){
+            case 1:
+                if(rnd_msg != NULL && rnd_msg->delivered == 0) rebroadcast();
+                else broadcast();
+                break;
+            
+            default:
+                broadcast();
+                break;
+        }
+        rnd_msg = NULL;
         sending_msg = true;
     }
 }
@@ -51,19 +66,22 @@ void broadcast(){
     my_message.data[0] = kilo_uid;
     my_message.data[1] = sa_type;
     my_message.data[2] = my_state;
-    my_message.crc = message_crc(&my_message);
 }
 
-void rebroadcast(quorum_a *rnd_msg){
+void rebroadcast(){
     sa_type = 0;
     sa_id = 0;
     sa_payload = 0;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    rnd_msg->delivered = 1;
+    for(long unsigned int i =0 ; i<num_quorum_items ; i++){
+        if(quorum_array[i]->agent_id == rnd_msg->agent_id){
+            quorum_array[i]->delivered = 1;
+            break;
+        }
+    }
     my_message.data[0] = rnd_msg->agent_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = rnd_msg->agent_state;
-    my_message.crc = message_crc(&my_message);
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
@@ -90,18 +108,6 @@ void check_quorum(quorum_a **Array[]){
 
 void check_quorum_and_prepare_messages(){
     // select a random message
-    quorum_a *rnd_msg;
-    switch (broadcasting_flag){
-        case 1:
-            rnd_msg = select_a_random_message(&quorum_array);
-            if(rnd_msg != NULL && rnd_msg->delivered == 0) rebroadcast(rnd_msg);
-            else broadcast();
-            break;
-        
-        default:
-            broadcast();
-            break;
-    }
     quorum_percentage = 0.f;
     quorum_reached = false;
     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
@@ -114,7 +120,7 @@ float random_in_range(float min, float max){
 
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
-    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
+    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
         if(!force){
             set_color(RGB(0,3,3));
         }
@@ -160,26 +166,28 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
         case MSG_A:
             gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
-            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b0000000011000000) >> 6) * 24;
-            if(!init_received_B) init_received_B = true;
-            break;
-        case MSG_B:
-            switch (sa_payload){
-                case 0:
-                    led = RGB(0,0,0);
-                    my_state = uncommitted;
-                    break;
-                
-                case 1:
-                    led = RGB(0,0,3);
-                    my_state = committed;
-                    break;
-            }
+            gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
             if(init_received_B && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
                 set_color(led);
+            }
+            break;
+        case MSG_B:
+            if(init_received_A){
+                switch (sa_payload){
+                    case 0:
+                        led = RGB(0,0,0);
+                        my_state = uncommitted;
+                        break;
+                    
+                    case 1:
+                        led = RGB(0,0,3);
+                        my_state = committed;
+                        break;
+                }
+                init_received_B = true;
             }
             break;
     }
@@ -192,29 +200,43 @@ void update_messages(){
 
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
-    sa_type = data[1];
-    sa_payload = data[2];
-    received_id = sa_id;
-    received_committed = (uint8_t)sa_payload;
-    update_messages();
+    if(sa_id!=(uint8_t)kilo_uid){
+        sa_type = data[1];
+        sa_payload = data[2];
+        received_id = sa_id;
+        received_committed = (uint8_t)sa_payload;
+        update_messages();
+    }
+    else sa_id = 0;
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
+    uint8_t id1;
+    uint8_t id2;
+    uint8_t id3;
     sa_type = data[0] & 0b00000001;
-    uint8_t extra_payload = data[2];
-    sa_payload = ((uint16_t)data[0]>>1) << 8 | (data[1]>>1) ;
+    
     switch (sa_type){
         case MSG_A:
+            sa_payload = ((uint16_t)data[0]>>1) << 8 | (data[1]>>1);
             if(!init_received_A){   
                 led = RGB(3,3,0);
                 set_color(led);
                 complete_tree(&the_arena);
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
                 uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                broadcasting_flag = extra_payload;
-                set_quorum_vars(expiring_dist * quorum_ticks_sec,(uint8_t)(sa_payload>>8),(uint8_t)sa_payload);
+                broadcasting_flag = data[2];
+                set_quorum_vars(expiring_dist * quorum_ticks_sec,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
                 init_received_A = true;
             }
+            break;
+        case MSG_B:
+            id1 = (data[0] & 0b11111110) >> 1;
+            id2 = (data[3] & 0b11111110) >> 1;
+            id3 = (data[6] & 0b11111110) >> 1;
+            if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
+            else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
+            else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
             break;
     }
 }
@@ -322,6 +344,7 @@ void setup(){
     set_motors(0,0);
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
+    my_message.crc = message_crc(&my_message);
     init_array_qrm(&quorum_array);
 
     /* Init random seed */
@@ -342,7 +365,7 @@ void loop(){
     erase_expired_items(&quorum_array,&quorum_list);
     check_quorum_and_prepare_messages();
     random_way_point_model();
-    talk();
+    if(init_received_C) talk();
 }
 
 uint8_t main(){

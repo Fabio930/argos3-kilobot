@@ -181,11 +181,11 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 case 1:
                     m_vecStart_experiment[unKilobotID]=2;
-                    SendInformationGPS(c_kilobot_entity);
+                    SendStateInformation(c_kilobot_entity);
                     break;
                 case 2:
                     m_vecStart_experiment[unKilobotID]=3;
-                    SendStateInformation(c_kilobot_entity);
+                    SendInformationGPS(c_kilobot_entity);
                     break;
             }
             start_experiment=1;
@@ -195,6 +195,7 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 }
             }
+
             break;
         
         default:
@@ -264,7 +265,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
         else{
             tMessage = tEmptyMessage;
         }
-        m_tMessages[unKilobotID].data[i*3] = (tKilobotMessage.m_sID >> 3) << 1 | tKilobotMessage.m_sType;
+        m_tMessages[unKilobotID].data[i*3] = (tKilobotMessage.m_sID >> 3) << 1;
         m_tMessages[unKilobotID].data[1+i*3] = (tKilobotMessage.m_sData >> 4) <<2 | (tKilobotMessage.m_sID & 0b0000000110) >> 1;
         m_tMessages[unKilobotID].data[2+i*3] = (tKilobotMessage.m_sID & 0b0000000001) << 7 | (tKilobotMessage.m_sData & 0b0000000001) << 6 | (tKilobotMessage.m_sData & 0b0000001110) << 2 | ((tKilobotMessage.m_sType & 0b1110) >> 1);
     }
@@ -280,7 +281,7 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
-    m_tMessages[unKilobotID].type = 1;
+    m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = 1;
     tKilobotMessage.m_sID = unKilobotID;
     tKilobotMessage.m_sData = m_vecKilobotStates[unKilobotID];

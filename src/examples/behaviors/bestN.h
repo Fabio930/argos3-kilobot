@@ -10,12 +10,6 @@
 #include "distribution_functions.c"
 
 #define PI 3.14159265358979323846
-/* used only for noisy data generation */
-typedef enum{
-    MAX_UTILITY = 10,
-    NOISE = 1
-}signal;
-
 FILE *fp;
 
 /* divided by 10 */
@@ -100,7 +94,7 @@ bool init_received_C = false;
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
-uint8_t broadcasting_flag;
+uint8_t broadcasting_flag = 0;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -113,6 +107,7 @@ uint8_t received_committed;
 /* map of the environment */
 arena_a *the_arena = NULL;
 
+quorum_a *rnd_msg = NULL;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 float quorum_percentage;
@@ -142,7 +137,7 @@ void talk();
 
 void broadcast();
 
-void rebroadcast(quorum_a *rnd_msg);//TODO
+void rebroadcast();
 
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */

@@ -21,7 +21,7 @@ void sort_q(quorum_a **Array[]);
 
 void init_array_qrm(quorum_a **Array[]);
 
-void print_q(quorum_a **Array[]);
+void print_q(quorum_a **Array[], uint8_t id);
 
 void increment_quorum_counter(quorum_a **Array[]);
 

@@ -23,9 +23,9 @@ void init_array_qrm(quorum_a **Array[]){
     for(uint8_t i=0;i<128;i++) (*Array)[i] = NULL;
 }
 
-void print_q(quorum_a **Array[]){
+void print_q(quorum_a **Array[],uint8_t id){
     for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i]!=NULL) printf("Q__%d++%d\n",(*Array)[i]->agent_id,(*Array)[i]->counter);
+        if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
         else printf("NULL\n");
     }
 }
@@ -76,10 +76,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     uint8_t out;
     out=1;
     if(*Myquorum!=NULL){
-        if((*Myquorum)->agent_id==Agent_id){
-            out=0;
-            (*Myquorum)->counter = 0;
-        }
+        if((*Myquorum)->agent_id==Agent_id)out=0;
         if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state);
     }
     else{
@@ -101,5 +98,6 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
 }
 
 quorum_a* select_a_random_message(quorum_a **Array[]){
-    return (*Array)[rand()%num_quorum_items];
+    if(num_quorum_items>0)return (*Array)[rand()%num_quorum_items];
+    else return NULL;
 }
