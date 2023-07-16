@@ -51,14 +51,11 @@
         </variables>
 
         <hierarchicStruct
-            depth="__DEPTH__"
-            branches="__BRANCHES__"
-            k="__K__"
-            control_gain="__R__">
+            rebroadcast = "__BROADCAST_POLICY__"
+            minimum_quorum_length = "__MIN_QUORUM_LEN__"
+            quorum_scaling_factor = "__QUORUM_SCALING_FACTOR__"
+            committed_percentage = "__COMMITTED_PERCENTAGE__">
         </hierarchicStruct>
-
-        <environments>
-        </environments>
     
     </loop_functions>
     <!-- *********************** -->
