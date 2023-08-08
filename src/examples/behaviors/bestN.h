@@ -111,7 +111,7 @@ uint16_t rnd_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 float quorum_percentage;
-bool quorum_reached = false;
+uint8_t quorum_reached = 0;
 
 uint8_t led = RGB(0,0,0);
 

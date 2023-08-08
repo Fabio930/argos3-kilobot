@@ -35,12 +35,12 @@ class Results:
 
 ##########################################################################################################
     def extract_data(self):
-        BRACHES=[]
+        COMMUNICATION=[]
         BASES=[]
-        DEPTH=[]
-        K=[]
+        COMMIT_PERC=[]
+        Q_LEN=[]
         N_AGENTS=[]
-        R=[]
+        SCALING=[]
         MAX_STEPS=[]
         results = {}
         dateToStore = ""
@@ -50,43 +50,39 @@ class Results:
             for dir in os.listdir(base):
                 if '.' not in dir and '#' in dir:
                     pre_path=os.path.join(base, dir)
-                    n_agents=int(dir.split('#')[1])
-                    if n_agents not in N_AGENTS:
-                        N_AGENTS.append(int(n_agents))
+                    communication=int(dir.split('#')[1])
+                    if communication not in COMMUNICATION:
+                        COMMUNICATION.append(int(communication))
                     for zdir in os.listdir(pre_path):
                         if '.' not in zdir and '#' in zdir:
-                            branches=int(zdir.split('#')[1])
-                            if branches not in BRACHES:
-                                BRACHES.append(int(branches))
+                            n_agents=int(zdir.split('#')[1])
+                            if n_agents not in N_AGENTS:
+                                N_AGENTS.append(int(n_agents))
                             dtemp=os.path.join(pre_path, zdir)
                             for sdir in os.listdir(dtemp):
                                 if '.' not in sdir and '#' in sdir:
-                                    depth=int(sdir.split('#')[1])
-                                    if depth not in DEPTH:
-                                        DEPTH.append(int(depth))
+                                    commit_perc=float(sdir.split('#')[1].replace("_","."))
+                                    if commit_perc not in COMMIT_PERC:
+                                        COMMIT_PERC.append(int(commit_perc))
                                     stemp=os.path.join(dtemp, sdir)
                                     for ssdir in os.listdir(stemp):
                                         if '.' not in ssdir and '#' in ssdir:
-                                            k=float(ssdir.split('#')[1].replace("_","."))
-                                            if k not in K:
-                                                K.append(float(k))
+                                            q_len=float(ssdir.split('#')[1].replace("_","."))
+                                            if q_len not in Q_LEN:
+                                                Q_LEN.append(float(q_len))
                                             path_temp=os.path.join(stemp, ssdir)
                                             for folder in os.listdir(path_temp):
                                                 if '.' not in folder:
-                                                    params = folder.split('_')
-                                                    r , max_steps = float(params[0].split('#')[1]) , int(params[1].split('#')[1])-1
-                                                    if r not in R:
-                                                        R.append(float(r))
+                                                    params = folder.split('#')
+                                                    scaling , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
+                                                    if scaling not in SCALING:
+                                                        SCALING.append(float(scaling))
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
-                                                    leafs=[]
                                                     unordered_commitments = np.array([[[]]])
-                                                    unordered_locations = np.array([[[]]])
                                                     unordered_posX = np.array([[[]]])
                                                     unordered_posY = np.array([[[]]])
-                                                    unordered_distances = np.array([[[]]]) # distance is from 0 to depth --> if == 0 -> optimal decision, if != 0 -> check that commitment is in leaf, otherwise there is no decision
-                                                    unordered_Bleafs = np.array([])
                                                     unordered_seeds = np.array([])
                                                     for elem in os.listdir(sub_path):
                                                         #==================================================================
@@ -118,7 +114,7 @@ class Results:
                                                                                     if minutes0<=minutes:   
                                                                                         dateToStore=date
                                                                 proceed = True
-                                                                for CHECKfile in os.listdir(base+"/Robots#"+str(n_agents)):
+                                                                for CHECKfile in os.listdir(base+"/Rebroadcast#"+str(communication)+"/Robots#"+str(n_agents)):
                                                                     if ".csv" in CHECKfile:
                                                                         temp_str=CHECKfile.split('.')[0]
                                                                         Mdmy=temp_str.split('_')[2]
@@ -138,81 +134,58 @@ class Results:
                                                                 #==================================================================
                                                                 if proceed:
                                                                     seed=-1
-                                                                    best_leaf=-1
                                                                     agents_commitments = np.array([[0]])
-                                                                    agents_locations = np.array([[0]])
                                                                     agents_posX = np.array([[-1]])
                                                                     agents_posY = np.array([[-1]])
-                                                                    agents_distances = np.array([[depth]])
                                                                     for n in range(1,n_agents):
                                                                         agents_commitments = np.append(agents_commitments,[[0]],1)
-                                                                        agents_locations = np.append(agents_locations,[[0]],1)
                                                                         agents_posX = np.append(agents_posX,[[-1]],1)
                                                                         agents_posY = np.append(agents_posY,[[-1]],1)
-                                                                        agents_distances = np.append(agents_distances,[[depth]],1)
                                                                     with open(os.path.join(sub_path, elem), newline='') as f:
                                                                         s=0
                                                                         reader = csv.reader(f)
                                                                         for row in reader:
                                                                             for val in row:
                                                                                 com_arr=[]
-                                                                                loc_arr=[]
                                                                                 posX_arr=[]
                                                                                 posY_arr=[]
-                                                                                dist_arr=[]
                                                                                 val = val.split('\t')
                                                                                 if s==0:
                                                                                     seed=int(val[0])
-                                                                                    best_leaf=int(val[1])
-                                                                                    if len(leafs)==0:
-                                                                                        for i in range(6,len(val)):
-                                                                                            leafs.append(int(val[i]))
                                                                                     s+=1
                                                                                 elif s>0:
                                                                                     for i in range(1,len(val)):
-                                                                                        if i%5==1:
+                                                                                        if i%3==1:
                                                                                             posX_arr.append(float(val[i]))
-                                                                                        elif i%5==2:
+                                                                                        elif i%3==2:
                                                                                             posY_arr.append(float(val[i]))
-                                                                                        elif i%5==3:
-                                                                                            loc_arr.append(int(val[i]))
-                                                                                        elif i%5==4:
+                                                                                        elif i%3==0:
                                                                                             com_arr.append(int(val[i]))
-                                                                                        elif i%5==0:
-                                                                                            dist_arr.append(int(val[i]))
                                                                                     agents_commitments = np.append(agents_commitments,[com_arr],0)
-                                                                                    agents_locations = np.append(agents_locations,[loc_arr],0)
-                                                                                    agents_distances = np.append(agents_distances,[dist_arr],0)
                                                                                     agents_posX = np.append(agents_posX,[posX_arr],0)
                                                                                     agents_posY = np.append(agents_posY,[posY_arr],0)
                                                                     if np.size(unordered_commitments)==0:
                                                                         unordered_commitments = np.array([agents_commitments])
-                                                                        unordered_locations = np.array([agents_locations])
-                                                                        unordered_distances = np.array([agents_distances])
-                                                                        unordered_Bleafs = np.array([best_leaf])
                                                                         unordered_seeds = np.array([seed])
                                                                         unordered_posX = np.array([agents_posX])
                                                                         unordered_posY = np.array([agents_posY])
                                                                     else:
                                                                         unordered_commitments = np.append(unordered_commitments,[agents_commitments],0)
-                                                                        unordered_locations = np.append(unordered_locations,[agents_locations],0)
-                                                                        unordered_distances = np.append(unordered_distances,[agents_distances],0)
-                                                                        unordered_Bleafs = np.append(unordered_Bleafs,best_leaf)
                                                                         unordered_seeds = np.append(unordered_seeds,seed)
                                                                         unordered_posX = np.append(unordered_posX,[agents_posX],0)
                                                                         unordered_posY = np.append(unordered_posY,[agents_posY],0)
-                                                    results.update({(base,n_agents,max_steps,branches,depth,k,r):(unordered_locations,unordered_commitments,unordered_distances,list(unordered_seeds),list(unordered_Bleafs),leafs,unordered_posX,unordered_posY)})
-        return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,dateToStore
+                                                    results.update({(base,communication,n_agents,max_steps,commit_perc,q_len,scaling):(unordered_commitments,list(unordered_seeds),unordered_posX,unordered_posY)})
+        return results,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS,dateToStore
 
 ##########################################################################################################
 ##########################################################################################################
     def extract_k_quorum_data(self,position="all"):
-        BRACHES=[]
+        COMMUNICATION=[]
         BASES=[]
-        DEPTH=[]
-        K=[]
+        COMMIT_PERC=[]
+        Q_LEN=[]
         N_AGENTS=[]
-        R=[]
+        SCALING=[]
         MAX_STEPS=[]
         results = {}
         for base in self.bases:
@@ -221,33 +194,33 @@ class Results:
             for dir in os.listdir(base):
                 if '.' not in dir and '#' in dir:
                     pre_path=os.path.join(base, dir)
-                    n_agents=int(dir.split('#')[1])
-                    if n_agents not in N_AGENTS:
-                        N_AGENTS.append(int(n_agents))
+                    communication=int(dir.split('#')[1])
+                    if communication not in COMMUNICATION:
+                        COMMUNICATION.append(int(communication))
                     for zdir in os.listdir(pre_path):
                         if '.' not in zdir and '#' in zdir:
-                            branches=int(zdir.split('#')[1])
-                            if branches not in BRACHES:
-                                BRACHES.append(int(branches))
+                            n_agents=int(zdir.split('#')[1])
+                            if n_agents not in N_AGENTS:
+                                N_AGENTS.append(int(n_agents))
                             dtemp=os.path.join(pre_path, zdir)
                             for sdir in os.listdir(dtemp):
                                 if '.' not in sdir and '#' in sdir:
-                                    depth=int(sdir.split('#')[1])
-                                    if depth not in DEPTH:
-                                        DEPTH.append(int(depth))
+                                    commit_perc=float(sdir.split('#')[1].replace("_","."))
+                                    if commit_perc not in COMMIT_PERC:
+                                        COMMIT_PERC.append(int(commit_perc))
                                     stemp=os.path.join(dtemp, sdir)
                                     for ssdir in os.listdir(stemp):
                                         if '.' not in ssdir and '#' in ssdir:
-                                            k=float(ssdir.split('#')[1].replace("_","."))
-                                            if k not in K:
-                                                K.append(float(k))
+                                            q_len=float(ssdir.split('#')[1].replace("_","."))
+                                            if q_len not in Q_LEN:
+                                                Q_LEN.append(float(q_len))
                                             path_temp=os.path.join(stemp, ssdir)
                                             for folder in os.listdir(path_temp):
                                                 if '.' not in folder:
-                                                    params = folder.split('_')
-                                                    r , max_steps = float(params[0].split('#')[1]) , int(params[1].split('#')[1])-1
-                                                    if r not in R:
-                                                        R.append(float(r))
+                                                    params = folder.split('#')
+                                                    scaling , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
+                                                    if scaling not in SCALING:
+                                                        SCALING.append(float(scaling))
                                                     if max_steps not in MAX_STEPS:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
@@ -309,8 +282,8 @@ class Results:
                                                                                 qv = (int)(val[1])
                                                                                 M[id] = np.append(M[id],qv)
                                                                     bigM = M
-                                                        results.update({(base,n_agents,max_steps,branches,depth,k,r):bigM})
-        return results,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS
+                                                        results.update({(base,communication,n_agents,max_steps,commit_perc,q_len,scaling):bigM})
+        return results,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS
     
 ##########################################################################################################
     def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):

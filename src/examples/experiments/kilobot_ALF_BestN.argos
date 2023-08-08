@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="00"
+        <experiment length="1800"
         ticks_per_second="10"/>
     </framework>
     
@@ -50,8 +50,8 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
-            minimum_quorum_length = "60"
+            rebroadcast = "0"
+            minimum_quorum_length = "20"
             quorum_scaling_factor = "0.8"
             committed_percentage = ".8">
         </hierarchicStruct>
@@ -79,7 +79,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="100" max_trials="200">
+            <entity quantity="40" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

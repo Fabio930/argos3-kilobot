@@ -96,7 +96,7 @@ void check_quorum(quorum_a **Array[]){
             break;
     }
     quorum_percentage = commit_counter*(1.0/num_quorum_items);
-    if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = true;
+    if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
     if(quorum_reached && my_state==uncommitted) led = RGB(3,0,0);
     else if(quorum_reached && my_state==committed) led = RGB(0,3,0);
 }
@@ -104,7 +104,7 @@ void check_quorum(quorum_a **Array[]){
 void check_quorum_and_prepare_messages(){
     // select a random message
     quorum_percentage = 0.f;
-    quorum_reached = false;
+    quorum_reached = 0;
     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
 }
 
@@ -354,7 +354,7 @@ void setup(){
 
 void loop(){
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%f\n",kilo_uid,num_quorum_items,quorum_percentage);
+    fprintf(fp,"%d\t%d\t%d\t%f\n",kilo_uid,quorum_reached,num_quorum_items,quorum_percentage);
     fclose(fp);
     increment_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
