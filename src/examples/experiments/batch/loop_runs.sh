@@ -29,8 +29,8 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1801"
-RUNS=20
+experiment_length="901"
+RUNS=10
 rebroadcast="0"
 numrobots="40"
 minimum_quorum_length="10 20"
@@ -63,7 +63,7 @@ for par0 in $rebroadcast; do
                 fi
                 for par4 in $quorum_scaling_factor; do
                     par4BIS=${par4//$strToReplace/$replace}
-                    dir4=$dir3/"Scaling#"$par4BIS"_S#"$experiment_length
+                    dir4=$dir3/"Scaling#"$par4BIS"#S#"$experiment_length
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi

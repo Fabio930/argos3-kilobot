@@ -63,7 +63,7 @@ class Results:
                                 if '.' not in sdir and '#' in sdir:
                                     commit_perc=float(sdir.split('#')[1].replace("_","."))
                                     if commit_perc not in COMMIT_PERC:
-                                        COMMIT_PERC.append(int(commit_perc))
+                                        COMMIT_PERC.append(float(commit_perc))
                                     stemp=os.path.join(dtemp, sdir)
                                     for ssdir in os.listdir(stemp):
                                         if '.' not in ssdir and '#' in ssdir:
@@ -207,7 +207,7 @@ class Results:
                                 if '.' not in sdir and '#' in sdir:
                                     commit_perc=float(sdir.split('#')[1].replace("_","."))
                                     if commit_perc not in COMMIT_PERC:
-                                        COMMIT_PERC.append(int(commit_perc))
+                                        COMMIT_PERC.append(float(commit_perc))
                                     stemp=os.path.join(dtemp, sdir)
                                     for ssdir in os.listdir(stemp):
                                         if '.' not in ssdir and '#' in ssdir:
@@ -225,157 +225,203 @@ class Results:
                                                         MAX_STEPS.append(int(max_steps))
                                                     sub_path=os.path.join(path_temp,folder)
                                                     dim = len(os.listdir(sub_path))//2
-                                                    bigM = [np.array([])] * dim if position=="all" else np.array([])
+                                                    bigM_0 = [np.array([])] * dim if position=="all" else np.array([])
+                                                    bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
+                                                    bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
                                                     for elem in os.listdir(sub_path):
                                                         if '.' in elem:
                                                             selem=elem.split('.')
                                                             if position == "all":
                                                                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                                                                     seed = (int)(selem[0].split('_')[-1])
-                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_0 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_2 = [np.array([],dtype=float)]*n_agents # n_agents x n_samples
                                                                     with open(os.path.join(sub_path, elem), newline='') as f:
                                                                         reader = csv.reader(f)
                                                                         for row in reader:
                                                                             for val in row:
                                                                                 val = val.split('\t')
                                                                                 id = (int)(val[0])
-                                                                                qv = (int)(val[1])
-                                                                                M[id] = np.append(M[id],qv)
-                                                                    bigM[seed-1] = M
+                                                                                state = (int)(val[1])
+                                                                                ql = (int)(val[2])
+                                                                                qv = (float)(val[3])
+                                                                                M_0[id] = np.append(M_0[id],state)
+                                                                                M_1[id] = np.append(M_1[id],ql)
+                                                                                M_2[id] = np.append(M_2[id],qv)
+                                                                    bigM_0[seed-1] = M_0
+                                                                    bigM_1[seed-1] = M_1
+                                                                    bigM_2[seed-1] = M_2
                                                             elif position == "first":
                                                                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]=="1":
                                                                     seed = (int)(selem[0].split('_')[-1])
-                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_0 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_2 = [np.array([],dtype=float)]*n_agents # n_agents x n_samples
                                                                     with open(os.path.join(sub_path, elem), newline='') as f:
                                                                         reader = csv.reader(f)
                                                                         for row in reader:
                                                                             for val in row:
                                                                                 val = val.split('\t')
                                                                                 id = (int)(val[0])
-                                                                                qv = (int)(val[1])
-                                                                                M[id] = np.append(M[id],qv)
-                                                                    bigM = M
+                                                                                state = (int)(val[1])
+                                                                                ql = (int)(val[2])
+                                                                                qv = (float)(val[3])
+                                                                                M_0[id] = np.append(M_0[id],state)
+                                                                                M_1[id] = np.append(M_1[id],ql)
+                                                                                M_2[id] = np.append(M_2[id],qv)
+                                                                    bigM_0 = M_0
+                                                                    bigM_1 = M_1
+                                                                    bigM_2 = M_2
                                                             elif position == "last":
                                                                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==str(len(os.listdir(sub_path))//2):
                                                                     seed = (int)(selem[0].split('_')[-1])
-                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_0 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_2 = [np.array([],dtype=float)]*n_agents # n_agents x n_samples
                                                                     with open(os.path.join(sub_path, elem), newline='') as f:
                                                                         reader = csv.reader(f)
                                                                         for row in reader:
                                                                             for val in row:
                                                                                 val = val.split('\t')
                                                                                 id = (int)(val[0])
-                                                                                qv = (int)(val[1])
-                                                                                M[id] = np.append(M[id],qv)
-                                                                    bigM = M
+                                                                                state = (int)(val[1])
+                                                                                ql = (int)(val[2])
+                                                                                qv = (float)(val[3])
+                                                                                M_0[id] = np.append(M_0[id],state)
+                                                                                M_1[id] = np.append(M_1[id],ql)
+                                                                                M_2[id] = np.append(M_2[id],qv)
+                                                                    bigM_0 = M_0
+                                                                    bigM_1 = M_1
+                                                                    bigM_2 = M_2
                                                             elif position == "rand":
                                                                 p = np.random.choice(np.arange(len(os.listdir(sub_path))//2))
                                                                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==p:
                                                                     seed = (int)(selem[0].split('_')[-1])
-                                                                    M = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_0 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                                                    M_2 = [np.array([],dtype=float)]*n_agents # n_agents x n_samples
                                                                     with open(os.path.join(sub_path, elem), newline='') as f:
                                                                         reader = csv.reader(f)
                                                                         for row in reader:
                                                                             for val in row:
                                                                                 val = val.split('\t')
                                                                                 id = (int)(val[0])
-                                                                                qv = (int)(val[1])
-                                                                                M[id] = np.append(M[id],qv)
-                                                                    bigM = M
-                                                        results.update({(base,communication,n_agents,max_steps,commit_perc,q_len,scaling):bigM})
+                                                                                state = (int)(val[1])
+                                                                                ql = (int)(val[2])
+                                                                                qv = (float)(val[3])
+                                                                                M_0[id] = np.append(M_0[id],state)
+                                                                                M_1[id] = np.append(M_1[id],ql)
+                                                                                M_2[id] = np.append(M_2[id],qv)
+                                                                    bigM_0 = M_0
+                                                                    bigM_1 = M_1
+                                                                    bigM_2 = M_2
+                                                        results.update({(base,communication,n_agents,max_steps,commit_perc,q_len,scaling):(bigM_0,bigM_1,bigM_2)})
         return results,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS
     
 ##########################################################################################################
-    def do_something_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
-        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+    def print_mean_quorum_value(self,data_in,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS):
+        N_AGENTS,COMMUNICATION,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS = np.sort(N_AGENTS),np.sort(COMMUNICATION),np.sort(COMMIT_PERC),np.sort(Q_LEN),np.sort(SCALING),np.sort(MAX_STEPS)
         for base in BASES:
-            for A in N_AGENTS:
-                for S in MAX_STEPS:
-                    for B in BRACHES:
-                        for D in DEPTH:
-                            for k in K:
+            for A in COMMUNICATION:
+                for S in N_AGENTS:
+                    for B in MAX_STEPS:
+                        for D in COMMIT_PERC:
+                            for k in Q_LEN:
                                 we_will_print=False
-                                to_print = []
-                                legend = []
-                                for r in R:
-                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                        we_will_print=True
-                                        bigM = data_in.get((base,A,S,B,D,k,r))
-                                        flag2=[-1]*len(bigM[0][0])
-                                        flag3=[flag2]*(len(bigM)+1)
-                                        tmp=[flag2]*len(bigM)
-                                        for i in range(len(bigM)):
-                                            flag1=[-1]*len(bigM[i][0])
-                                            for j in range(len(bigM[i])):
-                                                for z in range(len(bigM[i][j])):
-                                                    if flag1[z]==-1:
-                                                        flag1[z]=bigM[i][j][z]
+                                to_print = [[]]*len(data_in.get((base,A,S,B,D,k,SCALING[0])))
+                                legend = [[]]*len(data_in.get((base,A,S,B,D,k,SCALING[0])))
+                                for r in SCALING:
+                                    for l in range(len(data_in.get((base,A,S,B,D,k,r)))):
+                                        if (data_in.get((base,A,S,B,D,k,r)))[l] is not None:
+                                            # print(base,A,S,B,D,k,r,"\n")
+                                            we_will_print=True
+                                            bigM = (data_in.get((base,A,S,B,D,k,r)))[l]
+                                            flag2=[-1]*len(bigM[0][0])
+                                            flag3=[flag2]*(len(bigM)+1)
+                                            tmp=[flag2]*len(bigM)
+                                            for i in range(len(bigM)):
+                                                flag1=[-1]*len(bigM[i][0])
+                                                for j in range(len(bigM[i])):
+                                                    for z in range(len(bigM[i][j])):
+                                                        if flag1[z]==-1:
+                                                            flag1[z]=bigM[i][j][z]
+                                                        else:
+                                                            flag1[z]=flag1[z]+bigM[i][j][z]
+                                                for z in range(len(flag1)):
+                                                    flag1[z]=flag1[z]/len(bigM[i])
+                                                    if flag2[z]==-1:
+                                                        flag2[z]=flag1[z]
                                                     else:
-                                                        flag1[z]=flag1[z]+bigM[i][j][z]
-                                            for z in range(len(flag1)):
-                                                flag1[z]=flag1[z]/len(bigM[i])
-                                                if flag2[z]==-1:
-                                                    flag2[z]=flag1[z]
-                                                else:
-                                                    flag2[z]=flag1[z]+flag2[z]
-                                            tmp[i] = np.round(flag1,2).tolist()
-                                        for i in range(len(flag2)):
-                                            flag2[i]=flag2[i]/len(bigM)
-                                        for i in range(len(flag3)):
-                                            flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
-                                        if len(to_print)==0:
-                                            to_print = [flag3]
-                                            legend = ["R: "+str(r)]
-                                        else:
-                                            to_print = np.append(to_print,[flag3],0)
-                                            legend = np.append(legend,"R: "+str(r))
-                                if we_will_print:
-                                    handls=[]
-                                    values = range(len(to_print))
-                                    fig, ax = plt.subplots(figsize=(12,6))
-                                    cm = plt.get_cmap('viridis') 
-                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-                                    for i in range(len(to_print)):
-                                        for j in range(len(to_print[i])):
-                                            if j==0:
-                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
-                                                handls = np.append(handls,the_plot)
+                                                        flag2[z]=flag1[z]+flag2[z]
+                                                tmp[i] = np.round(flag1,2).tolist()
+                                            for i in range(len(flag2)):
+                                                flag2[i]=flag2[i]/len(bigM)
+                                            for i in range(len(flag3)):
+                                                flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+                                            if len(to_print[l])==0:
+                                                to_print[l] = [flag3]
+                                                legend[l] = ["Scaling: "+str(r)]
                                             else:
-                                                plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
-                                    plt.grid(True,linestyle=':')
-                                    plt.ylabel("mean quorum level")
-                                    plt.xlabel("simulation ticks")
-                                    plt.tight_layout()
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
-                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                    maxA = A
-                                    plt.ylim((-.5,maxA+.5))
-                                    plt.yticks(np.arange(0,maxA+1))
-                                    plt.legend(handles=handls.tolist(),loc='best')
-                                    plt.savefig(fig_path)
-                                    # plt.show(fig)
-                                    plt.close(fig)
+                                                to_print[l] = np.append(to_print[l],[flag3],0)
+                                                legend[l] = np.append(legend[l],"Scaling: "+str(r))
+                                if we_will_print:
+                                    for l in range(len(to_print)):
+                                        handls=[]
+                                        values = range(len(to_print[l]))
+                                        fig, ax = plt.subplots(figsize=(12,6))
+                                        cm = plt.get_cmap('viridis') 
+                                        cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                        for i in range(len(to_print[l])):
+                                            for j in range(len(to_print[l][i])):
+                                                if j==0:
+                                                    the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
+                                                    handls = np.append(handls,the_plot)
+                                                else:
+                                                    plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
+                                        plt.grid(True,linestyle=':')
+                                        plt.xlabel("simulation ticks")
+
+                                        if not os.path.exists(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images"):
+                                            os.mkdir(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images")
+                                        if not os.path.exists(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum"):
+                                            os.mkdir(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum")
+                                        
+                                        if l==0:
+                                            plt.ylabel("mean swarm state")
+                                            fig_path=base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum/CONFIGs__COMM#"+str(A)+"_"+"ROB#"+str(S)+"_"+"STEPS#"+str(B)+"_"+"cOMM%#"+str(D)+"_"+"qLEN#"+str(k).replace(".","-")+".png"
+                                            plt.yticks(np.arange(0,1.05,0.05))
+                                        elif l==1:
+                                            plt.ylabel("mean quorum length")
+                                            fig_path=base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum/CONFIGql__COMM#"+str(A)+"_"+"ROB#"+str(S)+"_"+"STEPS#"+str(B)+"_"+"cOMM%#"+str(D)+"_"+"qLEN#"+str(k).replace(".","-")+".png"
+                                            plt.yticks(np.arange(0,S+0.5,0.5))
+                                        elif l==2:
+                                            plt.ylabel("mean quorum level")
+                                            fig_path=base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum/CONFIGqv__COMM#"+str(A)+"_"+"ROB#"+str(S)+"_"+"STEPS#"+str(B)+"_"+"cOMM%#"+str(D)+"_"+"qLEN#"+str(k).replace(".","-")+".png"
+                                            plt.yticks(np.arange(0,1.05,0.05))
+                                        plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.tight_layout()
+                                        plt.savefig(fig_path)
+                                        # plt.show(fig)
+                                        plt.close(fig)
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,position='first',taken='all'):
-        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+    def print_single_run_quorum(self,data_in,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS,position='first',taken='all'):
+        N_AGENTS,COMMUNICATION,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS = np.sort(N_AGENTS),np.sort(COMMUNICATION),np.sort(COMMIT_PERC),np.sort(Q_LEN),np.sort(SCALING),np.sort(MAX_STEPS)
         for base in BASES:
-            for A in N_AGENTS:
-                for S in MAX_STEPS:
-                    for B in BRACHES:
-                        for D in DEPTH:
-                            for k in K:
+            for A in COMMUNICATION:
+                for S in N_AGENTS:
+                    for B in MAX_STEPS:
+                        for D in COMMIT_PERC:
+                            for k in Q_LEN:
                                 we_will_print = False
                                 to_print = []
                                 legend = []
-                                for r in R:
-                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
+                                for r in SCALING:
+                                    if data_in.get((base,A,S,B,D,k,r))[2] is not None:
                                         we_will_print=True
-                                        run = bigM = data_in.get((base,A,S,B,D,k,r))
+                                        run = bigM = data_in.get((base,A,S,B,D,k,r))[2]
                                         if taken=='all':
                                             p = 0
                                             if position=='rand': p = np.random.choice(np.arange(len(bigM)))
@@ -409,7 +455,7 @@ class Results:
                                     for i in range(len(to_print)):
                                         for j in range(len(to_print[i])):
                                             if j==0:
-                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i])
+                                                the_plot, = plt.plot(to_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i],alpha=i*.1)
                                                 handls = np.append(handls,the_plot)
                                             else:
                                                 plt.plot(to_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
@@ -417,14 +463,12 @@ class Results:
                                     plt.ylabel("mean quorum level")
                                     plt.xlabel("simulation ticks")
                                     plt.tight_layout()
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/quorum"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images/quorum")
-                                    fig_path=base+"/Robots#"+str(A)+"/images/quorum/CONFIGq__"+position+"_A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                    maxA = A
-                                    plt.ylim((-.5,maxA+.5))
-                                    plt.yticks(np.arange(0,maxA+1))
+                                    if not os.path.exists(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images"):
+                                        os.mkdir(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images")
+                                    if not os.path.exists(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum"):
+                                        os.mkdir(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum")
+                                    fig_path=base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/images/quorum/CONFIGq__COMM#"+str(A)+"_"+"ROB#"+str(S)+"_"+"STEPS#"+str(B)+"_"+"cOMM%#"+str(D)+"_"+"qLEN#"+str(k).replace(".","-")+".png"
+                                    plt.yticks(np.arange(0,1.05,0.05))
                                     plt.legend(handles=handls.tolist(),loc='best')
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
@@ -432,554 +476,100 @@ class Results:
 
 ##########################################################################################################
 ##########################################################################################################
-    def plot_weibulls(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment'):
-        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
+    def plot_weibulls(self,data_in,BASES,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS,date,POSorCOM='commitment'):
+        N_AGENTS,COMMUNICATION,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS = np.sort(N_AGENTS),np.sort(COMMUNICATION),np.sort(COMMIT_PERC),np.sort(Q_LEN),np.sort(SCALING),np.sort(MAX_STEPS)
         data={}
         times={}
         for base in BASES:
-            for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
-                    for S in MAX_STEPS:
-                        for B in BRACHES:
-                            for D in DEPTH:
-                                for k in K:
-                                    for r in R:
+            for A in COMMUNICATION:
+                for S in N_AGENTS:
+                    if not os.path.exists(base+"/Rebroadcast#"+str(A)+"/Robots#"+str(S)+"/resume_"+POSorCOM+"_"+date+".csv"):
+                        for B in MAX_STEPS:
+                            for D in COMMIT_PERC:
+                                for k in Q_LEN:
+                                    for r in SCALING:
                                         if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                            dataTOeval = data_in.get((base,A,S,B,D,k,r))[1] if POSorCOM=="commitment" else data_in.get((base,A,S,B,D,k,r))[0]
-                                            distances=data_in.get((base,A,S,B,D,k,r))[2]
+                                            states=data_in.get((base,A,S,B,D,k,r))[2]
                                             seeds=data_in.get((base,A,S,B,D,k,r))[3]
-                                            best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
-                                            leafs=data_in.get((base,A,S,B,D,k,r))[5]
-                                            stored_times = [S+1]*len(dataTOeval)
-                                            stored_distances = [[-1]*A]*len(dataTOeval)
-                                            stored_eval_data = [[0]*A]*len(dataTOeval)
+                                            stored_times = [S+1]*len(states)
+                                            stored_eval_data = [[0]*A]*len(states)
                                             # ===============================================
                                             # extract data for weibulls plotting
-                                            for c in range(len(dataTOeval)): 
+                                            for c in range(len(states)): 
                                                 semc = 0
                                                 timec = S+1
-                                                distances_to_store = [-1]*A
                                                 eval_to_store = [0]*A
-                                                for l in range(len(dataTOeval[c])):
+                                                for l in range(len(states[c])):
                                                     if semc==0:
-                                                        for e in range(int(len(dataTOeval[c][l]))):
-                                                            if dataTOeval[c][l][e] in leafs:
+                                                        for e in range(int(len(states[c][l]))):
+                                                            if states[c][l][e] in leafs:
                                                                 sum = 1
-                                                                for ce in range(len(dataTOeval[c][l])):
-                                                                    if e!=ce and dataTOeval[c][l][e]==dataTOeval[c][l][ce]: # derive weibulls and % over position
+                                                                for ce in range(len(states[c][l])):
+                                                                    if e!=ce and states[c][l][e]==states[c][l][ce]: # derive weibulls and % over position
                                                                         sum += 1
-                                                                if sum >= len(dataTOeval[c][l])*.9:
+                                                                if sum >= len(states[c][l])*.9:
                                                                     semc = 1
                                                                     timec = l+1
-                                                                    distances_to_store = distances[c][l]
-                                                                    eval_to_store = dataTOeval[c][l]
+                                                                    eval_to_store = states[c][l]
                                                                     break
                                                     if semc==1: break
                                                 stored_times[c] = timec
-                                                stored_distances[c] = list(distances_to_store)
                                                 stored_eval_data[c] = list(eval_to_store)
                                                 # print(best_leafs[c],'\n',stored_times[c],'\t',stored_commitments[c],'\t',stored_distances[c],'\t',leafs,'\n\n')
-                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,stored_distances,list(seeds),list(best_leafs),list(leafs))})
-                                for k in K:
-                                    fig, ax = plt.subplots(figsize=(12,6))
-                                    values = range(len(R))
-                                    cm = plt.get_cmap('viridis') 
-                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-                                    gottaPrint=False
-                                    indx = 0
-                                    for r in R:
-                                        if data.get((base,A,S,B,D,k,r)) is not None:
-                                            gottaPrint=True
-                                            sorted_times = np.sort(data.get((base,A,S,B,D,k,r))[0],axis=None,kind='stable')
-                                            censored=[]
-                                            for j in range(len(sorted_times)):
-                                                if sorted_times[j]==S+1:
-                                                    censored.append(0)
-                                                else:
-                                                    censored.append(1)
-                                            kmf = KaplanMeierFitter()
-                                            kmf.fit(sorted_times,censored,label="R:"+str(r)+" KM")
-                                            ci = kmf.confidence_interval_cumulative_density_
-                                            ts = ci.index
-                                            low,high = np.transpose(ci.values)
-                                            plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=scalarMap.to_rgba(values[indx]))
-                                            sorted_times,censored = np.insert(sorted_times,0,1),np.insert(censored,0,0)
-                                            we = WeibullFitter()
-                                            we.fit(sorted_times,censored,label="R:"+str(r)+" Weibull")
-                                            ci = we.confidence_interval_cumulative_density_
-                                            ts = ci.index
-                                            low,high = np.transpose(ci.values)
-                                            plt.fill_between(ts,low,high,color="gray",alpha=0.2)
-                                            we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=scalarMap.to_rgba(values[indx]))
-                                            values=self.get_mean_and_std(we)
-                                            times.update({(base,A,S,B,D,k,r):[values[0],values[1]]})
-                                            indx+=1
-                                    if gottaPrint:
-                                        plt.grid(True,linestyle=':')
-                                        plt.ylabel("consensus cumulative density")
-                                        plt.xlabel("Seconds")
-                                        plt.xlim((0,S+50))
-                                        plt.ylim((-0.05,1.05))
-                                        plt.tight_layout()
-                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                            os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM):
-                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM)
-                                        if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls"):
-                                            os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls")
-                                        fig_path=base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls/CONFIGw_"+POSorCOM+"__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
-                                        plt.savefig(fig_path)
-                                    # plt.show(fig)
-                                    plt.close(fig)
+                                            data.update({(base,A,S,B,D,k,r):(stored_times,stored_eval_data,list(seeds))})
+                                # for k in Q_LEN:
+                                #     fig, ax = plt.subplots(figsize=(12,6))
+                                #     values = range(len(R))
+                                #     cm = plt.get_cmap('viridis') 
+                                #     cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                                #     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                                #     gottaPrint=False
+                                #     indx = 0
+                                #     for r in SCALING:
+                                #         if data.get((base,A,S,B,D,k,r)) is not None:
+                                #             gottaPrint=True
+                                #             sorted_times = np.sort(data.get((base,A,S,B,D,k,r))[0],axis=None,kind='stable')
+                                #             censored=[]
+                                #             for j in range(len(sorted_times)):
+                                #                 if sorted_times[j]==S+1:
+                                #                     censored.append(0)
+                                #                 else:
+                                #                     censored.append(1)
+                                #             kmf = KaplanMeierFitter()
+                                #             kmf.fit(sorted_times,censored,label="R:"+str(r)+" KM")
+                                #             ci = kmf.confidence_interval_cumulative_density_
+                                #             ts = ci.index
+                                #             low,high = np.transpose(ci.values)
+                                #             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
+                                #             kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=scalarMap.to_rgba(values[indx]))
+                                #             sorted_times,censored = np.insert(sorted_times,0,1),np.insert(censored,0,0)
+                                #             we = WeibullFitter()
+                                #             we.fit(sorted_times,censored,label="R:"+str(r)+" Weibull")
+                                #             ci = we.confidence_interval_cumulative_density_
+                                #             ts = ci.index
+                                #             low,high = np.transpose(ci.values)
+                                #             plt.fill_between(ts,low,high,color="gray",alpha=0.2)
+                                #             we.cumulative_density_.plot(ax=ax,linestyle="dashed",color=scalarMap.to_rgba(values[indx]))
+                                #             values=self.get_mean_and_std(we)
+                                #             times.update({(base,A,S,B,D,k,r):[values[0],values[1]]})
+                                #             indx+=1
+                                #     if gottaPrint:
+                                #         plt.grid(True,linestyle=':')
+                                #         plt.ylabel("consensus cumulative density")
+                                #         plt.xlabel("Seconds")
+                                #         plt.xlim((0,S+50))
+                                #         plt.ylim((-0.05,1.05))
+                                #         plt.tight_layout()
+                                #         if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
+                                #             os.mkdir(base+"/Robots#"+str(A)+"/images")
+                                #         if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM):
+                                #             os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM)
+                                #         if not os.path.exists(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls"):
+                                #             os.mkdir(base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls")
+                                #         fig_path=base+"/Robots#"+str(A)+"/images/"+POSorCOM+"/Weibulls/CONFIGw_"+POSorCOM+"__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
+                                #         plt.savefig(fig_path)
+                                #     # plt.show(fig)
+                                #     plt.close(fig)
         return (data,times)
 
 ##########################################################################################################
-    def plot_percentages_on_leaf(self,data_in,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS):
-        N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS = np.sort(N_AGENTS),np.sort(BRACHES),np.sort(DEPTH),np.sort(K),np.sort(R),np.sort(MAX_STEPS)
-        for base in BASES:
-            for A in N_AGENTS:
-                for S in MAX_STEPS:
-                    for B in BRACHES:
-                        for D in DEPTH:
-                            for k in K:
-                                we_will_print=False
-                                to_print = []
-                                legend = []
-                                for r in R:
-                                    if data_in.get((base,A,S,B,D,k,r)) is not None:
-                                        we_will_print=True
-                                        locations = data_in.get((base,A,S,B,D,k,r))[0]
-                                        best_leafs=data_in.get((base,A,S,B,D,k,r))[4]
-                                        leafs=data_in.get((base,A,S,B,D,k,r))[5]
-                                        best_leaf_mean = [0]*len(locations[0])
-                                        other_leaf_mean = [0]*len(locations[0])
-                                        no_leaf_mean = [0]*len(locations[0])
-                                        for nr in range(len(locations)):
-                                            for ns in range(len(locations[nr])):
-                                                for na in range(len(locations[nr][ns])):
-                                                    if locations[nr][ns][na]==best_leafs[nr]: best_leaf_mean[ns] += 1/len(locations[nr][ns])
-                                                    elif np.isin(locations[nr][ns][na],leafs) : other_leaf_mean[ns] += 1/len(locations[nr][ns])
-                                                    else: no_leaf_mean[ns] += 1/len(locations[nr][ns])
-                                        for ns in range(len(best_leaf_mean)):
-                                            best_leaf_mean[ns]/=len(locations)
-                                            other_leaf_mean[ns]/=len(locations)
-                                            no_leaf_mean[ns]/=len(locations)
-                                        best_leaf_mean=np.round(best_leaf_mean,3)
-                                        other_leaf_mean=np.round(other_leaf_mean,3)
-                                        no_leaf_mean=np.round(no_leaf_mean,3)
-                                        tmpP=[0]*3
-                                        tmpL=[0]*3
-                                        tmpP[0]=best_leaf_mean.tolist()
-                                        tmpP[1]=other_leaf_mean.tolist()
-                                        tmpP[2]=no_leaf_mean.tolist()
-                                        tmpL[0]="R: "+str(r)+" over_best_leaf"
-                                        tmpL[1]="         over_other_leaf"
-                                        tmpL[2]="         over_no_leaf"
-                                        if len(to_print)==0:
-                                            to_print = [tmpP]
-                                            legend = [tmpL]
-                                        else:
-                                            to_print = np.append(to_print,[tmpP],0)
-                                            legend = np.append(legend,[tmpL],0)
-                                if we_will_print:
-                                    values = range(len(to_print))
-                                    fig, ax = plt.subplots(figsize=(12,6))
-                                    cm = plt.get_cmap('viridis') 
-                                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-                                    for i in range(len(to_print)):
-                                        for j in range(len(to_print[i])):
-                                            if j==0:
-                                                plt.plot(to_print[i][j],lw=1.5,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
-                                            elif j==1:
-                                                plt.plot(to_print[i][j],lw=1.5,ls=':',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
-                                            else:
-                                                plt.plot(to_print[i][j],lw=1.5,ls='--',c=scalarMap.to_rgba(values[i]),label=legend[i][j])
-
-                                    plt.grid(True,linestyle=':')
-                                    plt.ylabel("mean location percentages")
-                                    plt.xlabel("simulation seconds")
-                                    plt.tight_layout()
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images")
-                                    if not os.path.exists(base+"/Robots#"+str(A)+"/images/leafs"):
-                                        os.mkdir(base+"/Robots#"+str(A)+"/images/leafs")
-                                    fig_path=base+"/Robots#"+str(A)+"/images/leafs/CONFIGl__A#"+str(A)+"_"+"S#"+str(S)+"_"+"B#"+str(B)+"_"+"D#"+str(D)+"_"+"K#"+str(k).replace(".","-")+".png"
-                                    plt.legend(loc='best')
-                                    plt.savefig(fig_path)
-                                    # plt.show(fig)
-                                    plt.close(fig)
-
-##########################################################################################################
-    def write_percentages(self,data,BASES,N_AGENTS,BRACHES,DEPTH,K,R,MAX_STEPS,date,POSorCOM='commitment',checkNodesDistr=False):
-        data_0,data_1 = data[0],data[1]
-        for base in BASES:
-            for A in N_AGENTS:
-                if not os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
-                    for S in MAX_STEPS:
-                        for B in BRACHES:
-                            for D in DEPTH:
-                                data_to_plot={}
-                                for r in R:
-                                    for k in K:
-                                        type="unknown"
-                                        if D==1:
-                                            type="flat"
-                                        elif B==2:
-                                            type="binary"
-                                        elif B==4:
-                                            type="quad"
-                                        SEMprint=True
-                                        if data_0.get((base,A,S,B,D,k,r)) is not None:
-                                            times=data_0.get((base,A,S,B,D,k,r))[0]
-                                            dataTOprint = data_0.get((base,A,S,B,D,k,r))[1]
-                                            distances=data_0.get((base,A,S,B,D,k,r))[2]
-                                            # seeds=data_0.get((base,A,S,B,D,k,r))[3]
-                                            best_leafs=data_0.get((base,A,S,B,D,k,r))[4]
-                                            leafs=data_0.get((base,A,S,B,D,k,r))[5]
-                                            mean=data_1.get((base,A,S,B,D,k,r))[0]
-                                            std=data_1.get((base,A,S,B,D,k,r))[1]
-                                            dist_0=[0]
-                                            dist_1=[0]
-                                            dist_2=[0]
-                                            no_decision=[0]
-                                            if checkNodesDistr:
-                                                dist_0=[0]*len(leafs)
-                                                dist_1=[0]*len(leafs)
-                                                dist_2=[0]*len(leafs)
-                                                no_decision=[0]*len(leafs)
-                                            for t in range(len(times)):
-                                                if times[t]<=S:
-                                                    check_4_succes=0
-                                                    for d in range(len(distances[t])):
-                                                        if distances[t][d]==0 and dataTOprint[t][d]==best_leafs[t]:
-                                                            check_4_succes+=1
-                                                    if check_4_succes>=len(distances[t])*.9:
-                                                        if checkNodesDistr:
-                                                            dist_0[np.where(leafs == best_leafs[t])[0][0]]+=1
-                                                        else:
-                                                            dist_0[0]+=1
-                                                    else:
-                                                        check_4_succes=0
-                                                        for d in range(len(distances[t])):
-                                                            if distances[t][d]==1 and dataTOprint[t][d] in leafs:
-                                                                check_4_succes+=1
-                                                        if check_4_succes>=len(distances[t])*.9:
-                                                            if checkNodesDistr:
-                                                                dist_1[np.where(leafs == best_leafs[t])[0][0]]+=1
-                                                            else:
-                                                                dist_1[0]+=1
-                                                        else:
-                                                            check_4_succes=0
-                                                            for d in range(len(distances[t])):
-                                                                if distances[t][d]==2 and dataTOprint[t][d] in leafs:
-                                                                    check_4_succes+=1
-                                                            if check_4_succes>=len(distances[t])*.9:
-                                                                if checkNodesDistr:
-                                                                    dist_2[np.where(leafs == best_leafs[t])[0][0]]+=1
-                                                                else:
-                                                                    dist_2[0]+=1
-                                                            else:
-                                                                if checkNodesDistr:
-                                                                    no_decision[np.where(leafs == best_leafs[t])[0][0]]+=1
-                                                                else:
-                                                                    no_decision[0]+=1
-                                                else:
-                                                    if checkNodesDistr:
-                                                        no_decision[np.where(leafs == best_leafs[t])[0][0]]+=1
-                                                    else:
-                                                        no_decision[0]+=1
-                                            dist_0_val=[0]*len(dist_0)
-                                            dist_1_val=[0]*len(dist_1)
-                                            dist_2_val=[0]*len(dist_2)
-                                            no_decision_val=[0]*len(no_decision)
-                                            for xd in range(len(dist_0)):
-                                                dist_0_val[xd]=round(dist_0[xd]/len(times),3)
-                                                dist_1_val[xd]=round(dist_1[xd]/len(times),3)
-                                                dist_2_val[xd]=round(dist_2[xd]/len(times),3)
-                                                no_decision_val[xd]=round(no_decision[xd]/len(times),3)
-                                            mean_val=round(mean,3)
-                                            std_val=round(std,3)
-                                        else:
-                                            SEMprint=False
-                                        if SEMprint:
-                                            is_new = True
-                                            if os.path.exists(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv"):
-                                                is_new=False
-                                            fieldnames = ["max_steps","agents","k","r","options","type","mean","std","leaf","dist_0","dist_1","dist_2","no_decision"]
-                                            with open(base+"/Robots#"+str(A)+"/resume_"+POSorCOM+"_"+date+".csv","a") as f:
-                                                writer = csv.DictWriter(f,fieldnames=fieldnames,dialect='unix',delimiter="\t")
-                                                if is_new:
-                                                    writer.writeheader()
-                                                if not checkNodesDistr:
-                                                    writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":-1,"dist_0":dist_0_val[0],"dist_1":dist_1_val[0],"dist_2":dist_2_val[0],"no_decision":no_decision_val[0]})
-                                                    data_to_plot.update({(base,S,A,B,D,k,r,-1):(mean_val,std_val,dist_0_val[0],dist_1_val[0],dist_2_val[0],no_decision_val[0])})
-                                                else:
-                                                    for l in range(len(leafs)):
-                                                        writer.writerow({"max_steps":S,"agents":A,"k":k,"r":r,"options":pow(B,D),"type":type,"mean":mean_val,"std":std_val,"leaf":leafs[l],"dist_0":dist_0_val[l],"dist_1":dist_1_val[l],"dist_2":dist_2_val[l],"no_decision":no_decision_val[l]})
-                                                        data_to_plot.update({(base,S,A,B,D,k,r,leafs[l]):(mean_val,std_val,dist_0_val[l],dist_1_val[l],dist_2_val[l],no_decision_val[l])})
-                                self.plot_percentages(data_to_plot,date,POSorCOM)
-
-##########################################################################################################
-    def sort_ark_positions_by_node(self):
-        position_distribution={}
-        for dfold in os.listdir(self.bases):
-            if dfold[:3]=="LOG":
-                branches=dfold.split('x')[0][-1]
-                depth=dfold.split('x')[-1]
-                dir_path = os.path.join(self.base,dfold)
-                for elem in os.listdir(dir_path):
-                    if '.' in elem and elem.split('_')[-1]=="LOGPos.tsv":
-                        with open(os.path.join(dfold, elem), newline='') as f:
-                            reader = csv.reader(f)
-                            for row in reader:
-                                for val in row:
-                                    val = val.split('\t')
-
-                                    x,y,n=-1,-1,-1
-                                    for i in range(0,len(val)-1):
-                                        z=i%3
-                                        if i%3==0:
-                                            x=float(val[i])
-                                        elif i%3==1:
-                                            y=float(val[i])
-                                        elif i%3==2:
-                                            n=int(val[i])
-                                            if x!=-1.0 and y!=-1.0:
-                                                xPOSvec,yPOSvec=[],[]
-                                                if position_distribution.get((branches,depth,n))!=None:
-                                                    xPOSvec=position_distribution.get((branches,depth,n))[0]
-                                                    yPOSvec=position_distribution.get((branches,depth,n))[1]
-                                                xPOSvec.append(x)
-                                                yPOSvec.append(y)
-                                                position_distribution.update({(branches,depth,n):(xPOSvec,yPOSvec)})    
-        return position_distribution
-    
-##########################################################################################################
-    def sort_kilo_positions_by_node(self):
-        position_distribution={}
-        for elem in os.listdir(self.bases):
-            if '.' in elem and elem=="POStrial.tsv":
-                with open(os.path.join(self.base, elem), newline='') as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        for val in row:
-                            xPOSvec,yPOSvec=[],[]
-                            val = val.split('\t')
-                            n = val[0]
-                            if position_distribution.get(n)!=None:
-                                xPOSvec=position_distribution.get(n)[0]
-                                yPOSvec=position_distribution.get(n)[1]
-                            xPOSvec.append(float(val[1]))
-                            yPOSvec.append(float(val[2]))
-                            position_distribution.update({n:(xPOSvec,yPOSvec)})    
-        return position_distribution
-    
-##########################################################################################################
-    def plot_positions_distribution(self,data):
-        if data==None:
-            print("\nNo data available.\n")
-            return
-        data_keys=list(data.keys())
-        X,Y=[],[]
-        for dk in range(len(data_keys)):
-            positions=data.get(data_keys[dk])
-            for x in range(len(positions[0])):
-                X.append(float(positions[0][x]))
-                Y.append(float(positions[1][x]))
-        fig = plt.subplots(figsize=(8,6))
-        MAXx,MAXy=0,0
-        minx,miny=999,999
-        for x in X:
-            if x>MAXx: MAXx=x
-            if x<minx: minx=x
-        for y in Y:
-            if y>MAXy: MAXy=y
-            if y<miny: miny=y
-        plt.hexbin(Y,X,gridsize=(100,100),cmap='YlOrRd')
-        plt.title(0)
-        plt.colorbar()
-        plt.ylim(minx,MAXx)
-        plt.xlim(miny,MAXy)
-        plt.tight_layout()
-        plt.show(fig)
-        plt.close()
-
-##########################################################################################################
-    def plot_percentages(self,data,date,POSorCOM='commitment'):
-        bases=[]
-        times=[]
-        agents=[]
-        branches=[]
-        depth=[]
-        Ks=[]
-        Rs=[]
-        Leafs=[]
-        for key in data.keys():
-            if key[0] not in bases: bases.append(key[0])
-            if key[1] not in times: times.append(key[1])
-            if key[2] not in agents: agents.append(key[2])
-            if key[3] not in branches: branches.append(key[3])
-            if key[4] not in depth: depth.append(key[4])
-            if key[5] not in Ks: Ks.append(key[5])
-            if key[6] not in Rs: Rs.append(key[6])
-            if key[7] not in Leafs: Leafs.append(key[7])
-        Ks=np.sort(Ks)
-        Rs=np.sort(Rs)
-        Leafs=np.sort(Leafs)
-        for ba in bases:
-            saving_path=ba
-            if os.path.exists(saving_path):
-                for a in agents:
-                    saving_path1=saving_path+"/Robots#"+str(a)
-                    if os.path.exists(saving_path1):
-                        for b in branches:
-                            saving_path2=saving_path1+"/Branches#"+str(b)
-                            if os.path.exists(saving_path2):
-                                for d in depth:
-                                    saving_path3=saving_path2+"/Depth#"+str(d)
-                                    if os.path.exists(saving_path3):
-                                        for k in Ks:
-                                            Sk=str(k).replace(".","_")
-                                            saving_path4=saving_path3+"/K#"+Sk
-                                            if os.path.exists(saving_path4):
-                                                for ti in times:
-                                                    for l in Leafs:
-                                                        gotta_print=False
-                                                        group_labels=[]
-                                                        group_bars={}
-                                                        for r in Rs: # arrange the arrays for plotting
-                                                            data_tuple=data.get((ba,ti,a,b,d,k,r,l))
-                                                            if data_tuple is not None:
-                                                                gotta_print=True
-                                                                group_labels.append("R:"+str(r))
-                                                                arrFlag0,arrFlag1,arrFlag2,arrFlag3 = [],[],[],[]
-                                                                if len(group_bars.keys())>0:
-                                                                    arrFlag0=group_bars.get("distance 0")
-                                                                    arrFlag1=group_bars.get("distance 1")
-                                                                    arrFlag2=group_bars.get("distance 2")
-                                                                    arrFlag3=group_bars.get("no decision")
-                                                                arrFlag0.append(data_tuple[2])
-                                                                arrFlag1.append(data_tuple[3])
-                                                                arrFlag2.append(data_tuple[4])
-                                                                arrFlag3.append(data_tuple[5])
-                                                                group_bars.update({"distance 0":arrFlag0})
-                                                                group_bars.update({"distance 1":arrFlag1})
-                                                                group_bars.update({"distance 2":arrFlag2})
-                                                                group_bars.update({"no decision":arrFlag3})
-                                                        if gotta_print:
-                                                            x = np.arange(len(group_labels))
-                                                            width = 0.1
-                                                            multiplier = 0
-                                                            fig,ax = plt.subplots(figsize=(12,6))
-                                                            for bkey,value in group_bars.items():
-                                                                offset = width * multiplier
-                                                                rects = ax.bar(x+offset,value,width,label=bkey)
-                                                                multiplier += 1
-                                                            ax.bar_label(rects)
-                                                            ax.set_ylabel("percentages")
-                                                            ax.set_xlabel("configurations")
-                                                            ax.set_title("Distances R:"+str(a)+",B:"+str(b)+",D:"+str(d)+",K:"+str(Sk)+"leaf:"+str(l))
-                                                            ax.set_xticks(x + width, group_labels)
-                                                            ax.legend(loc='best')
-                                                            ax.set_ylim(0,1.025)
-                                                            plt.grid(True)
-                                                            plt.tight_layout()
-                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images"):
-                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images")
-                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM):
-                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM)
-                                                            if not os.path.exists(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages"):
-                                                                os.mkdir(ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages")
-                                                            fig_path=ba+"/Robots#"+str(a)+"/images/"+POSorCOM+"/percentages/CONFIGp_"+POSorCOM+"__A#"+str(a)+"_"+"S#"+str(ti)+"_"+"B#"+str(b)+"_"+"D#"+str(d)+"_"+"K#"+str(k).replace(".","-")+"__"+date+".png"
-                                                            # plt.show(fig)
-                                                            plt.savefig(fig_path)
-                                                            plt.close()
-                                                        else: print("Nothing to plot")
-
-##########################################################################################################
-    def plot_pareto_diagram(self):
-        # plt.rcParams.update({"font.size":18})
-        # colors=['#5ec962', '#21918c','#3b528b','#440154']
-        # par_colors=['#fde725','#21918c','#440154']
-        # styles=[':', '--','-.','-']
-        # alphas = np.linspace(0.3, 1, num=3)
-        # for base in self.bases:
-        #     for dir in os.listdir(base):
-        #         if '.' not in dir and '#' in dir:
-        #             results_dict={}
-        #             times=[]
-        #             Ks=[]
-        #             Rs=[]
-        #             options=[]
-        #             types=[]
-        #             pre_path=os.path.join(base, dir)
-        #             for elem in os.listdir(pre_path):
-        #                 if ".csv" in elem and elem.split('_')[0]=="resume":
-        #                     resuming_file=os.path.join(pre_path,elem)
-        #                     with open(resuming_file,newline="") as the_file:
-        #                         the_reader = csv.reader(the_file)
-        #                         sem_reader = 0
-        #                         for row in the_reader:
-        #                             if sem_reader==0:
-        #                                 sem_reader = 1
-        #                             else:
-        #                                 if row[0] not in times: times.append(int(row[0]))
-        #                                 if row[2] not in Ks: Ks.append(float(row[2]))
-        #                                 if row[3] not in Rs: Rs.append(int(row[3]))
-        #                                 if row[4] not in options: options.append(int(row[4]))
-        #                                 if row[5] not in types: types.append(row[5])
-        #                                 results_dict.update({(row[0],row[2],row[3],row[4],row[5]):(float(row[6]),float(row[8]))})
-        #             img_folder = os.path.join(pre_path,"/images")
-        #             if not os.path.exists(img_folder):
-        #                 os.mkdir(img_folder)
-        #             folder = os.path.join(img_folder,"/resume")
-        #             if not os.path.exists(folder):
-        #                 os.mkdir(folder)
-        #             dots = [np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-        #             lines=[np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-        #             fig,ax = plt.subplots(figsize=(10, 9))
-        #             ##########################################################################################################################
-        #             #LABELS
-        #             four = mlines.Line2D([], [], color='#5ec962', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=4')
-        #             sixteen = mlines.Line2D([], [], color='#3b528b', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=16')
-        #             flat = mlines.Line2D([], [], color='silver', marker='o', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Flat tree')
-        #             quad = mlines.Line2D([], [], color='silver', marker='s', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Quad tree')
-        #             binary = mlines.Line2D([], [], color='silver', marker='^', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Binary tree')
-
-        #             void = mlines.Line2D([], [], linestyle='None')
-
-        #             r1 = mlines.Line2D([], [], color='#cfd3d7', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=1')
-        #             r2 = mlines.Line2D([], [], color='#98a1a8', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=2')
-        #             r3 = mlines.Line2D([], [], color='#000000', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=3')
-
-        #             handles_t = [flat, quad, binary]
-        #             handles_n = [void,four, sixteen]
-        #             handles_r = [r1, r2, r3]
-        #             plt.legend(handles=handles_n+handles_t+handles_r, ncol=3,loc='lower right',framealpha=.4)
-        #             times=[]
-        #             Ks=[]
-        #             Rs=[]
-        #             options=[]
-        #             types=[]
-        #             for t in times:
-        #                 for o in options:
-        #                     for ty in types:
-        #                         for k in Ks:
-        #                             for r in Rs:
-        #                                 vals=results_dict.get((t,k,r,o,ty))
-        #                                 i,j=-1,-1
-        #                                 mark=""
-        #                                 if r==1.0: j=0
-        #                                 elif r==2.0: j=1
-        #                                 elif r==3.0: j=2
-        #                                 if o==4: i=0
-        #                                 elif o==16: i=1
-        #                                 if ty=="flat": mark='o'
-        #                                 elif ty=="binary": mark='^'
-        #                                 elif ty=="quad": mark='s'
-
-        return
-    
