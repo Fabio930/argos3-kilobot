@@ -23,19 +23,18 @@ if [[ ! -e $res_dir ]]; then
 fi
 
 base_dir=`dirname $base_config`
-echo base_dir $base_dir
 echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 
 #######################################
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="901"
-RUNS=10
+RUNS=3
 rebroadcast="0"
-numrobots="40"
-minimum_quorum_length="10 20"
-committed_percentage=".7 .8 .9"
-quorum_scaling_factor=".7 .8 .9"
+numrobots="120"
+minimum_quorum_length="10 20 30"
+committed_percentage=".5 .6 .7 .8 .9"
+quorum_scaling_factor=".6 .7 .8 .9"
 
 strToReplace="."
 replace="_"
@@ -68,8 +67,7 @@ for par0 in $rebroadcast; do
                         mkdir $dir4
                     fi
                     for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_rebroad%d_nrobots%d_CommitPerc%d_qLen%d_scalingFact%d_run%d.argos' $par0 $par1 $par2 $par3 $par4 $it`
-                        echo config $config
+                        config=`printf 'config_rebroad%d_nrobots%d_CommitPerc%s_qLen%d_scalingFact%s_run%d.argos' $par0 $par1 $par2 $par3 $par4 $it`
                         cp $base_config $config
                         sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                         sed -i "s|__NUMROBOTS__|$par1|g" $config
@@ -82,7 +80,6 @@ for par0 in $rebroadcast; do
                         kilo_file="${dt}__run#${it}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
                         echo "Running next configuration Rebroadcast $par0 Robots $par1 CommittedPercentage $par2 MinQuorumLen $par3 QuorumScalingFactor $par4 File $kilo_file"
-                        echo "argos3 -c $1$config"
                         argos3 -c './'$config
                         mv $kilo_file $dir4
                         rename="quorum_log_${it}.tsv"
@@ -92,7 +89,6 @@ for par0 in $rebroadcast; do
                     done
                 done
             done
-
         done
     done
 done

@@ -90,13 +90,15 @@ void check_quorum(quorum_a **Array[]){
     switch (my_state){
         case committed:
             commit_counter = (check_quorum_trigger(Array) + 1);
+            quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
+            if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
             break;
         default:
             commit_counter = check_quorum_trigger(Array);
+            quorum_percentage = commit_counter*(1.0/num_quorum_items);
+            if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
             break;
     }
-    quorum_percentage = commit_counter*(1.0/num_quorum_items);
-    if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
     if(quorum_reached && my_state==uncommitted) led = RGB(3,0,0);
     else if(quorum_reached && my_state==committed) led = RGB(0,3,0);
 }
@@ -129,10 +131,11 @@ void select_new_point(bool force){
         set_color(led);
         if(avoid_tmmts==0){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
-            if(flag >= expiring_dist + .01){
-                if(rand_soft()/255.0 <= .5) set_motion(TURN_LEFT);
-                else set_motion(TURN_RIGHT);
+            if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
+                if(rand_soft()/255.0 <= .33) set_motion(TURN_LEFT);
+                else if(rand_soft()/255.0 <= .66) set_motion(TURN_RIGHT);
+                else avoid_tmmts=0;
             }
         }
         else{
