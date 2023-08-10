@@ -36,16 +36,16 @@ class Results:
 ##########################################################################################################
     def extract_data(self,path_temp,base,communication,n_agents):
         print("Extracting ARK data")
-        SCALING=[]
+        COMMIT=[]
         MAX_STEPS=[]
         results = {}
         dateToStore = ""
         for folder in os.listdir(path_temp):
             if '.' not in folder:
                 params = folder.split('#')
-                scaling , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
-                if scaling not in SCALING:
-                    SCALING.append(float(scaling))
+                commit , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
+                if commit not in COMMIT:
+                    COMMIT.append(float(commit))
                 if max_steps not in MAX_STEPS:
                     MAX_STEPS.append(int(max_steps))
                 sub_path=os.path.join(path_temp,folder)
@@ -143,23 +143,23 @@ class Results:
                                     unordered_seeds = np.append(unordered_seeds,seed)
                                     unordered_posX = np.append(unordered_posX,[agents_posX],0)
                                     unordered_posY = np.append(unordered_posY,[agents_posY],0)
-                results.update({(max_steps,scaling):(unordered_commitments,list(unordered_seeds),unordered_posX,unordered_posY)})
+                results.update({(max_steps,commit):(unordered_commitments,list(unordered_seeds),unordered_posX,unordered_posY)})
         print("DONE")
-        return results,SCALING,MAX_STEPS,dateToStore
+        return results,COMMIT,MAX_STEPS,dateToStore
 
 ##########################################################################################################
 ##########################################################################################################
     def extract_k_quorum_data(self,path_temp,n_agents,position="all"):
         print("Extracting KILO data")
-        SCALING=[]
+        COMMIT=[]
         MAX_STEPS=[]
         results = {}
         for folder in os.listdir(path_temp):
             if '.' not in folder:
                 params = folder.split('#')
-                scaling , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
-                if scaling not in SCALING:
-                    SCALING.append(float(scaling))
+                commit , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
+                if commit not in COMMIT:
+                    COMMIT.append(float(commit))
                 if max_steps not in MAX_STEPS:
                     MAX_STEPS.append(int(max_steps))
                 sub_path=os.path.join(path_temp,folder)
@@ -255,19 +255,19 @@ class Results:
                                 bigM_0 = M_0
                                 bigM_1 = M_1
                                 bigM_2 = M_2
-                    results.update({(max_steps,scaling):(bigM_0,bigM_1,bigM_2)})
+                    results.update({(max_steps,commit):(bigM_0,bigM_1,bigM_2)})
         print("DONE")
-        return results,SCALING,MAX_STEPS
+        return results,COMMIT,MAX_STEPS
     
 ##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS):
+    def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,SCALING,Q_LEN,COMMIT,MAX_STEPS):
         print("Printing quorum data")
-        SCALING,MAX_STEPS = np.sort(SCALING),np.sort(MAX_STEPS)
+        COMMIT,MAX_STEPS = np.sort(COMMIT),np.sort(MAX_STEPS)
         for s in MAX_STEPS:
             we_will_print=False
-            to_print = [[]]*len(data_in.get((s,SCALING[0])))
-            legend = [[]]*len(data_in.get((s,SCALING[0])))
-            for r in SCALING:
+            to_print = [[]]*len(data_in.get((s,COMMIT[0])))
+            legend = [[]]*len(data_in.get((s,COMMIT[0])))
+            for r in COMMIT:
                 for l in range(len(data_in.get((s,r)))):
                     if (data_in.get((s,r)))[l] is not None:
                         # print(s,r,"\n")
@@ -297,10 +297,10 @@ class Results:
                             flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
                         if len(to_print[l])==0:
                             to_print[l] = [flag3]
-                            legend[l] = ["Scaling: "+str(r)]
+                            legend[l] = ["Gound Truth: "+str(r)]
                         else:
                             to_print[l] = np.append(to_print[l],[flag3],0)
-                            legend[l] = np.append(legend[l],"Scaling: "+str(r))
+                            legend[l] = np.append(legend[l],"Gound Truth: "+str(r))
             if we_will_print:
                 for l in range(len(to_print)):
                     handls=[]
@@ -326,15 +326,15 @@ class Results:
                     
                     if l==0:
                         plt.ylabel("mean swarm state")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     elif l==1:
                         plt.ylabel("mean quorum length")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                     elif l==2:
                         plt.ylabel("mean quorum level")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     plt.legend(handles=handls.tolist(),loc='best')
                     plt.tight_layout()
@@ -344,16 +344,16 @@ class Results:
         print("DONE")
 ##########################################################################################################
 
-    def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,SCALING,Q_LEN,COMMIT,MAX_STEPS,position='first',taken="all"):
         print("Printing single run quorum data")
-        SCALING,MAX_STEPS = np.sort(SCALING),np.sort(MAX_STEPS)
+        COMMIT,MAX_STEPS = np.sort(COMMIT),np.sort(MAX_STEPS)
         for s in MAX_STEPS:
             we_will_print = False
-            to_print = [[]]*len(data_in.get((s,SCALING[0])))
-            legend = [[]]*len(data_in.get((s,SCALING[0])))
+            to_print = [[]]*len(data_in.get((s,COMMIT[0])))
+            legend = [[]]*len(data_in.get((s,COMMIT[0])))
             p = 0
             P = 0
-            for r in SCALING:
+            for r in COMMIT:
                 if P==0 and position!='first' and taken=="all":
                     P = 1
                     if position=='rand': p = np.random.choice(np.arange(len(data_in.get((s,r))[0])))
@@ -376,10 +376,10 @@ class Results:
                         flag[0] = np.round(mean,2).tolist()
                         if len(to_print[l])==0:
                             to_print[l] = [flag]
-                            legend[l] = ["Scaling: "+str(r)]
+                            legend[l] = ["Ground Truth: "+str(r)]
                         else:
                             to_print[l] = np.append(to_print[l],[flag],0)
-                            legend[l] = np.append(legend[l],"Scaling: "+str(r))
+                            legend[l] = np.append(legend[l],"Ground Truth: "+str(r))
             if we_will_print:
                 for l in range(len(to_print)):
                     handls=[]
@@ -404,15 +404,15 @@ class Results:
                     
                     if l==0:
                         plt.ylabel("mean swarm state")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+"_Nrun#"+str(p)+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+"_Nrun#"+str(p)+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     elif l==1:
                         plt.ylabel("mean quorum length")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                     elif l==2:
                         plt.ylabel("mean quorum level")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     plt.legend(handles=handls.tolist(),loc='best')
                     plt.tight_layout()
@@ -424,13 +424,13 @@ class Results:
 ##########################################################################################################
 ##########################################################################################################
 ## needs review
-    def plot_weibulls(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT_PERC,Q_LEN,SCALING,MAX_STEPS):
+    def plot_weibulls(self,data_in,BASE,COMMUNICATION,N_AGENTS,SCALING,Q_LEN,COMMIT,MAX_STEPS):
         print("Collecting data for weibulls elaboration")
-        SCALING,MAX_STEPS = np.sort(SCALING),np.sort(MAX_STEPS)
+        COMMIT,MAX_STEPS = np.sort(COMMIT),np.sort(MAX_STEPS)
         data={}
         times={}
         for s in MAX_STEPS:
-            for r in SCALING:
+            for r in COMMIT:
                 if data_in.get((s,r)) is not None and data_in.get((s,r))[0] is not None:
                     states=data_in.get((s,r))[0]
                     stored_times = [s+1]*len(states)
@@ -464,14 +464,14 @@ class Results:
         we = WeibullFitter()
         for s in MAX_STEPS:
             fig, ax = plt.subplots(figsize=(12,6))
-            values = range(len(SCALING))
+            values = range(len(COMMIT))
             cm = plt.get_cmap('viridis') 
             cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
             scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
             gottaPrint=False
             indx = 0
-            print("Scaling vect size",len(SCALING))
-            for r in SCALING:
+            print("vect size",len(COMMIT))
+            for r in COMMIT:
                 if data.get((s,r)) is not None:
                     gottaPrint=True
                     sorted_times = np.sort(data.get((s,r))[0],axis=None,kind='stable')
@@ -481,14 +481,14 @@ class Results:
                             censored.append(0)
                         else:
                             censored.append(1)
-                    kmf.fit(sorted_times,censored,label="Scaling:"+str(r)+" KM")
+                    kmf.fit(sorted_times,censored,label="val:"+str(r)+" KM")
                     ci = kmf.confidence_interval_cumulative_density_
                     ts = ci.index
                     low,high = np.transpose(ci.values)
                     plt.fill_between(ts,low,high,color="gray",alpha=0.2)
                     kmf.cumulative_density_.plot(ax=ax,linestyle="solid",color=scalarMap.to_rgba(values[indx]))
                     sorted_times,censored = np.insert(sorted_times,0,1),np.insert(censored,0,0)
-                    we.fit(sorted_times,censored,label="Scaling:"+str(r)+" Weibull")
+                    we.fit(sorted_times,censored,label="val:"+str(r)+" Weibull")
                     ci = we.confidence_interval_cumulative_density_
                     ts = ci.index
                     low,high = np.transpose(ci.values)
@@ -511,7 +511,7 @@ class Results:
                     os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
                 if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls"):
                     os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls")
-                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls/CONFIGw__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"cOMM%#"+str(COMMIT_PERC)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls/CONFIGw__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                 plt.savefig(fig_path)
             # plt.show(fig)
             plt.close(fig)

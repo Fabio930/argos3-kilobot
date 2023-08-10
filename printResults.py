@@ -6,7 +6,7 @@ bestNresults = BNres.Results()
 
 COMMUNICATION=[]
 BASES=[]
-COMMIT_PERC=[]
+SCALING=[]
 Q_LEN=[]
 N_AGENTS=[]
 for base in bestNresults.bases:
@@ -26,24 +26,24 @@ for base in bestNresults.bases:
                     dtemp=os.path.join(pre_path, zdir)
                     for sdir in os.listdir(dtemp):
                         if '.' not in sdir and '#' in sdir:
-                            commit_perc=float(sdir.split('#')[1].replace("_","."))
-                            if commit_perc not in COMMIT_PERC:
-                                COMMIT_PERC.append(float(commit_perc))
+                            q_len=int(sdir.split('#')[1])
+                            if q_len not in Q_LEN:
+                                Q_LEN.append(float(q_len))
                             stemp=os.path.join(dtemp, sdir)
                             for ssdir in os.listdir(stemp):
                                 if '.' not in ssdir and '#' in ssdir:
-                                    q_len=float(ssdir.split('#')[1].replace("_","."))
-                                    if q_len not in Q_LEN:
-                                        Q_LEN.append(float(q_len))
+                                    scaling=float(ssdir.split('#')[1].replace("_","."))
+                                    if scaling not in SCALING:
+                                        SCALING.append(float(scaling))
                                     path_temp=os.path.join(stemp, ssdir)
                                 ##########################################################################################################
                                     # results,scaling,max_steps,date = bestNresults.extract_data(path_temp,base,communication,n_agents)
-                                    qresults,qscaling,qmax_steps = bestNresults.extract_k_quorum_data(path_temp,n_agents)
-                                    bestNresults.print_mean_quorum_value(qresults,base,communication,n_agents,commit_perc,q_len,qscaling,qmax_steps)
-                                    bestNresults.print_single_run_quorum(qresults,base,communication,n_agents,commit_perc,q_len,qscaling,qmax_steps,N_run)
-                                    # bestNresults.plot_weibulls(qresults,base,communication,n_agents,commit_perc,q_len,qscaling,qmax_steps)
+                                    qresults,qcommit,qmax_steps = bestNresults.extract_k_quorum_data(path_temp,n_agents)
+                                    bestNresults.print_mean_quorum_value(qresults,base,communication,n_agents,scaling,q_len,qcommit,qmax_steps)
+                                    bestNresults.print_single_run_quorum(qresults,base,communication,n_agents,scaling,q_len,qcommit,qmax_steps,N_run)
+                                    # bestNresults.plot_weibulls(qresults,base,communication,n_agents,scaling,q_len,qscaling,qmax_steps)
                                 ##########################################################################################################
                                     del qresults
-                                    del qscaling
+                                    del qcommit
                                     del qmax_steps
                                     gc.collect()

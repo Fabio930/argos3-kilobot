@@ -29,12 +29,12 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="901"
-RUNS=3
+RUNS=2
 rebroadcast="0"
-numrobots="120"
-minimum_quorum_length="10 20 30"
-committed_percentage=".5 .6 .7 .8 .9"
-quorum_scaling_factor=".6 .7 .8 .9"
+numrobots="30"
+minimum_quorum_length="10 20"
+committed_percentage=".5 .6"
+quorum_scaling_factor=".6 .7"
 
 strToReplace="."
 replace="_"
@@ -49,37 +49,37 @@ for par0 in $rebroadcast; do
         if [[ ! -e $dir1 ]]; then
             mkdir $dir1
         fi
-        for par2 in $committed_percentage; do
-            par2BIS=${par2//$strToReplace/$replace}
-            dir2=$dir1/"CommitPerc#"$par2BIS
+        for par2 in $minimum_quorum_length; do
+            dir2=$dir1/"Qlen#"$par2
             if [[ ! -e $dir2 ]]; then
                 mkdir $dir2
             fi
-            for par3 in $minimum_quorum_length; do
-                dir3=$dir2/"Qlen#"$par3
+            for par3 in $quorum_scaling_factor; do
+                par3BIS=${par3//$strToReplace/$replace}
+                dir3=$dir2/"Scaling#"$par3BIS
                 if [[ ! -e $dir3 ]]; then
                     mkdir $dir3
                 fi
-                for par4 in $quorum_scaling_factor; do
+                for par4 in $committed_percentage; do
                     par4BIS=${par4//$strToReplace/$replace}
-                    dir4=$dir3/"Scaling#"$par4BIS"#S#"$experiment_length
+                    dir4=$dir3/"CommitPerc#"$par4BIS"#S#"$experiment_length
                     if [[ ! -e $dir4 ]]; then
                         mkdir $dir4
                     fi
                     for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_rebroad%d_nrobots%d_CommitPerc%s_qLen%d_scalingFact%s_run%d.argos' $par0 $par1 $par2 $par3 $par4 $it`
+                        config=`printf 'config_rebroad%s_nrobots%s_qLen%s_scalingFact%s_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par3 $par4 $it`
                         cp $base_config $config
                         sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                         sed -i "s|__NUMROBOTS__|$par1|g" $config
-                        sed -i "s|__COMMITTED_PERCENTAGE__|$par2|g" $config
-                        sed -i "s|__MIN_QUORUM_LEN__|$par3|g" $config
-                        sed -i "s|__QUORUM_SCALING_FACTOR__|$par4|g" $config
+                        sed -i "s|__MIN_QUORUM_LEN__|$par2|g" $config
+                        sed -i "s|__QUORUM_SCALING_FACTOR__|$par3|g" $config
+                        sed -i "s|__COMMITTED_PERCENTAGE__|$par4|g" $config
                         sed -i "s|__SEED__|$it|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
                         dt=$(date '+%d-%m-%Y_%H-%M-%S')
                         kilo_file="${dt}__run#${it}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                        echo "Running next configuration Rebroadcast $par0 Robots $par1 CommittedPercentage $par2 MinQuorumLen $par3 QuorumScalingFactor $par4 File $kilo_file"
+                        echo "Running next configuration Rebroadcast $par0 Robots $par1 MinQuorumLen $par2 QuorumScalingFactor $par3 CommittedPercentage $par4 File $kilo_file"
                         argos3 -c './'$config
                         mv $kilo_file $dir4
                         rename="quorum_log_${it}.tsv"
