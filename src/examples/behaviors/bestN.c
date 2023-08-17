@@ -99,8 +99,28 @@ void check_quorum(quorum_a **Array[]){
             if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
             break;
     }
-    if(quorum_reached && my_state==uncommitted) led = RGB(3,0,0);
-    else if(quorum_reached && my_state==committed) led = RGB(0,3,0);
+    switch (quorum_reached){
+        case 1:
+            switch (my_state){
+                case uncommitted:
+                    led = RGB(3,0,0);
+                    break;
+                case committed:
+                    led = RGB(0,3,0);
+                    break;
+            }
+            break;
+        case 0:
+            switch (my_state){
+                case uncommitted:
+                    led = RGB(0,0,0);
+                    break;
+                case committed:
+                    led = RGB(0,0,3);
+                    break;
+            }
+            break;
+    }
 }
 
 void check_quorum_and_prepare_messages(){
@@ -133,8 +153,9 @@ void select_new_point(bool force){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
-                if(rand_soft()/255.0 <= .33) set_motion(TURN_LEFT);
-                else if(rand_soft()/255.0 <= .66) set_motion(TURN_RIGHT);
+                uint8_t p = rand_soft()/255.0;
+                if(p <= .33) set_motion(TURN_LEFT);
+                else if(p <= .66) set_motion(TURN_RIGHT);
                 else avoid_tmmts=0;
             }
         }

@@ -330,11 +330,11 @@ class Results:
                         plt.yticks(np.arange(0,1.05,0.05))
                     elif l==1:
                         plt.ylabel("mean quorum length")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                     elif l==2:
                         plt.ylabel("mean quorum level")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     plt.legend(handles=handls.tolist(),loc='best')
                     plt.tight_layout()
@@ -404,15 +404,15 @@ class Results:
                     
                     if l==0:
                         plt.ylabel("mean swarm state")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+"_Nrun#"+str(p)+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+"_Nrun#"+str(p)+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     elif l==1:
                         plt.ylabel("mean quorum length")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                     elif l==2:
                         plt.ylabel("mean quorum level")
-                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                         plt.yticks(np.arange(0,1.05,0.05))
                     plt.legend(handles=handls.tolist(),loc='best')
                     plt.tight_layout()
@@ -511,7 +511,7 @@ class Results:
                     os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
                 if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls"):
                     os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls")
-                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls/CONFIGw__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE%#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
+                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/weibulls/CONFIGw__COMM#"+str(COMMUNICATION)+"_"+"ROB#"+str(N_AGENTS)+"_"+"STEPS#"+str(s)+"_"+"SCALE#"+str(SCALING)+"_"+"qLEN#"+str(Q_LEN).replace(".","-")+".png"
                 plt.savefig(fig_path)
             # plt.show(fig)
             plt.close(fig)

@@ -51,7 +51,7 @@
 
         <hierarchicStruct
             rebroadcast = "0"
-            minimum_quorum_length = "40"
+            minimum_quorum_length = "30"
             quorum_scaling_factor = "0.6"
             committed_percentage = "0.5">
         </hierarchicStruct>
