@@ -149,7 +149,7 @@ void check_quorum(quorum_a **Array[]);
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-void check_quorum_and_prepare_messages();
+void prepare_quorum_variables();
 
 float random_in_range(float min, float max);
 

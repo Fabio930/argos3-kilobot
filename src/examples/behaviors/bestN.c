@@ -117,7 +117,7 @@ void check_quorum(quorum_a **Array[]){
     }
 }
 
-void check_quorum_and_prepare_messages(){
+void prepare_quorum_variables(){
     // select a random message
     quorum_percentage = 0.f;
     quorum_reached = 0;
@@ -157,7 +157,7 @@ void select_new_point(bool force){
             if(current_motion_type==TURN_LEFT || current_motion_type==TURN_RIGHT){
                 prev_motion_type = current_motion_type;
                 set_motion(FORWARD);
-                }
+            }
             else set_motion(prev_motion_type);
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag < expiring_dist) avoid_tmmts=0;
@@ -317,13 +317,13 @@ void random_way_point_model(){
             else{
                 if(angleToGoal > 0){
                     set_motion(TURN_LEFT);
-                    last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    last_motion_ticks = kilo_ticks;
                 }
                 else{
                     set_motion(TURN_RIGHT);
-                    last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    last_motion_ticks = kilo_ticks;
                 }
             }
             switch(current_motion_type){
@@ -376,7 +376,7 @@ void loop(){
     fclose(fp);
     increment_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
-    check_quorum_and_prepare_messages();
+    prepare_quorum_variables();
     random_way_point_model();
     if(init_received_C) talk();
 }
