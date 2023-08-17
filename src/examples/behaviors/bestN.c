@@ -92,31 +92,25 @@ void check_quorum(quorum_a **Array[]){
             commit_counter = (check_quorum_trigger(Array) + 1);
             quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
             if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
+            switch (quorum_reached){
+                case 1:
+                    led = RGB(0,3,0);
+                    break;
+                default:
+                    led = RGB(0,0,3);
+                    break;
+            }
             break;
         default:
             commit_counter = check_quorum_trigger(Array);
             quorum_percentage = commit_counter*(1.0/num_quorum_items);
             if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
-            break;
-    }
-    switch (quorum_reached){
-        case 1:
-            switch (my_state){
-                case uncommitted:
+            switch (quorum_reached){
+                case 1:
                     led = RGB(3,0,0);
                     break;
-                case committed:
-                    led = RGB(0,3,0);
-                    break;
-            }
-            break;
-        case 0:
-            switch (my_state){
-                case uncommitted:
+                default:
                     led = RGB(0,0,0);
-                    break;
-                case committed:
-                    led = RGB(0,0,3);
                     break;
             }
             break;
