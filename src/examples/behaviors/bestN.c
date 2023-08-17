@@ -312,18 +312,16 @@ void random_way_point_model(){
             float angleToGoal = AngleToGoal();
             if(fabs(angleToGoal) <= 48){
                 set_motion(FORWARD);
-                last_motion_ticks = kilo_ticks;
             }
             else{
+                last_motion_ticks = kilo_ticks;
                 if(angleToGoal > 0){
                     set_motion(TURN_LEFT);
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
-                    last_motion_ticks = kilo_ticks;
                 }
                 else{
                     set_motion(TURN_RIGHT);
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
-                    last_motion_ticks = kilo_ticks;
                 }
             }
             switch(current_motion_type){
