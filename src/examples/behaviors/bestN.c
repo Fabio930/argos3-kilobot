@@ -147,9 +147,18 @@ void select_new_point(bool force){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
+                float angleToGoal = AngleToGoal();
                 uint8_t p = rand_soft()/255.0;
-                if(p <= .33) set_motion(TURN_LEFT);
-                else if(p <= .66) set_motion(TURN_RIGHT);
+                if(p < .33){
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    set_motion(TURN_LEFT);
+                }
+                else if(p < .66){
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    set_motion(TURN_RIGHT);
+                }
                 else avoid_tmmts=0;
             }
         }
@@ -310,7 +319,8 @@ void random_way_point_model(){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
-            if(fabs(angleToGoal) <= 48){
+            if(fabs(angleToGoal) <= 24){
+                last_motion_ticks = kilo_ticks;
                 set_motion(FORWARD);
             }
             else{
