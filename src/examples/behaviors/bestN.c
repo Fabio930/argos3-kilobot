@@ -151,12 +151,12 @@ void select_new_point(bool force){
                 uint8_t p = rand_soft()/255.0;
                 if(p < .33){
                     last_motion_ticks = kilo_ticks;
-                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
                     set_motion(TURN_LEFT);
                 }
                 else if(p < .66){
                     last_motion_ticks = kilo_ticks;
-                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
                     set_motion(TURN_RIGHT);
                 }
                 else avoid_tmmts=0;
@@ -164,8 +164,11 @@ void select_new_point(bool force){
         }
         else{
             if(current_motion_type==TURN_LEFT || current_motion_type==TURN_RIGHT){
-                prev_motion_type = current_motion_type;
-                set_motion(FORWARD);
+                if(kilo_ticks > last_motion_ticks + turning_ticks){
+                    last_motion_ticks = kilo_ticks;  
+                    prev_motion_type = current_motion_type;
+                    set_motion(FORWARD);
+                }
             }
             else set_motion(prev_motion_type);
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
