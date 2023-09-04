@@ -6,10 +6,10 @@ void complete_tree(arena_a **the_arena){
 }
 
 void set_vertices(arena_a **the_arena,const float BrX,const float BrY){
-    (*the_arena)->tlX=0.05;
-    (*the_arena)->tlY=0.05;
-    (*the_arena)->brX=BrX;
-    (*the_arena)->brY=BrY;
+    (*the_arena)->tlX = .05;
+    (*the_arena)->tlY = .05;
+    (*the_arena)->brX = BrX;
+    (*the_arena)->brY = BrY;
 }
 
 void destroy_tree(arena_a **the_arena){

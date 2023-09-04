@@ -148,7 +148,7 @@ void select_new_point(bool force){
             if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
                 float angleToGoal = AngleToGoal();
-                uint8_t p = rand_soft()/255.0;
+                float p = rand_hard()/255.0;
                 if(p < .33){
                     last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
