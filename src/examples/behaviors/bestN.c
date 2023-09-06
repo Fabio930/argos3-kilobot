@@ -322,7 +322,7 @@ void random_way_point_model(){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
-            if(fabs(angleToGoal) <= 24){
+            if(fabs(angleToGoal) <= 36){
                 last_motion_ticks = kilo_ticks;
                 set_motion(FORWARD);
             }
