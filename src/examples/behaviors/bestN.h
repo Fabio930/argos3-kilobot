@@ -110,8 +110,9 @@ arena_a *the_arena = NULL;
 uint16_t rnd_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-float quorum_percentage;
-uint8_t quorum_reached = 0;
+// float quorum_percentage;
+uint8_t commit_counter;
+// uint8_t quorum_reached = 0;
 
 uint8_t led = RGB(0,0,0);
 
@@ -149,7 +150,7 @@ void check_quorum(quorum_a **Array[]);
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-void prepare_quorum_variables();
+// void prepare_quorum_variables();
 
 float random_in_range(float min, float max);
 

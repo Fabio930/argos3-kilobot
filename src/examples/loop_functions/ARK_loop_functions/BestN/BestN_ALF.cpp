@@ -24,7 +24,7 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
     /* Other initializations: Variables, Log file opening... */
-    m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
+    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -32,9 +32,9 @@ void CBestN_ALF::Init(TConfigurationNode& t_node){
 
 void CBestN_ALF::Reset(){
     /* Close data file */
-    m_cLog.close();
+    // m_cLog.close();
     /* Reopen the file, erasing its contents */
-    m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
+    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
@@ -42,26 +42,26 @@ void CBestN_ALF::Reset(){
 
 void CBestN_ALF::Destroy(){
     /* Close data file */
-    m_cLog.close();
+    // m_cLog.close();
 }
 
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::PostStep(){
-    if(start_experiment == 1){
-        log_counter++;
-        if(log_counter == m_unDataAcquisitionFrequency){
-            logging_time++;
-            UpdateLog(logging_time);
-            log_counter = 0;
-        }
-    }
-    else if(header==0){
-        UpdateLog(logging_time);
-        header = 1;
-    }
-}
+// void CBestN_ALF::PostStep(){
+//     if(start_experiment == 1){
+//         log_counter++;
+//         if(log_counter == m_unDataAcquisitionFrequency){
+//             logging_time++;
+//             UpdateLog(logging_time);
+//             log_counter = 0;
+//         }
+//     }
+//     else if(header==0){
+//         UpdateLog(logging_time);
+//         header = 1;
+//     }
+// }
 
 /****************************************/
 /****************************************/

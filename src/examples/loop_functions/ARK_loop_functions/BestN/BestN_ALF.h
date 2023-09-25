@@ -22,7 +22,7 @@ public:
 
     virtual void Destroy();
 
-    virtual void PostStep();
+    // virtual void PostStep();
 
     /** Setup the initial state of the Kilobots in the space */
     void SetupInitialKilobotStates();

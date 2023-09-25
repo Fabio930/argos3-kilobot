@@ -86,43 +86,43 @@ uint8_t check_quorum_trigger(quorum_a **Array[]){
 }
 
 void check_quorum(quorum_a **Array[]){
-    uint8_t commit_counter;
-    switch (my_state){
-        case committed:
-            commit_counter = (check_quorum_trigger(Array) + 1);
-            quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
-            if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
-            switch (quorum_reached){
-                case 1:
-                    led = RGB(0,3,0);
-                    break;
-                default:
-                    led = RGB(0,0,3);
-                    break;
-            }
-            break;
-        default:
-            commit_counter = check_quorum_trigger(Array);
-            quorum_percentage = commit_counter*(1.0/num_quorum_items);
-            if(commit_counter >= (num_quorum_items)*quorum_scaling_factor) quorum_reached = 1;
-            switch (quorum_reached){
-                case 1:
-                    led = RGB(3,0,0);
-                    break;
-                default:
-                    led = RGB(0,0,0);
-                    break;
-            }
-            break;
-    }
+    commit_counter = check_quorum_trigger(Array);
+    // switch (my_state){
+    //     case committed:
+    //         commit_counter = (check_quorum_trigger(Array) + 1);
+    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
+    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
+    //         switch (quorum_reached){
+    //             case 1:
+    //                 led = RGB(0,3,0);
+    //                 break;
+    //             default:
+    //                 led = RGB(0,0,3);
+    //                 break;
+    //         }
+    //         break;
+    //     default:
+    //         commit_counter = check_quorum_trigger(Array);
+    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
+    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
+    //         switch (quorum_reached){
+    //             case 1:
+    //                 led = RGB(3,0,0);
+    //                 break;
+    //             default:
+    //                 led = RGB(0,0,0);
+    //                 break;
+    //         }
+    //         break;
+    // }
 }
 
-void prepare_quorum_variables(){
-    // select a random message
-    quorum_percentage = 0.f;
-    quorum_reached = 0;
-    if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-}
+// void prepare_quorum_variables(){
+//     // select a random message
+//     quorum_percentage = 0.f;
+//     quorum_reached = 0;
+//     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
+// }
 
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 255.0;
@@ -383,11 +383,12 @@ void setup(){
 
 void loop(){
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%f\n",kilo_uid,quorum_reached,num_quorum_items,quorum_percentage);
+    fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
     fclose(fp);
-    increment_quorum_counter(&quorum_array);
-    erase_expired_items(&quorum_array,&quorum_list);
-    prepare_quorum_variables();
+    // increment_quorum_counter(&quorum_array);
+    // erase_expired_items(&quorum_array,&quorum_list);
+    check_quorum(&quorum_array);
+    // prepare_quorum_variables();
     random_way_point_model();
     if(init_received_C) talk();
 }
