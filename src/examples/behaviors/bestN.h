@@ -107,7 +107,7 @@ uint8_t received_committed;
 /* map of the environment */
 arena_a *the_arena = NULL;
 
-uint16_t rnd_msg_indx = 0b1111111111111111;
+uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 // float quorum_percentage;
@@ -207,5 +207,10 @@ void loop();
 /*                             main                                  */
 /*-------------------------------------------------------------------*/
 uint8_t main();
+
+/*-------------------------------------------------------------------*/
+/*                             exit                                  */
+/*-------------------------------------------------------------------*/
+void deallocate_memory();
 
 #endif

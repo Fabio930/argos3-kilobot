@@ -42,18 +42,24 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        rnd_msg_indx = select_a_random_message();
         switch (broadcasting_flag){
-            case 1:
-                if(rnd_msg_indx != 0b1111111111111111 && quorum_array[rnd_msg_indx]->delivered == 0) rebroadcast();
-                else broadcast();
-                break;
-            
-            default:
+            case 0:
                 broadcast();
                 break;
+            case 1:
+                selected_msg_indx = select_a_random_message();
+                if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
+                else broadcast();
+                break;
+            case 2:
+                selected_msg_indx = select_message_by_fifo(&quorum_array);
+                if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                else broadcast();                
+                break;
+            default:
+                break;   
         }
-        rnd_msg_indx = 0b1111111111111111;
+        selected_msg_indx = 0b1111111111111111;
         sending_msg = true;
     }
 }
@@ -73,10 +79,10 @@ void rebroadcast(){
     sa_id = 0;
     sa_payload = 0;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[rnd_msg_indx]->delivered = 1;
-    my_message.data[0] = quorum_array[rnd_msg_indx]->agent_id;
+    quorum_array[selected_msg_indx]->delivered = 1;
+    my_message.data[0] = quorum_array[selected_msg_indx]->agent_id;
     my_message.data[1] = sa_type;
-    my_message.data[2] = quorum_array[rnd_msg_indx]->agent_state;
+    my_message.data[2] = quorum_array[selected_msg_indx]->agent_state;
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
@@ -393,6 +399,12 @@ void loop(){
     if(init_received_C) talk();
 }
 
+void deallocate_memory(){
+    destroy_tree(&the_arena);
+    destroy_quorum_memory(&quorum_array,&quorum_list);
+    return;
+}
+
 uint8_t main(){
     kilo_init();
     
@@ -407,7 +419,7 @@ uint8_t main(){
 
     kilo_start(setup, loop);
     
-    destroy_tree(&the_arena);
-    destroy_quorum_memory(&quorum_array,&quorum_list);
+    deallocate_memory();
+
     return 0;
 }

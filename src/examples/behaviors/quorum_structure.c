@@ -40,10 +40,12 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
                 (*Array)[i] = NULL;
+                free(*Myquorum);
                 *Myquorum=NULL;
             }
             else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
                 *Myquorum = (*Array)[i]->next;
+                free((*Myquorum)->prev);
                 (*Myquorum)->prev=NULL;
                 free((*Array)[i]);
                 (*Array)[i]=NULL;
@@ -66,9 +68,20 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
 }
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
-    for(uint8_t i=0;i<num_quorum_items;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    for(uint8_t i=0;i<128;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
     free(*Array);
     num_quorum_items = 0;
+    while(1){
+        if((*Myquorum)->next != NULL){
+            *Myquorum = (*Myquorum)->next;
+            free((*Myquorum)->prev);
+            (*Myquorum)->prev = NULL;
+        }
+        else{
+            free(*Myquorum);
+            break;
+        }
+    }
     *Myquorum=NULL;
 }
 
@@ -100,4 +113,17 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
 uint16_t select_a_random_message(){
     if(num_quorum_items>0)return rand()%num_quorum_items;
     else return 0b1111111111111111;
+}
+
+uint16_t select_message_by_fifo(quorum_a **Array[]){
+    if(num_quorum_items>0){
+        for(uint8_t i=num_quorum_items-1;i>=0;i--){
+            if((*Array)[i]->delivered == 0){
+                (*Array)[i]->delivered = 1;
+                return i;
+            }
+            if(i==0) break;
+        }
+    }
+    return 0b1111111111111111;
 }
