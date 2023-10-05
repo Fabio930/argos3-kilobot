@@ -1,7 +1,6 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
-/* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
 #include "bestN.h"
 
 void set_motion( motion_t new_motion_type){
@@ -249,15 +248,23 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     
     switch (sa_type){
         case MSG_A:
-            sa_payload = ((uint16_t)data[0]>>1) << 8 | (data[1]>>1);
+            sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
             if(!init_received_A){   
                 led = RGB(3,3,0);
                 set_color(led);
                 complete_tree(&the_arena);
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
-                uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                uint32_t expiring_dist;
+                switch (sa_payload){
+                    case 0:
+                        expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                        break;
+                    default:
+                        expiring_dist = sa_payload;
+                        break;
+                }
                 broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * quorum_ticks_sec,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
+                set_quorum_vars(expiring_dist * TICKS_PER_SEC,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
                 init_received_A = true;
             }
             break;
@@ -391,8 +398,8 @@ void loop(){
     fp = fopen("quorum_log.tsv","a");
     fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
     fclose(fp);
-    // increment_quorum_counter(&quorum_array);
-    // erase_expired_items(&quorum_array,&quorum_list);
+    increment_quorum_counter(&quorum_array);
+    erase_expired_items(&quorum_array,&quorum_list);
     check_quorum(&quorum_array);
     // prepare_quorum_variables();
     random_way_point_model();

@@ -66,17 +66,17 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::UpdateLog(UInt16 Time){
-    if(Time == 0) m_cLog << m_random_seed << '\t';
-    m_cLog << std::endl;
-    m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
-    for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
-        m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
-        << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
-        << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotStates[i]; 
-        if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
-    }
-}
+// void CBestN_ALF::UpdateLog(UInt16 Time){
+//     if(Time == 0) m_cLog << m_random_seed << '\t';
+//     m_cLog << std::endl;
+//     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
+//     for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
+//         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
+//         << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
+//         << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotStates[i]; 
+//         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
+//     }
+// }
 
 /****************************************/
 /****************************************/
@@ -134,8 +134,9 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     /* Get dimensions and quality scaling factor*/
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
-    GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
-    GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
+    GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
+    // GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
+    // GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
 }
 
 /****************************************/
@@ -215,8 +216,10 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = rebroadcast;
-    tKilobotMessage.m_sID = minimum_quorum_length;
-    tKilobotMessage.m_sData = quorum_scaling_factor*100;
+    tKilobotMessage.m_sID = expiring_quorum_sec;
+    tKilobotMessage.m_sData = 0;
+    // tKilobotMessage.m_sID = minimum_quorum_length;
+    // tKilobotMessage.m_sData = quorum_scaling_factor*100;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
@@ -229,8 +232,8 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
         else{
             tMessage = tEmptyMessage;
         }
-        m_tMessages[unKilobotID].data[i*3] = tMessage.m_sID << 1;
-        m_tMessages[unKilobotID].data[1+i*3] = tMessage.m_sData << 1;
+        m_tMessages[unKilobotID].data[i*3] = (UInt8)(tMessage.m_sID >> 7) << 1;
+        m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sType;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);

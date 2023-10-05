@@ -69,7 +69,6 @@ uint32_t expiring_dist;
 uint8_t avoid_tmmts;
 
 float goal_ticks_sec = TICKS_PER_SEC * 1.3;
-float quorum_ticks_sec = TICKS_PER_SEC * 2;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
