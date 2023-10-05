@@ -30,8 +30,9 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 experiment_length="1801"
 RUNS=20
-rebroadcast="0 1"
-numrobots="20 30 40"
+rebroadcast="0 1 2"
+msg_expiring_sec="100 200 300"
+numrobots="20 40"
 # minimum_quorum_length="10 20"
 # quorum_scaling_factor=".6 .7"
 committed_percentage=".5 .6 .7 .8 .9"
@@ -49,49 +50,45 @@ for par0 in $rebroadcast; do
         if [[ ! -e $dir1 ]]; then
             mkdir $dir1
         fi
-        # for par2 in $minimum_quorum_length; do
-        #     dir2=$dir1/"Qlen#"$par2
-        #     if [[ ! -e $dir2 ]]; then
-        #         mkdir $dir2
-        #     fi
+        for par2 in $msg_expiring_sec; do
+            dir2=$dir1/"MsgExpDist#"$par2
+            if [[ ! -e $dir2 ]]; then
+                mkdir $dir2
+            fi
         #     for par3 in $quorum_scaling_factor; do
         #         par3BIS=${par3//$strToReplace/$replace}
         #         dir3=$dir2/"Scaling#"$par3BIS
         #         if [[ ! -e $dir3 ]]; then
         #             mkdir $dir3
         #         fi
-        for par4 in $committed_percentage; do
-            par4BIS=${par4//$strToReplace/$replace}
-            dir4=$dir1/"CommitPerc#"$par4BIS"#S#"$experiment_length
-            if [[ ! -e $dir4 ]]; then
-                mkdir $dir4
-            fi
-            for it in $(seq 1 $RUNS); do
-                # config=`printf 'config_rebroad%s_nrobots%s_qLen%s_scalingFact%s_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par3 $par4 $it`
-                config=`printf 'config_rebroad%s_nrobots%s_CommitPerc%s_run%d.argos' $par0 $par1 $par4 $it`
-                cp $base_config $config
-                sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
-                sed -i "s|__NUMROBOTS__|$par1|g" $config
-                # sed -i "s|__MIN_QUORUM_LEN__|$par2|g" $config
-                # sed -i "s|__QUORUM_SCALING_FACTOR__|$par3|g" $config
-                sed -i "s|__COMMITTED_PERCENTAGE__|$par4|g" $config
-                sed -i "s|__SEED__|$it|g" $config
-                sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
-                dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                kilo_file="${dt}__run#${it}.tsv"
-                sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                # echo "Running next configuration Rebroadcast $par0 Robots $par1 MinQuorumLen $par2 QuorumScalingFactor $par3 CommittedPercentage $par4 File $kilo_file"
-                echo "Running next configuration Rebroadcast $par0 Robots $par1 CommittedPercentage $par4 File $kilo_file"
-                argos3 -c './'$config
-                # mv $kilo_file $dir4
-                rename="quorum_log_$kilo_file"
-                mv "quorum_log.tsv" $rename
-                rm -rf "quorum_log.tsv"
-                mv $rename $dir4
+            for par4 in $committed_percentage; do
+                par4BIS=${par4//$strToReplace/$replace}
+                dir4=$dir2/"CommitPerc#"$par4BIS"#S#"$experiment_length
+                if [[ ! -e $dir4 ]]; then
+                    mkdir $dir4
+                fi
+                for it in $(seq 1 $RUNS); do
+                    config=`printf 'config_rebroad%s_nrobots%s_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par4 $it`
+                    cp $base_config $config
+                    sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
+                    sed -i "s|__NUMROBOTS__|$par1|g" $config
+                    sed -i "s|_MSG_EXPIRING_SECONDS_|$par2|g" $config
+                    sed -i "s|__COMMITTED_PERCENTAGE__|$par4|g" $config
+                    sed -i "s|__SEED__|$it|g" $config
+                    sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
+                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                    kilo_file="${dt}__run#${it}.tsv"
+                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                    echo "Running next configuration Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par4 File $kilo_file"
+                    argos3 -c './'$config
+                    rename="quorum_log_$kilo_file"
+                    mv "quorum_log.tsv" $rename
+                    rm -rf "quorum_log.tsv"
+                    mv $rename $dir4
+                done
             done
-        done
         #     done
-        # done
+        done
     done
 done
 

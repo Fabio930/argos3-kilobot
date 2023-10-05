@@ -52,6 +52,7 @@
 
         <hierarchicStruct
             rebroadcast = "__BROADCAST_POLICY__"
+            expiring_quorum_sec = "_MSG_EXPIRING_SECONDS_"
             minimum_quorum_length = "0"
             quorum_scaling_factor = "0"
             committed_percentage = "__COMMITTED_PERCENTAGE__">
