@@ -111,7 +111,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
 }
 
 uint16_t select_a_random_message(){
-    if(num_quorum_items>0)return rand()%num_quorum_items;
+    if(num_quorum_items>0)return rand_soft()%num_quorum_items;
     else return 0b1111111111111111;
 }
 
