@@ -2,8 +2,8 @@
 
 void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
     expiring_ticks_quorum = Expiring_time;
-    min_quorum_length = Min_quorum_length;
-    quorum_scaling_factor = Quorum_scaling_factor*.01;
+    // min_quorum_length = Min_quorum_length;
+    // quorum_scaling_factor = Quorum_scaling_factor*.01;
 }
 
 void sort_q(quorum_a **Array[]){
@@ -40,12 +40,10 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
                 (*Array)[i] = NULL;
-                free(*Myquorum);
                 *Myquorum=NULL;
             }
             else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
                 *Myquorum = (*Array)[i]->next;
-                free((*Myquorum)->prev);
                 (*Myquorum)->prev=NULL;
                 free((*Array)[i]);
                 (*Array)[i]=NULL;
