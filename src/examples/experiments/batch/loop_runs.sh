@@ -68,7 +68,7 @@ for par0 in $rebroadcast; do
                     mkdir $dir4
                 fi
                 for it in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%s_nrobots%s_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par4 $it`
+                    config=`printf 'config_rebroad%d_nrobots%d_msgExpDist%d_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par4 $it`
                     cp $base_config $config
                     sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                     sed -i "s|__NUMROBOTS__|$par1|g" $config
