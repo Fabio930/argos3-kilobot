@@ -19,8 +19,6 @@ class Results:
 
 #########################################################################################################
     def compute_states(self,m1,m2,minus,threshold):
-        print(len(m1),len([m1[0]]))
-        print(len([m1[0][0]]))
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
@@ -74,6 +72,7 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
                                                     M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                        print(len(M_1[0]))
                                         bigM_1[seed-1] = M_1
                                         bigM_2[seed-1] = M_2
                                 elif position == "first":
@@ -122,6 +121,7 @@ class Results:
                                                     M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                         bigM_1 = M_1
                                         bigM_2 = M_2
+                        print("============")
                         for minus in MINS:
                             for thr in self.thresholds:
                                 results[(exp_time,max_steps,commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)

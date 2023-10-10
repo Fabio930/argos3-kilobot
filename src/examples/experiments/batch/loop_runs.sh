@@ -28,14 +28,14 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1801"
-RUNS=20
-rebroadcast="0 1 2"
-msg_expiring_sec="100 200 300"
-numrobots="20 40"
+experiment_length="2701"
+RUNS=1
+rebroadcast="0"
+msg_expiring_sec="300"
+numrobots="20"
 # minimum_quorum_length="10 20"
 # quorum_scaling_factor=".6 .7"
-committed_percentage=".5 .6 .7 .8 .9"
+committed_percentage=".5" # .6 .7 .8 .9"
 
 strToReplace="."
 replace="_"
