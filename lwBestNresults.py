@@ -28,7 +28,7 @@ class Results:
     
 ##########################################################################################################
     def extract_k_quorum_data(self,path_temp,n_agents,position="all"):
-        MINS = []
+        MINS = [5]
         for i in range(10,n_agents,10):
             MINS.append(i) 
         COMMIT=[]

@@ -50,11 +50,11 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
-            expiring_quorum_sec = "300"
+            rebroadcast = "2"
+            expiring_quorum_sec = "400"
             minimum_quorum_length = "10"
             quorum_scaling_factor = "0.6"
-            committed_percentage = "0.5">
+            committed_percentage = "0.65">
         </hierarchicStruct>
 
     </loop_functions>
@@ -80,7 +80,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="60" max_trials="200">
+            <entity quantity="40" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
