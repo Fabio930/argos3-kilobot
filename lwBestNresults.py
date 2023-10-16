@@ -217,7 +217,7 @@ class Results:
                                     # plt.show(fig)
                                     plt.close(fig)
                         print_only_state = False
-            print("DONE\n")
+        print("DONE\n")
 
 ##########################################################################################################
     def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME,position='first',taken="all"):
