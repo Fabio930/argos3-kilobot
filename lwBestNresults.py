@@ -5,7 +5,7 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.6,0.7]
+    thresholds = [0.55,0.6]
     
 ##########################################################################################################
     def __init__(self):
@@ -120,11 +120,9 @@ class Results:
                                                     M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                         bigM_1 = M_1
                                         bigM_2 = M_2
-                        print("============")
                         for minus in MINS:
                             for thr in self.thresholds:
                                 results[(exp_time,max_steps,commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
-                        print("")
         print("DONE\n")
         return results,COMMIT,MAX_STEPS,MINS,EXP_TIME
     
@@ -202,7 +200,7 @@ class Results:
                                         plt.ylabel("average swarm state")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s).replace(".","-")+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
-                                        plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='lower right')
                                     elif l==1:
                                         plt.ylabel("average quorum length")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
@@ -211,7 +209,7 @@ class Results:
                                         plt.ylabel("average quorum level")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                        plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='lower right')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
@@ -286,7 +284,7 @@ class Results:
                                         plt.ylabel("average swarm state")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
-                                        plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='lower right')
                                     elif l==1:
                                         plt.ylabel("average quorum length")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
@@ -295,7 +293,7 @@ class Results:
                                         plt.ylabel("average quorum level")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                        plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='lower right')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
