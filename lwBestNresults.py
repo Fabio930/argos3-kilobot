@@ -132,9 +132,9 @@ class Results:
 ##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
         COMMIT,MAX_STEPS, MINS, EXP_TIME = np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
-        print_only_state = True
         print("Printing average quorum data")
         for et in range(len(EXP_TIME)):
+            print_only_state = True
             for m in range(len(MINS)):
                 for t in range(len(self.thresholds)):
                     for s in MAX_STEPS:
@@ -203,6 +203,7 @@ class Results:
                                         plt.ylabel("average swarm state")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s).replace(".","-")+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
+                                        plt.legend(handles=handls.tolist(),loc='best')
                                     elif l==1:
                                         plt.ylabel("average quorum length")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
@@ -211,7 +212,7 @@ class Results:
                                         plt.ylabel("average quorum level")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                    plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='best')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
                                     # plt.show(fig)
