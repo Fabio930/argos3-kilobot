@@ -72,7 +72,6 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
                                                     M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                        print(len(M_1[0]))
                                         bigM_1[seed-1] = M_1
                                         bigM_2[seed-1] = M_2
                                 elif position == "first":
@@ -218,7 +217,7 @@ class Results:
                                     # plt.show(fig)
                                     plt.close(fig)
                         print_only_state = False
-                print("DONE\n")
+            print("DONE\n")
 
 ##########################################################################################################
     def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME,position='first',taken="all"):
@@ -287,6 +286,7 @@ class Results:
                                         plt.ylabel("average swarm state")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
+                                        plt.legend(handles=handls.tolist(),loc='best')
                                     elif l==1:
                                         plt.ylabel("average quorum length")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
@@ -295,7 +295,7 @@ class Results:
                                         plt.ylabel("average quorum level")
                                         fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                    plt.legend(handles=handls.tolist(),loc='best')
+                                        plt.legend(handles=handls.tolist(),loc='best')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
                                     # plt.show(fig)

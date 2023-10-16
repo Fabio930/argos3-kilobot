@@ -35,7 +35,7 @@ msg_expiring_sec="300"
 numrobots="20"
 # minimum_quorum_length="10 20"
 # quorum_scaling_factor=".6 .7"
-committed_percentage=".5" # .6 .7 .8 .9"
+committed_percentage=".5 .6 .7 .8"
 
 strToReplace="."
 replace="_"
