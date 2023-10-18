@@ -9,7 +9,7 @@ void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_lengt
 void sort_q(quorum_a **Array[]){
     for (uint8_t i = 0; i < num_quorum_items-1; i++){
         for (uint8_t j = i+1; j < num_quorum_items; j++){
-            if(((*Array)[i] == NULL && (*Array)[j] != NULL) || (*Array)[i]->counter > (*Array)[j]->counter){
+            if(((*Array)[i] == NULL && (*Array)[j] != NULL) || (*Array)[i]->counter < (*Array)[j]->counter){
                 quorum_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
@@ -34,9 +34,13 @@ void increment_quorum_counter(quorum_a **Array[]){
     for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
 }
 
+void decrement_quorum_counter(quorum_a **Array[]){
+    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter-1;
+}
+
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
     for(int8_t i=num_quorum_items-1;i>=0;i--){
-        if((*Array)[i]->counter>=expiring_ticks_quorum){
+        if((*Array)[i]->counter<=0){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
                 (*Array)[i] = NULL;
@@ -83,17 +87,17 @@ void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
     *Myquorum=NULL;
 }
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state){
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time){
     uint8_t out;
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id)out=0;
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state);
+        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time);
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
         (*Myquorum)->agent_id=Agent_id;
-        (*Myquorum)->counter=0;
+        (*Myquorum)->counter=expiring_time;
         (*Myquorum)->agent_state=received_state;
         (*Myquorum)->delivered=0;
         num_quorum_items++;

@@ -224,7 +224,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(){
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed);
+    uint32_t expiring_time = exponential_distribution(expiring_ticks_quorum);
+    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
     sort_q(&quorum_array);
 }
 
@@ -398,7 +399,7 @@ void loop(){
     fp = fopen("quorum_log.tsv","a");
     fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
     fclose(fp);
-    increment_quorum_counter(&quorum_array);
+    decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
     check_quorum(&quorum_array);
     // prepare_quorum_variables();

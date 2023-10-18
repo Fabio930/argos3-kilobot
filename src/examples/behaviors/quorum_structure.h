@@ -8,7 +8,7 @@ uint32_t expiring_ticks_quorum = 10000;
 uint8_t num_quorum_items;
 
 typedef struct quorum_structure{
-    uint16_t counter;
+    uint32_t counter;
     uint8_t agent_id;
     uint8_t delivered;
     uint8_t agent_state;
@@ -25,10 +25,12 @@ void print_q(quorum_a **Array[], uint8_t id);
 
 void increment_quorum_counter(quorum_a **Array[]);
 
+void decrement_quorum_counter(quorum_a **Array[]);
+
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
 
 uint16_t select_a_random_message();
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state);
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time);
