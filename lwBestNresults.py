@@ -221,8 +221,8 @@ class Results:
     def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
         COMMIT,MAX_STEPS, MINS, EXP_TIME= np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
-        print_only_state = True
         for et in range(len(EXP_TIME)):
+            print_only_state = True
             for m in range(len(MINS)):
                 for t in range(len(self.thresholds)):
                     for s in MAX_STEPS:
