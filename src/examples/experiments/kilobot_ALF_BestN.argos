@@ -51,6 +51,7 @@
 
         <hierarchicStruct
             rebroadcast = "2"
+            msgs_n_hops = "5"
             expiring_quorum_sec = "300"
             minimum_quorum_length = "10"
             quorum_scaling_factor = "0.6"

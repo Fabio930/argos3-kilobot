@@ -66,6 +66,7 @@ private:
     // UInt8 minimum_quorum_length;
     float committed_percentage;
     UInt16 expiring_quorum_sec;
+    UInt8 msgs_n_hops;
     // float quorum_scaling_factor;
     UInt8 rebroadcast;
 

@@ -135,6 +135,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
+    GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     // GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
     // GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
 }
@@ -301,7 +302,7 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = tKilobotMessage.m_sID << 1 | tKilobotMessage.m_sType;
-        m_tMessages[unKilobotID].data[1+i*3] = 0;
+        m_tMessages[unKilobotID].data[1+i*3] = msgs_n_hops;
         m_tMessages[unKilobotID].data[2+i*3] = tKilobotMessage.m_sData;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);

@@ -47,11 +47,19 @@ void talk(){
                 break;
             case 1:
                 selected_msg_indx = select_a_random_message();
-                if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
-                else broadcast();
+                switch (msg_n_hops){
+                    case 0:
+                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
+                        else broadcast();
+                        break;
+                    default:
+                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0 && quorum_array[selected_msg_indx]->msg_n_hops > 0) rebroadcast();
+                        else broadcast();
+                        break;
+                }
                 break;
             case 2:
-                selected_msg_indx = select_message_by_fifo(&quorum_array);
+                selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
                 if(selected_msg_indx != 0b1111111111111111) rebroadcast();
                 else broadcast();                
                 break;
@@ -64,24 +72,31 @@ void talk(){
 }
 
 void broadcast(){
-    sa_type = 0;
-    sa_id = 0;
-    sa_payload = 0;
+    sa_type = msg_n_hops;
+    sa_id = kilo_uid;
+    sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    my_message.data[0] = kilo_uid;
+    my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
-    my_message.data[2] = my_state;
+    my_message.data[2] = sa_payload;
 }
 
 void rebroadcast(){
-    sa_type = 0;
-    sa_id = 0;
-    sa_payload = 0;
+    switch (msg_n_hops){
+        case 0:
+            sa_type = 0;
+            break;
+        default:
+            sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
+            break;
+    }
+    sa_id = quorum_array[selected_msg_indx]->agent_id;
+    sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     quorum_array[selected_msg_indx]->delivered = 1;
-    my_message.data[0] = quorum_array[selected_msg_indx]->agent_id;
+    my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
-    my_message.data[2] = quorum_array[selected_msg_indx]->agent_state;
+    my_message.data[2] = sa_payload;
 }
 
 uint8_t check_quorum_trigger(quorum_a **Array[]){
@@ -206,7 +221,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             break;
         case MSG_B:
             if(init_received_A){
-                switch (sa_payload){
+                msg_n_hops = (uint8_t)(sa_payload >> 8);
+                uint8_t state = (uint8_t)sa_payload;
+                switch (state){
                     case 0:
                         led = RGB(0,0,0);
                         my_state = uncommitted;
@@ -223,9 +240,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-void update_messages(){
+void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
+    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
     sort_q(&quorum_array);
 }
 
@@ -236,7 +253,7 @@ void parse_kilo_message(uint8_t data[9]){
         sa_payload = data[2];
         received_id = sa_id;
         received_committed = (uint8_t)sa_payload;
-        update_messages();
+        update_messages(sa_type);
     }
     else sa_id = 0;
 }
