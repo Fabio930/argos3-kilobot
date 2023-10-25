@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="10"
+        <experiment length="1801"
         ticks_per_second="31"/>
     </framework>
     
@@ -51,7 +51,7 @@
 
         <hierarchicStruct
             rebroadcast = "2"
-            msgs_n_hops = "5"
+            msgs_n_hops = "0"
             expiring_quorum_sec = "300"
             minimum_quorum_length = "10"
             quorum_scaling_factor = "0.6"
