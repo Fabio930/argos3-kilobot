@@ -127,6 +127,25 @@ class Results:
         return results,COMMIT,MAX_STEPS,MINS,EXP_TIME
     
 ##########################################################################################################
+    def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
+        COMMIT,MAX_STEPS, MINS, EXP_TIME = np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
+        print("Printing median arrival times")
+        for et in range(len(EXP_TIME)):
+            for m in range(len(MINS)):
+                for t in range(len(self.thresholds)):
+                    for s in MAX_STEPS:
+                        for r in COMMIT:
+                            multi_run_data = (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[0]
+                            times = [len(multi_run_data[i][0])] * len(multi_run_data)
+                            for i in range(len(multi_run_data)):
+                                for z in range(len(multi_run_data[i][0])):
+                                    for j in range(len(multi_run_data[i])):
+                                        multi_run_data[i][j][z]
+                            for i in range(len(times)): times[i] = rimes[i]/10
+
+                        
+
+##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
         COMMIT,MAX_STEPS, MINS, EXP_TIME = np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
         print("Printing average quorum data")
@@ -141,29 +160,28 @@ class Results:
                         for r in COMMIT:
                             for l in range(len(data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))):
                                 if (print_only_state or l==0) and (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[l] is not None:
-                                    # print(s,r,"\n")
                                     we_will_print=True
-                                    bigM = (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[l]
-                                    flag2=[-1]*len(bigM[0][0])
-                                    flag3=[flag2]*(len(bigM)+1)
-                                    tmp=[flag2]*len(bigM)
-                                    for i in range(len(bigM)):
-                                        flag1=[-1]*len(bigM[i][0])
-                                        for j in range(len(bigM[i])):
-                                            for z in range(len(bigM[i][j])):
+                                    multi_run_data = (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[l]
+                                    flag2=[-1]*len(multi_run_data[0][0])
+                                    flag3=[flag2]*(len(multi_run_data)+1)
+                                    tmp=[flag2]*len(multi_run_data)
+                                    for i in range(len(multi_run_data)):
+                                        flag1=[-1]*len(multi_run_data[i][0])
+                                        for j in range(len(multi_run_data[i])):
+                                            for z in range(len(multi_run_data[i][j])):
                                                 if flag1[z]==-1:
-                                                    flag1[z]=bigM[i][j][z]
+                                                    flag1[z]=multi_run_data[i][j][z]
                                                 else:
-                                                    flag1[z]=flag1[z]+bigM[i][j][z]
+                                                    flag1[z]=flag1[z]+multi_run_data[i][j][z]
                                         for z in range(len(flag1)):
-                                            flag1[z]=flag1[z]/len(bigM[i])
+                                            flag1[z]=flag1[z]/len(multi_run_data[i])
                                             if flag2[z]==-1:
                                                 flag2[z]=flag1[z]
                                             else:
                                                 flag2[z]=flag1[z]+flag2[z]
                                         tmp[i] = np.round(flag1,2).tolist()
                                     for i in range(len(flag2)):
-                                        flag2[i]=flag2[i]/len(bigM)
+                                        flag2[i]=flag2[i]/len(multi_run_data)
                                     for i in range(len(flag3)):
                                         flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
                                     if len(to_print[l])==0:

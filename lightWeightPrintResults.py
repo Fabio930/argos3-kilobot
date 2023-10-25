@@ -25,8 +25,9 @@ for base in bestNresults.bases:
                     print("Opening folder Rebroadcast",communication,"with",n_agents,"Agents")
                     ##########################################################################################################
                     qresults,qcommit,qmax_steps,qmins,qexptime = bestNresults.extract_k_quorum_data(dtemp,n_agents)
-                    bestNresults.print_mean_quorum_value(qresults,base,communication,n_agents,qcommit,qmax_steps,qmins,qexptime)
-                    bestNresults.print_single_run_quorum(qresults,base,communication,n_agents,qcommit,qmax_steps,qmins,qexptime)
+                    bestNresults.print_median_time(qresults,base,communication,n_agents,qcommit,qmax_steps,qmins,qexptime)
+                    # bestNresults.print_mean_quorum_value(qresults,base,communication,n_agents,qcommit,qmax_steps,qmins,qexptime)
+                    # bestNresults.print_single_run_quorum(qresults,base,communication,n_agents,qcommit,qmax_steps,qmins,qexptime)
                     ##########################################################################################################
                     del qresults
                     del qcommit

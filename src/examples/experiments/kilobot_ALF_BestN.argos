@@ -6,8 +6,8 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="1801"
-        ticks_per_second="10"/>
+        <experiment length="10"
+        ticks_per_second="31"/>
     </framework>
     
     <!-- *************** -->
