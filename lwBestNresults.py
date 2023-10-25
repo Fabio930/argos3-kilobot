@@ -141,7 +141,7 @@ class Results:
                                 for z in range(len(multi_run_data[i][0])):
                                     for j in range(len(multi_run_data[i])):
                                         multi_run_data[i][j][z]
-                            for i in range(len(times)): times[i] = rimes[i]/10
+                            for i in range(len(times)): times[i] = times[i]/31
 
                         
 
