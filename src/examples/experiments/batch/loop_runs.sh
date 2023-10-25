@@ -66,7 +66,7 @@ for nrob in $numrobots; do
                         mkdir $dir4
                     fi
                     for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_nrob%d_branches%d_depth%d_K%d_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
+                        config=`printf 'config_nrob%d_branches%d_depth%d_K%s_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
                         echo config $config
                         cp $base_config $config
                         sed -i "s|__NUMROBOTS__|$nrob|g" $config

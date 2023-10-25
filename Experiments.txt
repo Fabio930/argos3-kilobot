@@ -1,0 +1,9 @@
+Arena Size : 0.5 mq / 1 mq
+Swarm Size : 15 /20 / 40 / 80
+Quorum list length : 10 / 15 / 20 / 25 / .. / Swarm Size   OMITTED FOR 1ST ANALYSIS!!!
+Quorum scaling factor : 55% / 60% / .. / 100%              OMITTED FOR 1ST ANALYSIS!!!
+Committed agents ground truth : 55% / 60% / .. / 100%
+Communication strategy : broadcast / rebroadcast
+Simulation time : 0.5 hr / 0.75 hr
+Motion strategy : Random Way Point
+Msgs reset : 100 / 200 / 300
