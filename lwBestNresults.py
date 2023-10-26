@@ -1,11 +1,12 @@
 import numpy as np
-import os, csv, time
+import os, csv, time, math
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.55,0.6]
+    ticks_per_sec = 10 # 31
     
 ##########################################################################################################
     def __init__(self):
@@ -46,7 +47,7 @@ class Results:
                     if '.' not in folder and "images" not in folder:
                         params = folder.split('#')
                         commit , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
-                        print("Extracting KILO data for",exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
+                        print("\nExtracting KILO data for",exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
                         if commit not in COMMIT:
                             COMMIT.append(float(commit))
                         if max_steps not in MAX_STEPS:
@@ -122,7 +123,7 @@ class Results:
                                         bigM_2 = M_2
                         for minus in MINS:
                             for thr in self.thresholds:
-                                results[(exp_time,max_steps,commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
+                                results[(max_steps,exp_time,commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
         print("DONE\n")
         return results,COMMIT,MAX_STEPS,MINS,EXP_TIME
     
@@ -130,38 +131,91 @@ class Results:
     def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
         COMMIT,MAX_STEPS, MINS, EXP_TIME = np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
         print("Printing median arrival times")
-        for et in range(len(EXP_TIME)):
-            for m in range(len(MINS)):
-                for t in range(len(self.thresholds)):
-                    for s in MAX_STEPS:
+        median_times = {}
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/times"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/times")
+        for s in MAX_STEPS:
+            ylim = 0
+            for et in range(len(EXP_TIME)):
+                for m in range(len(MINS)):
+                    for t in range(len(self.thresholds)):
                         for r in COMMIT:
-                            multi_run_data = (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[0]
-                            times = [len(multi_run_data[i][0])] * len(multi_run_data)
-                            for i in range(len(multi_run_data)):
-                                for z in range(len(multi_run_data[i][0])):
-                                    for j in range(len(multi_run_data[i])):
-                                        multi_run_data[i][j][z]
-                            for i in range(len(times)): times[i] = times[i]/31
-
-                        
+                            multi_run_data = (data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t])))[0]
+                            times = [len(multi_run_data[0][0])] * len(multi_run_data)
+                            for i in range(len(multi_run_data)): # per ogni run
+                                for z in range(len(multi_run_data[i][0])): # per ogni tick
+                                    sum = 0
+                                    for j in range(len(multi_run_data[i])): # per ogni agente
+                                        sum += multi_run_data[i][j][z]
+                                    if sum >= 0.9 * len(multi_run_data[i]):
+                                        times[i] = z
+                                        break
+                            times = sorted(times)
+                            for i in range(len(times)): times[i] = times[i]/self.ticks_per_sec
+                            median = len(multi_run_data[0][0])/self.ticks_per_sec
+                            if ylim == 0: ylim = median
+                            if times[len(times)//2] < median:
+                                if len(times)%2 == 0:
+                                    indx = int(len(times)*0.5)
+                                    median = (times[indx] + times[indx-1])*0.5
+                                else:
+                                    median = times[int(math.floor(len(times)*0.5))]
+                            median_times[(s,EXP_TIME[et],MINS[m],self.thresholds[t],r)] = round(median,3)
+                printing_dict = {}
+                sets = []
+                for r in COMMIT:
+                    values = []
+                    for m in range(len(MINS)):
+                        for t in range(len(self.thresholds)):
+                            set_item = "min dim "+str(MINS[m])+"_ thr "+str(self.thresholds[t])
+                            if set_item not in sets: sets.append(set_item)
+                            values.append(median_times[(s,EXP_TIME[et],MINS[m],self.thresholds[t],r)])
+                    printing_dict["ground truth "+str(r)] = values
+                x = np.arange(len(sets))
+                width = 0.25
+                multiplier = 0
+                fig, ax = plt.subplots(figsize=(12,6))
+                for attribute, measurement in printing_dict.items():
+                    rects = ax.bar(x + (width*multiplier),measurement,width, label=attribute)
+                    ax.bar_label(rects,padding=3)
+                    multiplier += 1
+                ax.set_ylabel("median arrival time (sec)")
+                ax.set_ylim(0,ylim)
+                ax.set_xlabel("configurations")
+                ax.set_xticks(x + width,sets)
+                plt.legend(loc='upper right')
+                plt.tight_layout()
+                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/times/CONFIGt__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_STEPS#"+str(s)+".png"
+                plt.savefig(fig_path)
+                # plt.show()
+                plt.close(fig)
+        print("DONE\n")
 
 ##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
         COMMIT,MAX_STEPS, MINS, EXP_TIME = np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
         print("Printing average quorum data")
-        for et in range(len(EXP_TIME)):
-            print_only_state = True
-            for m in range(len(MINS)):
-                for t in range(len(self.thresholds)):
-                    for s in MAX_STEPS:
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state")
+        for s in MAX_STEPS:
+            for et in range(len(EXP_TIME)):
+                print_only_state = True
+                for m in range(len(MINS)):
+                    for t in range(len(self.thresholds)):
                         we_will_print=False
-                        to_print = [[]]*len(data_in.get((EXP_TIME[et],s,COMMIT[0],MINS[m],self.thresholds[t])))
-                        legend = [[]]*len(data_in.get((EXP_TIME[et],s,COMMIT[0],MINS[m],self.thresholds[t])))
+                        to_print = [[]]*len(data_in.get((s,EXP_TIME[et],COMMIT[0],MINS[m],self.thresholds[t])))
+                        legend = [[]]*len(data_in.get((s,EXP_TIME[et],COMMIT[0],MINS[m],self.thresholds[t])))
                         for r in COMMIT:
-                            for l in range(len(data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))):
-                                if (print_only_state or l==0) and (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[l] is not None:
+                            for l in range(len(data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t])))):
+                                if (print_only_state or l==0) and (data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t])))[l] is not None:
                                     we_will_print=True
-                                    multi_run_data = (data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))[l]
+                                    multi_run_data = (data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t])))[l]
                                     flag2=[-1]*len(multi_run_data[0][0])
                                     flag3=[flag2]*(len(multi_run_data)+1)
                                     tmp=[flag2]*len(multi_run_data)
@@ -208,29 +262,24 @@ class Results:
                                                 plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                                     plt.grid(True,linestyle=':')
                                     plt.xlabel("kilo ticks")
-
-                                    if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images"):
-                                        os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
-                                    if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum"):
-                                        os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum")
                                     
                                     if l==0:
                                         plt.ylabel("average swarm state")
-                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s).replace(".","-")+".png"
+                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state/CONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_STEPS#"+str(s)+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
                                         plt.legend(handles=handls.tolist(),loc='lower right')
                                     elif l==1:
                                         plt.ylabel("average quorum length")
-                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
+                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                                     elif l==2:
                                         plt.ylabel("average quorum level")
-                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s).replace(".","-")+".png"
+                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_STEPS#"+str(s)+".png"
                                         plt.yticks(np.arange(0,N_AGENTS+1,1))
                                         plt.legend(handles=handls.tolist(),loc='lower right')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
-                                    # plt.show(fig)
+                                    # plt.show()
                                     plt.close(fig)
                         print_only_state = False
         print("DONE\n")
@@ -238,25 +287,31 @@ class Results:
 ##########################################################################################################
     def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum")
+        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state"):
+            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state")
         COMMIT,MAX_STEPS, MINS, EXP_TIME= np.sort(COMMIT),np.sort(MAX_STEPS),np.sort(MINS),np.sort(EXP_TIME)
-        for et in range(len(EXP_TIME)):
-            print_only_state = True
-            for m in range(len(MINS)):
-                for t in range(len(self.thresholds)):
-                    for s in MAX_STEPS:
+        for s in MAX_STEPS:
+            for et in range(len(EXP_TIME)):
+                print_only_state = True
+                for m in range(len(MINS)):
+                    for t in range(len(self.thresholds)):
                         we_will_print = False
-                        to_print = [[]]*len(data_in.get((EXP_TIME[et],s,COMMIT[0],MINS[0],self.thresholds[0])))
-                        legend = [[]]*len(data_in.get((EXP_TIME[et],s,COMMIT[0],MINS[0],self.thresholds[0])))
+                        to_print = [[]]*len(data_in.get((s,EXP_TIME[et],COMMIT[0],MINS[0],self.thresholds[0])))
+                        legend = [[]]*len(data_in.get((s,EXP_TIME[et],COMMIT[0],MINS[0],self.thresholds[0])))
                         p,P = 0,0
                         for r in COMMIT:
                             if P==0 and position!='first' and taken=="all":
                                 P = 1
-                                if position=='rand': p = np.random.choice(np.arange(len(data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t]))[0])))
-                                elif position=='last': p = len(data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t]))[0])-1
-                            for l in range(len(data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t])))):
-                                if(print_only_state or l==0) and  data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t]))[l] is not None:
+                                if position=='rand': p = np.random.choice(np.arange(len(data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t]))[0])))
+                                elif position=='last': p = len(data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t]))[0])-1
+                            for l in range(len(data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t])))):
+                                if(print_only_state or l==0) and  data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t]))[l] is not None:
                                     we_will_print=True
-                                    run = data_in.get((EXP_TIME[et],s,r,MINS[m],self.thresholds[t]))[l][p]
+                                    run = data_in.get((s,EXP_TIME[et],r,MINS[m],self.thresholds[t]))[l][p]
                                     mean = [-1]*len(run[0])
                                     flag = [mean]*(len(run)+1)
                                     for i in range(len(run)):
@@ -293,14 +348,10 @@ class Results:
                                                 plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
                                     plt.grid(True,linestyle=':')
                                     plt.xlabel("kilo ticks")
-                                    if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images"):
-                                        os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images")
-                                    if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum"):
-                                        os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum")
                                     
                                     if l==0:
                                         plt.ylabel("average swarm state")
-                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t])+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
+                                        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state/srCONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME[et])+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_STEPS#"+str(s)+"_Nrun#"+str(p)+".png"
                                         plt.yticks(np.arange(0,1.05,0.05))
                                         plt.legend(handles=handls.tolist(),loc='lower right')
                                     elif l==1:
@@ -314,7 +365,7 @@ class Results:
                                         plt.legend(handles=handls.tolist(),loc='lower right')
                                     plt.tight_layout()
                                     plt.savefig(fig_path)
-                                    # plt.show(fig)
+                                    # plt.show()
                                     plt.close(fig)
                         print_only_state = False
         print("DONE\n")
