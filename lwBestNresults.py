@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.55,0.6]
-    ticks_per_sec = 10 # 31
+    ticks_per_sec = 31
     
 ##########################################################################################################
     def __init__(self):
