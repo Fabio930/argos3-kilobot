@@ -75,6 +75,7 @@ class Results:
                                 elif position == "first":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]=="1":
                                         seed = (int)(selem[0].split('_')[-1])
+                                        print("Reading file",seed)
                                         M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
@@ -93,6 +94,7 @@ class Results:
                                 elif position == "last":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==str(len(os.listdir(sub_path))):
                                         seed = (int)(selem[0].split('_')[-1])
+                                        print("Reading file",seed)
                                         M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
@@ -112,6 +114,7 @@ class Results:
                                     p = np.random.choice(np.arange(len(os.listdir(sub_path))))
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==p:
                                         seed = (int)(selem[0].split('_')[-1])
+                                        print("Reading file",seed)
                                         M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
