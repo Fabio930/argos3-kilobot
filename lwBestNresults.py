@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.55,0.6]
+    ticks_per_sec = 31
     
 ##########################################################################################################
     def __init__(self):
@@ -60,12 +61,15 @@ class Results:
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
+                                            log_count = 0
                                             for row in reader:
                                                 for val in row:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
-                                                    M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                    M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if agent_id == n_agents - 1: log_count+=1
                                         bigM_1[seed-1] = M_1
                                         bigM_2[seed-1] = M_2
                                 elif position == "first":
@@ -75,12 +79,15 @@ class Results:
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
+                                            log_count = 0
                                             for row in reader:
                                                 for val in row:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
-                                                    M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                    M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                                 elif position == "last":
@@ -90,12 +97,15 @@ class Results:
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
+                                            log_count = 0
                                             for row in reader:
                                                 for val in row:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
-                                                    M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                    M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                                 elif position == "rand":
@@ -106,12 +116,15 @@ class Results:
                                         M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
+                                            log_count = 0
                                             for row in reader:
                                                 for val in row:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
-                                                    M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                    M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                    if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                         for minus in MINS:
@@ -145,6 +158,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
+                    # for i in range(len(times)): times[i] = times[i]/self.ticks_per_sec
                     median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
@@ -250,7 +264,7 @@ class Results:
                                     else:
                                         plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                             plt.grid(True,linestyle=':')
-                            plt.xlabel("kilo ticks")
+                            plt.xlabel("simulation time (secs)")
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
@@ -334,7 +348,7 @@ class Results:
                                     else:
                                         plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
                             plt.grid(True,linestyle=':')
-                            plt.xlabel("kilo ticks")
+                            plt.xlabel("simulation time (secs)")
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
