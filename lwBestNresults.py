@@ -1,12 +1,11 @@
 import numpy as np
-import os, csv, time, math
+import os, csv, math
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.55,0.6]
-    ticks_per_sec = 31
     
 ##########################################################################################################
     def __init__(self):
@@ -28,7 +27,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,path_temp,n_agents,position="all"):
+    def extract_k_quorum_data(self,path_temp,max_steps,communication,n_agents,position="all"):
         MINS = [5]
         for i in range(10,n_agents,10):
             MINS.append(i) 
@@ -36,14 +35,14 @@ class Results:
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder and "images" not in pre_folder:
                 pre_params = pre_folder.split('#')
-                exp_time = int(pre_params[-1])
+                msg_exp_time = int(pre_params[-1])
                 pre_path_temp=os.path.join(path_temp,pre_folder)
                 results = {}
                 for folder in sorted(os.listdir(pre_path_temp)):
                     if '.' not in folder and "images" not in folder:
                         params = folder.split('#')
-                        commit , max_steps = float(params[1].replace("_",".")) , int(params[3])-1
-                        print("\nExtracting KILO data for",exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
+                        commit = float(params[1].replace("_","."))
+                        print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
                         if commit not in COMMIT:
                             COMMIT.append(float(commit))
                         sub_path=os.path.join(pre_path_temp,folder)
@@ -118,19 +117,19 @@ class Results:
                         for minus in MINS:
                             for thr in self.thresholds:
                                 results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
-                
-                results = {}       
-        print("DONE\n")
+                self.print_median_time(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
+                self.print_mean_quorum_value(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
+                self.print_single_run_quorum(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
     
 ##########################################################################################################
-    def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
+    def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing median arrival times")
         median_times = {}
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS))
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/times"):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/times")
+        if not os.path.exists(BASE+"/images"):
+            os.mkdir(BASE+"/images")
+        if not os.path.exists(BASE+"/images"+"/times"):
+            os.mkdir(BASE+"/images"+"/times")
         ylim = 0
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -146,8 +145,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
-                    for i in range(len(times)): times[i] = times[i]/self.ticks_per_sec
-                    median = len(multi_run_data[0][0])/self.ticks_per_sec
+                    median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
                         if len(times)%2 == 0:
@@ -180,22 +178,22 @@ class Results:
         ax.set_xticks(x + width,sets)
         plt.legend(loc='upper right')
         plt.tight_layout()
-        fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/times/CONFIGt__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+        fig_path=BASE+"/images/times/CONFIGt__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
         print("DONE\n")
 
 ##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME):
+    def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing average quorum data")
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS))
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/quorum"):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/quorum")
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/state"):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/state")
+        if not os.path.exists(BASE+"/images"):
+            os.mkdir(BASE+"/images")
+        if not os.path.exists(BASE+"/images"+"/quorum"):
+            os.mkdir(BASE+"/images"+"/quorum")
+        if not os.path.exists(BASE+"/images"+"/state"):
+            os.mkdir(BASE+"/images"+"/state")
         print_only_state = True
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -256,16 +254,16 @@ class Results:
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state/CONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+                                fig_path=BASE+"/images/state/CONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/CONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()
@@ -276,14 +274,14 @@ class Results:
         print("DONE\n")
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MAX_STEPS,MINS,EXP_TIME,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS))
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/quorum"):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/quorum")
-        if not os.path.exists(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/state"):
-            os.mkdir(BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images_"+str(MAX_STEPS)+"/state")
+        if not os.path.exists(BASE+"/images"):
+            os.mkdir(BASE+"/images")
+        if not os.path.exists(BASE+"/images"+"/quorum"):
+            os.mkdir(BASE+"/images"+"/quorum")
+        if not os.path.exists(BASE+"/images"+"/state"):
+            os.mkdir(BASE+"/images"+"/state")
         COMMIT,MINS= np.sort(COMMIT),np.sort(MINS)
         print_only_state = True
         for m in range(len(MINS)):
@@ -340,16 +338,16 @@ class Results:
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/state/srCONFIGs__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/state/srCONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGql__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/quorum/srCONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/Rebroadcast#"+str(COMMUNICATION)+"/Robots#"+str(N_AGENTS)+"/images/quorum/srCONFIGqv__COMM#"+str(COMMUNICATION)+"_ROB#"+str(N_AGENTS)+"_MsgExpDist#"+str(EXP_TIME)+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/quorum/srCONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()

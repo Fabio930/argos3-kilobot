@@ -28,13 +28,11 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1801"
+experiment_length="1800"
 RUNS=20
 rebroadcast="0 1 2"
 msg_expiring_sec="300 600 900"
 numrobots="15 40"
-# minimum_quorum_length="10 20"
-# quorum_scaling_factor=".6 .7"
 committed_percentage=".5 .6 .7"
 
 strToReplace="."
@@ -81,13 +79,11 @@ for par in $experiment_length; do
                         argos3 -c './'$config
                         rename="quorum_log_$kilo_file"
                         mv "quorum_log.tsv" $rename
-                        rm -rf "quorum_log.tsv"
                         mv $rename $dir3
+                        rm *.argos
                     done
                 done
             done
         done
     done
 done
-
-rm *.argos
