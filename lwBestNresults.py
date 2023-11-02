@@ -140,7 +140,7 @@ class Results:
 ##########################################################################################################
     def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
-        print("Printing median arrival times")
+        print("\nPrinting median arrival times")
         median_times = {}
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
