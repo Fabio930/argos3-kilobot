@@ -16,5 +16,5 @@ for base in bestNresults.bases:
                         if '.' not in zdir and '#' in zdir:
                             n_agents=int(zdir.split('#')[1])
                             dtemp=os.path.join(pre_path, zdir)
-                            print("Opening folder Rebroadcast",communication,"with",n_agents,"Agents")
+                            print("Opening folder",dtemp)
                             bestNresults.extract_k_quorum_data(dtemp,exp_length,communication,n_agents)
