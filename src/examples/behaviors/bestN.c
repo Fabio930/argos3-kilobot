@@ -41,13 +41,13 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        switch (broadcasting_flag){
+        switch(broadcasting_flag){
             case 0:
                 broadcast();
                 break;
             case 1:
                 selected_msg_indx = select_a_random_message();
-                switch (msg_n_hops){
+                switch(msg_n_hops){
                     case 0:
                         if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
                         else broadcast();
@@ -72,6 +72,10 @@ void talk(){
 }
 
 void broadcast(){
+    // frequency log
+    msg_type_send = 0;
+    num_own_info += 1;
+    // message
     sa_type = msg_n_hops;
     sa_id = kilo_uid;
     sa_payload = my_state;
@@ -82,6 +86,10 @@ void broadcast(){
 }
 
 void rebroadcast(){
+    // frequency log
+    msg_type_send = 1;
+    num_other_info +=1;
+    // message
     switch (msg_n_hops){
         case 0:
             sa_type = 0;
@@ -413,8 +421,10 @@ void setup(){
 }
 
 void loop(){
-    fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
+    // fp = fopen("quorum_log.tsv","a");
+    // fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
+    fp = fopen("msg_freq_log.tsv","a");
+    fprintf(fp,"%d\t%d\t%ld\t%ld\n",kilo_uid,msg_type_send,num_own_info,num_other_info);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);

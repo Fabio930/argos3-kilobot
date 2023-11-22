@@ -30,9 +30,9 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 experiment_length="1800"
 RUNS=20
-rebroadcast="0 1 2"
+rebroadcast="1 2"
 msg_expiring_sec="300 600 900"
-numrobots="60"
+numrobots="15 40"
 committed_percentage=".5 .6 .7"
 
 strToReplace="."
@@ -77,8 +77,10 @@ for par in $experiment_length; do
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
                         echo "Running next configuration Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par3 File $kilo_file"
                         argos3 -c './'$config
-                        rename="quorum_log_$kilo_file"
-                        mv "quorum_log.tsv" $rename
+                        rename="msg_freq_log_$kilo_file"
+                        mv "msg_freq_log.tsv" $rename
+                        # rename="quorum_log_$kilo_file"
+                        # mv "quorum_log.tsv" $rename
                         mv $rename $dir3
                         rm *.argos
                     done
