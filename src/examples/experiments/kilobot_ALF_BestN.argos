@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="1801"
+        <experiment length="1800"
         ticks_per_second="31"/>
     </framework>
     
@@ -54,8 +54,11 @@
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
             minimum_quorum_length = "10"
-            quorum_scaling_factor = "0.6"
-            committed_percentage = "0.65">
+            quorum_scaling_factor = "0.55"
+            committed_percentage = "0.6"
+            commitment_variation_time = "20"
+            next_committed_percentage = "0.2"
+        >
         </hierarchicStruct>
 
     </loop_functions>
@@ -107,7 +110,7 @@
         <distribute>
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="40" max_trials="100">
+            <entity quantity="10" max_trials="100">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

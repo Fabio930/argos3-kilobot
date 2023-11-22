@@ -48,7 +48,35 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 /****************************************/
 
-// void CBestN_ALF::PostStep(){
+void CBestN_ALF::PostStep(){
+    if(!variation_done){
+        m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
+        if((UInt16)m_fTimeInSeconds==commitment_variation_time){
+            // calculate new agents' state
+            std::vector<UInt8> assigned_kilo_states;
+            assigned_kilo_states.resize(m_tKilobotEntities.size());
+            for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
+            UInt8 count = 0;
+            UInt8 p;
+            while (true){
+                for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+                    if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*next_committed_percentage){
+                        p = rand()%2;
+                        if(p==1){
+                            assigned_kilo_states[it]=1;
+                            count++;
+                        }
+                    }
+                }
+                if(count>=m_vecKilobotStates.size()*next_committed_percentage) break;
+            }
+            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+                m_vecKilobotStates[it] = assigned_kilo_states[it];
+                SendStateInformation(*m_tKilobotEntities[it]);
+            }
+            variation_done = true;
+        }
+    }
 //     if(start_experiment == 1){
 //         log_counter++;
 //         if(log_counter == m_unDataAcquisitionFrequency){
@@ -61,7 +89,7 @@ void CBestN_ALF::Destroy(){
 //         UpdateLog(logging_time);
 //         header = 1;
 //     }
-// }
+}
 
 /****************************************/
 /****************************************/
@@ -136,6 +164,9 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
+    GetNodeAttribute(tHierarchicalStructNode,"commitment_variation_time",commitment_variation_time);
+    GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
+    if(commitment_variation_time==0) variation_done = true;
     // GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
     // GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
 }
@@ -197,9 +228,7 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 }
             }
-
             break;
-        
         default:
             SendInformationGPS(c_kilobot_entity);
             break;

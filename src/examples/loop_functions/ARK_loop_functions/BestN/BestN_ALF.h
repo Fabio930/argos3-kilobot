@@ -22,7 +22,7 @@ public:
 
     virtual void Destroy();
 
-    // virtual void PostStep();
+    virtual void PostStep();
 
     /** Setup the initial state of the Kilobots in the space */
     void SetupInitialKilobotStates();
@@ -65,6 +65,10 @@ private:
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
     float committed_percentage;
+    UInt16 commitment_variation_time;
+    bool variation_done = false;
+    float next_committed_percentage;
+
     UInt16 expiring_quorum_sec;
     UInt8 msgs_n_hops;
     // float quorum_scaling_factor;
