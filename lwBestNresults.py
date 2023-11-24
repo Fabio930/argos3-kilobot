@@ -47,18 +47,19 @@ class Results:
                         if commit not in COMMIT:
                             COMMIT.append(float(commit))
                         sub_path=os.path.join(pre_path_temp,folder)
+                        p = np.random.choice(np.arange(len(os.listdir(sub_path))))
                         dim = len(os.listdir(sub_path))
                         bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
                         bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
                         for elem in sorted(os.listdir(sub_path)):
                             if '.' in elem:
+                                M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                 selem=elem.split('.')
                                 if position == "all":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                                         seed = (int)(selem[0].split('#')[-1])
                                         print("Reading file",seed)
-                                        M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                        M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
                                             log_count = 0
@@ -73,11 +74,9 @@ class Results:
                                         bigM_1[seed-1] = M_1
                                         bigM_2[seed-1] = M_2
                                 elif position == "first":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]=="1":
-                                        seed = (int)(selem[0].split('_')[-1])
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]=="1":
+                                        seed = (int)(selem[0].split('#')[-1])
                                         print("Reading file",seed)
-                                        M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                        M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
                                             log_count = 0
@@ -92,11 +91,9 @@ class Results:
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                                 elif position == "last":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==str(len(os.listdir(sub_path))):
-                                        seed = (int)(selem[0].split('_')[-1])
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(len(os.listdir(sub_path))):
+                                        seed = (int)(selem[0].split('#')[-1])
                                         print("Reading file",seed)
-                                        M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                        M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
                                             log_count = 0
@@ -111,12 +108,9 @@ class Results:
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                                 elif position == "rand":
-                                    p = np.random.choice(np.arange(len(os.listdir(sub_path))))
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('_')[-1]==p:
-                                        seed = (int)(selem[0].split('_')[-1])
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(p):
+                                        seed = (int)(selem[0].split('#')[-1])
                                         print("Reading file",seed)
-                                        M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                        M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                         with open(os.path.join(sub_path, elem), newline='') as f:
                                             reader = csv.reader(f)
                                             log_count = 0
@@ -137,6 +131,114 @@ class Results:
                 self.print_mean_quorum_value(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
                 self.print_single_run_quorum(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
     
+##########################################################################################################
+    def extract_msg_freq_data(self,path_temp,max_steps,communication,n_agents,position="all"):
+        for pre_folder in sorted(os.listdir(path_temp)):
+            if '.' not in pre_folder and "images" not in pre_folder:
+                pre_params = pre_folder.split('#')
+                msg_exp_time = int(pre_params[-1])
+                pre_path_temp=os.path.join(path_temp,pre_folder)
+                results = {}
+                for folder in sorted(os.listdir(pre_path_temp)):
+                    if '.' not in folder and "images" not in folder:
+                        params = folder.split('#')
+                        commit = float(params[1].replace("_","."))
+                        print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
+                        sub_path=os.path.join(pre_path_temp,folder)
+                        p = np.random.choice(np.arange(len(os.listdir(sub_path))))
+                        dim = len(os.listdir(sub_path))
+                        bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
+                        bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
+                        bigM_3 = [np.array([])] * dim if position=="all" else np.array([])
+                        for elem in sorted(os.listdir(sub_path)):
+                            if '.' in elem:
+                                M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                M_3 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                selem=elem.split('.')
+                                if position == "all":
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg":
+                                        seed = (int)(selem[0].split('#')[-1])
+                                        print("Reading file",seed)
+                                        with open(os.path.join(sub_path, elem), newline='') as f:
+                                            reader = csv.reader(f)
+                                            log_count = 0
+                                            for row in reader:
+                                                for val in row:
+                                                    val = val.split('\t')
+                                                    agent_id = (int)(val[0])
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
+                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
+                                                    if agent_id == n_agents - 1: log_count+=1
+                                        bigM_1[seed-1] = M_1
+                                        bigM_2[seed-1] = M_2
+                                        bigM_3[seed-1] = M_3
+                                elif position == "first":
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]=="1":
+                                        seed = (int)(selem[0].split('#')[-1])
+                                        print("Reading file",seed)
+                                        with open(os.path.join(sub_path, elem), newline='') as f:
+                                            reader = csv.reader(f)
+                                            log_count = 0
+                                            for row in reader:
+                                                for val in row:
+                                                    val = val.split('\t')
+                                                    agent_id = (int)(val[0])
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
+                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
+                                                    if agent_id == n_agents - 1: log_count+=1
+                                        bigM_1 = M_1
+                                        bigM_2 = M_2
+                                        bigM_3 = M_3
+                                elif position == "last":
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]==str(len(os.listdir(sub_path))):
+                                        seed = (int)(selem[0].split('#')[-1])
+                                        print("Reading file",seed)
+                                        with open(os.path.join(sub_path, elem), newline='') as f:
+                                            reader = csv.reader(f)
+                                            log_count = 0
+                                            for row in reader:
+                                                for val in row:
+                                                    val = val.split('\t')
+                                                    agent_id = (int)(val[0])
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
+                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
+                                                    if agent_id == n_agents - 1: log_count+=1
+                                        bigM_1 = M_1
+                                        bigM_2 = M_2
+                                        bigM_3 = M_3
+                                elif position == "rand":
+                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]==str(p):
+                                        seed = (int)(selem[0].split('#')[-1])
+                                        print("Reading file",seed)
+                                        with open(os.path.join(sub_path, elem), newline='') as f:
+                                            reader = csv.reader(f)
+                                            log_count = 0
+                                            for row in reader:
+                                                for val in row:
+                                                    val = val.split('\t')
+                                                    agent_id = (int)(val[0])
+                                                    if log_count % self.ticks_per_sec == 0:
+                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
+                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
+                                                    if agent_id == n_agents - 1: log_count+=1
+                                        bigM_1 = M_1
+                                        bigM_2 = M_2
+                                        bigM_3 = M_3
+
+##########################################################################################################
+    def print_msg_freq(self):
+        print("\nPrinting messages frequency")
+
+        print("DONE\n")
+        
 ##########################################################################################################
     def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
