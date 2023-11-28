@@ -62,7 +62,7 @@ def main():
                                 dtemp=os.path.join(pre_path, zdir)
                                 print("Opening folder",dtemp)
                                 if(data_type == "all" or data_type == "quorum"): bestNresults.extract_k_quorum_data(dtemp,exp_length,communication,n_agents,files_to_elaborate)
-                                if((data_type == "all" or data_type == "freq") and communication>0): bestNresults.extract_msg_freq_data(dtemp,exp_length,communication,n_agents,files_to_elaborate)
+                                if((data_type == "all" or data_type == "freq") and communication>0): bestNresults.extract_msg_freq_data(dtemp,exp_length,n_agents,files_to_elaborate)
 
 if __name__ == "__main__":
     main()

@@ -127,12 +127,13 @@ class Results:
                         for minus in MINS:
                             for thr in self.thresholds:
                                 results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
-                self.print_median_time(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
-                self.print_mean_quorum_value(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
-                self.print_single_run_quorum(results,path_temp,communication,n_agents,COMMIT,MINS,msg_exp_time)
+                self.print_median_time(results,path_temp,COMMIT,MINS,msg_exp_time)
+                self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
     
 ##########################################################################################################
-    def extract_msg_freq_data(self,path_temp,max_steps,communication,n_agents,position="all"):
+    def extract_msg_freq_data(self,path_temp,max_steps,n_agents,position="all"):
+        COMMIT=[]
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder and "images" not in pre_folder:
                 pre_params = pre_folder.split('#')
@@ -144,6 +145,8 @@ class Results:
                         params = folder.split('#')
                         commit = float(params[1].replace("_","."))
                         print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
+                        if commit not in COMMIT:
+                            COMMIT.append(float(commit))
                         sub_path=os.path.join(pre_path_temp,folder)
                         p = np.random.choice(np.arange(len(os.listdir(sub_path))))
                         dim = len(os.listdir(sub_path))
@@ -232,79 +235,82 @@ class Results:
                                         bigM_1 = M_1
                                         bigM_2 = M_2
                                         bigM_3 = M_3
+                        results[commit] = (bigM_1,bigM_2,bigM_3)
+                self.print_msg_freq(results,path_temp,COMMIT,msg_exp_time)
 
 ##########################################################################################################
-    def print_msg_freq(self):
+    def print_msg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME):
         print("\nPrinting messages frequency")
-
+        if not os.path.exists(BASE+"/images"):
+            os.mkdir(BASE+"/images")
+        if not os.path.exists(BASE+"/images"+"/messages"):
+            os.mkdir(BASE+"/images"+"/messages")
+        to_print = [[]]*len(data_in.get(COMMIT[0]))
+        for c in COMMIT:
+            for l in range(len(data_in.get(c))):
+                multi_run_data = data_in.get(c)[l]
+                flag2 = [-1]*len(multi_run_data[0][0])
+                flag3 = [flag2]*(len(multi_run_data)+1)
+                tmp = [flag2]*len(multi_run_data)
+                for i in range(len(multi_run_data)):
+                    flag1 = [-1]*len(multi_run_data[i][0])
+                    for j in range(len(multi_run_data[i])):
+                        for z in range(len(multi_run_data[i][j])):
+                            if flag1[z]==-1:
+                                flag1[z]=multi_run_data[i][j][z]
+                            else:
+                                flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                    for j in range(len(flag1)):
+                        flag1[j]=flag1[j]/len(multi_run_data[i])
+                        if flag2[j]==-1:
+                            flag2[j]=flag1[j]
+                        else:
+                            flag2[j]=flag1[j]+flag2[j]
+                for i in range(len(flag2)):
+                    flag2[i]=flag2[i]/len(multi_run_data)
+                for i in range(len(flag3)):
+                    flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+                if len(to_print[l])==0:
+                    to_print[l] = [flag3]
+                else:
+                    to_print[l] = np.append(to_print[l],[flag3],0)
+        for l in range(len(to_print)):
+            handls=[]
+            values = range(len(to_print[l]))
+            fig, ax = plt.subplots(figsize=(12,6))
+            cm = plt.get_cmap('viridis') 
+            cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+            scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+            for i in range(len(to_print[l])):
+                for j in range(len(to_print[l][i])):
+                    if j==0:
+                        the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]))
+                        handls = np.append(handls,the_plot)
+                    else:
+                        plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
+            plt.grid(True,linestyle=':')
+            plt.xlabel("simulation time (secs)")
+            
+            if l==0:
+                plt.ylabel("average swarm msg action")
+                fig_path=BASE+"/images/messages/CONFIGf__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                plt.yticks(np.arange(0,1.1,0.1))
+            elif l==1:
+                plt.ylabel("average # of broadcast msgs")
+                fig_path=BASE+"/images/messages/CONFIGbm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                plt.yticks(np.arange(0,4100,100))
+            elif l==2:
+                plt.ylabel("average # of rebroadcast msgs")
+                fig_path=BASE+"/images/messages/CONFIGrm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                plt.yticks(np.arange(0,110,10))
+            plt.tight_layout()
+            plt.savefig(fig_path)
+            # plt.show()
+            plt.close(fig)
         print("DONE\n")
         
 ##########################################################################################################
-    def print_median_time(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
-        COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
-        print("\nPrinting median arrival times")
-        median_times = {}
-        if not os.path.exists(BASE+"/images"):
-            os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/times"):
-            os.mkdir(BASE+"/images"+"/times")
-        ylim = 0
-        for m in range(len(MINS)):
-            for t in range(len(self.thresholds)):
-                for r in COMMIT:
-                    multi_run_data = (data_in.get((r,MINS[m],self.thresholds[t])))[0]
-                    times = [len(multi_run_data[0][0])] * len(multi_run_data)
-                    for i in range(len(multi_run_data)): # per ogni run
-                        for z in range(len(multi_run_data[i][0])): # per ogni tick
-                            sum = 0
-                            for j in range(len(multi_run_data[i])): # per ogni agente
-                                sum += multi_run_data[i][j][z]
-                            if sum >= 0.9 * len(multi_run_data[i]):
-                                times[i] = z
-                                break
-                    times = sorted(times)
-                    # for i in range(len(times)): times[i] = times[i]/self.ticks_per_sec
-                    median = len(multi_run_data[0][0])
-                    if ylim == 0: ylim = median
-                    if times[len(times)//2] < median:
-                        if len(times)%2 == 0:
-                            indx = int(len(times)*0.5)
-                            median = (times[indx] + times[indx-1])*0.5
-                        else:
-                            median = times[int(math.floor(len(times)*0.5))]
-                    median_times[(MINS[m],self.thresholds[t],r)] = round(median,3)
-        printing_dict = {}
-        sets = []
-        for r in COMMIT:
-            values = []
-            for m in range(len(MINS)):
-                for t in range(len(self.thresholds)):
-                    set_item = "min dim "+str(MINS[m])+"_ thr "+str(self.thresholds[t])
-                    if set_item not in sets: sets.append(set_item)
-                    values.append(median_times[(MINS[m],self.thresholds[t],r)])
-            printing_dict["ground truth "+str(r)] = values
-        x = np.arange(len(sets))
-        width = 0.25
-        multiplier = 0
-        fig, ax = plt.subplots(figsize=(12,6))
-        for attribute, measurement in printing_dict.items():
-            rects = ax.bar(x + (width*multiplier),measurement,width, label=attribute)
-            ax.bar_label(rects,padding=3)
-            multiplier += 1
-        ax.set_ylabel("median arrival time (sec)")
-        ax.set_ylim(0,ylim)
-        ax.set_xlabel("configurations")
-        ax.set_xticks(x + width,sets)
-        plt.legend(loc='upper right')
-        plt.tight_layout()
-        fig_path=BASE+"/images/times/CONFIGt__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-        plt.savefig(fig_path)
-        # plt.show()
-        plt.close(fig)
-        print("DONE\n")
-
-##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
+    def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing average quorum data")
         if not os.path.exists(BASE+"/images"):
@@ -335,12 +341,12 @@ class Results:
                                             flag1[z]=multi_run_data[i][j][z]
                                         else:
                                             flag1[z]=flag1[z]+multi_run_data[i][j][z]
-                                for z in range(len(flag1)):
-                                    flag1[z]=flag1[z]/len(multi_run_data[i])
-                                    if flag2[z]==-1:
-                                        flag2[z]=flag1[z]
+                                for j in range(len(flag1)):
+                                    flag1[j]=flag1[j]/len(multi_run_data[i])
+                                    if flag2[j]==-1:
+                                        flag2[j]=flag1[j]
                                     else:
-                                        flag2[z]=flag1[z]+flag2[z]
+                                        flag2[j]=flag1[j]+flag2[j]
                                 tmp[i] = np.round(flag1,2).tolist()
                             for i in range(len(flag2)):
                                 flag2[i]=flag2[i]/len(multi_run_data)
@@ -393,7 +399,7 @@ class Results:
         print("DONE\n")
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASE,COMMUNICATION,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -474,4 +480,67 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
+        print("DONE\n")
+
+##########################################################################################################
+    def print_median_time(self,data_in,BASE,COMMIT,MINS,MSG_EXP_TIME):
+        COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
+        print("\nPrinting median arrival times")
+        median_times = {}
+        if not os.path.exists(BASE+"/images"):
+            os.mkdir(BASE+"/images")
+        if not os.path.exists(BASE+"/images"+"/times"):
+            os.mkdir(BASE+"/images"+"/times")
+        ylim = 0
+        for m in range(len(MINS)):
+            for t in range(len(self.thresholds)):
+                for r in COMMIT:
+                    multi_run_data = (data_in.get((r,MINS[m],self.thresholds[t])))[0]
+                    times = [len(multi_run_data[0][0])] * len(multi_run_data)
+                    for i in range(len(multi_run_data)): # per ogni run
+                        for z in range(len(multi_run_data[i][0])): # per ogni tick
+                            sum = 0
+                            for j in range(len(multi_run_data[i])): # per ogni agente
+                                sum += multi_run_data[i][j][z]
+                            if sum >= 0.9 * len(multi_run_data[i]):
+                                times[i] = z
+                                break
+                    times = sorted(times)
+                    median = len(multi_run_data[0][0])
+                    if ylim == 0: ylim = median
+                    if times[len(times)//2] < median:
+                        if len(times)%2 == 0:
+                            indx = int(len(times)*0.5)
+                            median = (times[indx] + times[indx-1])*0.5
+                        else:
+                            median = times[int(math.floor(len(times)*0.5))]
+                    median_times[(MINS[m],self.thresholds[t],r)] = round(median,3)
+        printing_dict = {}
+        sets = []
+        for r in COMMIT:
+            values = []
+            for m in range(len(MINS)):
+                for t in range(len(self.thresholds)):
+                    set_item = "min dim "+str(MINS[m])+"_ thr "+str(self.thresholds[t])
+                    if set_item not in sets: sets.append(set_item)
+                    values.append(median_times[(MINS[m],self.thresholds[t],r)])
+            printing_dict["ground truth "+str(r)] = values
+        x = np.arange(len(sets))
+        width = 0.25
+        multiplier = 0
+        fig, ax = plt.subplots(figsize=(12,6))
+        for attribute, measurement in printing_dict.items():
+            rects = ax.bar(x + (width*multiplier),measurement,width, label=attribute)
+            ax.bar_label(rects,padding=3)
+            multiplier += 1
+        ax.set_ylabel("median arrival time (sec)")
+        ax.set_ylim(0,ylim)
+        ax.set_xlabel("configurations")
+        ax.set_xticks(x + width,sets)
+        plt.legend(loc='upper right')
+        plt.tight_layout()
+        fig_path=BASE+"/images/times/CONFIGt__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+        plt.savefig(fig_path)
+        # plt.show()
+        plt.close(fig)
         print("DONE\n")
