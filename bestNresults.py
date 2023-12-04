@@ -302,7 +302,7 @@ class Results:
             elif l==2:
                 plt.ylabel("average # of rebroadcast msgs")
                 fig_path=BASE+"/images/messages/CONFIGrm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-                plt.yticks(np.arange(0,110,10))
+                plt.yticks(np.arange(0,320,20))
             plt.tight_layout()
             plt.savefig(fig_path)
             # plt.show()
