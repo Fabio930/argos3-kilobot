@@ -300,7 +300,7 @@ class Results:
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
-    print("DONE\n")
+        print("DONE\n")
 ##########################################################################################################
     def print_msg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME):
         print("\nPrinting messages frequency")
