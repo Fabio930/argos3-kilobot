@@ -2,7 +2,7 @@
 # if -d is declared then must specify which data to print: all, quorum or freq(uency)
 # if -f is declared then must specify which files to print: all, first, last or rand(om)
 # if -t is declared then must specify which is the log frequency, default value is 31
-import bestNresults as BNres
+import bestNresultsNEW as BNres
 import os, sys
 
 def check_inputs():
@@ -61,8 +61,7 @@ def main():
                                 n_agents=int(zdir.split('#')[1])
                                 dtemp=os.path.join(pre_path, zdir)
                                 print("\nOpening folder",dtemp)
-                                if(data_type == "all" or data_type == "quorum"): bestNresults.extract_k_quorum_data(dtemp,exp_length,n_agents,files_to_elaborate)
-                                if((data_type == "all" or data_type == "freq") and communication>0): bestNresults.extract_msg_freq_data(dtemp,exp_length,n_agents,files_to_elaborate)
+                                bestNresults.extract_k_quorum_data(dtemp,exp_length,communication,n_agents,files_to_elaborate,data_type)
 
 if __name__ == "__main__":
     main()

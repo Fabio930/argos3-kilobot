@@ -421,10 +421,8 @@ void setup(){
 }
 
 void loop(){
-    // fp = fopen("quorum_log.tsv","a");
-    // fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
-    fp = fopen("msg_freq_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%ld\t%ld\n",kilo_uid,msg_type_send,num_own_info,num_other_info);
+    fp = fopen("quorum_log.tsv","a");
+    fprintf(fp,"%d\t%d\t%d\t%d\t%d\t%ld\t%ld\n",kilo_uid,my_state,num_quorum_items,commit_counter,msg_type_send,num_own_info,num_other_info);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);

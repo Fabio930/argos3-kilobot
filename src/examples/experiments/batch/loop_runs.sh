@@ -28,12 +28,13 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1800"
-RUNS=20
-rebroadcast="1 2"
-msg_expiring_sec="300 600 900"
-numrobots="15 40"
-committed_percentage=".5 .6 .7"
+experiment_length="700"
+RUNS=2
+rebroadcast="0"
+msg_expiring_sec="300"
+numrobots="30"
+committed_percentage=".6"
+next_committed_percentage=".4"
 
 strToReplace="."
 replace="_"
@@ -68,8 +69,9 @@ for par in $experiment_length; do
                         cp $base_config $config
                         sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                         sed -i "s|__NUMROBOTS__|$par1|g" $config
-                        sed -i "s|_MSG_EXPIRING_SECONDS_|$par2|g" $config
+                        sed -i "s|__MSG_EXPIRING_SECONDS__|$par2|g" $config
                         sed -i "s|__COMMITTED_PERCENTAGE__|$par3|g" $config
+                        sed -i "s|__NEXT_COMMITTED_PERCENTAGE__|$next_committed_percentage|g" $config
                         sed -i "s|__SEED__|$it|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
                         dt=$(date '+%d-%m-%Y_%H-%M-%S')
@@ -77,10 +79,8 @@ for par in $experiment_length; do
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
                         echo "Running next configuration Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par3 File $kilo_file"
                         argos3 -c './'$config
-                        rename="msg_freq_log_$kilo_file"
-                        mv "msg_freq_log.tsv" $rename
-                        # rename="quorum_log_$kilo_file"
-                        # mv "quorum_log.tsv" $rename
+                        rename="quorum_log_$kilo_file"
+                        mv "quorum_log.tsv" $rename
                         mv $rename $dir3
                         rm *.argos
                     done

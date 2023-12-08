@@ -7,7 +7,8 @@ from matplotlib import pyplot as plt
 class Results:
     thresholds = [0.55,0.6]
     ticks_per_sec = 31
-    x_limit = 100
+    x_limit = 62
+    
 ##########################################################################################################
     def __init__(self):
         self.bases=[]
@@ -19,16 +20,22 @@ class Results:
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
-    def compute_states(self,m1,m2,minus,threshold):
+    def compute_states(self,m1,m2,minus,threshold,position):
         out = np.copy(m1)
-        for i in range(len(m1)):
-            for j in range(len(m1[i])):
-                for k in range(len(m1[i][j])):
-                    out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+        if position == "all":
+            for i in range(len(m1)):
+                for j in range(len(m1[i])):
+                    for k in range(len(m1[i][j])):
+                        out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+        else:
+            for i in range(len(m1)):
+                for j in range(len(m1[i])):
+                    out[i][j] = 1 if m1[i][j]-1 >= minus and m2[i][j] >= threshold * m1[i][j] else 0
+
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,path_temp,max_steps,n_agents,position="all"):
+    def extract_k_quorum_data(self,path_temp,max_steps,communication,n_agents,position="all",data_type="all"):
         MINS = [5]
         for i in range(10,n_agents,10):
             MINS.append(i) 
@@ -38,7 +45,8 @@ class Results:
                 pre_params = pre_folder.split('#')
                 msg_exp_time = int(pre_params[-1])
                 pre_path_temp=os.path.join(path_temp,pre_folder)
-                results = {}
+                q_results = {}
+                m_results = {}
                 for folder in sorted(os.listdir(pre_path_temp)):
                     if '.' not in folder and "images" not in folder:
                         params = folder.split('#')
@@ -49,12 +57,18 @@ class Results:
                         sub_path=os.path.join(pre_path_temp,folder)
                         p = np.random.choice(np.arange(len(os.listdir(sub_path))))
                         dim = len(os.listdir(sub_path))
-                        bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
-                        bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
+                        q_bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
+                        q_bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
+                        m_bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
+                        m_bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
+                        m_bigM_3 = [np.array([])] * dim if position=="all" else np.array([])
                         for elem in sorted(os.listdir(sub_path)):
                             if '.' in elem:
-                                M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                q_M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                q_M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                m_M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                m_M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
+                                m_M_3 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
                                 selem=elem.split('.')
                                 if position == "all":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
@@ -68,11 +82,17 @@ class Results:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
+                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1[seed-1] = M_1
-                                        bigM_2[seed-1] = M_2
+                                        q_bigM_1[seed-1] = q_M_1
+                                        q_bigM_2[seed-1] = q_M_2
+                                        m_bigM_1[seed-1] = m_M_1
+                                        m_bigM_2[seed-1] = m_M_2
+                                        m_bigM_3[seed-1] = m_M_3
                                 elif position == "first":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]=="1":
                                         seed = (int)(selem[0].split('#')[-1])
@@ -85,11 +105,17 @@ class Results:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
+                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
+                                        q_bigM_1 = q_M_1
+                                        q_bigM_2 = q_M_2
+                                        m_bigM_1 = m_M_1
+                                        m_bigM_2 = m_M_2
+                                        m_bigM_3 = m_M_3
                                 elif position == "last":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(len(os.listdir(sub_path))):
                                         seed = (int)(selem[0].split('#')[-1])
@@ -102,11 +128,17 @@ class Results:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
+                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
+                                        q_bigM_1 = q_M_1
+                                        q_bigM_2 = q_M_2
+                                        m_bigM_1 = m_M_1
+                                        m_bigM_2 = m_M_2
+                                        m_bigM_3 = m_M_3
                                 elif position == "rand":
                                     if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(p):
                                         seed = (int)(selem[0].split('#')[-1])
@@ -119,125 +151,31 @@ class Results:
                                                     val = val.split('\t')
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2])+1)
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
+                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
+                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
+                                        q_bigM_1 = q_M_1
+                                        q_bigM_2 = q_M_2
+                                        m_bigM_1 = m_M_1
+                                        m_bigM_2 = m_M_2
+                                        m_bigM_3 = m_M_3
                         for minus in MINS:
                             for thr in self.thresholds:
-                                results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
-                self.print_median_time(results,path_temp,COMMIT,MINS,msg_exp_time)
-                self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
-                self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
-    
-##########################################################################################################
-    def extract_msg_freq_data(self,path_temp,max_steps,n_agents,position="all"):
-        COMMIT=[]
-        for pre_folder in sorted(os.listdir(path_temp)):
-            if '.' not in pre_folder and "images" not in pre_folder:
-                pre_params = pre_folder.split('#')
-                msg_exp_time = int(pre_params[-1])
-                pre_path_temp=os.path.join(path_temp,pre_folder)
-                results = {}
-                for folder in sorted(os.listdir(pre_path_temp)):
-                    if '.' not in folder and "images" not in folder:
-                        params = folder.split('#')
-                        commit = float(params[1].replace("_","."))
-                        print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
-                        if commit not in COMMIT:
-                            COMMIT.append(float(commit))
-                        sub_path=os.path.join(pre_path_temp,folder)
-                        p = np.random.choice(np.arange(len(os.listdir(sub_path))))
-                        dim = len(os.listdir(sub_path))
-                        bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
-                        bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
-                        bigM_3 = [np.array([])] * dim if position=="all" else np.array([])
-                        for elem in sorted(os.listdir(sub_path)):
-                            if '.' in elem:
-                                M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                M_3 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                selem=elem.split('.')
-                                if position == "all":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg":
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
-                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1[seed-1] = M_1
-                                        bigM_2[seed-1] = M_2
-                                        bigM_3[seed-1] = M_3
-                                elif position == "first":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]=="1":
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
-                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
-                                        bigM_3 = M_3
-                                elif position == "last":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]==str(len(os.listdir(sub_path))):
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
-                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
-                                        bigM_3 = M_3
-                                elif position == "rand":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="msg" and selem[0].split('#')[-1]==str(p):
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        M_1[agent_id] = np.append(M_1[agent_id],(int)(val[1]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[2]))
-                                                        M_3[agent_id] = np.append(M_3[agent_id],(int)(val[3]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        bigM_1 = M_1
-                                        bigM_2 = M_2
-                                        bigM_3 = M_3
-                        results[commit] = (bigM_1,bigM_2,bigM_3)
-                self.print_msg_freq(results,path_temp,COMMIT,msg_exp_time)
-                self.print_focused_meg_freq(results,path_temp,COMMIT,msg_exp_time,self.x_limit)
+                                q_results[(commit,minus,thr)] = (self.compute_states(q_bigM_1,q_bigM_2,minus,thr,position),q_bigM_1,q_bigM_2)
+                        m_results[commit] = (m_bigM_1,m_bigM_2,m_bigM_3)
+                if data_type=="all" or data_type=="quorum":
+                    if position=="all":
+                        self.print_median_time(q_results,path_temp,COMMIT,MINS,msg_exp_time)
+                        self.print_mean_quorum_value(q_results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                    self.print_single_run_quorum(q_results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                if (data_type=="all" or data_type=="freq") and communication > 0:
+                    if position == "all":
+                        self.print_msg_freq(m_results,path_temp,COMMIT,msg_exp_time)
+                        self.print_focused_meg_freq(m_results,path_temp,COMMIT,msg_exp_time,self.x_limit)
+
 ##########################################################################################################
     def print_focused_meg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME,x_limit):
         print("\nPrinting focus messages frequency")
@@ -365,7 +303,7 @@ class Results:
             elif l==2:
                 plt.ylabel("average # of rebroadcast msgs")
                 fig_path=BASE+"/images/messages/CONFIGrm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-                plt.yticks(np.arange(0,320,20))
+                plt.yticks(np.arange(0,110,10))
             plt.tight_layout()
             plt.savefig(fig_path)
             # plt.show()
