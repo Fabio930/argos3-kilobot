@@ -286,7 +286,7 @@ class Results:
         for i in range(len(to_print[0])):
             for j in range(len(to_print[0][i])):
                 for l in range(1,len(to_print)):
-                    if j==0 and (i==0 or i==1):
+                    if j==0 and i==0:
                         the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[l-1]),label=legend[l])
                         handls = np.append(handls,the_plot)
                     else:
