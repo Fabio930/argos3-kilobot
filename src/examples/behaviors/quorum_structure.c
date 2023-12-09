@@ -91,7 +91,16 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     uint8_t out;
     out=1;
     if(*Myquorum!=NULL){
-        if((*Myquorum)->agent_id==Agent_id)out=0;
+        if((*Myquorum)->agent_id==Agent_id){
+            out=0;
+            if((*Myquorum)->agent_state!=received_state){
+                out=2;
+                (*Myquorum)->counter=expiring_time;
+                (*Myquorum)->agent_state=received_state;
+                (*Myquorum)->delivered=0;
+                (*Myquorum)->msg_n_hops=Msg_n_hops;
+            }
+        }
         if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
     }
     else{

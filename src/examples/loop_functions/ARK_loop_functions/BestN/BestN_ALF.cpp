@@ -74,6 +74,10 @@ void CBestN_ALF::PostStep(){
                 m_vecKilobotStates[it] = assigned_kilo_states[it];
                 SendStateInformation(*m_tKilobotEntities[it]);
             }
+            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+                m_vecKilobotStates[it] = assigned_kilo_states[it];
+                SendStateInformation(*m_tKilobotEntities[it]);
+            }
             variation_done = true;
         }
     }
