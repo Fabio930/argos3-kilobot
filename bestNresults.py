@@ -584,7 +584,7 @@ class Results:
             values = []
             for m in range(len(MINS)):
                 for t in range(len(self.thresholds)):
-                    set_item = "min dim "+str(MINS[m])+"_ thr "+str(self.thresholds[t])
+                    set_item = str(MINS[m])+"_"+str(self.thresholds[t])
                     if set_item not in sets: sets.append(set_item)
                     values.append(median_times[(MINS[m],self.thresholds[t],r)])
             printing_dict["ground truth "+str(r)] = values
