@@ -6,8 +6,8 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="__TIMEEXPERIMENT__"
-        ticks_per_second="31"
+        <experiment length="__TIME_EXPERIMENT__"
+        ticks_per_second="10"
         random_seed="__SEED__" />
     </framework>
     
@@ -46,19 +46,14 @@
         <variables
             dataacquisitionfrequency="10"  
             environmentplotupdatefrequency="10"
-            timeforonemessage="0.05"
+            timeforonemessage="__TIME_FOR_A_MSG__"
             logfilename="__KILOLOG__">
         </variables>
 
         <hierarchicStruct
             rebroadcast = "__BROADCAST_POLICY__"
-            msgs_n_hops = "0"
-            expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
-            minimum_quorum_length = "0"
-            quorum_scaling_factor = "0"
+            queue_lenght = "__QUORUM_BUFFER_DIM__"
             committed_percentage = "__COMMITTED_PERCENTAGE__"
-            commitment_variation_time = "0"
-            next_committed_percentage = "__NEXT_COMMITTED_PERCENTAGE__"
         >
         </hierarchicStruct>
     

@@ -113,44 +113,9 @@ uint8_t check_quorum_trigger(quorum_a **Array[]){
     return out;
 }
 
-void check_quorum(quorum_a **Array[]){
-    commit_counter = check_quorum_trigger(Array);
-    // switch (my_state){
-    //     case committed:
-    //         commit_counter = (check_quorum_trigger(Array) + 1);
-    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
-    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
-    //         switch (quorum_reached){
-    //             case 1:
-    //                 led = RGB(0,3,0);
-    //                 break;
-    //             default:
-    //                 led = RGB(0,0,3);
-    //                 break;
-    //         }
-    //         break;
-    //     default:
-    //         commit_counter = check_quorum_trigger(Array);
-    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
-    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
-    //         switch (quorum_reached){
-    //             case 1:
-    //                 led = RGB(3,0,0);
-    //                 break;
-    //             default:
-    //                 led = RGB(0,0,0);
-    //                 break;
-    //         }
-    //         break;
-    // }
+void prepare_quorum_variables(){
+    if(quorum_list != NULL && num_quorum_items >= min_quorum_length) commit_counter = check_quorum_trigger(&quorum_array);
 }
-
-// void prepare_quorum_variables(){
-//     // select a random message
-//     quorum_percentage = 0.f;
-//     quorum_reached = 0;
-//     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-// }
 
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 255.0;
@@ -250,7 +215,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
     sort_q(&quorum_array);
 }
 
@@ -289,8 +254,10 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                         expiring_dist = sa_payload;
                         break;
                 }
-                broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
+                broadcasting_flag = data[2] & 0b00000011;
+                uint8_t queue_lenght = (data[2] & 0b11111100) >> 2;
+                init_array_qrm(&quorum_array,queue_lenght);
+                set_quorum_vars(expiring_dist * TICKS_PER_SEC,queue_lenght,(uint8_t)(sa_payload));
                 init_received_A = true;
             }
             break;
@@ -408,7 +375,6 @@ void setup(){
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
-    init_array_qrm(&quorum_array);
 
     /* Init random seed */
     uint8_t seed = rand_hard();
@@ -422,12 +388,9 @@ void setup(){
 
 void loop(){
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%d\t%d\t%ld\t%ld\n",kilo_uid,my_state,num_quorum_items,commit_counter,msg_type_send,num_own_info,num_other_info);
+    fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
     fclose(fp);
-    decrement_quorum_counter(&quorum_array);
-    erase_expired_items(&quorum_array,&quorum_list);
-    check_quorum(&quorum_array);
-    // prepare_quorum_variables();
+    prepare_quorum_variables();
     random_way_point_model();
     if(init_received_C) talk();
 }

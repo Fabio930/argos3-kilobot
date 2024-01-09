@@ -7,7 +7,7 @@
     <framework>
         <system threads="0" />
         <experiment length="1800"
-        ticks_per_second="31"/>
+        ticks_per_second="10"/>
     </framework>
     
     <!-- *************** -->
@@ -50,14 +50,9 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "2"
-            msgs_n_hops = "0"
-            expiring_quorum_sec = "300"
-            minimum_quorum_length = "10"
-            quorum_scaling_factor = "0.55"
+            rebroadcast = "0"
+            queue_lenght = "5"
             committed_percentage = "0.6"
-            commitment_variation_time = "20"
-            next_committed_percentage = "0.2"
         >
         </hierarchicStruct>
 
