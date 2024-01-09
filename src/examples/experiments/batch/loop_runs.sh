@@ -29,11 +29,11 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 RUNS=20
-numrobots="10"
-experiment_length="900"
+numrobots="15 40 60"
+experiment_length="1800"
 msg_frequency="0.05 0.1 0.2"
 rebroadcast="0 2"
-buffer_dim="5 8 10 15 20 25 30 35 40 45"
+buffer_dim="5 10 15 20 25 30 35 40 45 50 55"
 committed_percentage=".5 .6 .7"
 
 strToReplace="."
