@@ -30,7 +30,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 RUNS=40
 numrobots="10 20 30 40 50"
-experiment_length="900"
+experiment_length="1800"
 msg_frequency="0.05 0.1 0.2 0.4"
 rebroadcast="0 2"
 buffer_dim="5 8 10 15 20 25 30 35 40 45"
