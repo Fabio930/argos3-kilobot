@@ -3,10 +3,11 @@
 void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
     expiring_ticks_quorum = Expiring_time;
     min_quorum_length = Min_quorum_length;
-    // quorum_scaling_factor = Quorum_scaling_factor*.01;
 }
 
 void sort_q(quorum_a **Array[]){
+    true_quorum_items = 0;
+    uint8_t IDS[num_quorum_items];
     for (uint8_t i = 0; i < buffer_lenght-1; i++){
         for (uint8_t j = i+1; j < buffer_lenght; j++){
             if(((*Array)[i] == NULL && (*Array)[j] != NULL)){
@@ -21,6 +22,18 @@ void sort_q(quorum_a **Array[]){
             }
         }
     }
+    for (size_t i = 0; i < num_quorum_items; i++) IDS[i] = 111;
+    for (size_t i = 0; i < num_quorum_items; i++){
+        uint8_t add=1;
+        for (size_t j = 0; j < num_quorum_items; j++){
+            if(IDS[j]==(*Array)[i]->agent_id){
+                add = 0;
+                break;
+            }
+        }
+        if(add==1) IDS[i]=(*Array)[i]->agent_id;
+    }
+    for (size_t i = 0; i < num_quorum_items; i++) if(IDS[i]!=111) true_quorum_items++;
 }
 
 void init_array_qrm(quorum_a **Array[], uint8_t N){

@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.55,0.6]
-    ticks_per_sec = 31
+    ticks_per_sec = 10
     x_limit = 100
 ##########################################################################################################
     def __init__(self):
@@ -28,10 +28,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,path_temp,max_steps,n_agents,position="all"):
-        MINS = [5]
-        for i in range(10,n_agents,10):
-            MINS.append(i) 
+    def extract_k_quorum_data(self,path_temp,max_steps,n_agents,position="all"): 
         COMMIT=[]
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder and "images" not in pre_folder:
@@ -124,12 +121,11 @@ class Results:
                                                     if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
                                         bigM_2 = M_2
-                        for minus in MINS:
-                            for thr in self.thresholds:
-                                results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2)
-                self.print_median_time(results,path_temp,COMMIT,MINS,msg_exp_time)
-                self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
-                self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                        for thr in self.thresholds:
+                            results[(commit,thr)] = (self.compute_states(bigM_1,bigM_2,thr),bigM_1,bigM_2)
+                self.print_median_time(results,path_temp,COMMIT,msg_exp_time)
+                self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,msg_exp_time)
+                self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,msg_exp_time)
     
 ##########################################################################################################
     def extract_msg_freq_data(self,path_temp,max_steps,n_agents,position="all"):
@@ -373,8 +369,8 @@ class Results:
         print("DONE\n")
         
 ##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
-        COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
+    def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MSG_EXP_TIME):
+        COMMIT = np.sort(COMMIT)
         print("Printing average quorum data")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -383,86 +379,85 @@ class Results:
         if not os.path.exists(BASE+"/images"+"/state"):
             os.mkdir(BASE+"/images"+"/state")
         print_only_state = True
-        for m in range(len(MINS)):
-            for t in range(len(self.thresholds)):
-                we_will_print=False
-                to_print = [[]]*len(data_in.get((COMMIT[0],MINS[m],self.thresholds[t])))
-                legend = [[]]*len(data_in.get((COMMIT[0],MINS[m],self.thresholds[t])))
-                for r in COMMIT:
-                    for l in range(len(data_in.get((r,MINS[m],self.thresholds[t])))):
-                        if (print_only_state or l==0) and (data_in.get((r,MINS[m],self.thresholds[t])))[l] is not None:
-                            we_will_print=True
-                            multi_run_data = (data_in.get((r,MINS[m],self.thresholds[t])))[l]
-                            flag2=[-1]*len(multi_run_data[0][0])
-                            flag3=[flag2]*(len(multi_run_data)+1)
-                            tmp=[flag2]*len(multi_run_data)
-                            for i in range(len(multi_run_data)):
-                                flag1=[-1]*len(multi_run_data[i][0])
-                                for j in range(len(multi_run_data[i])):
-                                    for z in range(len(multi_run_data[i][j])):
-                                        if flag1[z]==-1:
-                                            flag1[z]=multi_run_data[i][j][z]
-                                        else:
-                                            flag1[z]=flag1[z]+multi_run_data[i][j][z]
-                                for j in range(len(flag1)):
-                                    flag1[j]=flag1[j]/len(multi_run_data[i])
-                                    if flag2[j]==-1:
-                                        flag2[j]=flag1[j]
+        for t in range(len(self.thresholds)):
+            we_will_print=False
+            to_print = [[]]*len(data_in.get((COMMIT[0],self.thresholds[t])))
+            legend = [[]]*len(data_in.get((COMMIT[0],self.thresholds[t])))
+            for r in COMMIT:
+                for l in range(len(data_in.get((r,self.thresholds[t])))):
+                    if (print_only_state or l==0) and (data_in.get((r,self.thresholds[t])))[l] is not None:
+                        we_will_print=True
+                        multi_run_data = (data_in.get((r,self.thresholds[t])))[l]
+                        flag2=[-1]*len(multi_run_data[0][0])
+                        flag3=[flag2]*(len(multi_run_data)+1)
+                        tmp=[flag2]*len(multi_run_data)
+                        for i in range(len(multi_run_data)):
+                            flag1=[-1]*len(multi_run_data[i][0])
+                            for j in range(len(multi_run_data[i])):
+                                for z in range(len(multi_run_data[i][j])):
+                                    if flag1[z]==-1:
+                                        flag1[z]=multi_run_data[i][j][z]
                                     else:
-                                        flag2[j]=flag1[j]+flag2[j]
-                                tmp[i] = np.round(flag1,2).tolist()
-                            for i in range(len(flag2)):
-                                flag2[i]=flag2[i]/len(multi_run_data)
-                            for i in range(len(flag3)):
-                                flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
-                            if len(to_print[l])==0:
-                                to_print[l] = [flag3]
-                                legend[l] = ["Gound Truth: "+str(r)]
-                            else:
-                                to_print[l] = np.append(to_print[l],[flag3],0)
-                                legend[l] = np.append(legend[l],"Gound Truth: "+str(r))
-                if we_will_print:
-                    for l in range(len(to_print)):
-                        if (print_only_state or l==0):
-                            handls=[]
-                            values = range(len(to_print[l]))
-                            fig, ax = plt.subplots(figsize=(12,6))
-                            cm = plt.get_cmap('viridis') 
-                            cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                            scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-                            for i in range(len(to_print[l])):
-                                for j in range(len(to_print[l][i])):
-                                    if j==0:
-                                        the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
-                                        handls = np.append(handls,the_plot)
-                                    else:
-                                        plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
-                            plt.grid(True,linestyle=':')
-                            plt.xlabel("simulation time (secs)")
-                            
-                            if l==0:
-                                plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/CONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
-                                plt.yticks(np.arange(0,1.05,0.05))
-                                plt.legend(handles=handls.tolist(),loc='lower right')
-                            elif l==1:
-                                plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/CONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-                                plt.yticks(np.arange(0,N_AGENTS+1,1))
-                            elif l==2:
-                                plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/CONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-                                plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                plt.legend(handles=handls.tolist(),loc='lower right')
-                            plt.tight_layout()
-                            plt.savefig(fig_path)
-                            # plt.show()
-                            plt.close(fig)
-                print_only_state = False
+                                        flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                            for j in range(len(flag1)):
+                                flag1[j]=flag1[j]/len(multi_run_data[i])
+                                if flag2[j]==-1:
+                                    flag2[j]=flag1[j]
+                                else:
+                                    flag2[j]=flag1[j]+flag2[j]
+                            tmp[i] = np.round(flag1,2).tolist()
+                        for i in range(len(flag2)):
+                            flag2[i]=flag2[i]/len(multi_run_data)
+                        for i in range(len(flag3)):
+                            flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+                        if len(to_print[l])==0:
+                            to_print[l] = [flag3]
+                            legend[l] = ["Gound Truth: "+str(r)]
+                        else:
+                            to_print[l] = np.append(to_print[l],[flag3],0)
+                            legend[l] = np.append(legend[l],"Gound Truth: "+str(r))
+            if we_will_print:
+                for l in range(len(to_print)):
+                    if (print_only_state or l==0):
+                        handls=[]
+                        values = range(len(to_print[l]))
+                        fig, ax = plt.subplots(figsize=(12,6))
+                        cm = plt.get_cmap('viridis') 
+                        cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                        for i in range(len(to_print[l])):
+                            for j in range(len(to_print[l][i])):
+                                if j==0:
+                                    the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
+                                    handls = np.append(handls,the_plot)
+                                else:
+                                    plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
+                        plt.grid(True,linestyle=':')
+                        plt.xlabel("simulation time (secs)")
+                        
+                        if l==0:
+                            plt.ylabel("average swarm state")
+                            fig_path=BASE+"/images/state/CONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+                            plt.yticks(np.arange(0,1.05,0.05))
+                            plt.legend(handles=handls.tolist(),loc='lower right')
+                        elif l==1:
+                            plt.ylabel("average quorum length")
+                            fig_path=BASE+"/images/quorum/CONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                            plt.yticks(np.arange(0,N_AGENTS+1,1))
+                        elif l==2:
+                            plt.ylabel("average quorum level")
+                            fig_path=BASE+"/images/quorum/CONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                            plt.yticks(np.arange(0,N_AGENTS+1,1))
+                            plt.legend(handles=handls.tolist(),loc='lower right')
+                        plt.tight_layout()
+                        plt.savefig(fig_path)
+                        # plt.show()
+                        plt.close(fig)
+            print_only_state = False
         print("DONE\n")
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,N_AGENTS,COMMIT,MSG_EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -470,84 +465,83 @@ class Results:
             os.mkdir(BASE+"/images"+"/quorum")
         if not os.path.exists(BASE+"/images"+"/state"):
             os.mkdir(BASE+"/images"+"/state")
-        COMMIT,MINS= np.sort(COMMIT),np.sort(MINS)
+        COMMIT= np.sort(COMMIT)
         print_only_state = True
-        for m in range(len(MINS)):
-            for t in range(len(self.thresholds)):
-                we_will_print = False
-                to_print = [[]]*len(data_in.get((COMMIT[0],MINS[0],self.thresholds[0])))
-                legend = [[]]*len(data_in.get((COMMIT[0],MINS[0],self.thresholds[0])))
-                p,P = 0,0
-                for r in COMMIT:
-                    if P==0 and position!='first' and taken=="all":
-                        P = 1
-                        if position=='rand': p = np.random.choice(np.arange(len(data_in.get((r,MINS[m],self.thresholds[t]))[0])))
-                        elif position=='last': p = len(data_in.get((r,MINS[m],self.thresholds[t]))[0])-1
-                    for l in range(len(data_in.get((r,MINS[m],self.thresholds[t])))):
-                        if(print_only_state or l==0) and  data_in.get((r,MINS[m],self.thresholds[t]))[l] is not None:
-                            we_will_print=True
-                            run = data_in.get((r,MINS[m],self.thresholds[t]))[l][p]
-                            mean = [-1]*len(run[0])
-                            flag = [mean]*(len(run)+1)
-                            for i in range(len(run)):
-                                flag[i+1] = run[i]
-                                for j in range(len(run[i])):
-                                    if mean[j] == -1:
-                                        mean[j] = run[i][j]
-                                    else:
-                                        mean[j] = mean[j]+run[i][j]
-                            for z in range(len(mean)):
-                                mean[z] = mean[z]/len(run)
-                            flag[0] = np.round(mean,2).tolist()
-                            if len(to_print[l])==0:
-                                to_print[l] = [flag]
-                                legend[l] = ["Ground Truth: "+str(r)]
-                            else:
-                                to_print[l] = np.append(to_print[l],[flag],0)
-                                legend[l] = np.append(legend[l],"Ground Truth: "+str(r))
-                if we_will_print:
-                    for l in range(len(to_print)):
-                        if (print_only_state or l==0):
-                            handls=[]
-                            values = range(len(to_print[l]))
-                            fig, ax = plt.subplots(figsize=(12,6))
-                            cm = plt.get_cmap('viridis') 
-                            cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                            scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-                            for i in range(len(to_print[l])):
-                                for j in range(len(to_print[l][i])):
-                                    if j==0:
-                                        the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
-                                        handls = np.append(handls,the_plot)
-                                    else:
-                                        plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
-                            plt.grid(True,linestyle=':')
-                            plt.xlabel("simulation time (secs)")
-                            
-                            if l==0:
-                                plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/srCONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
-                                plt.yticks(np.arange(0,1.05,0.05))
-                                plt.legend(handles=handls.tolist(),loc='lower right')
-                            elif l==1:
-                                plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/srCONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
-                                plt.yticks(np.arange(0,N_AGENTS+1,1))
-                            elif l==2:
-                                plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/srCONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
-                                plt.yticks(np.arange(0,N_AGENTS+1,1))
-                                plt.legend(handles=handls.tolist(),loc='lower right')
-                            plt.tight_layout()
-                            plt.savefig(fig_path)
-                            # plt.show()
-                            plt.close(fig)
-                print_only_state = False
+        for t in range(len(self.thresholds)):
+            we_will_print = False
+            to_print = [[]]*len(data_in.get((COMMIT[0],self.thresholds[0])))
+            legend = [[]]*len(data_in.get((COMMIT[0],self.thresholds[0])))
+            p,P = 0,0
+            for r in COMMIT:
+                if P==0 and position!='first' and taken=="all":
+                    P = 1
+                    if position=='rand': p = np.random.choice(np.arange(len(data_in.get((r,self.thresholds[t]))[0])))
+                    elif position=='last': p = len(data_in.get((r,self.thresholds[t]))[0])-1
+                for l in range(len(data_in.get((r,self.thresholds[t])))):
+                    if(print_only_state or l==0) and  data_in.get((r,self.thresholds[t]))[l] is not None:
+                        we_will_print=True
+                        run = data_in.get((r,self.thresholds[t]))[l][p]
+                        mean = [-1]*len(run[0])
+                        flag = [mean]*(len(run)+1)
+                        for i in range(len(run)):
+                            flag[i+1] = run[i]
+                            for j in range(len(run[i])):
+                                if mean[j] == -1:
+                                    mean[j] = run[i][j]
+                                else:
+                                    mean[j] = mean[j]+run[i][j]
+                        for z in range(len(mean)):
+                            mean[z] = mean[z]/len(run)
+                        flag[0] = np.round(mean,2).tolist()
+                        if len(to_print[l])==0:
+                            to_print[l] = [flag]
+                            legend[l] = ["Ground Truth: "+str(r)]
+                        else:
+                            to_print[l] = np.append(to_print[l],[flag],0)
+                            legend[l] = np.append(legend[l],"Ground Truth: "+str(r))
+            if we_will_print:
+                for l in range(len(to_print)):
+                    if (print_only_state or l==0):
+                        handls=[]
+                        values = range(len(to_print[l]))
+                        fig, ax = plt.subplots(figsize=(12,6))
+                        cm = plt.get_cmap('viridis') 
+                        cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+                        for i in range(len(to_print[l])):
+                            for j in range(len(to_print[l][i])):
+                                if j==0:
+                                    the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
+                                    handls = np.append(handls,the_plot)
+                                else:
+                                    plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
+                        plt.grid(True,linestyle=':')
+                        plt.xlabel("simulation time (secs)")
+                        
+                        if l==0:
+                            plt.ylabel("average swarm state")
+                            fig_path=BASE+"/images/state/srCONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
+                            plt.yticks(np.arange(0,1.05,0.05))
+                            plt.legend(handles=handls.tolist(),loc='lower right')
+                        elif l==1:
+                            plt.ylabel("average quorum length")
+                            fig_path=BASE+"/images/quorum/srCONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
+                            plt.yticks(np.arange(0,N_AGENTS+1,1))
+                        elif l==2:
+                            plt.ylabel("average quorum level")
+                            fig_path=BASE+"/images/quorum/srCONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
+                            plt.yticks(np.arange(0,N_AGENTS+1,1))
+                            plt.legend(handles=handls.tolist(),loc='lower right')
+                        plt.tight_layout()
+                        plt.savefig(fig_path)
+                        # plt.show()
+                        plt.close(fig)
+            print_only_state = False
         print("DONE\n")
 
 ##########################################################################################################
-    def print_median_time(self,data_in,BASE,COMMIT,MINS,MSG_EXP_TIME):
-        COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
+    def print_median_time(self,data_in,BASE,COMMIT,MSG_EXP_TIME):
+        COMMIT = np.sort(COMMIT)
         print("\nPrinting median arrival times")
         median_times = {}
         if not os.path.exists(BASE+"/images"):
@@ -555,38 +549,36 @@ class Results:
         if not os.path.exists(BASE+"/images"+"/times"):
             os.mkdir(BASE+"/images"+"/times")
         ylim = 0
-        for m in range(len(MINS)):
-            for t in range(len(self.thresholds)):
-                for r in COMMIT:
-                    multi_run_data = (data_in.get((r,MINS[m],self.thresholds[t])))[0]
-                    times = [len(multi_run_data[0][0])] * len(multi_run_data)
-                    for i in range(len(multi_run_data)): # per ogni run
-                        for z in range(len(multi_run_data[i][0])): # per ogni tick
-                            sum = 0
-                            for j in range(len(multi_run_data[i])): # per ogni agente
-                                sum += multi_run_data[i][j][z]
-                            if sum >= 0.9 * len(multi_run_data[i]):
-                                times[i] = z
-                                break
-                    times = sorted(times)
-                    median = len(multi_run_data[0][0])
-                    if ylim == 0: ylim = median
-                    if times[len(times)//2] < median:
-                        if len(times)%2 == 0:
-                            indx = int(len(times)*0.5)
-                            median = (times[indx] + times[indx-1])*0.5
-                        else:
-                            median = times[int(math.floor(len(times)*0.5))]
-                    median_times[(MINS[m],self.thresholds[t],r)] = round(median,3)
+        for t in range(len(self.thresholds)):
+            for r in COMMIT:
+                multi_run_data = (data_in.get((r,self.thresholds[t])))[0]
+                times = [len(multi_run_data[0][0])] * len(multi_run_data)
+                for i in range(len(multi_run_data)): # per ogni run
+                    for z in range(len(multi_run_data[i][0])): # per ogni tick
+                        sum = 0
+                        for j in range(len(multi_run_data[i])): # per ogni agente
+                            sum += multi_run_data[i][j][z]
+                        if sum >= 0.9 * len(multi_run_data[i]):
+                            times[i] = z
+                            break
+                times = sorted(times)
+                median = len(multi_run_data[0][0])
+                if ylim == 0: ylim = median
+                if times[len(times)//2] < median:
+                    if len(times)%2 == 0:
+                        indx = int(len(times)*0.5)
+                        median = (times[indx] + times[indx-1])*0.5
+                    else:
+                        median = times[int(math.floor(len(times)*0.5))]
+                median_times[(self.thresholds[t],r)] = round(median,3)
         printing_dict = {}
         sets = []
         for r in COMMIT:
             values = []
-            for m in range(len(MINS)):
-                for t in range(len(self.thresholds)):
-                    set_item = str(MINS[m])+"_"+str(self.thresholds[t])
-                    if set_item not in sets: sets.append(set_item)
-                    values.append(median_times[(MINS[m],self.thresholds[t],r)])
+            for t in range(len(self.thresholds)):
+                set_item = str(self.thresholds[t])
+                if set_item not in sets: sets.append(set_item)
+                values.append(median_times[(self.thresholds[t],r)])
             printing_dict["ground truth "+str(r)] = values
         x = np.arange(len(sets))
         width = 0.25

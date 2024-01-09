@@ -28,10 +28,10 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-RUNS=40
-numrobots="10 20 30 40 50"
-experiment_length="1800"
-msg_frequency="0.05 0.1 0.2 0.4"
+RUNS=20
+numrobots="10"
+experiment_length="900"
+msg_frequency="0.05 0.1 0.2"
 rebroadcast="0 2"
 buffer_dim="5 8 10 15 20 25 30 35 40 45"
 committed_percentage=".5 .6 .7"
@@ -71,7 +71,7 @@ for par in $experiment_length; do
                                 mkdir $dir3
                             fi
                             for it in $(seq 1 $RUNS); do
-                                config=`printf 'config_msgFreq%d_rebroad%d_nrobots%d_bufferDim%d_CommitPerc%s_run%d.argos' $par00 $par0 $par1 $par2 $par3 $it`
+                                config=`printf 'config_msgFreq%s_rebroad%d_nrobots%d_bufferDim%d_CommitPerc%s_run%d.argos' $par00 $par0 $par1 $par2 $par3 $it`
                                 cp $base_config $config
                                 sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                                 sed -i "s|__NUMROBOTS__|$par1|g" $config

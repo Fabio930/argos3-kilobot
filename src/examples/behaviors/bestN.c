@@ -388,7 +388,7 @@ void setup(){
 
 void loop(){
     fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter);
+    fprintf(fp,"%d\t%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter,true_quorum_items);
     fclose(fp);
     prepare_quorum_variables();
     random_way_point_model();

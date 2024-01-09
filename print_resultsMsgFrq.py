@@ -2,7 +2,7 @@
 # if -d is declared then must specify which data to print: all, quorum or freq(uency)
 # if -f is declared then must specify which files to print: all, first, last or rand(om)
 # if -t is declared then must specify which is the log frequency, default value is 31
-import bestNresultsNEW as BNres
+import bestNresultsMsgFrq as BNres
 import os, sys
 
 def check_inputs():
