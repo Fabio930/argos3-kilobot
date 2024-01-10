@@ -6,7 +6,7 @@ import bestNresults as BNres
 import os, sys
 
 def check_inputs():
-    ticks = 31
+    ticks = 10
     data_type = "all"
     files_to_elaborate = "all"
     if len(sys.argv)>7:
@@ -47,22 +47,25 @@ def check_inputs():
 def main():
     bestNresults = BNres.Results()
     bestNresults.ticks_per_sec, data_type, files_to_elaborate = check_inputs()
+    print("a")
     for base in bestNresults.bases:
+        print("b")
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
                 pre_apath=os.path.join(base, adir)
                 exp_length=int(adir.split('#')[1])
+                print("c",pre_apath)
                 for dir in sorted(os.listdir(pre_apath)):
                     if '.' not in dir and '#' in dir:
                         pre_path=os.path.join(pre_apath, dir)
                         communication=int(dir.split('#')[1])
+                        print("d",dir)
                         for zdir in sorted(os.listdir(pre_path)):
                             if '.' not in zdir and '#' in zdir:
                                 n_agents=int(zdir.split('#')[1])
                                 dtemp=os.path.join(pre_path, zdir)
                                 print("\nOpening folder",dtemp)
                                 if(data_type == "all" or data_type == "quorum"): bestNresults.extract_k_quorum_data(dtemp,exp_length,n_agents,files_to_elaborate)
-                                if((data_type == "all" or data_type == "freq") and communication>0): bestNresults.extract_msg_freq_data(dtemp,exp_length,n_agents,files_to_elaborate)
 
 if __name__ == "__main__":
     main()
