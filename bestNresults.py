@@ -5,7 +5,7 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.55,0.6]
+    thresholds = [0.4,0.5,0.6,0.7]
     ticks_per_sec = 10
     x_limit = 100
 ##########################################################################################################
@@ -24,7 +24,7 @@ class Results:
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
-                    out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         return out
     
 ##########################################################################################################
@@ -132,7 +132,7 @@ class Results:
                                         bigM_2 = M_2
                                         bigM_3 = M_3
                         for thr in self.thresholds:
-                            results[(commit,thr)] = (self.compute_states(bigM_1,bigM_2,thr),bigM_1,bigM_2)
+                            results[(commit,thr)] = (self.compute_states(bigM_1,bigM_2,buffer_dim,thr),bigM_1,bigM_2,bigM_3)
                 self.print_median_time(results,path_temp,COMMIT,buffer_dim)
                 self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,buffer_dim)
                 self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,buffer_dim)
@@ -150,13 +150,41 @@ class Results:
         print_only_state = True
         for t in range(len(self.thresholds)):
             we_will_print=False
-            to_print = [[]]*len(data_in.get((COMMIT[0],self.thresholds[t])))
-            legend = [[]]*len(data_in.get((COMMIT[0],self.thresholds[t])))
+            to_print = [[]]*(len(data_in.get((COMMIT[0],self.thresholds[t])))-1)
+            legend = [[]]*(len(data_in.get((COMMIT[0],self.thresholds[t])))-1)
+            support_print = []
+            support_legend = []
             for r in COMMIT:
-                for l in range(len(data_in.get((r,self.thresholds[t])))):
+                for l in range(len(data_in.get((r,self.thresholds[t])))-1):
                     if (print_only_state or l==0) and (data_in.get((r,self.thresholds[t])))[l] is not None:
                         we_will_print=True
                         multi_run_data = (data_in.get((r,self.thresholds[t])))[l]
+                        support_buffer = (data_in.get((r,self.thresholds[t])))[3]
+                        if l==1:
+                            flag2=[-1]*len(support_buffer[0][0])
+                            flag3=[flag2]*(len(support_buffer)+1)
+                            tmp=[flag2]*len(support_buffer)
+                            for i in range(len(support_buffer)):
+                                flag1=[-1]*len(support_buffer[i][0])
+                                for j in range(len(support_buffer[i])):
+                                    for z in range(len(support_buffer[i][j])):
+                                        if flag1[z]==-1:
+                                            flag1[z]=support_buffer[i][j][z]
+                                        else:
+                                            flag1[z]=flag1[z]+support_buffer[i][j][z]
+                                for j in range(len(flag1)):
+                                    flag1[j]=flag1[j]/len(support_buffer[i])
+                                    if flag2[j]==-1:
+                                        flag2[j]=flag1[j]
+                                    else:
+                                        flag2[j]=flag1[j]+flag2[j]
+                                tmp[i] = np.round(flag1,2).tolist()
+                            for i in range(len(flag2)):
+                                flag2[i]=flag2[i]/len(support_buffer)
+                            for i in range(len(flag3)):
+                                flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+                            support_print = [flag3]
+                            support_legend = ["Not repeated messages"]
                         flag2=[-1]*len(multi_run_data[0][0])
                         flag3=[flag2]*(len(multi_run_data)+1)
                         tmp=[flag2]*len(multi_run_data)
@@ -197,25 +225,38 @@ class Results:
                         for i in range(len(to_print[l])):
                             for j in range(len(to_print[l][i])):
                                 if j==0:
-                                    the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
-                                    handls = np.append(handls,the_plot)
+                                    if l==1 and i==0:
+                                        the_plot, = plt.plot(support_print[i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[0]),label=support_legend[i])
+                                        handls = np.append(handls,the_plot) 
+                                    if l==1:
+                                        the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[2]),label="Message buffer")
+                                    else:  
+                                        the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[i]),label=legend[l][i])
+                                    if l==1:
+                                        if i==0:
+                                            handls = np.append(handls,the_plot)
+                                    else:
+                                        handls = np.append(handls,the_plot)
                                 else:
+                                    if l==1 and i==0:
+                                        plt.plot(support_print[i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                                     plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                         plt.grid(True,linestyle=':')
                         plt.xlabel("simulation time (secs)")
                         
                         if l==0:
                             plt.ylabel("average swarm state")
-                            fig_path=BASE+"/images/state/CONFIGs__MsgExpTime#"+str(BUFFER_DIM)+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+                            fig_path=BASE+"/images/state/CONFIGs__BufferDim#"+str(BUFFER_DIM)+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
                             plt.yticks(np.arange(0,1.05,0.05))
                             plt.legend(handles=handls.tolist(),loc='lower right')
                         elif l==1:
                             plt.ylabel("average quorum length")
-                            fig_path=BASE+"/images/quorum/CONFIGql__MsgExpTime#"+str(BUFFER_DIM)+".png"
+                            fig_path=BASE+"/images/quorum/CONFIGql__BufferDim#"+str(BUFFER_DIM)+".png"
                             plt.yticks(np.arange(0,N_AGENTS+1,1))
+                            plt.legend(handles=handls.tolist(),loc='lower right')
                         elif l==2:
                             plt.ylabel("average quorum level")
-                            fig_path=BASE+"/images/quorum/CONFIGqv__MsgExpTime#"+str(BUFFER_DIM)+".png"
+                            fig_path=BASE+"/images/quorum/CONFIGqv__BufferDim#"+str(BUFFER_DIM)+".png"
                             plt.yticks(np.arange(0,N_AGENTS+1,1))
                             plt.legend(handles=handls.tolist(),loc='lower right')
                         plt.tight_layout()
@@ -238,15 +279,15 @@ class Results:
         print_only_state = True
         for t in range(len(self.thresholds)):
             we_will_print = False
-            to_print = [[]]*len(data_in.get((COMMIT[0],self.thresholds[0])))
-            legend = [[]]*len(data_in.get((COMMIT[0],self.thresholds[0])))
+            to_print = [[]]*(len(data_in.get((COMMIT[0],self.thresholds[0])))-1)
+            legend = [[]]*(len(data_in.get((COMMIT[0],self.thresholds[0])))-1)
             p,P = 0,0
             for r in COMMIT:
                 if P==0 and position!='first' and taken=="all":
                     P = 1
                     if position=='rand': p = np.random.choice(np.arange(len(data_in.get((r,self.thresholds[t]))[0])))
                     elif position=='last': p = len(data_in.get((r,self.thresholds[t]))[0])-1
-                for l in range(len(data_in.get((r,self.thresholds[t])))):
+                for l in range(len(data_in.get((r,self.thresholds[t])))-1):
                     if(print_only_state or l==0) and  data_in.get((r,self.thresholds[t]))[l] is not None:
                         we_will_print=True
                         run = data_in.get((r,self.thresholds[t]))[l][p]
@@ -289,16 +330,16 @@ class Results:
                         
                         if l==0:
                             plt.ylabel("average swarm state")
-                            fig_path=BASE+"/images/state/srCONFIGs__MsgExpTime#"+str(BUFFER_DIM)+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
+                            fig_path=BASE+"/images/state/srCONFIGs__BufferDim#"+str(BUFFER_DIM)+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
                             plt.yticks(np.arange(0,1.05,0.05))
                             plt.legend(handles=handls.tolist(),loc='lower right')
                         elif l==1:
                             plt.ylabel("average quorum length")
-                            fig_path=BASE+"/images/quorum/srCONFIGql__MsgExpTime#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
+                            fig_path=BASE+"/images/quorum/srCONFIGql__BufferDim#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
                             plt.yticks(np.arange(0,N_AGENTS+1,1))
                         elif l==2:
                             plt.ylabel("average quorum level")
-                            fig_path=BASE+"/images/quorum/srCONFIGqv__MsgExpTime#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
+                            fig_path=BASE+"/images/quorum/srCONFIGqv__BufferDim#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
                             plt.yticks(np.arange(0,N_AGENTS+1,1))
                             plt.legend(handles=handls.tolist(),loc='lower right')
                         plt.tight_layout()
@@ -363,7 +404,7 @@ class Results:
         ax.set_xticks(x + width,sets)
         plt.legend(loc='upper right')
         plt.tight_layout()
-        fig_path=BASE+"/images/times/CONFIGt__MsgExpTime#"+str(BUFFER_DIM)+".png"
+        fig_path=BASE+"/images/times/CONFIGt__BufferDim#"+str(BUFFER_DIM)+".png"
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
