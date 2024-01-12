@@ -31,9 +31,9 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 RUNS=20
 numrobots="15 40"
 experiment_length="1800"
-msg_frequency="0.05 0.1 0.2"
+msg_frequency="0.5 1"
 rebroadcast="0 2"
-buffer_dim="5 10 15 20 25 30 35"
+buffer_dim="5 10 20 30"
 committed_percentage=".5 .6 .7"
 
 strToReplace="."
@@ -41,7 +41,7 @@ replace="_"
 for par in $experiment_length; do
     dir=$res_dir/"ExperimentLength#"$par
     for par00 in $msg_frequency; do
-        par00BIS=${par0//$strToReplace/$replace}
+        par00BIS=${par00//$strToReplace/$replace}
         dir00=$dir/"MsgFreq#"$par00BIS
         for par0 in $rebroadcast; do
             dir0=$dir00/"Rebroadcast#"$par0
