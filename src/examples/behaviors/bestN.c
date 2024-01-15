@@ -114,7 +114,7 @@ uint8_t check_quorum_trigger(quorum_a **Array[]){
 }
 
 void prepare_quorum_variables(){
-    if(quorum_list != NULL && num_quorum_items >= min_quorum_length) commit_counter = check_quorum_trigger(&quorum_array);
+    if(quorum_list != NULL) commit_counter = check_quorum_trigger(&quorum_array);
 }
 
 float random_in_range(float min, float max){
@@ -245,19 +245,10 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_color(led);
                 complete_tree(&the_arena);
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
-                uint32_t expiring_dist;
-                switch (sa_payload){
-                    case 0:
-                        expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                        break;
-                    default:
-                        expiring_dist = sa_payload;
-                        break;
-                }
+                broadcasting_ticks = (uint8_t)sa_payload;
                 broadcasting_flag = data[2] & 0b00000011;
                 uint8_t queue_lenght = (data[2] & 0b11111100) >> 2;
                 init_array_qrm(&quorum_array,queue_lenght);
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC,queue_lenght,(uint8_t)(sa_payload));
                 init_received_A = true;
             }
             break;

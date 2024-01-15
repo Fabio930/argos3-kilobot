@@ -2,7 +2,6 @@
 
 void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
     expiring_ticks_quorum = Expiring_time;
-    min_quorum_length = Min_quorum_length;
 }
 
 void sort_q(quorum_a **Array[]){

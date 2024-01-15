@@ -66,6 +66,7 @@ private:
     // UInt8 minimum_quorum_length;
     float committed_percentage;
 
+    UInt8 broadcasting_ticks;
     UInt8 queue_lenght;
     UInt8 rebroadcast;
 

@@ -53,6 +53,7 @@
             rebroadcast = "0"
             queue_lenght = "5"
             committed_percentage = "0.6"
+            broadcasting_ticks = "16"
         >
         </hierarchicStruct>
 

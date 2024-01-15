@@ -3,8 +3,6 @@
 #include <stdio.h>
 
 uint32_t expiring_ticks_quorum = 10000;
-uint8_t min_quorum_length;
-// float quorum_scaling_factor;
 uint8_t num_quorum_items;
 uint8_t true_quorum_items;
 uint8_t buffer_lenght;
