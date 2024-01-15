@@ -24,7 +24,7 @@ class Results:
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
-                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * (1 + m1[i][j][k]) else 0
         return out
     
 ##########################################################################################################
@@ -68,7 +68,7 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
                                                         M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                                         M_3[agent_id] = np.append(M_2[agent_id],(int)(val[4]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         bigM_1[seed-1] = M_1
@@ -87,7 +87,7 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
                                                         M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                                         M_3[agent_id] = np.append(M_2[agent_id],(int)(val[4]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
@@ -106,7 +106,7 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
                                                         M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                                         M_3[agent_id] = np.append(M_2[agent_id],(int)(val[4]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
@@ -125,7 +125,7 @@ class Results:
                                                     agent_id = (int)(val[0])
                                                     if log_count % self.ticks_per_sec == 0:
                                                         M_1[agent_id] = np.append(M_1[agent_id],(int)(val[2]))
-                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3]))
+                                                        M_2[agent_id] = np.append(M_2[agent_id],(int)(val[3])+(int)(val[1]))
                                                         M_3[agent_id] = np.append(M_2[agent_id],(int)(val[4]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         bigM_1 = M_1
