@@ -15,10 +15,3 @@ for evalit in evaluation:
 qresults,qbases,qN_agents,qbranches,qdepth,qk,qr,qmax_steps = bestNresults.extract_k_quorum_data()
 bestNresults.do_something_quorum(qresults,qbases,qN_agents,qbranches,qdepth,qk,qr,qmax_steps)
 bestNresults.print_single_run_quorum(qresults,qbases,qN_agents,qbranches,qdepth,qk,qr,qmax_steps,N_run)
-
-
-# bestNresults.plot_pareto_diagram()
-# ARK_data_positions = bestNresults.sort_ark_positions_by_node()
-# bestNresults.plot_positions_distribution(ARK_data_positions)
-# KILO_data_positions = bestNresults.sort_kilo_positions_by_node()
-# bestNresults.plot_positions_distribution(KILO_data_positions)
