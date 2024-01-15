@@ -33,7 +33,6 @@ numrobots="15 40"
 experiment_length="1800"
 msg_frequency="16 31 62"
 rebroadcast="0"
-buffer_dim="14 36"
 committed_percentage=".5 .6 .7"
 
 strToReplace="."
