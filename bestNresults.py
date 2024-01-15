@@ -84,9 +84,10 @@ class Results:
                                                     if log_count % self.ticks_per_sec == 0:
                                                         q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
                                                         q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
+                                                        if communication != 0:
+                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         q_bigM_1[seed-1] = q_M_1
                                         q_bigM_2[seed-1] = q_M_2
@@ -107,9 +108,10 @@ class Results:
                                                     if log_count % self.ticks_per_sec == 0:
                                                         q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
                                                         q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
+                                                        if communication != 0:
+                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         q_bigM_1 = q_M_1
                                         q_bigM_2 = q_M_2
@@ -130,9 +132,10 @@ class Results:
                                                     if log_count % self.ticks_per_sec == 0:
                                                         q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
                                                         q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
+                                                        if communication != 0:
+                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         q_bigM_1 = q_M_1
                                         q_bigM_2 = q_M_2
@@ -153,9 +156,10 @@ class Results:
                                                     if log_count % self.ticks_per_sec == 0:
                                                         q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
                                                         q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                        m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                        m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
+                                                        if communication != 0:
+                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
+                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
+                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
                                                     if agent_id == n_agents - 1: log_count+=1
                                         q_bigM_1 = q_M_1
                                         q_bigM_2 = q_M_2
