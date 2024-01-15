@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 2 ]; then
     echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
-    exit 11
+    exit 1
 fi
 
 
