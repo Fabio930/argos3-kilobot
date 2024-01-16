@@ -228,10 +228,12 @@ class Results:
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
+        mid_string=""
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
-                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images/messages"):
@@ -298,10 +300,12 @@ class Results:
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
+        mid_string=""
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
-                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images/messages"):
@@ -375,10 +379,12 @@ class Results:
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
+        mid_string=""
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
-                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images/quorum"):
@@ -469,10 +475,10 @@ class Results:
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
+        mid_string=""
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
-                mid_string=""
         for label in name_fields:
             mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
@@ -562,10 +568,10 @@ class Results:
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
+        mid_string=""
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
-                mid_string=""
         for label in name_fields:
             mid_string += label+"_"
         median_times = {}
