@@ -141,6 +141,7 @@ class Results:
                 self.print_median_time(results,base,path_temp,COMMIT,MINS,buffer_dim)
                 self.print_mean_quorum_value(results,base,path_temp,n_agents,COMMIT,MINS,buffer_dim)
                 self.print_single_run_quorum(results,base,path_temp,n_agents,COMMIT,MINS,buffer_dim)
+        print("DONE\n")
 
 ##########################################################################################################
     def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,BUFFER_DIM,n_runs):
@@ -318,7 +319,6 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
-        print("DONE\n")
 
 ##########################################################################################################
     def print_single_run_quorum(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,BUFFER_DIM,position='first',taken="all"):
@@ -411,7 +411,6 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
-        print("DONE")
 
 ##########################################################################################################
     def print_median_time(self,data_in,BASE,PATH,COMMIT,MINS,BUFFER_DIM):
