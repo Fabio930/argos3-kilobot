@@ -182,18 +182,47 @@ class Results:
         print("DONE\n")
         
 ##########################################################################################################
-    def print_csv(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
-        print("Saving CSV file")
-        if not os.path.exists(BASE+"/proc_data"):
-            os.mkdir(BASE+"/proc_data")
-            fw = open(BASE+"/proc_data/average_resume.csv",mode='a',newline='\n')
-            fwriter = csv.writer(fw,delimiter='\t')
-            fwriter.writerow([])
-
-        print("DONE\n")
+    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,BUFFER_DIM,n_runs):
+        static_fields=["CommittedPerc","Threshold","MinBuffDim","MaxBuffDim"]
+        static_values=[COMMIT,THRESHOLD,MINS,BUFFER_DIM]
+        if not os.path.exists(base+"/proc_data"):
+            os.mkdir(base+"/proc_data")
+        write_header = 0
+        name_fields = []
+        values = []
+        file_name = "average_resume_r#"+str(n_runs)+".csv"
+        if not os.path.exists(base+"/proc_data/"+file_name):
+            write_header = 1
+        tmp_b = base.split('/')
+        tmp_p = path.split('/')
+        for i in tmp_p:
+            if i not in tmp_b:
+                tmp = i.split("#")
+                name_fields.append(tmp[0])
+                values.append(tmp[1])
+        for i in range(len(static_fields)):
+            name_fields.append(static_fields[i])
+            values.append(static_values[i])
+        name_fields.append("type")
+        name_fields.append("data")
+        if indx==0:
+            values.append("swarm_state")
+        elif indx==1:
+            values.append("quorum_length")
+        elif indx==2:
+            values.append("quorum_value")
+        elif indx==3:
+            values.append("times")
+        values.append(data_in)
+        fw = open(base+"/proc_data/"+file_name,mode='a',newline='\n')
+        fwriter = csv.writer(fw,delimiter='\t')
+        if write_header == 1:
+            fwriter.writerow(name_fields)
+        fwriter.writerow(values)
+        fw.close()
 
 ##########################################################################################################
-    def print_focused_meg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME,x_limit):
+    def print_focused_meg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME,x_limit):
         print("\nPrinting focus messages frequency")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -254,9 +283,9 @@ class Results:
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
-        print("DONE\n")
+        
 ##########################################################################################################
-    def print_msg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME):
+    def print_msg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME):
         print("\nPrinting messages frequency")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -324,10 +353,9 @@ class Results:
             plt.savefig(fig_path)
             # plt.show()
             plt.close(fig)
-        print("DONE\n")
         
 ##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
+    def print_mean_quorum_value(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing average quorum data")
         if not os.path.exists(BASE+"/images"):
@@ -413,10 +441,9 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
-        print("DONE\n")
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASE,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -497,10 +524,9 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
-        print("DONE\n")
 
 ##########################################################################################################
-    def print_median_time(self,data_in,BASE,COMMIT,MINS,MSG_EXP_TIME):
+    def print_median_time(self,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
         COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
         print("\nPrinting median arrival times")
         median_times = {}
@@ -560,4 +586,3 @@ class Results:
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
-        print("DONE\n")
