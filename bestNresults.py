@@ -183,9 +183,9 @@ class Results:
         print("DONE\n")
         
 ##########################################################################################################
-    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,BUFFER_DIM,n_runs):
-        static_fields=["CommittedPerc","Threshold","MinBuffDim","MaxBuffDim"]
-        static_values=[COMMIT,THRESHOLD,MINS,BUFFER_DIM]
+    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):
+        static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
+        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
         if not os.path.exists(base+"/proc_data"):
             os.mkdir(base+"/proc_data")
         write_header = 0
@@ -430,6 +430,7 @@ class Results:
                             else:
                                 to_print[l] = np.append(to_print[l],[flag3],0)
                                 legend[l] = np.append(legend[l],"Gound Truth: "+str(r))
+                            self.print_resume_csv(l,flag3[0],BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(multi_run_data))
                 if we_will_print:
                     for l in range(len(to_print)):
                         if (print_only_state or l==0):
@@ -594,6 +595,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
+                    self.print_resume_csv(3,times,BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(times))
                     median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
