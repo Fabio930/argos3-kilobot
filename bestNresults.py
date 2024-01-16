@@ -179,6 +179,18 @@ class Results:
                     if position == "all":
                         self.print_msg_freq(m_results,path_temp,COMMIT,msg_exp_time)
                         self.print_focused_meg_freq(m_results,path_temp,COMMIT,msg_exp_time,self.x_limit)
+        print("DONE\n")
+        
+##########################################################################################################
+    def print_csv(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
+        print("Saving CSV file")
+        if not os.path.exists(BASE+"/proc_data"):
+            os.mkdir(BASE+"/proc_data")
+            fw = open(BASE+"/proc_data/average_resume.csv",mode='a',newline='\n')
+            fwriter = csv.writer(fw,delimiter='\t')
+            fwriter.writerow([])
+
+        print("DONE\n")
 
 ##########################################################################################################
     def print_focused_meg_freq(self,data_in,BASE,COMMIT,MSG_EXP_TIME,x_limit):
