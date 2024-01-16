@@ -137,13 +137,25 @@ class Results:
                         for minus in MINS:
                             for thr in self.thresholds:
                                 results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2,bigM_3)
+                COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
                 self.print_median_time(results,path_temp,COMMIT,MINS,buffer_dim)
                 self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,MINS,buffer_dim)
                 self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,MINS,buffer_dim)
-        
+        print("DONE\n")
+##########################################################################################################
+    def print_csv(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
+        print("Saving CSV file")
+        if not os.path.exists(BASE+"/proc_data"):
+            os.mkdir(BASE+"/proc_data")
+            fw = open(BASE+"/proc_data/average_resume.csv",mode='a',newline='\n')
+            fwriter = csv.writer(fw,delimiter='\t')
+            fwriter.writerow([])
+
+        print("DONE\n")
+
+
 ##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
-        COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing average quorum data")
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -280,7 +292,6 @@ class Results:
             os.mkdir(BASE+"/images"+"/quorum")
         if not os.path.exists(BASE+"/images"+"/state"):
             os.mkdir(BASE+"/images"+"/state")
-        COMMIT,MINS= np.sort(COMMIT),np.sort(MINS)
         print_only_state = True
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -357,7 +368,6 @@ class Results:
 
 ##########################################################################################################
     def print_median_time(self,data_in,BASE,COMMIT,MINS,BUFFER_DIM):
-        COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
         print("\nPrinting median arrival times")
         median_times = {}
         if not os.path.exists(BASE+"/images"):
