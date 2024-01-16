@@ -28,19 +28,19 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,path_temp,max_steps,n_agents,position="all"): 
-        MINS = [5]
-        for i in range(10,n_agents,10):
-            MINS.append(i)
+    def extract_k_quorum_data(self,base,path_temp,max_steps,n_agents,position="all"): 
         COMMIT=[]
         for pre_folder in sorted(os.listdir(path_temp)):
-            if '.' not in pre_folder and "images" not in pre_folder:
+            if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 buffer_dim = int(pre_params[-1])
+                MINS = [5]
+                for i in range(10,buffer_dim,10):
+                    MINS.append(i)
                 pre_path_temp=os.path.join(path_temp,pre_folder)
                 results = {}
                 for folder in sorted(os.listdir(pre_path_temp)):
-                    if '.' not in folder and "images" not in folder:
+                    if '.' not in folder:
                         params = folder.split('#')
                         commit = float(params[1].replace("_","."))
                         print("\nExtracting KILO data for",buffer_dim,"Buffer dimension",commit,"Committed percentage and",max_steps,"Time steps")
@@ -138,25 +138,62 @@ class Results:
                             for thr in self.thresholds:
                                 results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2,bigM_3)
                 COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
-                self.print_median_time(results,path_temp,COMMIT,MINS,buffer_dim)
-                self.print_mean_quorum_value(results,path_temp,n_agents,COMMIT,MINS,buffer_dim)
-                self.print_single_run_quorum(results,path_temp,n_agents,COMMIT,MINS,buffer_dim)
-        print("DONE\n")
-##########################################################################################################
-    def print_csv(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
-        print("Saving CSV file")
-        if not os.path.exists(BASE+"/proc_data"):
-            os.mkdir(BASE+"/proc_data")
-            fw = open(BASE+"/proc_data/average_resume.csv",mode='a',newline='\n')
-            fwriter = csv.writer(fw,delimiter='\t')
-            fwriter.writerow([])
-
-        print("DONE\n")
-
+                self.print_median_time(results,base,path_temp,COMMIT,MINS,buffer_dim)
+                self.print_mean_quorum_value(results,base,path_temp,n_agents,COMMIT,MINS,buffer_dim)
+                self.print_single_run_quorum(results,base,path_temp,n_agents,COMMIT,MINS,buffer_dim)
 
 ##########################################################################################################
-    def print_mean_quorum_value(self,data_in,BASE,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
-        print("Printing average quorum data")
+    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,BUFFER_DIM,n_runs):
+        static_fields=["CommittedPerc","Threshold","MinBuffDim","MaxBuffDim"]
+        static_values=[COMMIT,THRESHOLD,MINS,BUFFER_DIM]
+        if not os.path.exists(base+"/proc_data"):
+            os.mkdir(base+"/proc_data")
+        write_header = 0
+        name_fields = []
+        values = []
+        file_name = "average_resume_r#"+str(n_runs)+".csv"
+        if not os.path.exists(base+"/proc_data/"+file_name):
+            write_header = 1
+        tmp_b = base.split('/')
+        tmp_p = path.split('/')
+        for i in tmp_p:
+            if i not in tmp_b:
+                tmp = i.split("#")
+                name_fields.append(tmp[0])
+                values.append(tmp[1])
+        for i in range(len(static_fields)):
+            name_fields.append(static_fields[i])
+            values.append(static_values[i])
+        name_fields.append("type")
+        name_fields.append("data")
+        if indx==0:
+            values.append("swarm_state")
+        elif indx==1:
+            values.append("quorum_length")
+        elif indx==2:
+            values.append("quorum_value")
+        elif indx==3:
+            values.append("times")
+        values.append(data_in)
+        fw = open(base+"/proc_data/"+file_name,mode='a',newline='\n')
+        fwriter = csv.writer(fw,delimiter='\t')
+        if write_header == 1:
+            fwriter.writerow(name_fields)
+        fwriter.writerow(values)
+        fw.close()
+
+##########################################################################################################
+    def print_mean_quorum_value(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
+        print("\nPrinting average quorum data")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images"+"/quorum"):
@@ -230,6 +267,7 @@ class Results:
                             else:
                                 to_print[l] = np.append(to_print[l],[flag3],0)
                                 legend[l] = np.append(legend[l],"Gound Truth: "+str(r))
+                            self.print_resume_csv(l,flag3[0],BASE,PATH,r,self.thresholds[t],MINS[m],BUFFER_DIM,len(multi_run_data))
                 if we_will_print:
                     for l in range(len(to_print)):
                         if (print_only_state or l==0):
@@ -260,20 +298,19 @@ class Results:
                                         plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.3)
                             plt.grid(True,linestyle=':')
                             plt.xlabel("simulation time (secs)")
-                            
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/CONFIGs__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+                                fig_path=BASE+"/images/state/CONFIGs__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/CONFIGql__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGql__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/CONFIGqv__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGqv__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()
@@ -284,14 +321,25 @@ class Results:
         print("DONE\n")
 
 ##########################################################################################################
-    def print_single_run_quorum(self,data_in,BASE,N_AGENTS,COMMIT,BUFFER_DIM,MINS,position='first',taken="all"):
+    def print_single_run_quorum(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,BUFFER_DIM,position='first',taken="all"):
         print("Printing single run quorum data")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+        mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/quorum"):
-            os.mkdir(BASE+"/images"+"/quorum")
-        if not os.path.exists(BASE+"/images"+"/state"):
-            os.mkdir(BASE+"/images"+"/state")
+        if not os.path.exists(BASE+"/images/single_runs"):
+            os.mkdir(BASE+"/images/single_runs")
+        if not os.path.exists(BASE+"/images/single_runs/quorum"):
+            os.mkdir(BASE+"/images/single_runs/quorum")
+        if not os.path.exists(BASE+"/images/single_runs/state"):
+            os.mkdir(BASE+"/images/single_runs/state")
         print_only_state = True
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -344,19 +392,18 @@ class Results:
                                         plt.plot(to_print[l][i][j],lw=.5,ls='-.',c=scalarMap.to_rgba(values[i]),alpha=.5)
                             plt.grid(True,linestyle=':')
                             plt.xlabel("simulation time (secs)")
-                            
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/srCONFIGs__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/state/srCONFIGs__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/srCONFIGql__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/quorum/srCONFIGql__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/srCONFIGqv__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/quorum/srCONFIGqv__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()
@@ -364,11 +411,20 @@ class Results:
                             # plt.show()
                             plt.close(fig)
                 print_only_state = False
-        print("DONE\n")
+        print("DONE")
 
 ##########################################################################################################
-    def print_median_time(self,data_in,BASE,COMMIT,MINS,BUFFER_DIM):
+    def print_median_time(self,data_in,BASE,PATH,COMMIT,MINS,BUFFER_DIM):
         print("\nPrinting median arrival times")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         median_times = {}
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
@@ -389,6 +445,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
+                    self.print_resume_csv(3,times,BASE,PATH,r,self.thresholds[t],MINS[m],BUFFER_DIM,len(times))
                     median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
@@ -397,32 +454,32 @@ class Results:
                             median = (times[indx] + times[indx-1])*0.5
                         else:
                             median = times[int(math.floor(len(times)*0.5))]
-                    median_times[(self.thresholds[t],r)] = round(median,3)
+                    median_times[(self.thresholds[t],MINS[m],r)] = round(median,3)
         printing_dict = {}
         sets = []
-        for r in COMMIT:
-            values = []
-            for t in range(len(self.thresholds)):
-                set_item = str(self.thresholds[t])
-                if set_item not in sets: sets.append(set_item)
-                values.append(median_times[(self.thresholds[t],r)])
-            printing_dict["ground truth "+str(r)] = values
-        x = np.arange(len(sets))
-        width = 0.25
-        multiplier = 0
-        fig, ax = plt.subplots(figsize=(12,6))
-        for attribute, measurement in printing_dict.items():
-            rects = ax.bar(x + (width*multiplier),measurement,width, label=attribute)
-            ax.bar_label(rects,padding=3)
-            multiplier += 1
-        ax.set_ylabel("median arrival time (sec)")
-        ax.set_ylim(0,ylim)
-        ax.set_xlabel("configurations")
-        ax.set_xticks(x + width,sets)
-        plt.legend(loc='upper right')
-        plt.tight_layout()
-        fig_path=BASE+"/images/times/CONFIGt__BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+".png"
-        plt.savefig(fig_path)
-        # plt.show()
-        plt.close(fig)
-        print("DONE\n")
+        for m in range(len(MINS)):
+            for r in COMMIT:
+                values = []
+                for t in range(len(self.thresholds)):
+                    set_item = str(self.thresholds[t])
+                    if set_item not in sets: sets.append(set_item)
+                    values.append(median_times[(self.thresholds[t],MINS[m],r)])
+                printing_dict["ground truth "+str(r)] = values
+            x = np.arange(len(sets))
+            width = 0.25
+            multiplier = 0
+            fig, ax = plt.subplots(figsize=(12,6))
+            for attribute, measurement in printing_dict.items():
+                rects = ax.bar(x + (width*multiplier),measurement,width, label=attribute)
+                ax.bar_label(rects,padding=3)
+                multiplier += 1
+            ax.set_ylabel("median arrival time (sec)")
+            ax.set_ylim(0,ylim)
+            ax.set_xlabel("configurations")
+            ax.set_xticks(x + width,sets)
+            plt.legend(loc='upper right')
+            plt.tight_layout()
+            fig_path=BASE+"/images/times/CONFIGt__"+mid_string+"BufferDim#"+str(BUFFER_DIM)+"_MinListDim#"+str(MINS[m])+".png"
+            plt.savefig(fig_path)
+            # plt.show()
+            plt.close(fig)
