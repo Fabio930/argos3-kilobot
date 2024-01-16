@@ -170,6 +170,7 @@ class Results:
                             for thr in self.thresholds:
                                 q_results[(commit,minus,thr)] = (self.compute_states(q_bigM_1,q_bigM_2,minus,thr,position),q_bigM_1,q_bigM_2)
                         m_results[commit] = (m_bigM_1,m_bigM_2,m_bigM_3)
+                COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
                 if data_type=="all" or data_type=="quorum":
                     if position=="all":
                         self.print_median_time(q_results,base,path_temp,COMMIT,MINS,msg_exp_time)
@@ -224,10 +225,17 @@ class Results:
 ##########################################################################################################
     def print_focused_meg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME,x_limit):
         print("\nPrinting focus messages frequency")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/messages"):
-            os.mkdir(BASE+"/images"+"/messages")
+        if not os.path.exists(BASE+"/images/messages"):
+            os.mkdir(BASE+"/images/messages")
         to_print = [[]]*len(data_in.get(COMMIT[0]))
         legend = [[]]*len(data_in.get(COMMIT[0]))
         for c in COMMIT:
@@ -278,7 +286,7 @@ class Results:
         plt.grid(True,linestyle=':')
         plt.xlabel("simulation time (secs)")
         plt.ylabel("average # of msgs")
-        fig_path=BASE+"/images/messages/CONFIGfom__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+        fig_path=BASE+"/images/messages/CONFIGfom__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
         plt.tight_layout()
         plt.savefig(fig_path)
         # plt.show()
@@ -287,10 +295,17 @@ class Results:
 ##########################################################################################################
     def print_msg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME):
         print("\nPrinting messages frequency")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/messages"):
-            os.mkdir(BASE+"/images"+"/messages")
+        if not os.path.exists(BASE+"/images/messages"):
+            os.mkdir(BASE+"/images/messages")
         to_print = [[]]*len(data_in.get(COMMIT[0]))
         for c in COMMIT:
             for l in range(len(data_in.get(c))):
@@ -339,15 +354,15 @@ class Results:
             
             if l==0:
                 plt.ylabel("average swarm msg action")
-                fig_path=BASE+"/images/messages/CONFIGf__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                fig_path=BASE+"/images/messages/CONFIGf__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,1.1,0.1))
             elif l==1:
                 plt.ylabel("average # of broadcast msgs")
-                fig_path=BASE+"/images/messages/CONFIGbm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                fig_path=BASE+"/images/messages/CONFIGbm__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,4100,100))
             elif l==2:
                 plt.ylabel("average # of rebroadcast msgs")
-                fig_path=BASE+"/images/messages/CONFIGrm__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                fig_path=BASE+"/images/messages/CONFIGrm__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,110,10))
             plt.tight_layout()
             plt.savefig(fig_path)
@@ -356,14 +371,20 @@ class Results:
         
 ##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME):
-        COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
         print("Printing average quorum data")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/quorum"):
-            os.mkdir(BASE+"/images"+"/quorum")
-        if not os.path.exists(BASE+"/images"+"/state"):
-            os.mkdir(BASE+"/images"+"/state")
+        if not os.path.exists(BASE+"/images/quorum"):
+            os.mkdir(BASE+"/images/quorum")
+        if not os.path.exists(BASE+"/images/state"):
+            os.mkdir(BASE+"/images/state")
         print_only_state = True
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -424,16 +445,16 @@ class Results:
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/CONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
+                                fig_path=BASE+"/images/state/CONFIGs__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/CONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGql__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/CONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+                                fig_path=BASE+"/images/quorum/CONFIGqv__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()
@@ -445,13 +466,23 @@ class Results:
 ##########################################################################################################
     def print_single_run_quorum(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,MSG_EXP_TIME,position='first',taken="all"):
         print("Printing single run quorum data")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/quorum"):
-            os.mkdir(BASE+"/images"+"/quorum")
-        if not os.path.exists(BASE+"/images"+"/state"):
-            os.mkdir(BASE+"/images"+"/state")
-        COMMIT,MINS= np.sort(COMMIT),np.sort(MINS)
+        if not os.path.exists(BASE+"/images/single_runs"):
+            os.mkdir(BASE+"/images/single_runs")
+        if not os.path.exists(BASE+"/images/single_runs/quorum"):
+            os.mkdir(BASE+"/images/single_runs/quorum")
+        if not os.path.exists(BASE+"/images/single_runs/state"):
+            os.mkdir(BASE+"/images/single_runs/state")
         print_only_state = True
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -507,16 +538,16 @@ class Results:
                             
                             if l==0:
                                 plt.ylabel("average swarm state")
-                                fig_path=BASE+"/images/state/srCONFIGs__MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/state/srCONFIGs__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+"_MINl#"+str(MINS[m])+"_THR#"+str(self.thresholds[t]).replace(".","-")+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,1.05,0.05))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             elif l==1:
                                 plt.ylabel("average quorum length")
-                                fig_path=BASE+"/images/quorum/srCONFIGql__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/quorum/srCONFIGql__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                             elif l==2:
                                 plt.ylabel("average quorum level")
-                                fig_path=BASE+"/images/quorum/srCONFIGqv__MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
+                                fig_path=BASE+"/images/single_runs/quorum/srCONFIGqv__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+"_Nrun#"+str(p)+".png"
                                 plt.yticks(np.arange(0,N_AGENTS+1,1))
                                 plt.legend(handles=handls.tolist(),loc='lower right')
                             plt.tight_layout()
@@ -527,13 +558,21 @@ class Results:
 
 ##########################################################################################################
     def print_median_time(self,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
-        COMMIT, MINS = np.sort(COMMIT),np.sort(MINS)
         print("\nPrinting median arrival times")
+        tmp_b = BASE.split('/')
+        tmp_p = PATH.split('/')
+        name_fields = []
+        for i in tmp_p:
+            if i not in tmp_b:
+                name_fields.append(i)
+                mid_string=""
+        for label in name_fields:
+            mid_string += label+"_"
         median_times = {}
         if not os.path.exists(BASE+"/images"):
             os.mkdir(BASE+"/images")
-        if not os.path.exists(BASE+"/images"+"/times"):
-            os.mkdir(BASE+"/images"+"/times")
+        if not os.path.exists(BASE+"/images/times"):
+            os.mkdir(BASE+"/images/times")
         ylim = 0
         for m in range(len(MINS)):
             for t in range(len(self.thresholds)):
@@ -582,7 +621,7 @@ class Results:
         ax.set_xticks(x + width,sets)
         plt.legend(loc='upper right')
         plt.tight_layout()
-        fig_path=BASE+"/images/times/CONFIGt__MsgExpTime#"+str(MSG_EXP_TIME)+".png"
+        fig_path=BASE+"/images/times/CONFIGt__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
         plt.savefig(fig_path)
         # plt.show()
         plt.close(fig)
