@@ -5,9 +5,9 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.55,0.6]
+    thresholds = [0.4,0.5,0.55,0.6,0.7]
     ticks_per_sec = 31
-    x_limit = 62
+    x_limit = 100
     
 ##########################################################################################################
     def __init__(self):
@@ -35,20 +35,20 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,path_temp,max_steps,communication,n_agents,position="all",data_type="all"):
+    def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,position="all",data_type="all"):
         MINS = [5]
         for i in range(10,n_agents,10):
             MINS.append(i) 
         COMMIT=[]
         for pre_folder in sorted(os.listdir(path_temp)):
-            if '.' not in pre_folder and "images" not in pre_folder:
+            if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 msg_exp_time = int(pre_params[-1])
                 pre_path_temp=os.path.join(path_temp,pre_folder)
                 q_results = {}
                 m_results = {}
                 for folder in sorted(os.listdir(pre_path_temp)):
-                    if '.' not in folder and "images" not in folder:
+                    if '.' not in folder:
                         params = folder.split('#')
                         commit = float(params[1].replace("_","."))
                         print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
