@@ -5,7 +5,6 @@ if [ "$#" -ne 2 ]; then
     exit 11
 fi
 
-
 wdir=`pwd`
 base_config=$1$2
 if [ ! -e $base_config ]; then
@@ -22,19 +21,18 @@ if [[ ! -e $res_dir ]]; then
     echo "mkdir: directory '$res_dir' "
 fi
 
-base_dir=`dirname $base_config`
 echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="700"
-RUNS=2
+experiment_length="1800"
+RUNS=20
 rebroadcast="0"
-msg_expiring_sec="300"
-numrobots="30"
-committed_percentage=".6"
-next_committed_percentage=".4"
+msg_expiring_sec="300 600 900"
+numrobots="15 40 60"
+committed_percentage=".5 .6 .7"
+next_committed_percentage="0"
 
 strToReplace="."
 replace="_"
