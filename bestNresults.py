@@ -172,13 +172,13 @@ class Results:
                         m_results[commit] = (m_bigM_1,m_bigM_2,m_bigM_3)
                 if data_type=="all" or data_type=="quorum":
                     if position=="all":
-                        self.print_median_time(q_results,path_temp,COMMIT,MINS,msg_exp_time)
-                        self.print_mean_quorum_value(q_results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
-                    self.print_single_run_quorum(q_results,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                        self.print_median_time(q_results,base,path_temp,COMMIT,MINS,msg_exp_time)
+                        self.print_mean_quorum_value(q_results,base,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                    self.print_single_run_quorum(q_results,base,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
                 if (data_type=="all" or data_type=="freq") and communication > 0:
                     if position == "all":
-                        self.print_msg_freq(m_results,path_temp,COMMIT,msg_exp_time)
-                        self.print_focused_meg_freq(m_results,path_temp,COMMIT,msg_exp_time,self.x_limit)
+                        self.print_msg_freq(m_results,base,path_temp,COMMIT,msg_exp_time)
+                        self.print_focused_meg_freq(m_results,base,path_temp,COMMIT,msg_exp_time,self.x_limit)
         print("DONE\n")
         
 ##########################################################################################################
