@@ -183,7 +183,7 @@ class Results:
         print("DONE\n")
         
 ##########################################################################################################
-    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):
+    def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
         static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
         if not os.path.exists(base+"/proc_data"):
@@ -206,14 +206,20 @@ class Results:
             values.append(static_values[i])
         name_fields.append("type")
         name_fields.append("data")
-        if indx==0:
+        if indx==-1:
+            values.append("times")
+        elif indx==0:
             values.append("swarm_state")
         elif indx==1:
             values.append("quorum_length")
         elif indx==2:
             values.append("quorum_value")
         elif indx==3:
-            values.append("times")
+            values.append("avg_msg_action")
+        elif indx==4:
+            values.append("broadcast_msg")
+        elif indx==5:
+            values.append("rebroadcast_msg")
         values.append(data_in)
         fw = open(base+"/proc_data/"+file_name,mode='a',newline='\n')
         fwriter = csv.writer(fw,delimiter='\t')
@@ -339,6 +345,7 @@ class Results:
                     to_print[l] = [flag3]
                 else:
                     to_print[l] = np.append(to_print[l],[flag3],0)
+                self.print_resume_csv(l+3,flag3[0],BASE,PATH,c,"-","-",MSG_EXP_TIME,len(multi_run_data))
         for l in range(len(to_print)):
             handls=[]
             values = range(len(to_print[l]))
@@ -595,7 +602,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
-                    self.print_resume_csv(3,times,BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(times))
+                    self.print_resume_csv(-1,times,BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(times))
                     median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
