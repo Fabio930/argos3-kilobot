@@ -185,7 +185,7 @@ class Results:
 
 ##########################################################################################################
     def print_mean_quorum_value(self,data_in,BASE,PATH,N_AGENTS,COMMIT,MINS,BUFFER_DIM):
-        print("\nPrinting average quorum data")
+        print("Printing average quorum data")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
