@@ -60,7 +60,7 @@ def main():
                             if '.' not in zdir and '#' in zdir:
                                 n_agents=int(zdir.split('#')[1])
                                 dtemp=os.path.join(pre_path, zdir)
-                                print("\nOpening folder",dtemp)
+                                print("Opening folder",dtemp)
                                 bestNresults.extract_k_quorum_data(base,dtemp,exp_length,communication,n_agents,files_to_elaborate,data_type)
 
 if __name__ == "__main__":

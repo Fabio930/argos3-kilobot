@@ -230,7 +230,7 @@ class Results:
 
 ##########################################################################################################
     def print_focused_meg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME,x_limit):
-        print("\nPrinting focus messages frequency")
+        print("Printing focus messages frequency")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
@@ -302,7 +302,7 @@ class Results:
         
 ##########################################################################################################
     def print_msg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME):
-        print("\nPrinting messages frequency")
+        print("Printing messages frequency")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
