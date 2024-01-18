@@ -28,9 +28,9 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 RUNS=20
-numrobots="15 40"
+numrobots="15 40 60"
 experiment_length="1800"
-msg_frequency="124"
+msg_frequency="248"
 rebroadcast="0"
 committed_percentage=".5 .6 .7"
 
@@ -45,9 +45,9 @@ for par in $experiment_length; do
             for par1 in $numrobots; do
                 dir1=$dir0/"Robots#"$par1
                 if [ $par1 -eq 15 ]; then
-                    buffer_dim="14" #10 x big arena
+                    buffer_dim="10" # 10 x big arena - 14 x small arena
                 elif [ $par1 -eq 40 ]; then
-                    buffer_dim="36" #28 x big arena
+                    buffer_dim="28" # 28 x big arena - 36 x small arena
                 else
                     buffer_dim="42"
                 fi
