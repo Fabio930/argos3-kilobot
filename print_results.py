@@ -6,7 +6,7 @@ import bestNresults as BNres
 import os, sys
 
 def check_inputs():
-    ticks = 31
+    ticks = 10
     data_type = "all"
     files_to_elaborate = "all"
     if len(sys.argv)>7:
