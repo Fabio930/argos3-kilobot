@@ -45,9 +45,9 @@ for par in $experiment_length; do
             for par1 in $numrobots; do
                 dir1=$dir0/"Robots#"$par1
                 if [ $par1 -eq 15 ]; then
-                    buffer_dim="10"
+                    buffer_dim="14" #10 x big arena
                 elif [ $par1 -eq 40 ]; then
-                    buffer_dim="28"
+                    buffer_dim="36" #28 x big arena
                 else
                     buffer_dim="42"
                 fi
