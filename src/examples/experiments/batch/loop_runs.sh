@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 2 ]; then
     echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
-    exit 11
+    exit 1
 fi
 
 wdir=`pwd`
@@ -75,7 +75,7 @@ for par in $experiment_length; do
                         dt=$(date '+%d-%m-%Y_%H-%M-%S')
                         kilo_file="${dt}__run#${it}.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                        echo "Running next configuration Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par3 File $kilo_file"
+                        echo "Running next configuration -- Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par3 File $kilo_file"
                         argos3 -c './'$config
                         rename="quorum_log_$kilo_file"
                         mv "quorum_log.tsv" $rename
