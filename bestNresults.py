@@ -5,7 +5,7 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.4,0.5,0.6,0.7]
+    thresholds = [0.4,0.5,0.55,0.6,0.7]
     ticks_per_sec = 10
     x_limit = 100
 ##########################################################################################################
