@@ -54,6 +54,7 @@
             rebroadcast = "__BROADCAST_POLICY__"
             queue_lenght = "__QUORUM_BUFFER_DIM__"
             committed_percentage = "1"
+            broadcasting_ticks = "16"
         >
         </hierarchicStruct>
     
