@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 class Results:
     thresholds = [0.4,0.5,0.55,0.6,0.7]
-    ticks_per_sec = 31
+    ticks_per_sec = 0
     x_limit = 100
     
 ##########################################################################################################
@@ -16,7 +16,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0]=="results":
+                if selem[0]=="Oresults":
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
