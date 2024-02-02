@@ -73,7 +73,6 @@ void talk(){
 
 void broadcast(){
     // frequency log
-    msg_type_send = 0;
     num_own_info += 1;
     // message
     sa_type = msg_n_hops;
@@ -87,7 +86,6 @@ void broadcast(){
 
 void rebroadcast(){
     // frequency log
-    msg_type_send = 1;
     num_other_info +=1;
     // message
     switch (msg_n_hops){
@@ -106,51 +104,6 @@ void rebroadcast(){
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
 }
-
-uint8_t check_quorum_trigger(quorum_a **Array[]){
-    uint8_t out = 0;
-    for(uint8_t i = 0;i < num_quorum_items;i++) if((*Array)[i]->agent_state == committed) out++;
-    return out;
-}
-
-void check_quorum(quorum_a **Array[]){
-    commit_counter = check_quorum_trigger(Array);
-    // switch (my_state){
-    //     case committed:
-    //         commit_counter = (check_quorum_trigger(Array) + 1);
-    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
-    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
-    //         switch (quorum_reached){
-    //             case 1:
-    //                 led = RGB(0,3,0);
-    //                 break;
-    //             default:
-    //                 led = RGB(0,0,3);
-    //                 break;
-    //         }
-    //         break;
-    //     default:
-    //         commit_counter = check_quorum_trigger(Array);
-    //         quorum_percentage = commit_counter*(1.0/(num_quorum_items + 1));
-    //         if(commit_counter >= (num_quorum_items + 1)*quorum_scaling_factor) quorum_reached = 1;
-    //         switch (quorum_reached){
-    //             case 1:
-    //                 led = RGB(3,0,0);
-    //                 break;
-    //             default:
-    //                 led = RGB(0,0,0);
-    //                 break;
-    //         }
-    //         break;
-    // }
-}
-
-// void prepare_quorum_variables(){
-//     // select a random message
-//     quorum_percentage = 0.f;
-//     quorum_reached = 0;
-//     if(quorum_list != NULL && num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-// }
 
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 255.0;
@@ -402,6 +355,7 @@ void random_way_point_model(){
 }
 
 void setup(){
+    snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
@@ -421,13 +375,15 @@ void setup(){
 }
 
 void loop(){
-    fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%d\t%d\t%ld\t%ld\n",kilo_uid,my_state,num_quorum_items,commit_counter,msg_type_send,num_own_info,num_other_info);
+    fp = fopen(log_title,"a");
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
+        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
+    }    
+    fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
-    check_quorum(&quorum_array);
-    // prepare_quorum_variables();
     random_way_point_model();
     if(init_received_C) talk();
 }

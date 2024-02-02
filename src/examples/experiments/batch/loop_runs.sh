@@ -26,13 +26,11 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1800"
-RUNS=20
-rebroadcast="0"
-msg_expiring_sec="300 600 900"
-numrobots="15 40 60"
-committed_percentage=".5 .6 .7"
-next_committed_percentage="0"
+experiment_length="900"
+RUNS=100
+rebroadcast="0 2"
+msg_expiring_sec="60 300 600"
+numrobots="25"
 
 strToReplace="."
 replace="_"
@@ -51,37 +49,31 @@ for par in $experiment_length; do
             if [[ ! -e $dir1 ]]; then
                 mkdir $dir1
             fi
+            last_id=`expr $par1 - 1`
             for par2 in $msg_expiring_sec; do
                 dir2=$dir1/"MsgExpDist#"$par2
                 if [[ ! -e $dir2 ]]; then
                     mkdir $dir2
                 fi
-                for par3 in $committed_percentage; do
-                    par3BIS=${par3//$strToReplace/$replace}
-                    dir3=$dir2/"CommitPerc#"$par3BIS
-                    if [[ ! -e $dir3 ]]; then
-                        mkdir $dir3
-                    fi
-                    for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_rebroad%d_nrobots%d_msgExpDist%d_CommitPerc%s_run%d.argos' $par0 $par1 $par2 $par3 $it`
-                        cp $base_config $config
-                        sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
-                        sed -i "s|__NUMROBOTS__|$par1|g" $config
-                        sed -i "s|__MSG_EXPIRING_SECONDS__|$par2|g" $config
-                        sed -i "s|__COMMITTED_PERCENTAGE__|$par3|g" $config
-                        sed -i "s|__NEXT_COMMITTED_PERCENTAGE__|$next_committed_percentage|g" $config
-                        sed -i "s|__SEED__|$it|g" $config
-                        sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
-                        dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                        kilo_file="${dt}__run#${it}.tsv"
-                        sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                        echo "Running next configuration -- Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 CommittedPercentage $par3 File $kilo_file"
-                        argos3 -c './'$config
-                        rename="quorum_log_$kilo_file"
-                        mv "quorum_log.tsv" $rename
-                        mv $rename $dir3
-                        rm *.argos
+                for it in $(seq 1 $RUNS); do
+                    config=`printf 'config_rebroad%d_nrobots%d_msgExpDist%d_run%d.argos' $par0 $par1 $par2 $it`
+                    cp $base_config $config
+                    sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
+                    sed -i "s|__NUMROBOTS__|$par1|g" $config
+                    sed -i "s|__MSG_EXPIRING_SECONDS__|$par2|g" $config
+                    sed -i "s|__SEED__|$it|g" $config
+                    sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
+                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                    kilo_file="${dt}__run#${it}.tsv"
+                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                    echo "Running next configuration -- Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 File $kilo_file"
+                    argos3 -c './'$config
+                    for ik in $(seq 0 $last_id); do
+                        rename="quorum_log_agent#$ik"__"$kilo_file"
+                        mv "quorum_log_agent#$ik.tsv" $rename
+                        mv $rename $dir2
                     done
+                    rm *.argos
                 done
             done
         done
