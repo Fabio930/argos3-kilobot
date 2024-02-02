@@ -73,7 +73,6 @@ void talk(){
 
 void broadcast(){
     // frequency log
-    msg_type_send = 0;
     num_own_info += 1;
     // message
     sa_type = msg_n_hops;
@@ -87,7 +86,6 @@ void broadcast(){
 
 void rebroadcast(){
     // frequency log
-    msg_type_send = 1;
     num_other_info +=1;
     // message
     switch (msg_n_hops){
@@ -105,16 +103,6 @@ void rebroadcast(){
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-}
-
-uint8_t check_quorum_trigger(quorum_a **Array[]){
-    uint8_t out = 0;
-    for(uint8_t i = 0;i < num_quorum_items;i++) if((*Array)[i]->agent_state == committed) out++;
-    return out;
-}
-
-void prepare_quorum_variables(){
-    if(quorum_list != NULL) commit_counter = check_quorum_trigger(&quorum_array);
 }
 
 float random_in_range(float min, float max){
@@ -360,6 +348,7 @@ void random_way_point_model(){
 }
 
 void setup(){
+    snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
@@ -378,10 +367,12 @@ void setup(){
 }
 
 void loop(){
-    fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\t%d\t%d\t%d\n",kilo_uid,my_state,num_quorum_items,commit_counter,true_quorum_items);
+    fp = fopen(log_title,"a");
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
+        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
+    }    
     fclose(fp);
-    prepare_quorum_variables();
     random_way_point_model();
     if(init_received_C) talk();
 }
