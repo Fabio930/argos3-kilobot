@@ -370,7 +370,7 @@ void loop(){
     fp = fopen(log_title,"a");
     switch (num_quorum_items){
         case 0:
-            fprintf(fp,"0\n");
+            fprintf(fp,"-\n");
             break;
         
         default:
