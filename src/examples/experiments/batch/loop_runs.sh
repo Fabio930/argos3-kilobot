@@ -66,7 +66,7 @@ for par in $experiment_length; do
                     dt=$(date '+%d-%m-%Y_%H-%M-%S')
                     kilo_file="${dt}__run#${it}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                    echo "Running next configuration -- Rebroadcast $par0 Robots $par1 MsgExpiringTime $par2 File $kilo_file"
+                    echo "Running next configuration -- $config"
                     argos3 -c './'$config
                     for ik in $(seq 0 $last_id); do
                         rename="quorum_log_agent#$ik"__"$kilo_file"
