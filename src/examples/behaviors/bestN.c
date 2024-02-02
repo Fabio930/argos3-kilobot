@@ -368,10 +368,18 @@ void setup(){
 
 void loop(){
     fp = fopen(log_title,"a");
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
-        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-    }    
+    switch (num_quorum_items){
+        case 0:
+            fprintf(fp,"0\n");
+            break;
+        
+        default:
+            for (uint8_t i = 0; i < num_quorum_items; i++){
+                if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
+                else fprintf(fp,"%d,",quorum_array[i]->agent_id);
+            }    
+            break;
+    }
     fclose(fp);
     random_way_point_model();
     if(init_received_C) talk();
