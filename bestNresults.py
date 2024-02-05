@@ -3,10 +3,11 @@ import os, csv, math
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
+import time
 
 class Results:
     thresholds = [0.72, 0.76]
-    ground_truth = [0.7,0.72,0.76,0.8]
+    ground_truth = [0.72,0.76,0.8]
     min_buff_dim = [5]
     ticks_per_sec = 10
     x_limit = 100
@@ -110,23 +111,31 @@ class Results:
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
-                agents_state = [0]*n_agents
-                runs_states = [agents_state]*num_runs
-                states_by_gt = [runs_states]*len(self.ground_truth)
+                states_by_gt = [np.array([])]*len(self.ground_truth)
                 for gt in range(len(self.ground_truth)):
+                    runs_states = [np.array([])]*num_runs
                     num_committed = math.ceil(n_agents*self.ground_truth[gt])
                     for i in range(num_runs):
                         ones = 0
-                        while(ones<num_committed):
+                        agents_state = [0]*n_agents
+                        while(1):
                             for j in range(n_agents):
                                 tmp = np.random.random_integers(0,1)
                                 if tmp==1:
-                                    if ones<num_committed:
+                                    if ones<num_committed and agents_state[j]==0:
                                         ones+=1
-                                        states_by_gt[gt][i][j] = tmp
+                                        agents_state[j] = tmp
                                     else: break
-                                else:
-                                    states_by_gt[gt][i][j] = tmp
+                            if ones >= num_committed: break
+                        if len(runs_states[0]) == 0:
+                            runs_states = [np.array(agents_state)]
+                        else:
+                            runs_states = np.append(runs_states,[agents_state],axis=0)
+                        print("run", gt, i, runs_states[i])
+                    if len(states_by_gt[0]) == 0:
+                        states_by_gt = [runs_states]
+                    else:
+                        states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
                 print("\n--- Extract data ---\n",sub_path,'\n')
                 for elem in sorted(os.listdir(sub_path)):
@@ -171,8 +180,6 @@ class Results:
                                     msgs_M_1 = [np.array([],dtype=int)]*num_runs
                                     act_M_1 = [np.array([],dtype=int)]*num_runs
                                     act_M_2 = [np.array([],dtype=int)]*num_runs
-                # for any folder now we have a matrix(n_agents x n_runs) with inside an array of arrays
-                # now we must compute the states of swarm looking at the state of the messages states_by_gt!!!
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt,position)
                 for gt in range(len(self.ground_truth)):
                     for minus in self.min_buff_dim:
@@ -184,10 +191,10 @@ class Results:
                     if position=="all":
                         self.print_median_time(msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time)
                         self.print_mean_quorum_value(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
-                    self.print_single_run_quorum(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
+                    # self.print_single_run_quorum(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
                 if (data_type=="all" or data_type=="freq") and communication > 0:
                     if position == "all":
-                        self.print_msg_freq(act_results,base,path_temp,self.ground_truth,msg_exp_time)
+                        self.print_msg_freq(act_results,msgs_results,base,path_temp,self.ground_truth,msg_exp_time)
                         self.print_focused_meg_freq(act_results,base,path_temp,self.ground_truth,msg_exp_time,self.x_limit)
         print("DONE\n")
 
@@ -224,10 +231,8 @@ class Results:
         elif indx==2:
             values.append("quorum_value")
         elif indx==3:
-            values.append("avg_msg_action")
-        elif indx==4:
             values.append("broadcast_msg")
-        elif indx==5:
+        elif indx==4:
             values.append("rebroadcast_msg")
         values.append(data_in)
         fw = open(base+"/proc_data/"+file_name,mode='a',newline='\n')
@@ -310,12 +315,13 @@ class Results:
         plt.close(fig)
         
 ##########################################################################################################
-    def print_msg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME):
+    def print_msg_freq(self,data_in,ddata,BASE,PATH,COMMIT,MSG_EXP_TIME):
         print("Printing messages frequency")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
         name_fields = []
         mid_string=""
+        dMR = (ddata.get((self.ground_truth[0],self.min_buff_dim[0],self.thresholds[0])))[0]
         for i in tmp_p:
             if i not in tmp_b:
                 name_fields.append(i)
@@ -354,7 +360,7 @@ class Results:
                     to_print[l] = [flag3]
                 else:
                     to_print[l] = np.append(to_print[l],[flag3],0)
-                self.print_resume_csv(l+3,flag3[0],BASE,PATH,c,"-","-",MSG_EXP_TIME,len(multi_run_data))
+                self.print_resume_csv(l+3,flag3[0],BASE,PATH,c,"-","-",MSG_EXP_TIME,len(dMR))
         for l in range(len(to_print)):
             handls=[]
             values = range(len(to_print[l]))
@@ -607,7 +613,7 @@ class Results:
                                 times[i] = z
                                 break
                     times = sorted(times)
-                    self.print_resume_csv(-1,times,BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(times))
+                    self.print_resume_csv(-1,times,BASE,PATH,r,self.thresholds[t],MINS[m],MSG_EXP_TIME,len(multi_run_data))
                     median = len(multi_run_data[0][0])
                     if ylim == 0: ylim = median
                     if times[len(times)//2] < median:
