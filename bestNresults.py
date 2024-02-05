@@ -3,7 +3,6 @@ import os, csv, math
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
-import time
 
 class Results:
     thresholds = [0.72, 0.76]
