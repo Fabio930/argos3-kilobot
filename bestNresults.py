@@ -131,7 +131,6 @@ class Results:
                             runs_states = [np.array(agents_state)]
                         else:
                             runs_states = np.append(runs_states,[agents_state],axis=0)
-                        print("run", gt, i, runs_states[i])
                     if len(states_by_gt[0]) == 0:
                         states_by_gt = [runs_states]
                     else:
@@ -185,7 +184,7 @@ class Results:
                     for minus in self.min_buff_dim:
                         for thr in self.thresholds:
                             msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr,position),results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1])
-                    act_results[self.ground_truth[gt]] = (act_bigM_1,act_bigM_2)
+                act_results[0] = (act_bigM_1,act_bigM_2)
                 self.ground_truth,self.min_buff_dim = np.sort(self.ground_truth),np.sort(self.min_buff_dim)
                 if data_type=="all" or data_type=="quorum":
                     if position=="all":
@@ -194,8 +193,8 @@ class Results:
                     # self.print_single_run_quorum(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
                 if (data_type=="all" or data_type=="freq") and communication > 0:
                     if position == "all":
-                        self.print_msg_freq(act_results,msgs_results,base,path_temp,self.ground_truth,msg_exp_time)
-                        self.print_focused_meg_freq(act_results,base,path_temp,self.ground_truth,msg_exp_time,self.x_limit)
+                        self.print_msg_freq(act_results,msgs_results,base,path_temp,msg_exp_time)
+                        self.print_focused_meg_freq(act_results,base,path_temp,msg_exp_time,self.x_limit)
         print("DONE\n")
 
 ##########################################################################################################
@@ -243,7 +242,7 @@ class Results:
         fw.close()
 
 ##########################################################################################################
-    def print_focused_meg_freq(self,data_in,BASE,PATH,COMMIT,MSG_EXP_TIME,x_limit):
+    def print_focused_meg_freq(self,data_in,BASE,PATH,MSG_EXP_TIME,x_limit):
         print("Printing focus messages frequency")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
@@ -258,38 +257,37 @@ class Results:
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images/messages"):
             os.mkdir(BASE+"/images/messages")
-        to_print = [[]]*len(data_in.get(COMMIT[0]))
-        legend = [[]]*len(data_in.get(COMMIT[0]))
-        for c in COMMIT:
-            for l in range(len(data_in.get(c))):
-                multi_run_data = data_in.get(c)[l]
-                flag2 = [-1]*x_limit
-                flag3 = [flag2]*(len(multi_run_data)+1) 
-                tmp = [flag2]*len(multi_run_data)
-                for i in range(len(multi_run_data)):
-                    flag1 = [-1]*x_limit
-                    for j in range(len(multi_run_data[i])):
-                        for z in range(x_limit):
-                            if flag1[z]==-1:
-                                flag1[z]=float(multi_run_data[i][j][z])
-                            else:
-                                flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
-                    for j in range(len(flag1)):
-                        flag1[j]=flag1[j]/len(multi_run_data[i])
-                        if flag2[j]==-1:
-                            flag2[j]=flag1[j]
+        to_print = [[]]*len(data_in.get(0))
+        legend = [[]]*len(data_in.get(0))
+        for l in range(len(data_in.get(0))):
+            multi_run_data = data_in.get(0)[l]
+            flag2 = [-1]*x_limit
+            flag3 = [flag2]*(len(multi_run_data)+1) 
+            tmp = [flag2]*len(multi_run_data)
+            for i in range(len(multi_run_data)):
+                flag1 = [-1]*x_limit
+                for j in range(len(multi_run_data[i])):
+                    for z in range(x_limit):
+                        if flag1[z]==-1:
+                            flag1[z]=float(multi_run_data[i][j][z])
                         else:
-                            flag2[j]=flag1[j]+flag2[j]
-                for i in range(len(flag2)):
-                    flag2[i]=flag2[i]/len(multi_run_data)
-                for i in range(len(flag3)):
-                    flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
-                if len(to_print[l])==0:
-                    to_print[l] = [flag3]
-                    if l==1: legend[l] = "message type: broadcast"
-                    else: legend[l] = "message type: re-broadcast"
-                else:    
-                    to_print[l] = np.append(to_print[l],[flag3],0)
+                            flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
+                for j in range(len(flag1)):
+                    flag1[j]=flag1[j]/len(multi_run_data[i])
+                    if flag2[j]==-1:
+                        flag2[j]=flag1[j]
+                    else:
+                        flag2[j]=flag1[j]+flag2[j]
+            for i in range(len(flag2)):
+                flag2[i]=flag2[i]/len(multi_run_data)
+            for i in range(len(flag3)):
+                flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+            if len(to_print[l])==0:
+                to_print[l] = [flag3]
+                if l==0: legend[l] = "message type: broadcast"
+                else: legend[l] = "message type: re-broadcast"
+            else:    
+                to_print[l] = np.append(to_print[l],[flag3],0)
         handls = []
         values = range(2)
         fig, ax = plt.subplots(figsize=(12,6))
@@ -298,7 +296,7 @@ class Results:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         for i in range(len(to_print[0])):
             for j in range(len(to_print[0][i])):
-                for l in range(1,len(to_print)):
+                for l in range(0,len(to_print)):
                     if j==0:
                         the_plot, = plt.plot(to_print[l][i][j],lw=1.25,ls='-',c=scalarMap.to_rgba(values[l-1]),label=legend[l])
                         handls = np.append(handls,the_plot)
@@ -315,7 +313,7 @@ class Results:
         plt.close(fig)
         
 ##########################################################################################################
-    def print_msg_freq(self,data_in,ddata,BASE,PATH,COMMIT,MSG_EXP_TIME):
+    def print_msg_freq(self,data_in,ddata,BASE,PATH,MSG_EXP_TIME):
         print("Printing messages frequency")
         tmp_b = BASE.split('/')
         tmp_p = PATH.split('/')
@@ -331,36 +329,35 @@ class Results:
             os.mkdir(BASE+"/images")
         if not os.path.exists(BASE+"/images/messages"):
             os.mkdir(BASE+"/images/messages")
-        to_print = [[]]*len(data_in.get(COMMIT[0]))
-        for c in COMMIT:
-            for l in range(len(data_in.get(c))):
-                multi_run_data = data_in.get(c)[l]
-                flag2 = [-1]*len(multi_run_data[0][0])
-                flag3 = [flag2]*(len(multi_run_data)+1)
-                tmp = [flag2]*len(multi_run_data)
-                for i in range(len(multi_run_data)):
-                    flag1 = [-1]*len(multi_run_data[i][0])
-                    for j in range(len(multi_run_data[i])):
-                        for z in range(len(multi_run_data[i][j])):
-                            if flag1[z]==-1:
-                                flag1[z]=float(multi_run_data[i][j][z])
-                            else:
-                                flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
-                    for j in range(len(flag1)):
-                        flag1[j]=flag1[j]/len(multi_run_data[i])
-                        if flag2[j]==-1:
-                            flag2[j]=flag1[j]
+        to_print = [[]]*len(data_in.get(0))
+        for l in range(len(data_in.get(0))):
+            multi_run_data = data_in.get(0)[l]
+            flag2 = [-1]*len(multi_run_data[0][0])
+            flag3 = [flag2]*(len(multi_run_data)+1)
+            tmp = [flag2]*len(multi_run_data)
+            for i in range(len(multi_run_data)):
+                flag1 = [-1]*len(multi_run_data[i][0])
+                for j in range(len(multi_run_data[i])):
+                    for z in range(len(multi_run_data[i][j])):
+                        if flag1[z]==-1:
+                            flag1[z]=float(multi_run_data[i][j][z])
                         else:
-                            flag2[j]=flag1[j]+flag2[j]
-                for i in range(len(flag2)):
-                    flag2[i]=flag2[i]/len(multi_run_data)
-                for i in range(len(flag3)):
-                    flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
-                if len(to_print[l])==0:
-                    to_print[l] = [flag3]
-                else:
-                    to_print[l] = np.append(to_print[l],[flag3],0)
-                self.print_resume_csv(l+3,flag3[0],BASE,PATH,c,"-","-",MSG_EXP_TIME,len(dMR))
+                            flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
+                for j in range(len(flag1)):
+                    flag1[j]=flag1[j]/len(multi_run_data[i])
+                    if flag2[j]==-1:
+                        flag2[j]=flag1[j]
+                    else:
+                        flag2[j]=flag1[j]+flag2[j]
+            for i in range(len(flag2)):
+                flag2[i]=flag2[i]/len(multi_run_data)
+            for i in range(len(flag3)):
+                flag3[i] = np.round(flag2,2).tolist() if i==0 else tmp[i-1]
+            if len(to_print[l])==0:
+                to_print[l] = [flag3]
+            else:
+                to_print[l] = np.append(to_print[l],[flag3],0)
+            self.print_resume_csv(l+3,flag3[0],BASE,PATH,"-","-","-",MSG_EXP_TIME,len(dMR))
         for l in range(len(to_print)):
             handls=[]
             values = range(len(to_print[l]))
@@ -382,7 +379,7 @@ class Results:
                 plt.ylabel("average # of broadcast msgs")
                 fig_path=BASE+"/images/messages/CONFIGbm__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,4100,100))
-            elif l==2:
+            elif l==1:
                 plt.ylabel("average # of rebroadcast msgs")
                 fig_path=BASE+"/images/messages/CONFIGrm__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,110,10))
