@@ -5,7 +5,9 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.4,0.5,0.55,0.6,0.7]
+    thresholds = [0.72, 0.76]
+    ground_truth = [0.72,0.76,0.8]
+    min_buff_dim = [5]
     ticks_per_sec = 10
     x_limit = 100
 ##########################################################################################################
@@ -18,15 +20,70 @@ class Results:
                 if selem[0]=="results":
                     self.bases.append(os.path.join(self.base, elem))
 
+##########################################################################################################
+    def compute_quorum_vars_on_ground_truth(self,m1,states):
+        out = {}
+        for i in range(len(states)):
+            tmp_dim_0 = [np.array([])]*len(m1[0])
+            tmp_ones_0 = [np.array([])]*len(m1[0])
+            for j in range(len(states[i])):
+                tmp_dim_1 = [np.array([])]*len(m1)
+                tmp_ones_1 = [np.array([])]*len(m1)
+                for k in range(len(states[i][j])):
+                    tmp_dim_2 = []
+                    tmp_ones_2 = []
+                    for t in range(len(m1[k][j])):
+                        dim = 1
+                        ones = states[i][j][k]
+                        for z in range(len(m1[k][j][t])):
+                            if(m1[k][j][t][z] == -1): break
+                            dim += 1
+                            ones += states[i][j][m1[k][j][t][z]]
+                        tmp_dim_2.append(dim)
+                        tmp_ones_2.append(ones)
+                    tmp_dim_1[k] = tmp_dim_2
+                    tmp_ones_1[k] = tmp_ones_2
+                tmp_dim_0[j] = tmp_dim_1
+                tmp_ones_0[j] = tmp_ones_1
+            out[self.ground_truth[i]] = (tmp_dim_0,tmp_ones_0)
+        return out
+    
 #########################################################################################################
-    def compute_states(self,m1,m2,minus,threshold):
+    def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
                     out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * (1 + m1[i][j][k]) else 0
         return out
-    
+
+#########################################################################################################    
+    def check_data_dim(self,path_temp,max_steps):
+        max_buff_size = 0
+        for pre_folder in sorted(os.listdir(path_temp)):
+            if '.' not in pre_folder:
+                sub_path = os.path.join(path_temp,pre_folder)
+                print("\n--- Check buffer dimension ---\n",sub_path,'\n')
+                for elem in sorted(os.listdir(sub_path)):
+                    if '.' in elem:
+                        selem=elem.split('.')
+                        if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                            with open(os.path.join(sub_path, elem), newline='') as f:
+                                reader = csv.reader(f)
+                                log_count = 0
+                                for row in reader:
+                                    log_count += 1
+                                    if log_count // (self.ticks_per_sec*max_steps) == 1:
+                                        msgs = []
+                                        for val in row:
+                                            if val.count('\t')==0:
+                                                msgs.append(int(val))
+                                            else:
+                                                val = val.split('\t')
+                                                if val[0] != '': msgs.append(int(val[0]))
+                                        if len(msgs) > max_buff_size : max_buff_size = len(msgs)
+        return max_buff_size
+
 ##########################################################################################################
     def extract_k_quorum_data(self,base,path_temp,max_steps,n_agents,position="all"): 
         COMMIT=[]
@@ -136,7 +193,7 @@ class Results:
                                         bigM_3 = M_3
                         for minus in MINS:
                             for thr in self.thresholds:
-                                results[(commit,minus,thr)] = (self.compute_states(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2,bigM_3)
+                                results[(commit,minus,thr)] = (self.compute_quorum(bigM_1,bigM_2,minus,thr),bigM_1,bigM_2,bigM_3)
                 COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
                 self.print_median_time(results,base,path_temp,COMMIT,MINS,buffer_dim)
                 self.print_mean_quorum_value(results,base,path_temp,n_agents,COMMIT,MINS,buffer_dim)

@@ -37,25 +37,35 @@ def check_inputs():
 def main():
     bestNresults = BNres.Results()
     bestNresults.ticks_per_sec, files_to_elaborate = check_inputs()
+    max_buff_dim = 0
     for base in bestNresults.bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
                 exp_length=int(adir.split('#')[1])
-                pre_apath=os.path.join(base, adir)
-                for dir in sorted(os.listdir(pre_apath)):
-                    if '.' not in dir and '#' in dir:
-                        msg_frq=int(dir.split('#')[1])
-                        pre_path=os.path.join(pre_apath, dir)
-                        for zdir in sorted(os.listdir(pre_path)):
-                            if '.' not in zdir and '#' in zdir:
-                                communication=int(zdir.split('#')[1])
-                                dtemp=os.path.join(pre_path, zdir)
-                                for zzdir in sorted(os.listdir(dtemp)):
-                                    if '.' not in zzdir and '#' in zzdir:
-                                        n_agents=int(zzdir.split('#')[1])
-                                        ddtemp=os.path.join(dtemp, zzdir)
-                                        print("Opening folder",ddtemp)
-                                        bestNresults.extract_k_quorum_data(base,ddtemp,exp_length,n_agents,files_to_elaborate)
+                pre_path=os.path.join(base, adir)
+                for zdir in sorted(os.listdir(pre_path)):
+                    if '.' not in zdir and '#' in zdir:
+                        dtemp=os.path.join(pre_path, zdir)
+                        for zzdir in sorted(os.listdir(dtemp)):
+                            if '.' not in zzdir and '#' in zzdir:
+                                ddtemp=os.path.join(dtemp, zzdir)
+                                tmp = bestNresults.check_data_dim(ddtemp,exp_length)
+                                if tmp > max_buff_dim: max_buff_dim = tmp
+    for base in bestNresults.bases:
+        for adir in sorted(os.listdir(base)):
+            if '.' not in adir and '#' in adir:
+                exp_length=int(adir.split('#')[1])
+                pre_path=os.path.join(base, adir)
+                for zdir in sorted(os.listdir(pre_path)):
+                    if '.' not in zdir and '#' in zdir:
+                        communication=int(zdir.split('#')[1])
+                        dtemp=os.path.join(pre_path, zdir)
+                        for zzdir in sorted(os.listdir(dtemp)):
+                            if '.' not in zzdir and '#' in zzdir:
+                                n_agents=int(zzdir.split('#')[1])
+                                ddtemp=os.path.join(dtemp, zzdir)
+                                print("Opening folder",ddtemp)
+                                bestNresults.extract_k_quorum_data(base,ddtemp,exp_length,n_agents,files_to_elaborate)
 
 if __name__ == "__main__":
     main()
