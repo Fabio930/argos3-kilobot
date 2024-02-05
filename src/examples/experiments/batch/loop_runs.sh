@@ -30,7 +30,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 experiment_length="900"
 RUNS=100
 rebroadcast="0"
-numrobots="25"
+numrobots="25 100"
 
 strToReplace="."
 replace="_"
