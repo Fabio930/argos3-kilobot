@@ -5,8 +5,10 @@ import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Results:
-    thresholds = [0.4,0.5,0.55,0.6,0.7]
-    ticks_per_sec = 0
+    thresholds = [0.72, 0.76]
+    ground_truth = [0.7,0.72,0.76,0.8]
+    min_buff_dim = [5]
+    ticks_per_sec = 10
     x_limit = 100
     
 ##########################################################################################################
@@ -20,7 +22,37 @@ class Results:
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
-    def compute_states(self,m1,m2,minus,threshold,position):
+    def compute_quorum_vars_on_ground_truth(self,m1,states,position):
+        out = {}
+        if position=="all":
+            for i in range(len(states)):
+                tmp_dim_0 = [np.array([])]*len(m1[0])
+                tmp_ones_0 = [np.array([])]*len(m1[0])
+                for j in range(len(states[i])):
+                    tmp_dim_1 = [np.array([])]*len(m1)
+                    tmp_ones_1 = [np.array([])]*len(m1)
+                    for k in range(len(states[i][j])):
+                        tmp_dim_2 = []
+                        tmp_ones_2 = []
+                        for t in range(len(m1[k][j])):
+                            dim = 1
+                            ones = states[i][j][k]
+                            for z in range(len(m1[k][j][t])):
+                                if(m1[k][j][t][z] == -1): break
+                                dim += 1
+                                ones += states[i][j][m1[k][j][t][z]]
+                            tmp_dim_2.append(dim)
+                            tmp_ones_2.append(ones)
+                        tmp_dim_1[k] = tmp_dim_2
+                        tmp_ones_1[k] = tmp_ones_2
+                    tmp_dim_0[j] = tmp_dim_1
+                    tmp_ones_0[j] = tmp_ones_1
+                out[self.ground_truth[i]] = (tmp_dim_0,tmp_ones_0)
+        else:
+            out = -1
+        return out
+#########################################################################################################
+    def compute_quorum(self,m1,m2,minus,threshold,position):
         out = np.copy(m1)
         if position == "all":
             for i in range(len(m1)):
@@ -35,153 +67,130 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,position="all",data_type="all"):
-        MINS = [5]
-        for i in range(10,n_agents,10):
-            MINS.append(i) 
-        COMMIT=[]
+    def check_data_dim(self,path_temp,max_steps):
+        max_buff_size = 0
+        for pre_folder in sorted(os.listdir(path_temp)):
+            if '.' not in pre_folder:
+                sub_path = os.path.join(path_temp,pre_folder)
+                print("\n--- Check buffer dimension ---\n",sub_path,'\n')
+                for elem in sorted(os.listdir(sub_path)):
+                    if '.' in elem:
+                        selem=elem.split('.')
+                        if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                            with open(os.path.join(sub_path, elem), newline='') as f:
+                                reader = csv.reader(f)
+                                log_count = 0
+                                for row in reader:
+                                    log_count += 1
+                                    if log_count // (self.ticks_per_sec*max_steps) == 1:
+                                        msgs = []
+                                        for val in row:
+                                            if val.count('\t')==0:
+                                                msgs.append(int(val))
+                                            else:
+                                                val = val.split('\t')
+                                                if val[0] != '': msgs.append(int(val[0]))
+                                        if len(msgs) > max_buff_size : max_buff_size = len(msgs)
+        return max_buff_size
+##########################################################################################################
+    def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,max_buff_size,position="all",data_type="all"):
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 msg_exp_time = int(pre_params[-1])
-                pre_path_temp=os.path.join(path_temp,pre_folder)
-                q_results = {}
-                m_results = {}
-                for folder in sorted(os.listdir(pre_path_temp)):
-                    if '.' not in folder:
-                        params = folder.split('#')
-                        commit = float(params[1].replace("_","."))
-                        print("\nExtracting KILO data for",msg_exp_time,"Expiring messages",commit,"Committed percentage and",max_steps,"Time steps")
-                        if commit not in COMMIT:
-                            COMMIT.append(float(commit))
-                        sub_path=os.path.join(pre_path_temp,folder)
-                        p = np.random.choice(np.arange(len(os.listdir(sub_path))))
-                        dim = len(os.listdir(sub_path))
-                        q_bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
-                        q_bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
-                        m_bigM_1 = [np.array([])] * dim if position=="all" else np.array([])
-                        m_bigM_2 = [np.array([])] * dim if position=="all" else np.array([])
-                        m_bigM_3 = [np.array([])] * dim if position=="all" else np.array([])
-                        for elem in sorted(os.listdir(sub_path)):
-                            if '.' in elem:
-                                q_M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                q_M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                m_M_1 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                m_M_2 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                m_M_3 = [np.array([],dtype=int)]*n_agents # n_agents x n_samples
-                                selem=elem.split('.')
-                                if position == "all":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
+                sub_path = os.path.join(path_temp,pre_folder)
+                msgs_results = {}
+                act_results = {}
+                num_runs = int(len(os.listdir(sub_path))/n_agents)
+                p = np.random.choice(np.arange(num_runs))
+                msgs_bigM_1 = [np.array([])] * n_agents if position=="all" else np.array([])
+                act_bigM_1 = [np.array([])] * n_agents if position=="all" else np.array([])
+                act_bigM_2 = [np.array([])] * n_agents if position=="all" else np.array([])
+                msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
+                act_M_1 = [np.array([],dtype=int)]*num_runs
+                act_M_2 = [np.array([],dtype=int)]*num_runs
+                # assign randomly the state to agents at each run
+                agents_state = [0]*n_agents
+                runs_states = [agents_state]*num_runs
+                states_by_gt = [runs_states]*len(self.ground_truth)
+                for gt in range(len(self.ground_truth)):
+                    num_committed = math.ceil(n_agents*self.ground_truth[gt])
+                    for i in range(num_runs):
+                        ones = 0
+                        while(ones<num_committed):
+                            for j in range(n_agents):
+                                tmp = np.random.random_integers(0,1)
+                                if tmp==1:
+                                    if ones<num_committed:
+                                        ones+=1
+                                        states_by_gt[gt][i][j] = tmp
+                                    else: break
+                                else:
+                                    states_by_gt[gt][i][j] = tmp
+                #####################################################
+                print("\n--- Extract data ---\n",sub_path,'\n')
+                for elem in sorted(os.listdir(sub_path)):
+                    if '.' in elem:
+                        selem=elem.split('.')
+                        if position == "all":
+                            if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                seed = int(selem[0].split('#')[-1])
+                                agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                                print("Reading file",seed,"of agent",agent_id)
+                                with open(os.path.join(sub_path, elem), newline='') as f:
+                                    reader = csv.reader(f)
+                                    log_count = 0
+                                    for row in reader:
+                                        log_count += 1
+                                        if log_count % self.ticks_per_sec == 0:
                                             log_count = 0
-                                            for row in reader:
-                                                for val in row:
+                                            msgs = []
+                                            broadcast_c = 0
+                                            re_broadcast_c = 0
+                                            for val in row:
+                                                
+                                                if val.count('\t')==0:
+                                                    msgs.append(int(val))
+                                                else:
                                                     val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
-                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        if communication != 0:
-                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        q_bigM_1[seed-1] = q_M_1
-                                        q_bigM_2[seed-1] = q_M_2
-                                        m_bigM_1[seed-1] = m_M_1
-                                        m_bigM_2[seed-1] = m_M_2
-                                        m_bigM_3[seed-1] = m_M_3
-                                elif position == "first":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]=="1":
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
-                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        if communication != 0:
-                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        q_bigM_1 = q_M_1
-                                        q_bigM_2 = q_M_2
-                                        m_bigM_1 = m_M_1
-                                        m_bigM_2 = m_M_2
-                                        m_bigM_3 = m_M_3
-                                elif position == "last":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(len(os.listdir(sub_path))):
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
-                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        if communication != 0:
-                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        q_bigM_1 = q_M_1
-                                        q_bigM_2 = q_M_2
-                                        m_bigM_1 = m_M_1
-                                        m_bigM_2 = m_M_2
-                                        m_bigM_3 = m_M_3
-                                elif position == "rand":
-                                    if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum" and selem[0].split('#')[-1]==str(p):
-                                        seed = (int)(selem[0].split('#')[-1])
-                                        print("Reading file",seed)
-                                        with open(os.path.join(sub_path, elem), newline='') as f:
-                                            reader = csv.reader(f)
-                                            log_count = 0
-                                            for row in reader:
-                                                for val in row:
-                                                    val = val.split('\t')
-                                                    agent_id = (int)(val[0])
-                                                    if log_count % self.ticks_per_sec == 0:
-                                                        q_M_1[agent_id] = np.append(q_M_1[agent_id],(int)(val[2])+1)
-                                                        q_M_2[agent_id] = np.append(q_M_2[agent_id],(int)(val[3])+(int)(val[1]))
-                                                        if communication != 0:
-                                                            m_M_1[agent_id] = np.append(m_M_1[agent_id],(int)(val[4]))
-                                                            m_M_2[agent_id] = np.append(m_M_2[agent_id],(int)(val[5]))
-                                                            m_M_3[agent_id] = np.append(m_M_3[agent_id],(int)(val[6]))
-                                                    if agent_id == n_agents - 1: log_count+=1
-                                        q_bigM_1 = q_M_1
-                                        q_bigM_2 = q_M_2
-                                        m_bigM_1 = m_M_1
-                                        m_bigM_2 = m_M_2
-                                        m_bigM_3 = m_M_3
-                        for minus in MINS:
-                            for thr in self.thresholds:
-                                q_results[(commit,minus,thr)] = (self.compute_states(q_bigM_1,q_bigM_2,minus,thr,position),q_bigM_1,q_bigM_2)
-                        m_results[commit] = (m_bigM_1,m_bigM_2,m_bigM_3)
-                COMMIT,MINS = np.sort(COMMIT),np.sort(MINS)
+                                                    if val[0] != '': msgs.append(int(val[0]))
+                                                    broadcast_c = val[1]
+                                                    re_broadcast_c = val[2]
+                                            act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
+                                            act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
+                                            if len(msgs) < max_buff_size:
+                                                for i in range(max_buff_size-len(msgs)): msgs.append(-1)
+                                            if len(msgs_M_1[seed-1]) == 0:
+                                                msgs_M_1[seed-1] = [msgs]
+                                            else :
+                                                msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
+                                if seed == num_runs:
+                                    msgs_bigM_1[agent_id] = msgs_M_1
+                                    act_bigM_1[agent_id] = act_M_1
+                                    act_bigM_2[agent_id] = act_M_2
+                                    msgs_M_1 = [np.array([],dtype=int)]*num_runs
+                                    act_M_1 = [np.array([],dtype=int)]*num_runs
+                                    act_M_2 = [np.array([],dtype=int)]*num_runs
+                # for any folder now we have a matrix(n_agents x n_runs) with inside an array of arrays
+                # now we must compute the states of swarm looking at the state of the messages states_by_gt!!!
+                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt,position)
+                for gt in range(len(self.ground_truth)):
+                    for minus in self.min_buff_dim:
+                        for thr in self.thresholds:
+                            msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr,position),results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1])
+                    act_results[self.ground_truth[gt]] = (act_bigM_1,act_bigM_2)
+                self.ground_truth,self.min_buff_dim = np.sort(self.ground_truth),np.sort(self.min_buff_dim)
                 if data_type=="all" or data_type=="quorum":
                     if position=="all":
-                        self.print_median_time(q_results,base,path_temp,COMMIT,MINS,msg_exp_time)
-                        self.print_mean_quorum_value(q_results,base,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
-                    self.print_single_run_quorum(q_results,base,path_temp,n_agents,COMMIT,MINS,msg_exp_time)
+                        self.print_median_time(msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time)
+                        self.print_mean_quorum_value(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
+                    self.print_single_run_quorum(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,msg_exp_time)
                 if (data_type=="all" or data_type=="freq") and communication > 0:
                     if position == "all":
-                        self.print_msg_freq(m_results,base,path_temp,COMMIT,msg_exp_time)
-                        self.print_focused_meg_freq(m_results,base,path_temp,COMMIT,msg_exp_time,self.x_limit)
+                        self.print_msg_freq(act_results,base,path_temp,self.ground_truth,msg_exp_time)
+                        self.print_focused_meg_freq(act_results,base,path_temp,self.ground_truth,msg_exp_time,self.x_limit)
         print("DONE\n")
-        
+
 ##########################################################################################################
     def print_resume_csv(self,indx,data_in,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
@@ -257,9 +266,9 @@ class Results:
                     for j in range(len(multi_run_data[i])):
                         for z in range(x_limit):
                             if flag1[z]==-1:
-                                flag1[z]=multi_run_data[i][j][z]
+                                flag1[z]=float(multi_run_data[i][j][z])
                             else:
-                                flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                                flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
                     for j in range(len(flag1)):
                         flag1[j]=flag1[j]/len(multi_run_data[i])
                         if flag2[j]==-1:
@@ -328,9 +337,9 @@ class Results:
                     for j in range(len(multi_run_data[i])):
                         for z in range(len(multi_run_data[i][j])):
                             if flag1[z]==-1:
-                                flag1[z]=multi_run_data[i][j][z]
+                                flag1[z]=float(multi_run_data[i][j][z])
                             else:
-                                flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                                flag1[z]=flag1[z]+float(multi_run_data[i][j][z])
                     for j in range(len(flag1)):
                         flag1[j]=flag1[j]/len(multi_run_data[i])
                         if flag2[j]==-1:
@@ -364,10 +373,6 @@ class Results:
             plt.xlabel("simulation time (secs)")
             
             if l==0:
-                plt.ylabel("average swarm msg action")
-                fig_path=BASE+"/images/messages/CONFIGf__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
-                plt.yticks(np.arange(0,1.1,0.1))
-            elif l==1:
                 plt.ylabel("average # of broadcast msgs")
                 fig_path=BASE+"/images/messages/CONFIGbm__"+mid_string+"MsgExpTime#"+str(MSG_EXP_TIME)+".png"
                 plt.yticks(np.arange(0,4100,100))
