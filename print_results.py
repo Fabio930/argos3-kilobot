@@ -61,7 +61,6 @@ def main():
                     for dir in sorted(os.listdir(pre_apath)):
                         if '.' not in dir and '#' in dir:
                             pre_path=os.path.join(pre_apath, dir)
-                            communication=int(dir.split('#')[1])
                             for zdir in sorted(os.listdir(pre_path)):
                                 if '.' not in zdir and '#' in zdir:
                                     n_agents=int(zdir.split('#')[1])
