@@ -80,12 +80,13 @@ class Results:
                         agents_state = [0]*n_agents
                         while(1):
                             for j in range(n_agents):
-                                tmp = np.random.random_integers(0,1)
-                                if tmp==1:
-                                    if ones<num_committed and agents_state[j]==0:
-                                        ones+=1
-                                        agents_state[j] = tmp
-                                    else: break
+                                if agents_state[j]==0:
+                                    tmp = np.random.random_integers(0,1)
+                                    if tmp==1:
+                                        if ones<num_committed:
+                                            ones+=1
+                                            agents_state[j] = tmp
+                                if ones >= num_committed: break
                             if ones >= num_committed: break
                         if len(runs_states[0]) == 0:
                             runs_states = [np.array(agents_state)]
