@@ -155,7 +155,7 @@ class Results:
                                                 msgs_M_1[seed-1] = [msgs]
                                             else :
                                                 msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
-                                if len(msgs_M_1[seed-1])!=max_steps or len(msgs_M_1[seed-1][-1])!=n_agents-1: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
+                                if len(msgs_M_1[seed-1])!=max_steps: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
                                 if seed == num_runs:
                                     msgs_bigM_1[agent_id] = msgs_M_1
                                     act_bigM_1[agent_id] = act_M_1
