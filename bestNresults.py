@@ -33,8 +33,8 @@ class Results:
                     tmp_dim_2 = []
                     tmp_ones_2 = []
                     for t in range(len(m1[k][j])):
-                        dim = 1
-                        ones = states[i][j][k]
+                        dim = 0
+                        ones = 0
                         for z in range(len(m1[k][j][t])):
                             if(m1[k][j][t][z] == -1): break
                             dim += 1
@@ -149,8 +149,8 @@ class Results:
                                             else :
                                                 msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
                                 if seed == num_runs:
-                                            msgs_bigM_1[agent_id] = msgs_M_1
-                                            msgs_M_1 = [np.array([],dtype=int)]*num_runs
+                                    msgs_bigM_1[agent_id] = msgs_M_1
+                                    msgs_M_1 = [np.array([],dtype=int)]*num_runs
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
                 for gt in range(len(self.ground_truth)):
                     for minus in self.min_buff_dim:
@@ -232,7 +232,7 @@ class Results:
                         if (print_only_state or l==0) and (data_in.get((r,MINS[m],self.thresholds[t])))[l] is not None:
                             we_will_print=True
                             multi_run_data = (data_in.get((r,MINS[m],self.thresholds[t])))[l]
-                            support_buffer = (data_in.get((r,MINS[m],self.thresholds[t])))[3]
+                            support_buffer = (data_in.get((r,MINS[m],self.thresholds[t])))[2]
                             if l==1:
                                 flag2=[-1]*len(support_buffer[0][0])
                                 flag3=[flag2]*(len(support_buffer)+1)
