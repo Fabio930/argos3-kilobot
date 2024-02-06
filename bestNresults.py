@@ -110,7 +110,7 @@ class Results:
                     else:
                         states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
-                print("\n--- Extract data ---\n")
+                print("--- Extract data ---\n")
                 for elem in sorted(os.listdir(sub_path)):
                     if '.' in elem:
                         selem=elem.split('.')
