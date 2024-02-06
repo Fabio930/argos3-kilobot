@@ -51,12 +51,12 @@ for par in $experiment_length; do
             fi
             last_id=`expr $par1 - 1`
             for par2 in $msg_expiring_sec; do
-                dir2=$dir1/"MsgExpDist#"$par2
+                dir2=$dir1/"MsgExpTime#"$par2
                 if [[ ! -e $dir2 ]]; then
                     mkdir $dir2
                 fi
                 for it in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%d_nrobots%d_msgExpDist%d_run%d.argos' $par0 $par1 $par2 $it`
+                    config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $par0 $par1 $par2 $it`
                     cp $base_config $config
                     sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
                     sed -i "s|__NUMROBOTS__|$par1|g" $config

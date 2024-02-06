@@ -67,30 +67,33 @@ class Results:
         return out
     
 ##########################################################################################################
-    def check_data_dim(self,path_temp,max_steps):
+    def check_data_dim(self,path_temp,max_steps,max_exp):
         max_buff_size = 0
-        for pre_folder in sorted(os.listdir(path_temp)):
+        for pre_folder in sorted(os.listdir(path_temp),reverse=True):
             if '.' not in pre_folder:
-                sub_path = os.path.join(path_temp,pre_folder)
-                print("\n--- Check buffer dimension ---\n",sub_path,'\n')
-                for elem in sorted(os.listdir(sub_path)):
-                    if '.' in elem:
-                        selem=elem.split('.')
-                        if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                            with open(os.path.join(sub_path, elem), newline='') as f:
-                                reader = csv.reader(f)
-                                log_count = 0
-                                for row in reader:
-                                    log_count += 1
-                                    if log_count // (self.ticks_per_sec*max_steps) == 1:
-                                        msgs = []
-                                        for val in row:
-                                            if val.count('\t')==0:
-                                                msgs.append(int(val))
-                                            else:
-                                                val = val.split('\t')
-                                                if val[0] != '': msgs.append(int(val[0]))
-                                        if len(msgs) > max_buff_size : max_buff_size = len(msgs)
+                pre_params = pre_folder.split('#')
+                msg_exp_time = int(pre_params[-1])
+                if msg_exp_time >= max_exp:
+                    sub_path = os.path.join(path_temp,pre_folder)
+                    print("\n--- Check buffer dimension ---\n",sub_path,'\n')
+                    for elem in sorted(os.listdir(sub_path)):
+                        if '.' in elem:
+                            selem=elem.split('.')
+                            if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                with open(os.path.join(sub_path, elem), newline='') as f:
+                                    reader = csv.reader(f)
+                                    log_count = 0
+                                    for row in reader:
+                                        log_count += 1
+                                        if log_count // (self.ticks_per_sec*max_steps) == 1:
+                                            msgs = []
+                                            for val in row:
+                                                if val.count('\t')==0:
+                                                    msgs.append(int(val))
+                                                else:
+                                                    val = val.split('\t')
+                                                    if val[0] != '': msgs.append(int(val[0]))
+                                            if len(msgs) > max_buff_size : max_buff_size = len(msgs)
         return max_buff_size
 ##########################################################################################################
     def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,max_buff_size,position="all",data_type="all"):
