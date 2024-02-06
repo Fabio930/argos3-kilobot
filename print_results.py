@@ -48,28 +48,19 @@ def main():
     bestNresults = BNres.Results()
     bestNresults.ticks_per_sec, data_type, files_to_elaborate = check_inputs()
     max_buff_dim = 0
-    max_exp_time = 0
-    max_n_agents = 0
-    max_exp_len = 0
+    print("\n--- Check max buffer dimension ---\n")
     for base in bestNresults.bases:
         for adir in sorted(os.listdir(base),reverse=True):
             if '.' not in adir and '#' in adir:
                 pre_apath=os.path.join(base, adir)
-                exp_length=int(adir.split('#')[1])
-                if exp_length >= max_exp_len:
-                    max_exp_len = exp_length
-                    for dir in sorted(os.listdir(pre_apath)):
-                        if '.' not in dir and '#' in dir:
-                            pre_path=os.path.join(pre_apath, dir)
-                            for zdir in sorted(os.listdir(pre_path)):
-                                if '.' not in zdir and '#' in zdir:
-                                    n_agents=int(zdir.split('#')[1])
-                                    if n_agents >= max_n_agents:
-                                        max_n_agents = n_agents
-                                        dtemp=os.path.join(pre_path, zdir)
-                                        tmp_b,tmp_m = bestNresults.check_data_dim(dtemp,exp_length,max_exp_time)
-                                        if tmp_b > max_buff_dim: max_buff_dim = tmp_b
-                                        if tmp_m > max_exp_time: max_exp_time = tmp_m
+                for dir in sorted(os.listdir(pre_apath)):
+                    if '.' not in dir and '#' in dir:
+                        pre_path=os.path.join(pre_apath, dir)
+                        for zdir in sorted(os.listdir(pre_path)):
+                            if '.' not in zdir and '#' in zdir:
+                                n_agents=int(zdir.split('#')[1])
+                                if n_agents > max_buff_dim:
+                                    max_buff_dim = n_agents
     for base in bestNresults.bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
