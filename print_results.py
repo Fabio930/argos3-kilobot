@@ -42,13 +42,12 @@ def main():
     max_n_agents = 0
     max_exp_len = 0
     for base in bestNresults.bases:
-        for adir in sorted(os.listdir(base)):
+        for adir in sorted(os.listdir(base),reverse=True):
             if '.' not in adir and '#' in adir:
                 pre_path=os.path.join(base, adir)
                 exp_length=int(adir.split('#')[1])
                 if exp_length >= max_exp_len:
                     max_exp_len = exp_length
-                    
                     for zdir in sorted(os.listdir(pre_path)):
                         if '.' not in zdir and '#' in zdir:
                             dtemp=os.path.join(pre_path, zdir)
