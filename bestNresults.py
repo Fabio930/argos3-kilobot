@@ -57,38 +57,6 @@ class Results:
                     out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * (1 + m1[i][j][k]) else 0
         return out
 
-#########################################################################################################    
-    def check_data_dim(self,path_temp,max_steps,max_exp):
-        max_buff_size = 0
-        Max = max_exp
-        for pre_folder in sorted(os.listdir(path_temp),reverse=True):
-            if '.' not in pre_folder:
-                pre_params = pre_folder.split('#')
-                msg_exp_time = int(pre_params[-1])
-                if msg_exp_time >= Max:
-                    Max = msg_exp_time
-                    sub_path = os.path.join(path_temp,pre_folder)
-                    print("\n--- Check buffer dimension ---\n",sub_path,'\n')
-                    for elem in sorted(os.listdir(sub_path)):
-                        if '.' in elem:
-                            selem=elem.split('.')
-                            if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                                with open(os.path.join(sub_path, elem), newline='') as f:
-                                    reader = csv.reader(f)
-                                    log_count = 0
-                                    for row in reader:
-                                        log_count += 1
-                                        if log_count // (self.ticks_per_sec*max_steps) == 1:
-                                            msgs = []
-                                            for val in row:
-                                                if val.count('\t')==0:
-                                                    msgs.append(int(val))
-                                                else:
-                                                    val = val.split('\t')
-                                                    if val[0] != '': msgs.append(int(val[0]))
-                                            if len(msgs) > max_buff_size : max_buff_size = len(msgs)
-        return max_buff_size,Max
-
 ##########################################################################################################
     def extract_k_quorum_data(self,base,path_temp,max_steps,n_agents,max_buff_size,position="all"): 
         for pre_folder in sorted(os.listdir(path_temp)):
@@ -102,6 +70,7 @@ class Results:
                 msgs_bigM_1 = [np.array([])] * n_agents if position=="all" else np.array([])
                 msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
                 # assign randomly the state to agents at each run
+                print("--- Assigning states ---\n",sub_path,'\n')
                 states_by_gt = [np.array([])]*len(self.ground_truth)
                 for gt in range(len(self.ground_truth)):
                     runs_states = [np.array([])]*num_runs
@@ -127,7 +96,7 @@ class Results:
                     else:
                         states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
-                print("\n--- Extract data ---\n",sub_path,'\n')
+                print("--- Extract data ---\n")
                 for elem in sorted(os.listdir(sub_path)):
                     if '.' in elem:
                         selem=elem.split('.')
