@@ -97,6 +97,7 @@ class Results:
                                                     if val[0] != '': msgs.append(int(val[0]))
                                             if len(msgs) > max_buff_size : max_buff_size = len(msgs)
         return max_buff_size,Max
+    
 ##########################################################################################################
     def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,max_buff_size,position="all",data_type="all"):
         for pre_folder in sorted(os.listdir(path_temp)):
