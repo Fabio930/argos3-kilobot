@@ -52,7 +52,7 @@ def main():
     max_n_agents = 0
     max_exp_len = 0
     for base in bestNresults.bases:
-        for adir in sorted(os.listdir(base)):
+        for adir in sorted(os.listdir(base),reverse=True):
             if '.' not in adir and '#' in adir:
                 pre_apath=os.path.join(base, adir)
                 exp_length=int(adir.split('#')[1])
