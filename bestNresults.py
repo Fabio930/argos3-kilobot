@@ -69,11 +69,13 @@ class Results:
 ##########################################################################################################
     def check_data_dim(self,path_temp,max_steps,max_exp):
         max_buff_size = 0
+        Max = max_exp
         for pre_folder in sorted(os.listdir(path_temp),reverse=True):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 msg_exp_time = int(pre_params[-1])
-                if msg_exp_time >= max_exp:
+                if msg_exp_time >= Max:
+                    Max = msg_exp_time
                     sub_path = os.path.join(path_temp,pre_folder)
                     print("\n--- Check buffer dimension ---\n",sub_path,'\n')
                     for elem in sorted(os.listdir(sub_path)):
@@ -94,7 +96,7 @@ class Results:
                                                     val = val.split('\t')
                                                     if val[0] != '': msgs.append(int(val[0]))
                                             if len(msgs) > max_buff_size : max_buff_size = len(msgs)
-        return max_buff_size
+        return max_buff_size,Max
 ##########################################################################################################
     def extract_k_quorum_data(self,base,path_temp,max_steps,communication,n_agents,max_buff_size,position="all",data_type="all"):
         for pre_folder in sorted(os.listdir(path_temp)):
