@@ -98,14 +98,22 @@ class Results:
                         states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
                 print("--- Extract data ---\n")
+                a_ = 0
+                prev_id = -1
                 for elem in sorted(os.listdir(sub_path)):
                     if '.' in elem:
                         selem=elem.split('.')
                         if position == "all":
                             if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                                a_+=1
                                 seed = int(selem[0].split('#')[-1])
                                 agent_id = int(selem[0].split('__')[0].split('#')[-1])
-                                print("Reading file",seed,"of agent",agent_id)
+                                if prev_id != agent_id:
+                                    a_ = 0
+                                if a_ == 0:
+                                    print("Reading files of agent",agent_id)
+                                    prev_id = agent_id
+                                
                                 with open(os.path.join(sub_path, elem), newline='') as f:
                                     reader = csv.reader(f)
                                     log_count = 0
@@ -123,6 +131,7 @@ class Results:
                                                 msgs_M_1[seed-1] = [msgs]
                                             else :
                                                 msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
+                                if len(msgs_M_1[seed-1])!=max_steps: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
                                 if seed == num_runs:
                                     msgs_bigM_1[agent_id] = msgs_M_1
                                     msgs_M_1 = [np.array([],dtype=int)]*num_runs
