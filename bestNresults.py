@@ -68,7 +68,7 @@ class Results:
                 num_runs = int(len(os.listdir(sub_path))/n_agents)
                 p = np.random.choice(np.arange(num_runs))
                 msgs_bigM_1 = [np.array([])] * n_agents if position=="all" else np.array([])
-                msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
+                msgs_M_1 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
                 print("--- Assigning states ---\n",sub_path,'\n')
                 states_by_gt = [np.array([])]*len(self.ground_truth)
@@ -129,7 +129,7 @@ class Results:
                                                 for i in range(max_buff_size-len(msgs)): msgs.append(-1)
                                             if len(msgs_M_1[seed-1]) == 0:
                                                 msgs_M_1[seed-1] = [msgs]
-                                            else :
+                                            else:
                                                 msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
                                 if len(msgs_M_1[seed-1])!=max_steps: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
                                 if seed == num_runs:

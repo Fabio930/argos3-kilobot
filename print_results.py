@@ -48,7 +48,7 @@ def main():
                         dtemp=os.path.join(pre_path, zdir)
                         for zzdir in sorted(os.listdir(dtemp)):
                             if '.' not in zzdir and '#' in zzdir:
-                                n_agents=int(zdir.split('#')[1])
+                                n_agents=int(zzdir.split('#')[1])
                                 if n_agents >= max_buff_dim:
                                     max_buff_dim = n_agents
     for base in bestNresults.bases:
