@@ -235,7 +235,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
                 broadcasting_ticks = (uint8_t)sa_payload;
                 broadcasting_flag = data[2] & 0b00000011;
-                uint8_t queue_lenght = (data[2] & 0b11111100) >> 2;
+                uint8_t queue_lenght = (data[1]& 0b00000001) << 6 | (data[2] & 0b11111100) >> 2;
+                printf("dim:%d\n",queue_lenght);
                 init_array_qrm(&quorum_array,queue_lenght);
                 init_received_A = true;
             }

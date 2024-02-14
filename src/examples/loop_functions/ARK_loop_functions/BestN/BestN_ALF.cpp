@@ -192,7 +192,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = (UInt8)(tMessage.m_sID >> 7) << 1;
-        m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1;
+        m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1 | tMessage.m_sData >> 6;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sData << 2 | tMessage.m_sType;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
