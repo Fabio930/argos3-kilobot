@@ -33,7 +33,7 @@ class Results:
                     tmp_dim_2 = []
                     tmp_ones_2 = []
                     for t in range(len(m1[k][j])):
-                        dim = 0
+                        dim = 1
                         ones = 0
                         for z in range(len(m1[k][j][t])):
                             if(m1[k][j][t][z] == -1): break
