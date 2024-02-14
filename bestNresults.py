@@ -34,7 +34,7 @@ class Results:
                     tmp_ones_2 = []
                     for t in range(len(m1[k][j])):
                         dim = 1
-                        ones = 0
+                        ones = states[i][j][k]
                         for z in range(len(m1[k][j][t])):
                             if(m1[k][j][t][z] == -1): break
                             dim += 1
