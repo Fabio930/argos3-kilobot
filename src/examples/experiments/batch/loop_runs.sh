@@ -27,10 +27,10 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="900"
-RUNS=100
+experiment_length="600"
+RUNS=3
 rebroadcast="0"
-numrobots="100"
+numrobots="25"
 
 strToReplace="."
 replace="_"
@@ -44,7 +44,7 @@ for par in $experiment_length; do
             if [ $par1 -eq 25 ]; then
                 buffer_dim="10 24"
             elif [ $par1 -eq 100 ]; then
-                buffer_dim="99"
+                buffer_dim="10 99"
             fi
             for par2 in $buffer_dim; do
                 dir2=$dir1/"BufferDim#"$par2
