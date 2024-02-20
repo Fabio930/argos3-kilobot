@@ -38,7 +38,7 @@ def main():
     bestNresults = dex.Results()
     bestNresults.ticks_per_sec, data_type = check_inputs()
     max_buff_dim = 0
-    print("\n--- Check max buffer dimension ---\n")
+    print("\n--- Check max buffer dimension ---")
     for base in bestNresults.bases:
         for adir in sorted(os.listdir(base),reverse=True):
             if '.' not in adir and '#' in adir:

@@ -1,5 +1,5 @@
 import numpy as np
-import os, csv, math
+import os, csv, math, sys
 
 class Results:
     thresholds = {}
@@ -26,7 +26,10 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states):
+        print("- Computing agents' states")
         out = {}
+        max_compl = len(states)*len(states[0])*len(states[0][0])*len(m1[0][0])*len(m1[0][0][0])
+        compl = 0
         for i in range(len(states)):
             tmp_dim_0 = [np.array([])]*len(m1[0])
             tmp_ones_0 = [np.array([])]*len(m1[0])
@@ -40,9 +43,16 @@ class Results:
                         dim = 1
                         ones = states[i][j][k]
                         for z in range(len(m1[k][j][t])):
-                            if(m1[k][j][t][z] == -1): break
+                            if(m1[k][j][t][z] == -1):
+                                compl += len(m1[0][0][0])-z
+                                sys.stdout.write("Completing ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                                sys.stdout.flush()
+                                break
                             dim += 1
                             ones += states[i][j][m1[k][j][t][z]]
+                            compl += 1
+                            sys.stdout.write("Completing ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                            sys.stdout.flush()
                         tmp_dim_2.append(dim)
                         tmp_ones_2.append(ones)
                     tmp_dim_1[k] = tmp_dim_2
@@ -51,6 +61,7 @@ class Results:
                 tmp_ones_0[j] = tmp_ones_1
             out[self.ground_truth[i]] = (tmp_dim_0,tmp_ones_0)
         return out
+    
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold,):
         out = np.copy(m1)
@@ -106,7 +117,7 @@ class Results:
                     else:
                         states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
-                print("--- Extract data ---\n")
+                print("--- Extract data ---")
                 a_ = 0
                 prev_id = -1
                 for elem in sorted(os.listdir(sub_path)):
@@ -155,7 +166,6 @@ class Results:
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
-                print("- Computing agents' states")
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
                 for gt in range(len(self.ground_truth)):
                     for minus in self.min_buff_dim:
