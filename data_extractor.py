@@ -120,7 +120,6 @@ class Results:
                             if a_ == 0:
                                 print("- Reading files of agent",agent_id)
                                 prev_id = agent_id
-                            
                             with open(os.path.join(sub_path, elem), newline='') as f:
                                 reader = csv.reader(f)
                                 log_count = 0
