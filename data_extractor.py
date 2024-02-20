@@ -78,7 +78,8 @@ class Results:
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
-                print(sub_path,'\n',"--- Assigning states ---")
+                print(sub_path)
+                print("--- Assigning states ---")
                 states_by_gt = [np.array([])]*len(self.ground_truth)
                 for gt in range(len(self.ground_truth)):
                     runs_states = [np.array([])]*num_runs
@@ -154,6 +155,7 @@ class Results:
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
+                print("- Computing agents' states")
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
                 for gt in range(len(self.ground_truth)):
                     for minus in self.min_buff_dim:
