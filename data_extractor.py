@@ -130,8 +130,7 @@ class Results:
                                         msgs = []
                                         broadcast_c = 0
                                         re_broadcast_c = 0
-                                        for val in row:
-                                            
+                                        for val in row:                                            
                                             if val.count('\t')==0:
                                                 msgs.append(int(val))
                                             else:
