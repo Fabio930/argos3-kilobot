@@ -66,7 +66,7 @@ class Results:
         return out
     
 #########################################################################################################
-    def compute_quorum(self,m1,m2,minus,threshold,):
+    def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
