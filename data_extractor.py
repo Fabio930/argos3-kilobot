@@ -164,7 +164,7 @@ class Results:
                 sys.stdout.write("\n")
                 sys.stdout.flush()     
                 self.dump_times(msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,buffer_dim,self.limit)
-                self.dump_quorum_and_buffer(msgs_results,base,path_temp,n_agents,self.ground_truth,self.min_buff_dim,buffer_dim)
+                self.dump_quorum_and_buffer(msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,buffer_dim)
                 print("")
 
 ##########################################################################################################
@@ -200,7 +200,7 @@ class Results:
             values.append("times")
         values.append(data_in)
         values.append(data_std)
-        fw = open(base+"/proc_data/"+file_name,mode='a',newline='\n')
+        fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
         fwriter = csv.writer(fw,delimiter='\t')
         if write_header == 1:
             fwriter.writerow(name_fields)
