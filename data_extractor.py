@@ -78,7 +78,7 @@ class Results:
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
-                print("--- Assigning states ---\n",sub_path,'\n')
+                print(sub_path,'\n',"--- Assigning states ---")
                 states_by_gt = [np.array([])]*len(self.ground_truth)
                 for gt in range(len(self.ground_truth)):
                     runs_states = [np.array([])]*num_runs
