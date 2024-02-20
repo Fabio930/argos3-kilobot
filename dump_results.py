@@ -65,7 +65,7 @@ def main():
                                 n_agents=int(zzdir.split('#')[1])
                                 ddtemp=os.path.join(dtemp, zzdir)
                                 print("Opening folder",ddtemp)
-                                bestNresults.extract_k_quorum_data(base,ddtemp,exp_length,n_agents,max_buff_dim,files_to_elaborate)
+                                bestNresults.extract_k_data(base,ddtemp,exp_length,n_agents,max_buff_dim,files_to_elaborate)
 
 if __name__ == "__main__":
     main()
