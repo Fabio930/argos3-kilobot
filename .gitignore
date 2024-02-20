@@ -8,3 +8,4 @@ build
 **/*results_*
 **/*cache*
 Experiments.txt
+proc_data

@@ -1,7 +1,7 @@
 # usage python3 light_print_results.py -f files -t ticks
 # if -f is declared then must specify which files to print: all, first, last or rand(om)
 # if -t is declared then must specify which is the log frequency, default value is 31
-import results_csv as CSVres
+import csv_results as CSVres
 import os, sys
 
 def main():
