@@ -1,7 +1,7 @@
 # usage python3 light_print_results.py -f files -t ticks
 # if -f is declared then must specify which files to print: all, first, last or rand(om)
 # if -t is declared then must specify which is the log frequency, default value is 31
-import data_extractor as BNres
+import data_extractor as dex
 import os, sys
 
 def check_inputs():
@@ -35,7 +35,7 @@ def check_inputs():
     return ticks,files_to_elaborate
 
 def main():
-    bestNresults = BNres.Results()
+    bestNresults = dex.Results()
     bestNresults.ticks_per_sec, files_to_elaborate = check_inputs()
     max_buff_dim = 0
     print("\n--- Check max buffer dimension ---\n")
