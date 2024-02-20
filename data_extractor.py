@@ -7,6 +7,7 @@ class Results:
     min_buff_dim = [5]
     ticks_per_sec = 10
     x_limit = 100
+    limit = 0.8
         
 ##########################################################################################################
     def __init__(self):
@@ -26,7 +27,7 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states):
-        print("- Computing agents' states")
+        print("-- Computing agents' states")
         out = {}
         max_compl = len(states)*len(states[0])*len(states[0][0])*len(m1[0][0])*len(m1[0][0][0])
         compl = 0
@@ -45,13 +46,13 @@ class Results:
                         for z in range(len(m1[k][j][t])):
                             if(m1[k][j][t][z] == -1):
                                 compl += len(m1[0][0][0])-z
-                                sys.stdout.write("Completing ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                                sys.stdout.write("- Computing ... %s%%\r" %(round((compl/max_compl)*100,3)))
                                 sys.stdout.flush()
                                 break
                             dim += 1
                             ones += states[i][j][m1[k][j][t][z]]
                             compl += 1
-                            sys.stdout.write("Completing ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                            sys.stdout.write("- Computing ... %s%%\r" %(round((compl/max_compl)*100,3)))
                             sys.stdout.flush()
                         tmp_dim_2.append(dim)
                         tmp_ones_2.append(ones)
@@ -60,6 +61,8 @@ class Results:
                 tmp_dim_0[j] = tmp_dim_1
                 tmp_ones_0[j] = tmp_ones_1
             out[self.ground_truth[i]] = (tmp_dim_0,tmp_ones_0)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
         return out
     
 #########################################################################################################
@@ -167,18 +170,25 @@ class Results:
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
+                max_compl = len(self.ground_truth)*len(self.min_buff_dim)
+                compl = 0
                 for gt in range(len(self.ground_truth)):
                     for minus in self.min_buff_dim:
                         for thr in self.thresholds.get(self.ground_truth[gt]):
+                            compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
                             msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr),results.get(self.ground_truth[gt])[0])
+                            sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                            sys.stdout.flush()
+                sys.stdout.write("\n")
+                sys.stdout.flush()         
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 self.ground_truth,self.min_buff_dim = np.sort(self.ground_truth),np.sort(self.min_buff_dim)
                 if data_type=="all" or data_type=="quorum":
-                    self.dump_times(0,msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time)
+                    self.dump_times(0,msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time,self.limit)
                     self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(2,act_results,msgs_results,base,path_temp,msg_exp_time)
-        print("DONE\n")
+                print("")
 
 ##########################################################################################################
     def dump_resume_csv(self,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
@@ -311,7 +321,7 @@ class Results:
                             self.dump_resume_csv(l,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,r,self.thresholds.get(r)[t],MINS[m],MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
-    def dump_times(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
+    def dump_times(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME,limit):
         print("-- Dumping arrival times")
         for m in range(len(MINS)):
             for r in COMMIT:
@@ -323,7 +333,7 @@ class Results:
                             sum = 0
                             for j in range(len(multi_run_data[i])): # per ogni agente
                                 sum += multi_run_data[i][j][z]
-                            if sum >= 0.8 * len(multi_run_data[i]):
+                            if sum >= limit * len(multi_run_data[i]):
                                 times[i] = z
                                 break
                     times = sorted(times)

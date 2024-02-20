@@ -1,4 +1,4 @@
-import results_csv as CSVres
+import csv_results as CSVres
 import os, sys
 
 ##################################################################################
