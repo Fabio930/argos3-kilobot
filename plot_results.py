@@ -21,7 +21,7 @@ def main():
                             arena=val[1]
                 data = csv_res.read_csv(file_path,algo,n_runs,arena)
                 keys, states, buffers, times, messages_counts = csv_res.divide_data(data)               
-                csv_res.plot_hetmaps(keys,(states,times,buffers),limit)
+                csv_res.plot_heatmaps(keys,(states,times,buffers),limit)
 
 ##################################################################################
 if __name__ == "__main__":

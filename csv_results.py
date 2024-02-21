@@ -107,7 +107,7 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, buffer, times, (messages_b, messages_r)
     
 ##########################################################################################################
-    def plot_hetmaps(self,keys,data_in,limit):
+    def plot_heatmaps(self,keys,data_in,limit):
         print("-- Printing Heatmaps")
         if not os.path.exists(self.base+"/proc_data/images/grids/"):
             os.mkdir(self.base+"/proc_data/images/grids/")
