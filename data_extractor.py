@@ -177,8 +177,8 @@ class Results:
                             msgs_results = {}
                             msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr),results.get(self.ground_truth[gt])[0])
                             if data_type=="all" or data_type=="quorum":
-                                self.dump_times(0,msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time,self.limit)
-                                self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth,self.min_buff_dim,msg_exp_time)
+                                self.dump_times(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
+                                self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
                             compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
                             sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
                             sys.stdout.flush()
@@ -275,67 +275,63 @@ class Results:
         
 ##########################################################################################################
     def dump_quorum_and_buffer(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
-        for m in range(len(MINS)):
-            for r in COMMIT:
-                for t in range(len(self.thresholds.get(r))):
-                    if data_in.get((r,MINS[m],self.thresholds.get(r)[t])) is not None:
-                        for l in range(len(data_in.get((r,MINS[m],self.thresholds.get(r)[t])))):
-                            if data_in.get((r,MINS[m],self.thresholds.get(r)[t]))[l] is not None:
-                                multi_run_data = (data_in.get((r,MINS[m],self.thresholds.get(r)[t])))[l]
-                                flag2=[-1]*len(multi_run_data[0][0])
-                                for i in range(len(multi_run_data)):
-                                    flag1=[-1]*len(multi_run_data[i][0])
-                                    for j in range(len(multi_run_data[i])):
-                                        for z in range(len(multi_run_data[i][j])):
-                                            if flag1[z]==-1:
-                                                flag1[z]=multi_run_data[i][j][z]
-                                            else:
-                                                flag1[z]=flag1[z]+multi_run_data[i][j][z]
-                                    for j in range(len(flag1)):
-                                        flag1[j]=flag1[j]/len(multi_run_data[i])
-                                        if flag2[j]==-1:
-                                            flag2[j]=flag1[j]
-                                        else:
-                                            flag2[j]=flag1[j]+flag2[j]
-                                for i in range(len(flag2)):
-                                    flag2[i]=flag2[i]/len(multi_run_data)
-                                ###################################################
-                                fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
-                                fstd3=[-1]*len(multi_run_data[0][0])
-                                for i in range(len(multi_run_data)):
-                                    fstd1=[-1]*len(multi_run_data[i][0])
-                                    for z in range(len(multi_run_data[i][0])): # per ogni tick
-                                        std_tmp = []
-                                        for j in range(len(multi_run_data[i])): # per ogni agente
-                                            std_tmp.append(float(multi_run_data[i][j][z]))
-                                        fstd1[z]=np.std(std_tmp)
-                                    fstd2[i]=fstd1
-                                for z in range(len(fstd3)):
-                                    median_array = []
-                                    for i in range(len(fstd2)):
-                                        median_array.append(fstd2[i][z])
-                                    fstd3[z]=self.extract_median(median_array)
-                                ###################################################
-                                self.dump_resume_csv(l,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,r,self.thresholds.get(r)[t],MINS[m],MSG_EXP_TIME,len(multi_run_data))
+        for t in range(len(self.thresholds.get(COMMIT))):
+            if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])) is not None:
+                for l in range(len(data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))):
+                    if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t]))[l] is not None:
+                        multi_run_data = (data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))[l]
+                        flag2=[-1]*len(multi_run_data[0][0])
+                        for i in range(len(multi_run_data)):
+                            flag1=[-1]*len(multi_run_data[i][0])
+                            for j in range(len(multi_run_data[i])):
+                                for z in range(len(multi_run_data[i][j])):
+                                    if flag1[z]==-1:
+                                        flag1[z]=multi_run_data[i][j][z]
+                                    else:
+                                        flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                            for j in range(len(flag1)):
+                                flag1[j]=flag1[j]/len(multi_run_data[i])
+                                if flag2[j]==-1:
+                                    flag2[j]=flag1[j]
+                                else:
+                                    flag2[j]=flag1[j]+flag2[j]
+                        for i in range(len(flag2)):
+                            flag2[i]=flag2[i]/len(multi_run_data)
+                        ###################################################
+                        fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
+                        fstd3=[-1]*len(multi_run_data[0][0])
+                        for i in range(len(multi_run_data)):
+                            fstd1=[-1]*len(multi_run_data[i][0])
+                            for z in range(len(multi_run_data[i][0])): # per ogni tick
+                                std_tmp = []
+                                for j in range(len(multi_run_data[i])): # per ogni agente
+                                    std_tmp.append(float(multi_run_data[i][j][z]))
+                                fstd1[z]=np.std(std_tmp)
+                            fstd2[i]=fstd1
+                        for z in range(len(fstd3)):
+                            median_array = []
+                            for i in range(len(fstd2)):
+                                median_array.append(fstd2[i][z])
+                            fstd3[z]=self.extract_median(median_array)
+                        ###################################################
+                        self.dump_resume_csv(l,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def dump_times(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME,limit):
-        for m in range(len(MINS)):
-            for r in COMMIT:
-                for t in range(len(self.thresholds.get(r))):
-                    if data_in.get((r,MINS[m],self.thresholds.get(r)[t])) is not None:
-                        multi_run_data = (data_in.get((r,MINS[m],self.thresholds.get(r)[t])))[0]
-                        times = [len(multi_run_data[0][0])] * len(multi_run_data)
-                        for i in range(len(multi_run_data)): # per ogni run
-                            for z in range(len(multi_run_data[i][0])): # per ogni tick
-                                sum = 0
-                                for j in range(len(multi_run_data[i])): # per ogni agente
-                                    sum += multi_run_data[i][j][z]
-                                if sum >= limit * len(multi_run_data[i]):
-                                    times[i] = z
-                                    break
-                        times = sorted(times)
-                        self.dump_resume_csv(-1,bias,times,'-',BASE,PATH,r,self.thresholds.get(r)[t],MINS[m],MSG_EXP_TIME,len(multi_run_data))
+        for t in range(len(self.thresholds.get(COMMIT))):
+            if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])) is not None:
+                multi_run_data = (data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))[0]
+                times = [len(multi_run_data[0][0])] * len(multi_run_data)
+                for i in range(len(multi_run_data)): # per ogni run
+                    for z in range(len(multi_run_data[i][0])): # per ogni tick
+                        sum = 0
+                        for j in range(len(multi_run_data[i])): # per ogni agente
+                            sum += multi_run_data[i][j][z]
+                        if sum >= limit * len(multi_run_data[i]):
+                            times[i] = z
+                            break
+                times = sorted(times)
+                self.dump_resume_csv(-1,bias,times,'-',BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def extract_median(self,array):
