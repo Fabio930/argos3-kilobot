@@ -126,7 +126,10 @@ class Data:
                                 for m_b_d in keys[8]:
                                     for m_t in keys[9]:
                                         heatmap_t = []
-                                        for gt in keys[6]:
+                                        _GT = keys[6]
+                                        GT = [-1]*len(_GT)
+                                        for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
+                                        for gt in GT:
                                             list_t = [-1]*len(keys[7])
                                             for thr in range(len(keys[7])):
                                                 if float(keys[7][thr])<=float(gt):
@@ -148,11 +151,11 @@ class Data:
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
                                         # Show all ticks and label them with the respective list entries
                                         t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
-                                        t_ax.set_yticks(np.arange(len(keys[6])), labels=keys[6])
+                                        t_ax.set_yticks(np.arange(len(GT)), labels=GT)
                                         t_ax.set_xlabel("# buffer thresholds")
                                         t_ax.set_ylabel("committed percentage")
                                         # Loop over data dimensions and create text annotations.
-                                        for i in range(len(keys[6])):
+                                        for i in range(len(GT)):
                                             for j in range(len(keys[7][:-1])):
                                                 text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="w")
                                         t_ax.set_title("median time to sense quorum")
@@ -161,7 +164,10 @@ class Data:
                                         plt.savefig(fig_path)
                                         # plt.show()
                                     heatmap_p = []
-                                    for gt in keys[6]:
+                                    _GT = keys[6]
+                                    GT = [-1]*len(_GT)
+                                    for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
+                                    for gt in GT:
                                         list_p = [-1]*len(keys[9])
                                         MET = []
                                         for i in keys[9]:
@@ -186,11 +192,11 @@ class Data:
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
                                     # Show all ticks and label them with the respective list entries
                                     p_ax.set_xticks(np.arange(len(MET)), labels=MET)
-                                    p_ax.set_yticks(np.arange(len(keys[6])), labels=keys[6])
+                                    p_ax.set_yticks(np.arange(len(GT)), labels=GT)
                                     p_ax.set_xlabel("buffer dimension")
                                     p_ax.set_ylabel("committed percentage")
                                     # Loop over data dimensions and create text annotations.
-                                    for i in range(len(keys[6])):
+                                    for i in range(len(GT)):
                                         for j in range(len(MET)):
                                             text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="w")
                                     p_ax.set_title("maximum threshold to sense quorum")
@@ -220,7 +226,9 @@ class Data:
                                 for m_b_d in MBD:
                                     for m_t in keys[9]:
                                         heatmap_t = []
-                                        GT = keys[6][:-1]
+                                        _GT = keys[6][:-1]
+                                        GT = [-1]*len(_GT)
+                                        for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                         for gt in GT:
                                             THR = keys[7][:-1]
                                             list_t = [-1]*len(THR)
@@ -257,7 +265,9 @@ class Data:
                                         plt.savefig(fig_path)
                                         # plt.show()
                                     heatmap_p = []
-                                    GT = keys[6][:-1]
+                                    _GT = keys[6][:-1]
+                                    GT = [-1]*len(_GT)
+                                    for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                     for gt in GT:
                                         list_p = [-1]*len(keys[9])
                                         MET = []
