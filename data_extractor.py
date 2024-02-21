@@ -26,7 +26,7 @@ class Results:
 
 
 ##########################################################################################################
-    def compute_quorum_vars_on_ground_truth(self,m1,states):
+    def compute_quorum_vars_on_ground_truth(self,m1,states,buf_lim):
         print("")
         max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
         compl = 0
@@ -41,7 +41,7 @@ class Results:
                 for t in range(len(m1[j][i])):
                     dim = 1
                     ones = states[i][j]
-                    for z in range(len(m1[j][i][t])):
+                    for z in range(buf_lim):
                         if(m1[j][i][t][z] == -1): break
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
@@ -66,14 +66,13 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,n_agents,max_buff_size): 
+    def extract_k_data(self,base,path_temp,max_steps,n_agents): 
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 buffer_dim = int(pre_params[-1])
                 sub_path = os.path.join(path_temp,pre_folder)
                 num_runs = int(len(os.listdir(sub_path))/n_agents)
-                p = np.random.choice(np.arange(num_runs))
                 msgs_bigM_1 = [np.array([])] * n_agents
                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
@@ -131,8 +130,8 @@ class Results:
                                         for val in row:
                                             if val.count('\t')==0 and val.count('-')==0:
                                                 msgs.append(int(val))
-                                        if len(msgs) < max_buff_size:
-                                            for i in range(max_buff_size-len(msgs)): msgs.append(-1)
+                                        if len(msgs) < buffer_dim:
+                                            for i in range(buffer_dim-len(msgs)): msgs.append(-1)
                                         if len(msgs_M_1[seed-1]) == 0:
                                             msgs_M_1[seed-1] = [msgs]
                                         else:
@@ -141,19 +140,26 @@ class Results:
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                max_compl = len(self.ground_truth)*len(self.min_buff_dim)
+                BUFFERS = [10]
+                mid = 10 + math.ceil((buffer_dim - 10)*.5)
+                h_mid = math.ceil((mid - 10)*.5)
+                for i in range(10,buffer_dim):
+                    if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
+                BUFFERS.append(buffer_dim)
+                max_compl = len(self.ground_truth)*len(self.min_buff_dim)*len(BUFFERS)
                 compl = 0
-                for gt in range(len(self.ground_truth)):
-                    results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt])
-                    for minus in self.min_buff_dim:
-                        for thr in self.thresholds.get(self.ground_truth[gt]):
-                            msgs_results = {}
-                            msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
-                            self.dump_times(msgs_results,base,path_temp,self.ground_truth[gt],minus,buffer_dim,self.limit)
-                            self.dump_quorum_and_buffer(msgs_results,base,path_temp,self.ground_truth[gt],minus,buffer_dim)
-                            compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
-                            sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                            sys.stdout.flush()
+                for buf in BUFFERS:
+                    for gt in range(len(self.ground_truth)):
+                        results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt],buf)
+                        for minus in self.min_buff_dim:
+                            for thr in self.thresholds.get(self.ground_truth[gt]):
+                                msgs_results = {}
+                                msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
+                                self.dump_times(msgs_results,base,path_temp,self.ground_truth[gt],minus,buf,self.limit)
+                                self.dump_quorum_and_buffer(msgs_results,base,path_temp,self.ground_truth[gt],minus,buf)
+                                compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
+                                sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                                sys.stdout.flush()
                 sys.stdout.write("\n")
                 sys.stdout.flush()
                 print("")
