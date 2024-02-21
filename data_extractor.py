@@ -27,43 +27,34 @@ class Results:
 
 ##########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states):
-        print("-- Computing agents' states")
-        out = {}
-        max_compl = len(states)*len(states[0])*len(states[0][0])*len(m1[0][0])*len(m1[0][0][0])
+        print("")
+        max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
         compl = 0
+        tmp_dim_0 = [np.array([])]*len(m1[0])
+        tmp_ones_0 = [np.array([])]*len(m1[0])
         for i in range(len(states)):
-            tmp_dim_0 = [np.array([])]*len(m1[0])
-            tmp_ones_0 = [np.array([])]*len(m1[0])
+            tmp_dim_1 = [np.array([])]*len(m1)
+            tmp_ones_1 = [np.array([])]*len(m1)
             for j in range(len(states[i])):
-                tmp_dim_1 = [np.array([])]*len(m1)
-                tmp_ones_1 = [np.array([])]*len(m1)
-                for k in range(len(states[i][j])):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(m1[k][j])):
-                        dim = 1
-                        ones = states[i][j][k]
-                        for z in range(len(m1[k][j][t])):
-                            if(m1[k][j][t][z] == -1):
-                                compl += len(m1[0][0][0])-z
-                                sys.stdout.write("- Computing ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                                sys.stdout.flush()
-                                break
-                            dim += 1
-                            ones += states[i][j][m1[k][j][t][z]]
-                            compl += 1
-                            sys.stdout.write("- Computing ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                            sys.stdout.flush()
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[k] = tmp_dim_2
-                    tmp_ones_1[k] = tmp_ones_2
-                tmp_dim_0[j] = tmp_dim_1
-                tmp_ones_0[j] = tmp_ones_1
-            out[self.ground_truth[i]] = (tmp_dim_0,tmp_ones_0)
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-        return out
+                tmp_dim_2 = []
+                tmp_ones_2 = []
+                for t in range(len(m1[j][i])):
+                    dim = 1
+                    ones = states[i][j]
+                    for z in range(len(m1[j][i][t])):
+                        if(m1[j][i][t][z] == -1): break
+                        dim += 1
+                        ones += states[i][m1[j][i][t][z]]
+                        compl+=1
+                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.flush()
+                    tmp_dim_2.append(dim)
+                    tmp_ones_2.append(ones)
+                tmp_dim_1[j] = tmp_dim_2
+                tmp_ones_1[j] = tmp_ones_2
+            tmp_dim_0[i] = tmp_dim_1
+            tmp_ones_0[i] = tmp_ones_1
+        return (tmp_dim_0,tmp_ones_0)
     
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
@@ -150,14 +141,14 @@ class Results:
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
                 max_compl = len(self.ground_truth)*len(self.min_buff_dim)
                 compl = 0
                 for gt in range(len(self.ground_truth)):
+                    results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt])
                     for minus in self.min_buff_dim:
                         for thr in self.thresholds.get(self.ground_truth[gt]):
                             msgs_results = {}
-                            msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr),results.get(self.ground_truth[gt])[0])
+                            msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
                             self.dump_times(msgs_results,base,path_temp,self.ground_truth[gt],minus,buffer_dim,self.limit)
                             self.dump_quorum_and_buffer(msgs_results,base,path_temp,self.ground_truth[gt],minus,buffer_dim)
                             compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
