@@ -22,9 +22,6 @@ def main():
                 data = csv_res.read_csv(file_path,algo,n_runs,arena)
                 keys, states, buffers, times, messages_counts = csv_res.divide_data(data)               
                 csv_res.plot_hetmaps(keys,(states,times,buffers),limit)
-                # csv_res.plot_states(keys,states)
-                # csv_res.plot_buffer_dim(keys,buffers)
-                # csv_res.plot_median_goal_time(keys,times)
 
 ##################################################################################
 if __name__ == "__main__":
