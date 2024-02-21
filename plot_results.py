@@ -7,7 +7,7 @@ def main():
     limit = 0.8
     for base in csv_res.bases:
         for file in sorted(os.listdir(base)):
-            if file != "images":
+            if "images" not in file:
                 file_path=os.path.join(base, file)
                 no_ext_file = file.split('.')[0]
                 sets = no_ext_file.split('_')
@@ -19,10 +19,9 @@ def main():
                             n_runs=val[1]
                         elif val[0]=='a':
                             arena=val[1]
-                print(algo)
                 data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                keys, states, buffers, times, messages_counts = csv_res.divide_data(data)               
-                csv_res.plot_heatmaps(keys,(states,times,buffers),limit)
+                keys, states, times, buffers, messages_counts = csv_res.divide_data(data)               
+                csv_res.o_plot_heatmaps(keys,(states,times,buffers),limit) if algo=='O' else csv_res.p_plot_heatmaps(keys,(states,times,buffers),limit)
 
 ##################################################################################
 if __name__ == "__main__":
