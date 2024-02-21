@@ -42,9 +42,9 @@ for par in $experiment_length; do
             dir1=$dir0/"Robots#"$par1
             last_id=`expr $par1 - 1`
             if [ $par1 -eq 25 ]; then
-                buffer_dim="10 24"
+                buffer_dim="24"
             elif [ $par1 -eq 100 ]; then
-                buffer_dim="10 99"
+                buffer_dim="99"
             fi
             for par2 in $buffer_dim; do
                 dir2=$dir1/"BufferDim#"$par2

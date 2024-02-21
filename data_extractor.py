@@ -66,7 +66,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,n_agents): 
+    def extract_k_data(self,base,path_temp,max_steps,n_agents,min_bf): 
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
@@ -140,9 +140,9 @@ class Results:
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                BUFFERS = [10]
-                mid = 10 + math.ceil((buffer_dim - 10)*.5)
-                h_mid = math.ceil((mid - 10)*.5)
+                BUFFERS = [min_bf]
+                mid = min_bf + math.ceil((buffer_dim - min_bf)*.5)
+                h_mid = math.ceil((mid - min_bf)*.5)
                 for i in range(10,buffer_dim):
                     if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
                 BUFFERS.append(buffer_dim)

@@ -35,6 +35,7 @@ def check_inputs():
     return ticks,files_to_elaborate
 
 def main():
+    min_bf = 10
     results = dex.Results()
     results.ticks_per_sec, files_to_elaborate = check_inputs()
     for base in results.bases:
@@ -51,7 +52,7 @@ def main():
                                 n_agents=int(zzdir.split('#')[1])
                                 ddtemp=os.path.join(dtemp, zzdir)
                                 print("Opening folder",ddtemp)
-                                results.extract_k_data(base,ddtemp,exp_length,n_agents)
+                                results.extract_k_data(base,ddtemp,exp_length,n_agents,min_bf)
 
 if __name__ == "__main__":
     main()
