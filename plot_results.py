@@ -1,5 +1,5 @@
 import csv_results as CSVres
-import os, sys
+import os
 
 ##################################################################################
 def main():
