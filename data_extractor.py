@@ -27,6 +27,9 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states):
+        print("")
+        max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
+        compl = 0
         tmp_dim_0 = [np.array([])]*len(m1[0])
         tmp_ones_0 = [np.array([])]*len(m1[0])
         for i in range(len(states)):
@@ -42,6 +45,9 @@ class Results:
                         if(m1[j][i][t][z] == -1): break
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
+                        compl+=1
+                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.flush()
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
                 tmp_dim_1[j] = tmp_dim_2
