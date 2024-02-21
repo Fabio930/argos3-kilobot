@@ -2,8 +2,6 @@ import numpy as np
 import os, csv, math
 import seaborn as sns
 import matplotlib as mpl
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
 from matplotlib import pyplot as plt
 
 class Data:
