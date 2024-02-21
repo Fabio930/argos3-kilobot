@@ -20,7 +20,7 @@ def main():
                         elif val[0]=='a':
                             arena=val[1]
                 data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                keys, states, buffers, times, messages_counts = csv_res.divide_data(data)               
+                keys, states, times, buffers, messages_counts = csv_res.divide_data(data)               
                 csv_res.plot_heatmaps(keys,(states,times,buffers),limit)
 
 ##################################################################################
