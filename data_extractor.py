@@ -171,17 +171,17 @@ class Results:
                 results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt)
                 max_compl = len(self.ground_truth)*len(self.min_buff_dim)
                 compl = 0
-                for gt in range(len(self.ground_truth)):
-                    for minus in self.min_buff_dim:
-                        for thr in self.thresholds.get(self.ground_truth[gt]):
-                            msgs_results = {}
-                            msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr),results.get(self.ground_truth[gt])[0])
-                            if data_type=="all" or data_type=="quorum":
+                if data_type=="all" or data_type=="quorum":
+                    for gt in range(len(self.ground_truth)):
+                        for minus in self.min_buff_dim:
+                            for thr in self.thresholds.get(self.ground_truth[gt]):
+                                msgs_results = {}
+                                msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results.get(self.ground_truth[gt])[0],results.get(self.ground_truth[gt])[1],minus,thr),results.get(self.ground_truth[gt])[0])
                                 self.dump_times(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
                                 self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
-                            compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
-                            sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                            sys.stdout.flush()
+                                compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
+                                sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                                sys.stdout.flush()
                 sys.stdout.write("\n")
                 sys.stdout.flush()         
                 act_results[0] = (act_bigM_1,act_bigM_2)
