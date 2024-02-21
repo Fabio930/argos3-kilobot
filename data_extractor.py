@@ -66,7 +66,8 @@ class Results:
         return out
         
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,max_buff_size,data_type="all"):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,data_type="all"):
+        max_buff_size = n_agents - 1
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')

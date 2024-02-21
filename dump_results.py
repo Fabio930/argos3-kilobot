@@ -37,20 +37,6 @@ def check_inputs():
 def main():
     results = dex.Results()
     results.ticks_per_sec, data_type = check_inputs()
-    max_buff_dim = 0
-    print("\n--- Check max buffer dimension ---")
-    for base in results.bases:
-        for adir in sorted(os.listdir(base),reverse=True):
-            if '.' not in adir and '#' in adir:
-                pre_apath=os.path.join(base, adir)
-                for dir in sorted(os.listdir(pre_apath)):
-                    if '.' not in dir and '#' in dir:
-                        pre_path=os.path.join(pre_apath, dir)
-                        for zdir in sorted(os.listdir(pre_path)):
-                            if '.' not in zdir and '#' in zdir:
-                                n_agents=int(zdir.split('#')[1]) - 1
-                                if n_agents > max_buff_dim:
-                                    max_buff_dim = n_agents
     for base in results.bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
@@ -64,7 +50,7 @@ def main():
                             if '.' not in zdir and '#' in zdir:
                                 n_agents=int(zdir.split('#')[1])
                                 dtemp=os.path.join(pre_path, zdir)
-                                results.extract_k_data(base,dtemp,exp_length,communication,n_agents,max_buff_dim,data_type)
+                                results.extract_k_data(base,dtemp,exp_length,communication,n_agents,data_type)
 
 if __name__ == "__main__":
     main()
