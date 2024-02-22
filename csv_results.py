@@ -145,7 +145,7 @@ class Data:
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
-                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='white', under='w', over='k')
+                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
@@ -186,7 +186,7 @@ class Data:
                                         else:
                                             heatmap_p = np.append(heatmap_p,[list_p],axis=0)
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
-                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='white', under='w', over='k')
+                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
@@ -246,7 +246,7 @@ class Data:
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
-                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='white', under='w', over='k')
+                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
@@ -288,7 +288,7 @@ class Data:
                                         else:
                                             heatmap_p = np.append(heatmap_p,[list_p],axis=0)
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
-                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='white', under='w', over='k')
+                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
