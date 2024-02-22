@@ -157,7 +157,7 @@ class Data:
                                         # Loop over data dimensions and create text annotations.
                                         for i in range(len(GT)):
                                             for j in range(len(keys[7][:-1])):
-                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="w")
+                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
                                         t_ax.set_title("median time to sense quorum")
                                         t_fig.tight_layout()
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -198,7 +198,7 @@ class Data:
                                     # Loop over data dimensions and create text annotations.
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
-                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="w")
+                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
                                     p_ax.set_title("maximum threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -258,7 +258,7 @@ class Data:
                                         # Loop over data dimensions and create text annotations.
                                         for i in range(len(GT)):
                                             for j in range(len(keys[7][:-1])):
-                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="w")
+                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
                                         t_ax.set_title("median time to sense quorum")
                                         t_fig.tight_layout()
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -300,7 +300,7 @@ class Data:
                                     # Loop over data dimensions and create text annotations.
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
-                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="w")
+                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
                                     p_ax.set_title("maximum threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
