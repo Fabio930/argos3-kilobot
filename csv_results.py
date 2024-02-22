@@ -145,7 +145,7 @@ class Data:
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
-                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='white', under='w', over='k')
+                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
@@ -157,7 +157,7 @@ class Data:
                                         # Loop over data dimensions and create text annotations.
                                         for i in range(len(GT)):
                                             for j in range(len(keys[7][:-1])):
-                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="w")
+                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
                                         t_ax.set_title("median time to sense quorum")
                                         t_fig.tight_layout()
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -186,7 +186,7 @@ class Data:
                                         else:
                                             heatmap_p = np.append(heatmap_p,[list_p],axis=0)
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
-                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='white', under='w', over='k')
+                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
@@ -198,7 +198,7 @@ class Data:
                                     # Loop over data dimensions and create text annotations.
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
-                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="w")
+                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
                                     p_ax.set_title("maximum threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -246,7 +246,7 @@ class Data:
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
-                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='white', under='w', over='k')
+                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
@@ -258,7 +258,7 @@ class Data:
                                         # Loop over data dimensions and create text annotations.
                                         for i in range(len(GT)):
                                             for j in range(len(keys[7][:-1])):
-                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="w")
+                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
                                         t_ax.set_title("median time to sense quorum")
                                         t_fig.tight_layout()
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
@@ -288,7 +288,7 @@ class Data:
                                         else:
                                             heatmap_p = np.append(heatmap_p,[list_p],axis=0)
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
-                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='white', under='w', over='k')
+                                    p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
@@ -300,7 +300,7 @@ class Data:
                                     # Loop over data dimensions and create text annotations.
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
-                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="w")
+                                            text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
                                     p_ax.set_title("maximum threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
