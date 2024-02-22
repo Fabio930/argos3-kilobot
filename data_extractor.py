@@ -41,10 +41,10 @@ class Results:
                 for t in range(len(m1[j][i])):
                     dim = 1
                     ones = states[i][j]
-                    for z in range(buf_lim):
-                        if(m1[j][i][t][z] == -1): break
-                        dim += 1
-                        ones += states[i][m1[j][i][t][z]]
+                    for z in range(len(m1[j][i][t])-buf_lim-1,len(m1[j][i][t])):
+                        if(m1[j][i][t][z] != -1):
+                            dim += 1
+                            ones += states[i][m1[j][i][t][z]]
                         compl+=1
                         sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
                         sys.stdout.flush()
