@@ -148,7 +148,7 @@ class Data:
                                         t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
-                                        t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
+                                        t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
                                         # Show all ticks and label them with the respective list entries
                                         t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
                                         t_ax.set_yticks(np.arange(len(GT)), labels=GT)
@@ -189,7 +189,7 @@ class Data:
                                     p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
-                                    p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
+                                    p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.75, vmax=1,cbar=True)
                                     # Show all ticks and label them with the respective list entries
                                     p_ax.set_xticks(np.arange(len(MET)), labels=MET)
                                     p_ax.set_yticks(np.arange(len(GT)), labels=GT)
@@ -249,7 +249,7 @@ class Data:
                                         t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
-                                        t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=int(et),cbar=True)
+                                        t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
                                         # Show all ticks and label them with the respective list entries
                                         t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
                                         t_ax.set_yticks(np.arange(len(GT)), labels=GT)
@@ -291,7 +291,7 @@ class Data:
                                     p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                     p_fig, p_ax = plt.subplots(figsize=(24,6))
-                                    p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.8, vmax=1,cbar=True)
+                                    p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.75, vmax=1,cbar=True)
                                     # Show all ticks and label them with the respective list entries
                                     p_ax.set_xticks(np.arange(len(MET)), labels=MET)
                                     p_ax.set_yticks(np.arange(len(GT)), labels=GT)
