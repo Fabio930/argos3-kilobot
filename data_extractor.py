@@ -44,6 +44,7 @@ class Results:
                     tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
                     start = 0
                     if len(tmp) > buf_lim: start= len(tmp) - buf_lim
+                    else: compl += buf_lim-len(tmp) 
                     for z in range(start,len(tmp)):
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
