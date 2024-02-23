@@ -1,5 +1,7 @@
 import numpy as np
 import os, csv, math, sys
+import multiprocessing as mp
+_cores = mp.cpu_count()
 
 class Results:
     thresholds = {}
@@ -24,12 +26,9 @@ class Results:
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
-
-#########################################################################################################
-    def compute_quorum_vars_on_ground_truth(self,m1,states):
-        print("")
-        max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
-        compl = 0
+##########################################################################################################
+    def roll_msgs(self,in_):
+        m1,states = in_[0],in_[1]
         tmp_dim_0 = [np.array([])]*len(m1[0])
         tmp_ones_0 = [np.array([])]*len(m1[0])
         for i in range(len(states)):
@@ -42,14 +41,9 @@ class Results:
                     dim = 1
                     ones = states[i][j]
                     for z in range(len(m1[j][i][t])):
-                        if(m1[j][i][t][z] == -1):
-                            compl += len(m1[j][i][t]) - z
-                            break
+                        if(m1[j][i][t][z] == -1): break
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
-                        compl+=1
-                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                        sys.stdout.flush()
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
                 tmp_dim_1[j] = tmp_dim_2
@@ -58,6 +52,14 @@ class Results:
             tmp_ones_0[i] = tmp_ones_1
         return (tmp_dim_0,tmp_ones_0)
     
+    
+##########################################################################################################
+    def compute_quorum_vars_on_ground_truth(self,m1,states):
+        manager = mp.Manager()
+        return_dict = manager.dict()
+        with mp.Pool(_cores) as p:
+            results = p.map(self.roll_msgs,[(m1,states)]*_cores)
+        return results[0]
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
@@ -163,24 +165,37 @@ class Results:
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 max_compl = len(self.ground_truth)*len(self.min_buff_dim)
                 compl = 0
+                sys.stdout.write("- Computing quorum ... %s%%\r" %compl)
+                sys.stdout.flush()
                 if data_type=="all" or data_type=="quorum":
                     for gt in range(len(self.ground_truth)):
                         results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt])
-                        for minus in self.min_buff_dim:
-                            for thr in self.thresholds.get(self.ground_truth[gt]):
-                                msgs_results = {}
-                                msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
-                                self.dump_times(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
-                                self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
-                                compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
-                                sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                                sys.stdout.flush()
-                sys.stdout.write("\n")
-                sys.stdout.flush()         
+                        compl += .5
+                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.flush()
+                        with mp.Pool(_cores) as p:
+                            p.map(self.roll_thresholds,[(results,base,path_temp,gt,msg_exp_time)]*_cores)[0]
+                        compl += .5
+                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.flush()
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
                 print("")
+##########################################################################################################
+    def roll_thresholds(self,in_):
+        results = in_[0]
+        base = in_[1]
+        path_temp =in_[2]
+        gt = in_[3]
+        msg_exp_time = in_[4]
+        for minus in self.min_buff_dim:
+            for thr in self.thresholds.get(self.ground_truth[gt]):
+                msgs_results = {}
+                msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
+                self.dump_times(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
+                self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
+
 
 ##########################################################################################################
     def dump_resume_csv(self,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
