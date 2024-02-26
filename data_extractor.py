@@ -19,7 +19,8 @@ class Results:
                 if selem[0]=="Presults":
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
-            _thresholds=np.arange(50,int(self.ground_truth[gt]*100)+1,1)
+            _thresholds=np.arange(50,101,1)
+            # _thresholds=np.arange(50,int(self.ground_truth[gt]*100)+1,1)
             f_thresholds = []
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
@@ -143,12 +144,12 @@ class Results:
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                BUFFERS = [min_bf]
-                mid = min_bf + math.ceil((buffer_dim - min_bf)*.5)
-                h_mid = math.ceil((mid - min_bf)*.5)
-                for i in range(10,buffer_dim):
-                    if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
-                BUFFERS.append(buffer_dim)
+                BUFFERS = [32]#min_bf]
+                # mid = min_bf + math.ceil((buffer_dim - min_bf)*.5)
+                # h_mid = math.ceil((mid - min_bf)*.5)
+                # for i in range(10,buffer_dim):
+                #     if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
+                # BUFFERS.append(buffer_dim)
                 max_compl = len(self.ground_truth)*len(self.min_buff_dim)*len(BUFFERS)
                 compl = 0
                 for buf in BUFFERS:
