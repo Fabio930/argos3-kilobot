@@ -123,56 +123,54 @@ class Data:
                     for et in keys[3]:
                         for c in keys[4]:
                             for n_a in keys[5]:
+                                MET = [10, 13, 21, 24] if int(n_a) == 25 else [10, 32, 78, 99]
                                 for m_b_d in keys[8]:
                                     for m_t in keys[9]:
-                                        heatmap_t = []
-                                        _GT = keys[6]
-                                        GT = [-1]*len(_GT)
-                                        for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
-                                        for gt in GT:
-                                            list_t = [-1]*len(keys[7])
-                                            for thr in range(len(keys[7])):
-                                                if float(keys[7][thr])<=float(gt):
-                                                    t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
-                                                    s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
-                                                    if s_data != None:
-                                                        for p in range(len(s_data[0])):
-                                                            if float(s_data[0][p])>=limit:
-                                                                list_t[thr] = round(self.extract_median(t_data[0],et),1)
-                                                                break
-                                            if len(heatmap_t)==0:
-                                                heatmap_t = np.array([list_t])
-                                            else:
-                                                heatmap_t = np.append(heatmap_t,[list_t],axis=0)
-                                        t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
-                                        t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
+                                        if int(m_t) in MET:
+                                            heatmap_t = []
+                                            _GT = keys[6]
+                                            GT = [-1]*len(_GT)
+                                            for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
+                                            for gt in GT:
+                                                list_t = [-1]*len(keys[7])
+                                                for thr in range(len(keys[7])):
+                                                    if float(keys[7][thr])<=float(gt):
+                                                        t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
+                                                        s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
+                                                        if s_data != None:
+                                                            for p in range(len(s_data[0])):
+                                                                if float(s_data[0][p])>=limit:
+                                                                    list_t[thr] = round(self.extract_median(t_data[0],et),1)
+                                                                    break
+                                                if len(heatmap_t)==0:
+                                                    heatmap_t = np.array([list_t])
+                                                else:
+                                                    heatmap_t = np.append(heatmap_t,[list_t],axis=0)
+                                            t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
+                                            t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
 
-                                        t_fig, t_ax = plt.subplots(figsize=(24,6))
-                                        t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
-                                        # Show all ticks and label them with the respective list entries
-                                        t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
-                                        t_ax.set_yticks(np.arange(len(GT)), labels=GT)
-                                        t_ax.set_xlabel("# buffer thresholds")
-                                        t_ax.set_ylabel("committed percentage")
-                                        # Loop over data dimensions and create text annotations.
-                                        for i in range(len(GT)):
-                                            for j in range(len(keys[7][:-1])):
-                                                text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
-                                        t_ax.set_title("median time to sense quorum")
-                                        t_fig.tight_layout()
-                                        fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
-                                        plt.savefig(fig_path)
-                                        # plt.show()
+                                            t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                            t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
+                                            # Show all ticks and label them with the respective list entries
+                                            t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                            t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                            t_ax.set_xlabel("# buffer thresholds")
+                                            t_ax.set_ylabel("committed percentage")
+                                            # Loop over data dimensions and create text annotations.
+                                            for i in range(len(GT)):
+                                                for j in range(len(keys[7][:-1])):
+                                                    text = t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")# if t_mask[i, j]!=1 else t_ax.text(j, i, heatmap_t[i, j], ha="left", va="top", color="black")
+                                            t_ax.set_title("median time to sense quorum")
+                                            t_fig.tight_layout()
+                                            fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                            plt.savefig(fig_path)
+                                            # plt.show()
                                     heatmap_p = []
                                     _GT = keys[6]
                                     GT = [-1]*len(_GT)
                                     for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                     for gt in GT:
-                                        list_p = [-1]*len(keys[9])
-                                        MET = []
-                                        for i in keys[9]:
-                                            MET.append(int(i))
-                                        MET = np.sort(MET)
+                                        list_p = [-1]*len(MET)
                                         for m_t in range(len(MET)):
                                             for thr in range(len(keys[7])):
                                                 if float(keys[7][thr])<=float(gt):
@@ -188,7 +186,7 @@ class Data:
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
                                     p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
-                                    p_fig, p_ax = plt.subplots(figsize=(24,6))
+                                    p_fig, p_ax = plt.subplots(figsize=(12,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.75, vmax=1,cbar=True)
                                     # Show all ticks and label them with the respective list entries
                                     p_ax.set_xticks(np.arange(len(MET)), labels=MET)
@@ -199,7 +197,7 @@ class Data:
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
                                             text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
-                                    p_ax.set_title("maximum threshold to sense quorum")
+                                    p_ax.set_title("normalized MAX threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                     plt.savefig(fig_path)
@@ -290,7 +288,7 @@ class Data:
                                     p_mask = np.logical_and(heatmap_p>=-1,heatmap_p<=-1)
                                     p_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
-                                    p_fig, p_ax = plt.subplots(figsize=(24,6))
+                                    p_fig, p_ax = plt.subplots(figsize=(12,6))
                                     p_im = sns.heatmap(heatmap_p,robust=True, cmap=p_cmap, mask=p_mask, vmin=.75, vmax=1,cbar=True)
                                     # Show all ticks and label them with the respective list entries
                                     p_ax.set_xticks(np.arange(len(MET)), labels=MET)
@@ -301,7 +299,7 @@ class Data:
                                     for i in range(len(GT)):
                                         for j in range(len(MET)):
                                             text = p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")# if p_mask[i, j]!=1 else p_ax.text(j, i, heatmap_p[i, j], ha="left", va="top", color="black")
-                                    p_ax.set_title("maximum threshold to sense quorum")
+                                    p_ax.set_title("normalized MAX threshold to sense quorum")
                                     p_fig.tight_layout()
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                     plt.savefig(fig_path)
