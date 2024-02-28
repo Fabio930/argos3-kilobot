@@ -27,7 +27,6 @@ class Results:
 
 ##########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states,buf_lim):
-        print("")
         max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])*buf_lim
         compl = 0
         tmp_dim_0 = [np.array([])]*len(m1[0])
