@@ -26,7 +26,7 @@ class Results:
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
 ##########################################################################################################
-    def compute_quorum_vars_on_ground_truth(self,m1,states,buf_lim):
+    def compute_quorum_vars_on_ground_truth(self,m1,states,buf_lim,gt):
         max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])*buf_lim
         compl = 0
         tmp_dim_0 = [np.array([])]*len(m1[0])
@@ -48,7 +48,7 @@ class Results:
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
                         compl+=1
-                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.write("- Computing quorum "+str(gt+1)+"/"+str(len(self.ground_truth))+"... %s%%\r" %(round((compl/max_compl)*100,3)))
                         sys.stdout.flush()
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
@@ -154,7 +154,7 @@ class Results:
                 # BUFFERS.append(buffer_dim)
                 for buf in BUFFERS:
                     for gt in range(len(self.ground_truth)):
-                        results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt],buf)
+                        results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt],buf,gt)
                         max_compl = len(results[0])*len(results[0][0])*len(results[0][0][0])*len(self.min_buff_dim)*len(self.thresholds.get(self.ground_truth[gt]))
                         compl = 0
                         for minus in self.min_buff_dim:
