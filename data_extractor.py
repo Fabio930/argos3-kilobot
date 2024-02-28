@@ -25,10 +25,8 @@ class Results:
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
-
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,m1,states,gt):
-        print("")
         max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
         compl = 0
         tmp_dim_0 = [np.array([])]*len(m1[0])
