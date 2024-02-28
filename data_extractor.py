@@ -19,14 +19,15 @@ class Results:
                 if selem[0]=="Oresults":
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
-            _thresholds=np.arange(50,int(self.ground_truth[gt]*100)+1,1)
+            _thresholds=np.arange(50,101,1)
+            # _thresholds=np.arange(50,int(self.ground_truth[gt]*100)+1,1)
             f_thresholds = []
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
 
 #########################################################################################################
-    def compute_quorum_vars_on_ground_truth(self,m1,states):
+    def compute_quorum_vars_on_ground_truth(self,m1,states,gt):
         print("")
         max_compl = len(states)*len(states[0])*len(m1[0][0])*len(m1[0][0][0])
         compl = 0
@@ -48,7 +49,7 @@ class Results:
                         dim += 1
                         ones += states[i][m1[j][i][t][z]]
                         compl+=1
-                        sys.stdout.write("- Computing quorum ... %s%%\r" %(round((compl/max_compl)*100,3)))
+                        sys.stdout.write("- Computing quorum "+str(gt+1)+"/"+str(len(self.ground_truth))+"... %s%%\r" %(round((compl/max_compl)*100,3)))
                         sys.stdout.flush()
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
@@ -59,13 +60,17 @@ class Results:
         return (tmp_dim_0,tmp_ones_0)
     
 #########################################################################################################
-    def compute_quorum(self,m1,m2,minus,threshold):
+    def compute_quorum(self,m1,m2,minus,threshold,_compl,max_compl,gt):
+        compl = _compl
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
-        return out
+                    compl += 1
+                    sys.stdout.write("- Rolling ground truth and threshold "+str(gt+1)+"/"+str(len(self.ground_truth))+"... %s%%\r" %(round((compl/max_compl)*100,3)))
+                    sys.stdout.flush()
+        return out,compl
         
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,data_type="all"):
@@ -161,20 +166,20 @@ class Results:
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
-                max_compl = len(self.ground_truth)*len(self.min_buff_dim)
-                compl = 0
+                
                 if data_type=="all" or data_type=="quorum":
                     for gt in range(len(self.ground_truth)):
-                        results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt])
+                        results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt],gt)
+                        max_compl = len(results[0])*len(results[0][0])*len(results[0][0][0])*len(self.min_buff_dim)*len(self.thresholds.get(self.ground_truth[gt]))
+                        compl = 0
                         for minus in self.min_buff_dim:
                             for thr in self.thresholds.get(self.ground_truth[gt]):
-                                msgs_results = {}
-                                msgs_results[(self.ground_truth[gt],minus,thr)] = (self.compute_quorum(results[0],results[1],minus,thr),results[0])
-                                self.dump_times(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
-                                self.dump_quorum_and_buffer(0,msgs_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
-                                compl += 1/len(self.thresholds.get(self.ground_truth[gt]))
-                                sys.stdout.write("- Rolling ground truth and threshold ... %s%%\r" %(round((compl/max_compl)*100,3)))
-                                sys.stdout.flush()
+                                quorum_results = {}
+                                states,compl = self.compute_quorum(results[0],results[1],minus,thr,compl,max_compl,gt)
+                                quorum_results[(self.ground_truth[gt],minus,thr)] = (states,results[0])
+                                self.dump_times(0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
+                                self.dump_quorum_and_buffer(0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
+                                
                 sys.stdout.write("\n")
                 sys.stdout.flush()         
                 act_results[0] = (act_bigM_1,act_bigM_2)
@@ -183,7 +188,7 @@ class Results:
                 print("")
 
 ##########################################################################################################
-    def dump_resume_csv(self,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
+    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
         static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -205,6 +210,7 @@ class Results:
             name_fields.append(static_fields[i])
             values.append(static_values[i])
         name_fields.append("type")
+        name_fields.append("mean_value")
         name_fields.append("data")
         name_fields.append("std")
         if indx+bias==-1:
@@ -217,6 +223,7 @@ class Results:
             values.append("broadcast_msg")
         elif indx+bias==3:
             values.append("rebroadcast_msg")
+        values.append(value)
         values.append(data_in)
         values.append(data_std)
         fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
@@ -264,7 +271,7 @@ class Results:
                     for i in range(len(fstd2)):
                         median_array.append(fstd2[i][z])
                     fstd3[z]=self.extract_median(median_array)
-                self.dump_resume_csv(l,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
     def dump_quorum_and_buffer(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
@@ -272,16 +279,25 @@ class Results:
             if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])) is not None:
                 for l in range(len(data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))):
                     if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t]))[l] is not None:
+                        mean_val = 0
                         multi_run_data = (data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))[l]
                         flag2=[-1]*len(multi_run_data[0][0])
                         for i in range(len(multi_run_data)):
                             flag1=[-1]*len(multi_run_data[i][0])
+                            flagmv=[-1]*len(multi_run_data[i])
                             for j in range(len(multi_run_data[i])):
                                 for z in range(len(multi_run_data[i][j])):
                                     if flag1[z]==-1:
                                         flag1[z]=multi_run_data[i][j][z]
                                     else:
                                         flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                                    if flagmv[j]==-1:
+                                        flagmv[j]=multi_run_data[i][j][z]
+                                    else:
+                                        flagmv[j]=flagmv[j]+multi_run_data[i][j][z]
+                                flagmv[j] = flagmv[j]/len(multi_run_data[i][j])
+                            for j in flagmv:
+                                mean_val+=j
                             for j in range(len(flag1)):
                                 flag1[j]=flag1[j]/len(multi_run_data[i])
                                 if flag2[j]==-1:
@@ -290,6 +306,7 @@ class Results:
                                     flag2[j]=flag1[j]+flag2[j]
                         for i in range(len(flag2)):
                             flag2[i]=flag2[i]/len(multi_run_data)
+                        mean_val = mean_val/len(multi_run_data)
                         ###################################################
                         fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
                         fstd3=[-1]*len(multi_run_data[0][0])
@@ -307,7 +324,10 @@ class Results:
                                 median_array.append(fstd2[i][z])
                             fstd3[z]=self.extract_median(median_array)
                         ###################################################
-                        self.dump_resume_csv(l,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
+                        if l==0:
+                            self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
+                        else:
+                            self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def dump_times(self,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME,limit):
@@ -324,7 +344,7 @@ class Results:
                             times[i] = z
                             break
                 times = sorted(times)
-                self.dump_resume_csv(-1,bias,times,'-',BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
+                self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def extract_median(self,array):

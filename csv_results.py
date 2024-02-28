@@ -138,10 +138,8 @@ class Data:
                                                         t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
                                                         s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
                                                         if s_data != None:
-                                                            for p in range(len(s_data[0])):
-                                                                if float(s_data[0][p])>=limit:
-                                                                    list_t[thr] = round(self.extract_median(t_data[0],et),1)
-                                                                    break
+                                                            if float(s_data[0][-1])>=limit:
+                                                                list_t[thr] = round(self.extract_median(t_data[0],et),1)
                                                 if len(heatmap_t)==0:
                                                     heatmap_t = np.array([list_t])
                                                 else:
@@ -176,9 +174,8 @@ class Data:
                                                 if float(keys[7][thr])<=float(gt):
                                                     s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,str(MET[m_t])))
                                                     if s_data != None:
-                                                        for p in range(len(s_data[0])):
-                                                            if float(s_data[0][p])>=limit and (float(keys[7][thr])/float(gt))>list_p[m_t]:
-                                                                list_p[m_t] = round(float(keys[7][thr])/float(gt),2)
+                                                        if float(s_data[0][-1])>=limit and (float(keys[7][thr])/float(gt))>list_p[m_t]:
+                                                            list_p[m_t] = round(float(keys[7][thr])/float(gt),2)
                                         if len(heatmap_p)==0:
                                             heatmap_p = np.array([list_p])
                                         else:
