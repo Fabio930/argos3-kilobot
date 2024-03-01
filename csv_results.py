@@ -43,7 +43,7 @@ class Data:
                             if ']' in val:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[9]),data_val.get(keys[10]),data_val.get(keys[8]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -61,7 +61,7 @@ class Data:
                             if rval == -1:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[9]),data_val.get(keys[10]),data_val.get(keys[8]))})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -128,24 +128,30 @@ class Data:
                                     for m_t in keys[9]:
                                         if int(m_t) in MET:
                                             heatmap_t = []
+                                            heatmap_a = []
                                             _GT = keys[6]
                                             GT = [-1]*len(_GT)
                                             for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                             for gt in GT:
+                                                list_a = [-1]*len(keys[7])
                                                 list_t = [-1]*len(keys[7])
                                                 for thr in range(len(keys[7])):
-                                                    if float(keys[7][thr])<=float(gt):
-                                                        t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
-                                                        s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
-                                                        if s_data != None:
-                                                            if float(s_data[0][-1])>=limit:
-                                                                list_t[thr] = round(self.extract_median(t_data[0],et),1)
+                                                    t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
+                                                    s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
+                                                    if s_data != None:
+                                                        if float(s_data[0][-1])>=limit:
+                                                            list_t[thr] = round(self.extract_median(t_data[0],et),1)
+                                                        list_a[thr] = round(float(s_data[2])/int(n_a),2) if float(s_data[2])>=0 else 0
                                                 if len(heatmap_t)==0:
                                                     heatmap_t = np.array([list_t])
+                                                    heatmap_a = np.array([list_a])
                                                 else:
                                                     heatmap_t = np.append(heatmap_t,[list_t],axis=0)
+                                                    heatmap_a = np.append(heatmap_a,[list_a],axis=0)
                                             t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
                                             t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
+                                            a_mask = np.logical_and(heatmap_a>=-1,heatmap_a<=-1)
+                                            a_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                             t_fig, t_ax = plt.subplots(figsize=(24,6))
                                             t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
@@ -163,6 +169,24 @@ class Data:
                                             fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
+
+                                            t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                            t_im = sns.heatmap(heatmap_a,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                            # Show all ticks and label them with the respective list entries
+                                            t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                            t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                            t_ax.set_xlabel("# buffer thresholds")
+                                            t_ax.set_ylabel("committed percentage")
+                                            # Loop over data dimensions and create text annotations.
+                                            for i in range(len(GT)):
+                                                for j in range(len(keys[7][:-1])):
+                                                    text = t_ax.text(j, i, heatmap_a[i, j], ha="left", va="top", color="black")
+                                            t_ax.set_title("avg activation")
+                                            t_fig.tight_layout()
+                                            fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                            plt.savefig(fig_path)
+                                            # plt.show()
+
                                     heatmap_p = []
                                     _GT = keys[6]
                                     GT = [-1]*len(_GT)
@@ -171,11 +195,10 @@ class Data:
                                         list_p = [-1]*len(MET)
                                         for m_t in range(len(MET)):
                                             for thr in range(len(keys[7])):
-                                                if float(keys[7][thr])<=float(gt):
-                                                    s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,str(MET[m_t])))
-                                                    if s_data != None:
-                                                        if float(s_data[0][-1])>=limit and (float(keys[7][thr])/float(gt))>list_p[m_t]:
-                                                            list_p[m_t] = round(float(keys[7][thr])/float(gt),2)
+                                                s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,str(MET[m_t])))
+                                                if s_data != None:
+                                                    if float(s_data[0][-1])>=limit and (float(keys[7][thr])/float(gt))>list_p[m_t]:
+                                                        list_p[m_t] = round(float(keys[7][thr])/float(gt),2)
                                         if len(heatmap_p)==0:
                                             heatmap_p = np.array([list_p])
                                         else:
@@ -221,27 +244,32 @@ class Data:
                                 for m_b_d in MBD:
                                     for m_t in keys[9]:
                                         heatmap_t = []
+                                        heatmap_a = []
                                         _GT = keys[6][:-1]
                                         GT = [-1]*len(_GT)
                                         for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                         for gt in GT:
                                             THR = keys[7][:-1]
+                                            list_a = [-1]*len(THR)
                                             list_t = [-1]*len(THR)
                                             for thr in range(len(THR)):
-                                                if float(THR[thr])<=float(gt):
-                                                    t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
-                                                    s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
-                                                    if s_data != None:
-                                                        for p in range(len(s_data[0])):
-                                                            if float(s_data[0][p])>=limit:
-                                                                list_t[thr] = round(self.extract_median(t_data[0],et),1)
-                                                                break
+                                                t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
+                                                s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
+                                                if s_data != None:
+                                                    if float(s_data[0][-1])>=limit:
+                                                        list_t[thr] = round(self.extract_median(t_data[0],et),1)
+                                                    list_a[thr] = round(float(s_data[2])/int(n_a),2) if float(s_data[2])>=0 else 0
                                             if len(heatmap_t)==0:
                                                 heatmap_t = np.array([list_t])
+                                                heatmap_a = np.array([list_a])
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
+                                                heatmap_a = np.append(heatmap_a,[list_a],axis=0)
+
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
                                         t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
+                                        a_mask = np.logical_and(heatmap_a>=-1,heatmap_a<=-1)
+                                        a_cmap = mpl.colormaps["viridis"].with_extremes(bad='black', under='w', over='k')
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_t,robust=True, cmap=t_cmap, mask=t_mask, vmin=1, vmax=100,cbar=True)
@@ -259,6 +287,23 @@ class Data:
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+
+                                        t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                        t_im = sns.heatmap(heatmap_a,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                        # Show all ticks and label them with the respective list entries
+                                        t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                        t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                        t_ax.set_xlabel("# buffer thresholds")
+                                        t_ax.set_ylabel("committed percentage")
+                                        # Loop over data dimensions and create text annotations.
+                                        for i in range(len(GT)):
+                                            for j in range(len(keys[7][:-1])):
+                                                text = t_ax.text(j, i, heatmap_a[i, j], ha="left", va="top", color="black")
+                                        t_ax.set_title("avg activation")
+                                        t_fig.tight_layout()
+                                        fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                        plt.savefig(fig_path)
+                                        # plt.show()
                                     heatmap_p = []
                                     _GT = keys[6][:-1]
                                     GT = [-1]*len(_GT)
@@ -272,12 +317,10 @@ class Data:
                                         for m_t in range(len(MET)):
                                             THR = keys[7][:-1]
                                             for thr in range(len(THR)):
-                                                if float(THR[thr])<=float(gt):
-                                                    s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,str(MET[m_t])))
-                                                    if s_data != None:
-                                                        for p in range(len(s_data[0])):
-                                                            if float(s_data[0][p])>=limit and (float(THR[thr])/float(gt))>list_p[m_t]:
-                                                                list_p[m_t] = round(float(THR[thr])/float(gt),2)
+                                                s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,str(MET[m_t])))
+                                                if s_data != None:
+                                                    if float(s_data[0][-1])>=limit and (float(THR[thr])/float(gt))>list_p[m_t]:
+                                                        list_p[m_t] = round(float(THR[thr])/float(gt),2)
                                         if len(heatmap_p)==0:
                                             heatmap_p = np.array([list_p])
                                         else:
