@@ -3,7 +3,8 @@ import os, csv, math
 import seaborn as sns
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 class Data:
 
 ##########################################################################################################
@@ -11,7 +12,7 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "proc_data":
+            if elem == "proc_data_part":
                 self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
@@ -78,10 +79,10 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        if not os.path.exists(self.base+"/proc_data/o_images"):
-            os.mkdir(self.base+"/proc_data/o_images")
-        if not os.path.exists(self.base+"/proc_data/p_images"):
-            os.mkdir(self.base+"/proc_data/p_images")
+        if not os.path.exists(self.base+"/proc_data_part/o_images"):
+            os.mkdir(self.base+"/proc_data_part/o_images")
+        if not os.path.exists(self.base+"/proc_data_part/p_images"):
+            os.mkdir(self.base+"/proc_data_part/p_images")
         states, times, buffer, messages_b, messages_r = {},{},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
@@ -109,11 +110,184 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
     
 ##########################################################################################################
+    def plot_active(self,data_in):
+        if not os.path.exists(self.base+"/proc_data_part/c_images/"):
+            os.mkdir(self.base+"/proc_data_part/c_images/")
+        path = self.base+"/proc_data_part/c_images/"
+        dict_park_avg,dict_adms_avg,dict_our_avg = {},{},{}
+        dict_park_max,dict_adms_max,dict_our_max = {},{},{}
+        dict_park_fin,dict_adms_fin,dict_our_fin = {},{},{}
+        ground_T, threshlds , jolly= [], [],[]
+        algo,arena,runs,time,comm,agents,buf_dim = [],[],[],[],[],[],[]
+        p_k,o_k = [],[]
+        for i in range(len(data_in)):
+            da_K = data_in[i].keys()
+            for k0 in da_K:
+                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
+                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
+                if k0[9]not in jolly: jolly.append(k0[9])
+                if k0[0]not in algo: algo.append(k0[0])
+                if k0[1]not in arena: arena.append(k0[1])
+                if k0[2]not in runs: runs.append(k0[2])
+                if k0[3]not in time: time.append(k0[3])
+                if k0[4]not in comm: comm.append(k0[4])
+                if k0[5]not in agents: agents.append(k0[5])
+                if k0[8]not in buf_dim: buf_dim.append(k0[8])
+        for i in range(len(data_in)):
+            a='P' if i==1 else 'O'
+            for a_s in arena:
+                for n_r in runs:
+                    for et in time:
+                        for c in comm:
+                            for n_a in agents:
+                                for m_b_d in buf_dim:
+                                    for m_t in jolly:
+                                        vals = []
+                                        vals_m = []
+                                        vals_r = []
+                                        for gt in ground_T:
+                                            tmp = []
+                                            t_max = []
+                                            reg = []
+                                            for thr in threshlds:
+                                                s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
+                                                if s_data != None:
+                                                    if (i==1 and m_t not in p_k) or (i==0 and m_t not in o_k):
+                                                        p_k.append(m_t) if i==1 else o_k.append(m_t)
+                                                    tmp.append(round(float(s_data[2])/int(n_a),2))
+                                                    t_max.append(round(np.max(s_data[0]),2))
+                                                    reg.append(round(np.median(s_data[0][-30:]),2))
+
+                                            if len(vals)==0:
+                                                vals = np.array([tmp])
+                                                vals_m = np.array([t_max])
+                                                vals_r = np.array([reg])
+                                            else:
+                                                vals = np.append(vals,[tmp],axis=0)
+                                                vals_m = np.append(vals_m,[t_max],axis=0)
+                                                vals_r = np.append(vals_r,[reg],axis=0)
+                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                            dict_park_avg.update({m_t:vals})
+                                            dict_park_max.update({m_t:vals_m})
+                                            dict_park_fin.update({m_t:vals_r})
+                                        if a=='O' and m_t in o_k:
+                                            if int(c)==0:
+                                                dict_adms_avg.update({m_t:vals})
+                                                dict_adms_max.update({m_t:vals_m})
+                                                dict_adms_fin.update({m_t:vals_r})
+                                            else:
+                                                dict_our_avg.update({m_t:vals})
+                                                dict_our_max.update({m_t:vals_m})
+                                                dict_our_fin.update({m_t:vals_r})
+        self.print_borders_l(path,'avg',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[p_k,o_k])
+        self.print_borders_l(path,'max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[p_k,o_k])
+        self.print_borders_l(path,'reg',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[p_k,o_k])
+
+
+##########################################################################################################
+    def print_borders_r(self,path,_type,ground_T,threshlds,data_in,keys):
+        cmap = mpl.colormaps["viridis"]
+        cNorm  = colors.Normalize(vmin=ground_T[0], vmax=ground_T[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+    
+        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        p_k, o_k = keys[0],keys[1]
+        fig, ax = plt.subplots(figsize=(12,6))
+        for pt in range(len(ground_T)):
+            P_val = dict_park.get(p_k[0])[pt]
+            A_val = dict_adam.get(o_k[0])[pt]
+            O_val = dict_our.get(o_k[0])[pt]
+            ax.plot(P_val,ls='--',c=scalarMap.to_rgba(ground_T[pt]))
+            ax.plot(A_val,ls=':',c=scalarMap.to_rgba(ground_T[pt]))
+            ax.plot(O_val,ls='-',c=scalarMap.to_rgba(ground_T[pt]))
+        ax.set_xticks(np.arange(len(threshlds)),labels=np.array(threshlds,dtype=str))
+        ax.set_yticks(np.arange(0,1.01,.1))
+        ax.set_xlabel("Threshold")
+        ax.set_ylabel("Norm "+_type+" activation")
+        plt.grid(True)
+        fig.tight_layout()
+        fig_path = path+"_"+_type+"_trial.png"
+        plt.savefig(fig_path)
+        # plt.show()
+        plt.close()
+
+##########################################################################################################
+    def print_borders_l(self,path,_type,ground_T,threshlds,data_in,keys):
+        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        p_k, o_k = keys[0],keys[1]
+        vals8p = [0]*len(threshlds)
+        vals2p = [0]*len(threshlds)
+        vals8o = [0]*len(threshlds)
+        vals2o = [0]*len(threshlds)
+        vals8p_val = [0]*len(threshlds)
+        vals2p_val = [0]*len(threshlds)
+        vals8o_val = [0]*len(threshlds)
+        vals2o_val = [0]*len(threshlds)
+        for th in range(len(threshlds)):
+            p_vals2,a_vals2,o_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+            p_vals8,a_vals8,o_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+            p_gt2,a_gt2,o_gt2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+            p_gt8,a_gt8,o_gt8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+            for pt in range(len(ground_T)):
+                P_val,A_val,O_val = dict_park.get(p_k[0])[pt][th],dict_adam.get(o_k[0])[pt][th],dict_our.get(o_k[0])[pt][th]
+                pval,aval,oval = P_val,A_val,O_val
+                if pval>=0.8:
+                    if p_vals8[1] is np.nan or pval<=p_vals8[1]:
+                        p_vals8[1] = pval
+                        p_gt8[1] = ground_T[pt]
+                elif pval<=0.2:
+                    if p_vals2[0]is np.nan or pval>=p_vals2[0]:
+                        p_vals2[0] = pval
+                        p_gt2[0] = ground_T[pt]
+                else:
+                    if p_vals8[0]is np.nan or pval>=p_vals8[0]:
+                        p_vals8[0] = pval
+                        p_gt8[0] = ground_T[pt]
+                    if p_vals2[1]is np.nan or pval<=p_vals2[1]:
+                        p_vals2[1] = pval
+                        p_gt2[1] = ground_T[pt]
+                if oval>=0.8:
+                    if o_vals8[1]is np.nan or oval<=o_vals8[1]:
+                        o_vals8[1] = oval
+                        o_gt8[1] = ground_T[pt]
+                elif oval<=0.2:
+                    if o_vals2[0]is np.nan or oval>=o_vals2[0]:
+                        o_vals2[0] = oval
+                        o_gt2[0] = ground_T[pt]
+                else:
+                    if o_vals8[0]is np.nan or oval>=o_vals8[0]:
+                        o_vals8[0] = oval
+                        o_gt8[0] = ground_T[pt]
+                    if o_vals2[1]is np.nan or oval<=o_vals2[1]:
+                        o_vals2[1] = oval
+                        o_gt2[1] = ground_T[pt]
+            vals2p[th] = round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
+            vals2o[th] = round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
+            vals8p[th] = round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
+            vals8o[th] = round(np.interp([0.8],o_vals8,o_gt8,right=np.nan)[0],3) 
+        fig, ax = plt.subplots(figsize=(12,6))
+
+        ax.plot(vals2p,color='b',ls='--',label="P=0.2")
+        ax.plot(vals8p,color='y',ls='--',label="P=0.8")
+        ax.plot(vals2o,color='b')
+        ax.plot(vals8o,color='y')
+        ax.set_xticks(np.arange(len(threshlds)),labels=threshlds)
+        ax.set_yticks(np.arange(.5,1.01,.1))
+        ax.set_xlabel("Threshold")
+        ax.set_ylabel("Ground Truth")
+        fig.tight_layout()
+        fig_path = path+"_"+_type+"_trial.png"
+        plt.grid(True)
+        plt.legend()
+        plt.savefig(fig_path)
+        # plt.show()
+        plt.close()                  
+##########################################################################################################
     def p_plot_heatmaps(self,keys,data_in,limit):
         print("-- Printing Heatmaps")
-        if not os.path.exists(self.base+"/proc_data/p_images/grids/"):
-            os.mkdir(self.base+"/proc_data/p_images/grids/")
-        path = self.base+"/proc_data/p_images/grids/"
+        if not os.path.exists(self.base+"/proc_data_part/p_images/grids/"):
+            os.mkdir(self.base+"/proc_data_part/p_images/grids/")
+        path = self.base+"/proc_data_part/p_images/grids/"
         states = data_in[0]
         times = data_in[1]
         buffers = data_in[2]
@@ -129,12 +303,16 @@ class Data:
                                         if int(m_t) in MET:
                                             heatmap_t = []
                                             heatmap_a = []
+                                            heatmap_m = []
+                                            heatmap_r = []
                                             _GT = keys[6]
                                             GT = [-1]*len(_GT)
                                             for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
                                             for gt in GT:
                                                 list_a = [-1]*len(keys[7])
                                                 list_t = [-1]*len(keys[7])
+                                                list_m = [-1]*len(keys[7])
+                                                list_r = [-1]*len(keys[7])
                                                 for thr in range(len(keys[7])):
                                                     t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
                                                     s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,keys[7][thr],m_b_d,m_t))
@@ -142,12 +320,18 @@ class Data:
                                                         if float(s_data[0][-1])>=limit:
                                                             list_t[thr] = round(self.extract_median(t_data[0],et),1)
                                                         list_a[thr] = round(float(s_data[2])/int(n_a),2) if float(s_data[2])>=0 else 0
+                                                        list_m[thr] = round(np.max(np.array(s_data[0],dtype=float)),2)
+                                                        list_r[thr] = round(np.median(np.array(s_data[0][-30:],dtype=float)),2)
                                                 if len(heatmap_t)==0:
                                                     heatmap_t = np.array([list_t])
                                                     heatmap_a = np.array([list_a])
+                                                    heatmap_m = np.array([list_m])
+                                                    heatmap_r = np.array([list_r])
                                                 else:
                                                     heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                                     heatmap_a = np.append(heatmap_a,[list_a],axis=0)
+                                                    heatmap_m = np.append(heatmap_m,[list_m],axis=0)
+                                                    heatmap_r = np.append(heatmap_r,[list_r],axis=0)
                                             t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
                                             t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
                                             a_mask = np.logical_and(heatmap_a>=-1,heatmap_a<=-1)
@@ -184,6 +368,40 @@ class Data:
                                             t_ax.set_title("avg activation")
                                             t_fig.tight_layout()
                                             fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                            plt.savefig(fig_path)
+                                            # plt.show()
+
+                                            t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                            t_im = sns.heatmap(heatmap_m,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                            # Show all ticks and label them with the respective list entries
+                                            t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                            t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                            t_ax.set_xlabel("# buffer thresholds")
+                                            t_ax.set_ylabel("committed percentage")
+                                            # Loop over data dimensions and create text annotations.
+                                            for i in range(len(GT)):
+                                                for j in range(len(keys[7][:-1])):
+                                                    text = t_ax.text(j, i, heatmap_m[i, j], ha="left", va="top", color="black")
+                                            t_ax.set_title("max activation")
+                                            t_fig.tight_layout()
+                                            fig_path = path+"hmp_max_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                            plt.savefig(fig_path)
+                                            # plt.show()
+
+                                            t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                            t_im = sns.heatmap(heatmap_r,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                            # Show all ticks and label them with the respective list entries
+                                            t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                            t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                            t_ax.set_xlabel("# buffer thresholds")
+                                            t_ax.set_ylabel("committed percentage")
+                                            # Loop over data dimensions and create text annotations.
+                                            for i in range(len(GT)):
+                                                for j in range(len(keys[7][:-1])):
+                                                    text = t_ax.text(j, i, heatmap_r[i, j], ha="left", va="top", color="black")
+                                            t_ax.set_title("reg activation")
+                                            t_fig.tight_layout()
+                                            fig_path = path+"hmp_reg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
 
@@ -228,9 +446,9 @@ class Data:
 ##########################################################################################################
     def o_plot_heatmaps(self,keys,data_in,limit):
         print("-- Printing Heatmaps")
-        if not os.path.exists(self.base+"/proc_data/o_images/grids/"):
-            os.mkdir(self.base+"/proc_data/o_images/grids/")
-        path = self.base+"/proc_data/o_images/grids/"
+        if not os.path.exists(self.base+"/proc_data_part/o_images/grids/"):
+            os.mkdir(self.base+"/proc_data_part/o_images/grids/")
+        path = self.base+"/proc_data_part/o_images/grids/"
         states = data_in[0]
         times = data_in[1]
         buffers = data_in[2]
@@ -245,6 +463,8 @@ class Data:
                                     for m_t in keys[9]:
                                         heatmap_t = []
                                         heatmap_a = []
+                                        heatmap_m = []
+                                        heatmap_r = []
                                         _GT = keys[6][:-1]
                                         GT = [-1]*len(_GT)
                                         for g in range(len(_GT)): GT[g]=_GT[len(_GT)-1-g]
@@ -252,6 +472,8 @@ class Data:
                                             THR = keys[7][:-1]
                                             list_a = [-1]*len(THR)
                                             list_t = [-1]*len(THR)
+                                            list_m = [-1]*len(THR)
+                                            list_r = [-1]*len(THR)
                                             for thr in range(len(THR)):
                                                 t_data = times.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
                                                 s_data = states.get((algo,a_s,n_r,et,c,n_a,gt,THR[thr],m_b_d,m_t))
@@ -259,12 +481,18 @@ class Data:
                                                     if float(s_data[0][-1])>=limit:
                                                         list_t[thr] = round(self.extract_median(t_data[0],et),1)
                                                     list_a[thr] = round(float(s_data[2])/int(n_a),2) if float(s_data[2])>=0 else 0
+                                                    list_m[thr] = round(np.max(np.array(s_data[0],dtype=float)),2)
+                                                    list_r[thr] = round(np.median(np.array(s_data[0][-30:],dtype=float)),2)
                                             if len(heatmap_t)==0:
                                                 heatmap_t = np.array([list_t])
                                                 heatmap_a = np.array([list_a])
+                                                heatmap_m = np.array([list_m])
+                                                heatmap_r = np.array([list_r])
                                             else:
                                                 heatmap_t = np.append(heatmap_t,[list_t],axis=0)
                                                 heatmap_a = np.append(heatmap_a,[list_a],axis=0)
+                                                heatmap_m = np.append(heatmap_m,[list_m],axis=0)
+                                                heatmap_r = np.append(heatmap_r,[list_r],axis=0)
 
                                         t_mask = np.logical_and(heatmap_t>=-1,heatmap_t<=-1)
                                         t_cmap = mpl.colormaps["viridis_r"].with_extremes(bad='black', under='w', over='k')
@@ -304,6 +532,41 @@ class Data:
                                         fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+
+                                        t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                        t_im = sns.heatmap(heatmap_m,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                        # Show all ticks and label them with the respective list entries
+                                        t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                        t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                        t_ax.set_xlabel("# buffer thresholds")
+                                        t_ax.set_ylabel("committed percentage")
+                                        # Loop over data dimensions and create text annotations.
+                                        for i in range(len(GT)):
+                                            for j in range(len(keys[7][:-1])):
+                                                text = t_ax.text(j, i, heatmap_m[i, j], ha="left", va="top", color="black")
+                                        t_ax.set_title("max activation")
+                                        t_fig.tight_layout()
+                                        fig_path = path+"hmp_max_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                        plt.savefig(fig_path)
+                                        # plt.show()
+
+                                        t_fig, t_ax = plt.subplots(figsize=(24,6))
+                                        t_im = sns.heatmap(heatmap_r,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
+                                        # Show all ticks and label them with the respective list entries
+                                        t_ax.set_xticks(np.arange(len(keys[7][:-1])), labels=keys[7][:-1])
+                                        t_ax.set_yticks(np.arange(len(GT)), labels=GT)
+                                        t_ax.set_xlabel("# buffer thresholds")
+                                        t_ax.set_ylabel("committed percentage")
+                                        # Loop over data dimensions and create text annotations.
+                                        for i in range(len(GT)):
+                                            for j in range(len(keys[7][:-1])):
+                                                text = t_ax.text(j, i, heatmap_r[i, j], ha="left", va="top", color="black")
+                                        t_ax.set_title("reg activation")
+                                        t_fig.tight_layout()
+                                        fig_path = path+"hmp_reg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
+                                        plt.savefig(fig_path)
+                                        # plt.show()
+
                                     heatmap_p = []
                                     _GT = keys[6][:-1]
                                     GT = [-1]*len(_GT)
@@ -344,6 +607,8 @@ class Data:
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                     plt.savefig(fig_path)
                                     # plt.show()
+
+
         return 0
 
 ##########################################################################################################
