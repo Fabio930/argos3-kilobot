@@ -8,6 +8,7 @@ def main():
     limit = 0.8
     for base in csv_res.bases:
         tot_st = []
+        tot_times = []
         for file in sorted(os.listdir(base)):
             if "images" not in file:
                 file_path=os.path.join(base, file)
@@ -26,9 +27,11 @@ def main():
                 # csv_res.o_plot_heatmaps(keys,(states,times,buffers),limit) if algo=='O' else csv_res.p_plot_heatmaps(keys,(states,times,buffers),limit)
                 if len(tot_st)==0:
                     tot_st = [states]
+                    tot_times = [times]
                 else:
                     tot_st = np.append(tot_st,[states],axis=0)
-        csv_res.plot_active(tot_st)
+                    tot_times = np.append(tot_times,[times],axis=0)
+        csv_res.plot_active(tot_st,tot_times)
 ##################################################################################
 if __name__ == "__main__":
     main()
