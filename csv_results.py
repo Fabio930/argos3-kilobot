@@ -6,87 +6,6 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
-plt.rcParams.update({"font.size":18})
-
-# colors=['#5ec962', '#21918c','#3b528b','#440154']
-# par_colors=['#fde725','#21918c','#440154']
-# styles=[':', '--','-.','-']
-# alphas = np.linspace(0.3, 1, num=3)
-# for base in self.bases:
-#     for dir in os.listdir(base):
-#         if '.' not in dir and '#' in dir:
-#             results_dict={}
-#             times=[]
-#             Ks=[]
-#             Rs=[]
-#             options=[]
-#             types=[]
-#             pre_path=os.path.join(base, dir)
-#             for elem in os.listdir(pre_path):
-#                 if ".csv" in elem and elem.split('_')[0]=="resume":
-#                     resuming_file=os.path.join(pre_path,elem)
-#                     with open(resuming_file,newline="") as the_file:
-#                         the_reader = csv.reader(the_file)
-#                         sem_reader = 0
-#                         for row in the_reader:
-#                             if sem_reader==0:
-#                                 sem_reader = 1
-#                             else:
-#                                 if row[0] not in times: times.append(int(row[0]))
-#                                 if row[2] not in Ks: Ks.append(float(row[2]))
-#                                 if row[3] not in Rs: Rs.append(int(row[3]))
-#                                 if row[4] not in options: options.append(int(row[4]))
-#                                 if row[5] not in types: types.append(row[5])
-#                                 results_dict.update({(row[0],row[2],row[3],row[4],row[5]):(float(row[6]),float(row[8]))})
-#             img_folder = os.path.join(pre_path,"/images")
-#             if not os.path.exists(img_folder):
-#                 os.mkdir(img_folder)
-#             folder = os.path.join(img_folder,"/resume")
-#             if not os.path.exists(folder):
-#                 os.mkdir(folder)
-#             dots = [np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-#             lines=[np.array([[None,None,None,None,None]]),np.array([[None,None,None,None,None]])]
-#             fig,ax = plt.subplots(figsize=(10, 9))
-#             ##########################################################################################################################
-#             #LABELS
-#             four = mlines.Line2D([], [], color='#5ec962', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=4')
-#             sixteen = mlines.Line2D([], [], color='#3b528b', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='N=16')
-#             flat = mlines.Line2D([], [], color='silver', marker='o', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Flat tree')
-#             quad = mlines.Line2D([], [], color='silver', marker='s', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Quad tree')
-#             binary = mlines.Line2D([], [], color='silver', marker='^', markerfacecolor='silver', linestyle='None', markeredgewidth=1.5, markersize=10, label='Binary tree')
-
-#             void = mlines.Line2D([], [], linestyle='None')
-
-#             r1 = mlines.Line2D([], [], color='#cfd3d7', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=1')
-#             r2 = mlines.Line2D([], [], color='#98a1a8', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=2')
-#             r3 = mlines.Line2D([], [], color='#000000', marker='_', linestyle='None', markeredgewidth=5, markersize=14, label='r=3')
-
-#             handles_t = [flat, quad, binary]
-#             handles_n = [void,four, sixteen]
-#             handles_r = [r1, r2, r3]
-#             plt.legend(handles=handles_n+handles_t+handles_r, ncol=3,loc='lower right',framealpha=.4)
-#             times=[]
-#             Ks=[]
-#             Rs=[]
-#             options=[]
-#             types=[]
-#             for t in times:
-#                 for o in options:
-#                     for ty in types:
-#                         for k in Ks:
-#                             for r in Rs:
-#                                 vals=results_dict.get((t,k,r,o,ty))
-#                                 i,j=-1,-1
-#                                 mark=""
-#                                 if r==1.0: j=0
-#                                 elif r==2.0: j=1
-#                                 elif r==3.0: j=2
-#                                 if o==4: i=0
-#                                 elif o==16: i=1
-#                                 if ty=="flat": mark='o'
-#                                 elif ty=="binary": mark='^'
-#                                 elif ty=="quad": mark='s'
-
 class Data:
 
 ##########################################################################################################
@@ -94,7 +13,7 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "proc_data_part":
+            if elem == "proc_data":
                 self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
@@ -161,10 +80,10 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        if not os.path.exists(self.base+"/proc_data_part/o_images"):
-            os.mkdir(self.base+"/proc_data_part/o_images")
-        if not os.path.exists(self.base+"/proc_data_part/p_images"):
-            os.mkdir(self.base+"/proc_data_part/p_images")
+        if not os.path.exists(self.base+"/proc_data/o_images"):
+            os.mkdir(self.base+"/proc_data/o_images")
+        if not os.path.exists(self.base+"/proc_data/p_images"):
+            os.mkdir(self.base+"/proc_data/p_images")
         states, times, buffer, messages_b, messages_r = {},{},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
@@ -193,15 +112,18 @@ class Data:
     
 ##########################################################################################################
     def plot_active(self,data_in,times):
-        if not os.path.exists(self.base+"/proc_data_part/c_images/"):
-            os.mkdir(self.base+"/proc_data_part/c_images/")
-        path = self.base+"/proc_data_part/c_images/"
-        dict_park_avg,dict_adms_avg,dict_our_avg = {},{},{}
-        dict_park_max,dict_adms_max,dict_our_max = {},{},{}
-        dict_park_fin,dict_adms_fin,dict_our_fin = {},{},{}
-        ground_T, threshlds , jolly= [], [],[]
-        algo,arena,runs,time,comm,agents,buf_dim = [],[],[],[],[],[],[]
-        p_k,o_k = [],[]
+        if not os.path.exists(self.base+"/proc_data/c_images/"):
+            os.mkdir(self.base+"/proc_data/c_images/")
+        path = self.base+"/proc_data/c_images/"
+        dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
+        dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
+        dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
+        dict_park_tmin,dict_adms_tmin,dict_our_tmin = {},{},{}
+        dict_park_tmax,dict_adms_tmax,dict_our_tmax = {},{},{}
+        dict_park_tmed,dict_adms_tmed,dict_our_tmed = {},{},{}
+        ground_T, threshlds , jolly                 = [],[],[]
+        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
+        p_k,o_k                                     = [],[]
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -216,7 +138,7 @@ class Data:
                 if k0[5]not in agents: agents.append(k0[5])
                 if k0[8]not in buf_dim: buf_dim.append(k0[8])
         for i in range(len(data_in)):
-            a='P' if i==1 else 'O'
+            a='P' if (i==2 or i==3) else 'O'
             for a_s in arena:
                 for n_r in runs:
                     for et in time:
@@ -224,80 +146,156 @@ class Data:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
-                                        vals = []
-                                        vals_m = []
-                                        vals_r = []
+                                        vals            = []
+                                        vals_m          = []
+                                        vals_r          = []
+                                        times_min       = []
+                                        times_max       = []
+                                        times_median    = []
                                         for gt in ground_T:
-                                            tmp = []
-                                            t_max = []
-                                            reg = []
+                                            tmp         = []
+                                            t_max       = []
+                                            reg         = []
+                                            tmp_tmin    = []
+                                            tmp_tmax    = []
+                                            tmp_tmed    = []
                                             for thr in threshlds:
                                                 s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
+                                                t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
                                                 if s_data != None:
-                                                    if (i==1 and m_t not in p_k) or (i==0 and m_t not in o_k):
-                                                        p_k.append(m_t) if i==1 else o_k.append(m_t)
+                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
+                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
                                                     tmp.append(round(float(s_data[2])/int(n_a),2))
                                                     t_max.append(round(np.max(s_data[0]),2))
                                                     reg.append(round(np.median(s_data[0][-30:]),2))
-
+                                                    tmp_tmin.append(round(np.min(t_data[0]),2))
+                                                    tmp_tmax.append(round(np.max(t_data[0]),2))
+                                                    tmp_tmed.append(round(np.median(t_data[0][:]),2))
                                             if len(vals)==0:
-                                                vals = np.array([tmp])
-                                                vals_m = np.array([t_max])
-                                                vals_r = np.array([reg])
+                                                vals            = np.array([tmp])
+                                                vals_m          = np.array([t_max])
+                                                vals_r          = np.array([reg])
+                                                times_min       = np.array([tmp_tmin])
+                                                times_max       = np.array([tmp_tmax])
+                                                times_median    = np.array([tmp_tmed])
                                             else:
-                                                vals = np.append(vals,[tmp],axis=0)
-                                                vals_m = np.append(vals_m,[t_max],axis=0)
-                                                vals_r = np.append(vals_r,[reg],axis=0)
+                                                vals            = np.append(vals,[tmp],axis=0)
+                                                vals_m          = np.append(vals_m,[t_max],axis=0)
+                                                vals_r          = np.append(vals_r,[reg],axis=0)
+                                                times_min       = np.append(times_min,[tmp_tmin],axis=0)
+                                                times_max       = np.append(times_max,[tmp_tmax],axis=0)
+                                                times_median    = np.append(times_median,[tmp_tmed],axis=0)
                                         if a=='P' and int(c)==0 and m_t in p_k:
-                                            dict_park_avg.update({m_t:vals})
-                                            dict_park_max.update({m_t:vals_m})
-                                            dict_park_fin.update({m_t:vals_r})
+                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='21' or m_t=='24')) or (n_a=='100' and (m_t=='10' or m_t=='32' or m_t=='78' or m_t=='99')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='21' or m_t=='24')))):
+                                                dict_park_avg.update({(a_s,n_a,m_t):vals})
+                                                dict_park_max.update({(a_s,n_a,m_t):vals_m})
+                                                dict_park_fin.update({(a_s,n_a,m_t):vals_r})
+                                                dict_park_tmin.update({(a_s,n_a,m_t):times_min})
+                                                dict_park_tmax.update({(a_s,n_a,m_t):times_max})
+                                                dict_park_tmed.update({(a_s,n_a,m_t):times_median})
                                         if a=='O' and m_t in o_k:
-                                            if int(c)==0:
-                                                dict_adms_avg.update({m_t:vals})
-                                                dict_adms_max.update({m_t:vals_m})
-                                                dict_adms_fin.update({m_t:vals_r})
-                                            else:
-                                                dict_our_avg.update({m_t:vals})
-                                                dict_our_max.update({m_t:vals_m})
-                                                dict_our_fin.update({m_t:vals_r})
-        self.print_borders_l(path,'avg',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[p_k,o_k])
-        self.print_borders_l(path,'max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[p_k,o_k])
-        self.print_borders_l(path,'reg',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[p_k,o_k])
-
-
-##########################################################################################################
-    def print_borders_r(self,path,_type,ground_T,threshlds,data_in,keys):
-        cmap = mpl.colormaps["viridis"]
-        cNorm  = colors.Normalize(vmin=ground_T[0], vmax=ground_T[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
-    
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        p_k, o_k = keys[0],keys[1]
-        fig, ax = plt.subplots(figsize=(12,6))
-        for pt in range(len(ground_T)):
-            P_val = dict_park.get(p_k[0])[pt]
-            A_val = dict_adam.get(o_k[0])[pt]
-            O_val = dict_our.get(o_k[0])[pt]
-            ax.plot(P_val,ls='--',c=scalarMap.to_rgba(ground_T[pt]))
-            ax.plot(A_val,ls=':',c=scalarMap.to_rgba(ground_T[pt]))
-            ax.plot(O_val,ls='-',c=scalarMap.to_rgba(ground_T[pt]))
-        ax.set_xticks(np.arange(len(threshlds)),labels=np.array(threshlds,dtype=str))
-        ax.set_yticks(np.arange(0,1.01,.1))
-        ax.set_xlabel("Threshold")
-        ax.set_ylabel("Norm "+_type+" activation")
-        plt.grid(True)
-        fig.tight_layout()
-        fig_path = path+"_"+_type+"_trial.png"
-        plt.savefig(fig_path)
-        # plt.show()
-        plt.close()
+                                            if len(vals[0])>0:
+                                                if int(c)==0:
+                                                    dict_adms_avg.update({(a_s,n_a,m_t):vals})
+                                                    dict_adms_max.update({(a_s,n_a,m_t):vals_m})
+                                                    dict_adms_fin.update({(a_s,n_a,m_t):vals_r})
+                                                    dict_adms_tmin.update({(a_s,n_a,m_t):times_min})
+                                                    dict_adms_tmax.update({(a_s,n_a,m_t):times_max})
+                                                    dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
+                                                else:
+                                                    dict_our_avg.update({(a_s,n_a,m_t):vals})
+                                                    dict_our_max.update({(a_s,n_a,m_t):vals_m})
+                                                    dict_our_fin.update({(a_s,n_a,m_t):vals_r})
+                                                    dict_our_tmin.update({(a_s,n_a,m_t):times_min})
+                                                    dict_our_tmax.update({(a_s,n_a,m_t):times_max})
+                                                    dict_our_tmed.update({(a_s,n_a,m_t):times_median})
+        self.print_borders_l(path,'avg',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[p_k,o_k],[arena,agents])
+        self.print_borders_l(path,'max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[p_k,o_k],[arena,agents])
+        self.print_borders_l(path,'reg',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[p_k,o_k],[arena,agents])
+        self.print_borders_t(path,'min_times',ground_T,threshlds,[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
+        self.print_borders_t(path,'max_times',ground_T,threshlds,[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
+        self.print_borders_t(path,'median_times',ground_T,threshlds,[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
 
 ##########################################################################################################
-    def print_borders_l(self,path,_type,ground_T,threshlds,data_in,keys):
+    def print_borders_t(self,path,_type,ground_T,threshlds,data_in,keys,more_k):
+        plt.rcParams.update({"font.size":18})
+        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        p_k, o_k    = keys[0],keys[1]
+        arena       = more_k[0]
+        colors_map  = ['r','b','g','y']
+        valsp       = [[0]*len(threshlds)]*len(o_k)
+        valsa       = [[0]*len(threshlds)]*len(o_k)
+        valso       = [[0]*len(threshlds)]*len(o_k)
+
+        red         = mlines.Line2D([], [], color='r', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='shorter buffer')
+        blue        = mlines.Line2D([], [], color='b', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='short buffer')
+        green       = mlines.Line2D([], [], color='g', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='large buffer')
+        yellow      = mlines.Line2D([], [], color='y', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='larger buffer')
+        dashed      = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='Parker')
+        dotted      = mlines.Line2D([], [], color='black', marker='None', linestyle=':', linewidth=4, label='Broadcast')
+        solid       = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='R-Broadcast')
+        void        = mlines.Line2D([], [], linestyle='None')
+
+        handles_l   = [dashed,dotted,solid,void]
+        handles_r   = [red,blue,green,yellow]
+        for a in arena:
+            if a=="smallA":
+                agents = ["25"]
+            else:
+                agents = more_k[1]
+            for ag in agents:
+                p_k = [str(10),str(13),str(21),str(24)]
+                if int(ag)==100:
+                    p_k = [str(10),str(32),str(78),str(99)]
+                fig, ax = plt.subplots(figsize=(12,6))
+                for k in range(len(o_k)):
+                    for th in range(len(threshlds)):
+                        p_vals,a_vals,o_vals = np.nan,np.nan,np.nan
+                        p_gt,a_gt,o_gt       = np.nan,np.nan,np.nan
+                        for pt in range(len(ground_T)):
+                            pval = dict_park.get((a,ag,p_k[k]))[pt][th]
+                            aval = dict_adam.get((a,ag,o_k[k]))[pt][th]
+                            oval = dict_our.get((a,ag,o_k[k]))[pt][th]
+                            if p_vals is np.nan or pval<p_vals:
+                                p_vals  = pval
+                                p_gt    = ground_T[pt]
+                            if a_vals is np.nan or aval<a_vals:
+                                a_vals  = aval
+                                a_gt    = ground_T[pt]
+                            if o_vals is np.nan or oval<o_vals:
+                                o_vals  = oval
+                                o_gt    = ground_T[pt]
+                        valsp[k][th] = np.round(p_gt,3)
+                        valsa[k][th] = np.round(a_gt,3)
+                        valso[k][th] = np.round(o_gt,3)
+                    ax.plot(valsp[k],color=colors_map[k],ls='--')
+                    ax.plot(valsa[k],color=colors_map[k],ls=':')
+                    ax.plot(valso[k],color=colors_map[k])
+                str_threshlds = []
+                for x in threshlds:
+                    if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
+                        str_threshlds.append(str(x))
+                    else:
+                        str_threshlds.append('')
+                ax.set_xticks(np.arange(len(str_threshlds)),labels=str_threshlds)
+                ax.set_yticks(np.arange(.5,1.01,.1))
+                ax.set_xlabel("Threshold")
+                ax.set_ylabel("Ground Truth")
+                fig.tight_layout()
+                fig_path = path+_type+"_"+str(a)+"_"+str(ag)+".png"
+                plt.grid(True)
+                plt.legend(handles=handles_r+handles_l, ncol=2,loc='lower right',framealpha=.4)
+                plt.savefig(fig_path)
+                # plt.show()
+                plt.close()
+
+##########################################################################################################
+    def print_borders_l(self,path,_type,ground_T,threshlds,data_in,keys,more_k):
+        plt.rcParams.update({"font.size":18})
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         p_k, o_k = keys[0],keys[1]
-        colors_map = ['r','b','g','y']
+        arena = more_k[0]
+        colors_map = ['r','b','g']
         vals8p = [[0]*len(threshlds)]*len(o_k)
         vals2p = [[0]*len(threshlds)]*len(o_k)
         vals8a = [[0]*len(threshlds)]*len(o_k)
@@ -305,112 +303,153 @@ class Data:
         vals8o = [[0]*len(threshlds)]*len(o_k)
         vals2o = [[0]*len(threshlds)]*len(o_k)
 
-        dots = mlines.Line2D([], [], color='black', marker='o', linestyle='None', markeredgewidth=6, markersize=6, label='P = 0.2')
-        triangles = mlines.Line2D([], [], color='black', marker='^', linestyle='None', markeredgewidth=6, markersize=6, label='P = 0.8')
-        red = mlines.Line2D([], [], color='r', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='shorter buffer')
-        blue = mlines.Line2D([], [], color='b', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='short buffer')
-        green = mlines.Line2D([], [], color='g', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='large buffer')
-        yellow = mlines.Line2D([], [], color='y', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='larger buffer')
-        dashed = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='Parker')
-        dotted = mlines.Line2D([], [], color='black', marker='None', linestyle=':', linewidth=4, label='Broadcast')
-        solid = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='R-Broadcast')
+        dots        = mlines.Line2D([], [], color='black', marker='o', linestyle='None', markeredgewidth=6, markersize=6, label='P = 0.2')
+        triangles   = mlines.Line2D([], [], color='black', marker='^', linestyle='None', markeredgewidth=6, markersize=6, label='P = 0.8')
+        red         = mlines.Line2D([], [], color='r', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='Parker')
+        blue        = mlines.Line2D([], [], color='b', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='Broadcast')
+        green       = mlines.Line2D([], [], color='g', marker='_', linestyle='None', markeredgewidth=12, markersize=12, label='R-Broadcast')
+        void        = mlines.Line2D([], [], linestyle='None')
 
-        void = mlines.Line2D([], [], linestyle='None')
-
-        handles_l = [dashed,dotted,solid,void]
-        handles_c = [triangles,dots,void,void]
-        handles_r = [red,blue,green,yellow]
-        fig, ax = plt.subplots(figsize=(12,6))
-        for k in range(len(o_k)):
-            for th in range(len(threshlds)):
-                p_vals2,a_vals2,o_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                p_vals8,a_vals8,o_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                p_gt2,a_gt2,o_gt2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                p_gt8,a_gt8,o_gt8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                for pt in range(len(ground_T)):
-                    P_val,A_val,O_val = dict_park.get(p_k[0])[pt][th],dict_adam.get(o_k[0])[pt][th],dict_our.get(o_k[0])[pt][th]
-                    pval,aval,oval = P_val,A_val,O_val
-                    if pval>=0.8:
-                        if p_vals8[1] is np.nan or pval<=p_vals8[1]:
-                            p_vals8[1] = pval
-                            p_gt8[1] = ground_T[pt]
-                    elif pval<=0.2:
-                        if p_vals2[0]is np.nan or pval>=p_vals2[0]:
-                            p_vals2[0] = pval
-                            p_gt2[0] = ground_T[pt]
-                    else:
-                        if p_vals8[0]is np.nan or pval>=p_vals8[0]:
-                            p_vals8[0] = pval
-                            p_gt8[0] = ground_T[pt]
-                        if p_vals2[1]is np.nan or pval<=p_vals2[1]:
-                            p_vals2[1] = pval
-                            p_gt2[1] = ground_T[pt]
-                    if oval>=0.8:
-                        if o_vals8[1]is np.nan or oval<=o_vals8[1]:
-                            o_vals8[1] = oval
-                            o_gt8[1] = ground_T[pt]
-                    elif oval<=0.2:
-                        if o_vals2[0]is np.nan or oval>=o_vals2[0]:
-                            o_vals2[0] = oval
-                            o_gt2[0] = ground_T[pt]
-                    else:
-                        if o_vals8[0]is np.nan or oval>=o_vals8[0]:
-                            o_vals8[0] = oval
-                            o_gt8[0] = ground_T[pt]
-                        if o_vals2[1]is np.nan or oval<=o_vals2[1]:
-                            o_vals2[1] = oval
-                            o_gt2[1] = ground_T[pt]
-                    if aval>=0.8:
-                        if a_vals8[1]is np.nan or aval<=a_vals8[1]:
-                            a_vals8[1] = aval
-                            a_gt8[1] = ground_T[pt]
-                    elif aval<=0.2:
-                        if a_vals2[0]is np.nan or aval>=a_vals2[0]:
-                            a_vals2[0] = aval
-                            a_gt2[0] = ground_T[pt]
-                    else:
-                        if a_vals8[0]is np.nan or aval>=a_vals8[0]:
-                            a_vals8[0] = aval
-                            a_gt8[0] = ground_T[pt]
-                        if a_vals2[1]is np.nan or aval<=a_vals2[1]:
-                            a_vals2[1] = aval
-                            a_gt2[1] = ground_T[pt]
-                vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
-                vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
-                vals2o[k][th] = np.round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
-                vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
-                vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
-                vals8o[k][th] = np.round(np.interp([0.8],o_vals8,o_gt8,right=np.nan)[0],3) 
-            ax.plot(vals2p[k],color=colors_map[k],marker='o',ls='--')
-            ax.plot(vals8p[k],color=colors_map[k],marker='^',ls='--')
-            ax.plot(vals2a[k],color=colors_map[k],marker='o',ls=':')
-            ax.plot(vals8a[k],color=colors_map[k],marker='^',ls=':')
-            ax.plot(vals2o[k],color=colors_map[k],marker='o')
-            ax.plot(vals8o[k],color=colors_map[k],marker='^')
-        str_threshlds = []
-        for x in threshlds:
-
-            if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
-                str_threshlds.append(str(x))
+        handles_c   = [triangles,dots,void]
+        handles_r   = [red,blue,green]
+        for a in arena:
+            if a=="smallA":
+                agents = ["25"]
             else:
-                str_threshlds.append('')
-        ax.set_xticks(np.arange(len(str_threshlds)),labels=str_threshlds)
-        ax.set_yticks(np.arange(.5,1.01,.1))
-        ax.set_xlabel("Threshold")
-        ax.set_ylabel("Ground Truth")
-        fig.tight_layout()
-        fig_path = path+"_"+_type+"_trial.png"
-        plt.grid(True)
-        plt.legend(handles=handles_r+handles_l+handles_c, ncol=3,loc='upper left',framealpha=.4)
-        plt.savefig(fig_path)
-        # plt.show()
-        plt.close()                  
+                agents = more_k[1]
+            for ag in agents:
+                p_k = [str(10),str(13),str(21),str(24)]
+                if int(ag)==100:
+                    p_k = [str(10),str(32),str(78),str(99)]
+                for k in range(len(o_k)):
+                    fig, ax = plt.subplots(figsize=(12,6))
+                    for th in range(len(threshlds)):
+                        p_vals2,a_vals2,o_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_vals8,a_vals8,o_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_gt2,a_gt2,o_gt2       = [np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_gt8,a_gt8,o_gt8       = [np.nan]*2,[np.nan]*2,[np.nan]*2
+                        for pt in range(len(ground_T)):
+                            pval = dict_park.get((a,ag,p_k[k]))[pt][th]
+                            aval = dict_adam.get((a,ag,o_k[k]))[pt][th]
+                            oval = dict_our.get((a,ag,o_k[k]))[pt][th]
+                            if pval>=0.8:
+                                if p_vals8[1] is np.nan or pval<p_vals8[1]:
+                                    p_vals8[1]  = pval
+                                    p_gt8[1]    = ground_T[pt]
+                            elif pval<=0.2:
+                                if p_vals2[0] is np.nan or pval>=p_vals2[0]:
+                                    p_vals2[0]  = pval
+                                    p_gt2[0]    = ground_T[pt]
+                            else:
+                                if p_vals8[0] is np.nan or pval>p_vals8[0]:
+                                    p_vals8[0]  = pval
+                                    p_gt8[0]    = ground_T[pt]
+                                if p_vals2[1] is np.nan or pval<p_vals2[1]:
+                                    p_vals2[1]  = pval
+                                    p_gt2[1]    = ground_T[pt]
+                            if oval>=0.8:
+                                if o_vals8[1] is np.nan or oval<o_vals8[1]:
+                                    o_vals8[1]  = oval
+                                    o_gt8[1]    = ground_T[pt]
+                            elif oval<=0.2:
+                                if o_vals2[0] is np.nan or oval>=o_vals2[0]:
+                                    o_vals2[0]  = oval
+                                    o_gt2[0]    = ground_T[pt]
+                            else:
+                                if o_vals8[0] is np.nan or oval>o_vals8[0]:
+                                    o_vals8[0]  = oval
+                                    o_gt8[0]    = ground_T[pt]
+                                if o_vals2[1] is np.nan or oval<o_vals2[1]:
+                                    o_vals2[1]  = oval
+                                    o_gt2[1]    = ground_T[pt]
+                            if aval>=0.8:
+                                if a_vals8[1] is np.nan or aval<a_vals8[1]:
+                                    a_vals8[1]  = aval
+                                    a_gt8[1]    = ground_T[pt]
+                            elif aval<=0.2:
+                                if a_vals2[0] is np.nan or aval>=a_vals2[0]:
+                                    a_vals2[0]  = aval
+                                    a_gt2[0]    = ground_T[pt]
+                            else:
+                                if a_vals8[0] is np.nan or aval>a_vals8[0]:
+                                    a_vals8[0]  = aval
+                                    a_gt8[0]    = ground_T[pt]
+                                if a_vals2[1] is np.nan or aval<a_vals2[1]:
+                                    a_vals2[1]  = aval
+                                    a_gt2[1]    = ground_T[pt]
+                        if p_vals8[0] is np.nan:
+                            p_vals8[0] = p_vals8[1]
+                            p_gt8[0] = p_gt8[1]
+                        elif p_vals8[1] is np.nan:
+                            p_vals8[1] = p_vals8[0]
+                            p_gt8[1] = p_gt8[0]
+                        if p_vals2[0] is np.nan:
+                            p_vals2[0] = p_vals2[1]
+                            p_gt2[0] = p_gt2[1]
+                        elif p_vals2[1] is np.nan:
+                            p_vals2[1] = p_vals2[0]
+                            p_gt2[1] = p_gt2[0]
+                        if o_vals8[0] is np.nan:
+                            o_vals8[0] = o_vals8[1]
+                            o_gt8[0] = o_gt8[1]
+                        elif o_vals8[1] is np.nan:
+                            o_vals8[1] = o_vals8[0]
+                            o_gt8[1] = o_gt8[0]
+                        if o_vals2[0] is np.nan:
+                            o_vals2[0] = o_vals2[1]
+                            o_gt2[0] = o_gt2[1]
+                        elif o_vals2[1] is np.nan:
+                            o_vals2[1] = o_vals2[0]
+                            o_gt2[1] = o_gt2[0]
+                        if a_vals8[0] is np.nan:
+                            a_vals8[0] = a_vals8[1]
+                            a_gt8[0] = a_gt8[1]
+                        elif a_vals8[1] is np.nan:
+                            a_vals8[1] = a_vals8[0]
+                            a_gt8[1] = a_gt8[0]
+                        if a_vals2[0] is np.nan:
+                            a_vals2[0] = a_vals2[1]
+                            a_gt2[0] = a_gt2[1]
+                        elif a_vals2[1] is np.nan:
+                            a_vals2[1] = a_vals2[0]
+                            a_gt2[1] = a_gt2[0]
+
+                        vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
+                        vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
+                        vals2o[k][th] = np.round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
+                        vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
+                        vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
+                        vals8o[k][th] = np.round(np.interp([0.8],o_vals8,o_gt8,right=np.nan)[0],3) 
+                    ax.plot(vals2p[k],color=colors_map[0],marker='o')
+                    ax.plot(vals8p[k],color=colors_map[0],marker='^')
+                    ax.plot(vals2a[k],color=colors_map[1],marker='o')
+                    ax.plot(vals8a[k],color=colors_map[1],marker='^')
+                    ax.plot(vals2o[k],color=colors_map[2],marker='o')
+                    ax.plot(vals8o[k],color=colors_map[2],marker='^')
+                    str_threshlds = []
+                    for x in threshlds:
+                        if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
+                            str_threshlds.append(str(x))
+                        else:
+                            str_threshlds.append('')
+                    ax.set_xticks(np.arange(len(str_threshlds)),labels=str_threshlds)
+                    ax.set_yticks(np.arange(.5,1.01,.1))
+                    ax.set_xlabel("Threshold")
+                    ax.set_ylabel("Ground Truth")
+                    fig.tight_layout()
+                    fig_path = path+_type+"_"+str(p_k[k])+"_"+str(a)+"_"+str(ag)+".png"
+                    plt.grid(True)
+                    plt.legend(handles=handles_r+handles_c, ncol=2,loc='upper left',framealpha=.4)
+                    plt.savefig(fig_path)
+                    # plt.show()
+                    plt.close()
+
 ##########################################################################################################
     def p_plot_heatmaps(self,keys,data_in,limit):
         print("-- Printing Heatmaps")
-        if not os.path.exists(self.base+"/proc_data_part/p_images/grids/"):
-            os.mkdir(self.base+"/proc_data_part/p_images/grids/")
-        path = self.base+"/proc_data_part/p_images/grids/"
+        if not os.path.exists(self.base+"/proc_data/p_images/grids/"):
+            os.mkdir(self.base+"/proc_data/p_images/grids/")
+        path = self.base+"/proc_data/p_images/grids/"
         states = data_in[0]
         times = data_in[1]
         buffers = data_in[2]
@@ -476,6 +515,7 @@ class Data:
                                             fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_maxBuff#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
+                                            plt.close()
 
                                             t_fig, t_ax = plt.subplots(figsize=(24,6))
                                             t_im = sns.heatmap(heatmap_a,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -493,6 +533,7 @@ class Data:
                                             fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
+                                            plt.close()
 
                                             t_fig, t_ax = plt.subplots(figsize=(24,6))
                                             t_im = sns.heatmap(heatmap_m,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -510,6 +551,7 @@ class Data:
                                             fig_path = path+"hmp_max_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
+                                            plt.close()
 
                                             t_fig, t_ax = plt.subplots(figsize=(24,6))
                                             t_im = sns.heatmap(heatmap_r,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -527,6 +569,7 @@ class Data:
                                             fig_path = path+"hmp_reg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                             plt.savefig(fig_path)
                                             # plt.show()
+                                            plt.close()
 
                                     heatmap_p = []
                                     _GT = keys[6]
@@ -563,15 +606,15 @@ class Data:
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                     plt.savefig(fig_path)
                                     # plt.show()
-        
+                                    plt.close()        
         return 0
 
 ##########################################################################################################
     def o_plot_heatmaps(self,keys,data_in,limit):
         print("-- Printing Heatmaps")
-        if not os.path.exists(self.base+"/proc_data_part/o_images/grids/"):
-            os.mkdir(self.base+"/proc_data_part/o_images/grids/")
-        path = self.base+"/proc_data_part/o_images/grids/"
+        if not os.path.exists(self.base+"/proc_data/o_images/grids/"):
+            os.mkdir(self.base+"/proc_data/o_images/grids/")
+        path = self.base+"/proc_data/o_images/grids/"
         states = data_in[0]
         times = data_in[1]
         buffers = data_in[2]
@@ -638,6 +681,7 @@ class Data:
                                         fig_path = path+"hmp_time__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+                                        plt.close()
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_a,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -655,6 +699,7 @@ class Data:
                                         fig_path = path+"hmp_avg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+                                        plt.close()
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_m,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -672,6 +717,7 @@ class Data:
                                         fig_path = path+"hmp_max_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+                                        plt.close()
 
                                         t_fig, t_ax = plt.subplots(figsize=(24,6))
                                         t_im = sns.heatmap(heatmap_r,robust=True, cmap=a_cmap, mask=a_mask, vmin=0, vmax=1,cbar=True)
@@ -689,6 +735,7 @@ class Data:
                                         fig_path = path+"hmp_reg_act__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_msg#"+m_t+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                         plt.savefig(fig_path)
                                         # plt.show()
+                                        plt.close()
 
                                     heatmap_p = []
                                     _GT = keys[6][:-1]
@@ -730,8 +777,7 @@ class Data:
                                     fig_path = path+"hmp_thr__CONF__alg#"+algo+"_Asize#"+a_s+"_runs#"+n_r+"_t#"+et+"_com#"+c+"_rbts#"+n_a+"_minBuf#"+m_b_d+"_l#"+str(limit)+".png"
                                     plt.savefig(fig_path)
                                     # plt.show()
-
-
+                                    plt.close()
         return 0
 
 ##########################################################################################################
