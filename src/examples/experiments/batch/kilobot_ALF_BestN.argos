@@ -120,7 +120,7 @@
 
         <floor id="floor"
         source="loop_functions"
-        pixels_per_meter="150" />
+        pixels_per_meter="100" />
         
     </arena>
     

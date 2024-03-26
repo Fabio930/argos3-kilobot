@@ -266,7 +266,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
         else{
             tMessage = tEmptyMessage;
         }
-        m_tMessages[unKilobotID].data[i*3] = (UInt8)(tMessage.m_sID >> 7) << 1;
+        m_tMessages[unKilobotID].data[i*3]   = (UInt8)(tMessage.m_sID >> 7) << 1;
         m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sType;
     }
@@ -315,17 +315,17 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
 void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
-    m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = 1;
-    tKilobotMessage.m_sID = unKilobotID;
-    tKilobotMessage.m_sData = m_vecKilobotStates[unKilobotID];
+    m_tMessages[unKilobotID].type   = 0;
+    tKilobotMessage.m_sType         = 1;
+    tKilobotMessage.m_sID           = unKilobotID;
+    tKilobotMessage.m_sData         = m_vecKilobotStates[unKilobotID];
     // Prepare an empty ARK-type message to fill the gap in the full kilobot message
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
+    tEmptyMessage.m_sID     = 1023;
+    tEmptyMessage.m_sType   = 0;
+    tEmptyMessage.m_sData   = 0;
     // Fill the kilobot message by the ARK-type messages
     for (UInt8 i = 0; i < 3; ++i){
         if( i == 0){
