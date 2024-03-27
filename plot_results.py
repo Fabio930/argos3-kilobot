@@ -34,7 +34,7 @@ def main():
                     tot_st      = np.append(tot_st,[states],axis=0)
                     tot_times   = np.append(tot_times,[times],axis=0)
                     tot_buffer  = np.append(tot_buffer,[buffers],axis=0)
-        csv_res.plot_active(tot_st,tot_times,tot_buffer)
+        csv_res.plot_active(tot_st,tot_times)
 ##################################################################################
 if __name__ == "__main__":
     main()

@@ -222,13 +222,13 @@ class Data:
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        plt.rcParams.update({"font.size":22})
+        plt.rcParams.update({"font.size":26})
         cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
         p_k, o_k = keys[0],keys[1]
         arena = more_k[0]
-        typo = [0,1,2]
+        typo = [0,1,2,3]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         vals8p = [[0]*len(threshlds)]*len(o_k)
@@ -410,17 +410,17 @@ class Data:
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         if k==0:
-                            ax[row][k].set_xlabel("T_m60")
-                            tax[row][k].set_xlabel("T_m60")
+                            ax[row][k].set_xlabel(r"$T_m (s)=60$")
+                            tax[row][k].set_xlabel(r"$T_m (s)=60$")
                         elif k==1:
-                            ax[row][k].set_xlabel("T_m120")
-                            tax[row][k].set_xlabel("T_m120")
+                            ax[row][k].set_xlabel(r"$T_m (s)=120$")
+                            tax[row][k].set_xlabel(r"$T_m (s)=120$")
                         elif k==2:
-                            ax[row][k].set_xlabel("T_m300")
-                            tax[row][k].set_xlabel("T_m300")
+                            ax[row][k].set_xlabel(r"$T_m (s)=300$")
+                            tax[row][k].set_xlabel(r"$T_m (s)=300$")
                         elif k==3:
-                            ax[row][k].set_xlabel("T_m600")
-                            tax[row][k].set_xlabel("T_m600")
+                            ax[row][k].set_xlabel(r"$T_m (s)=600$")
+                            tax[row][k].set_xlabel(r"$T_m (s)=600$")
                     else:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
@@ -450,14 +450,14 @@ class Data:
         fig.supxlabel(r"$\tau$")
         fig.supylabel('G')
         tfig.supxlabel(r"$\tau$")
-        tfig.supylabel('T_c (s)')
+        tfig.supylabel(r"$T_c (s)$")
 
         fig.tight_layout()
         tfig.tight_layout()
         fig_path = path+_type+"_activation.png"
         tfig_path = path+t_type+"_time.png"
-        fig.legend(handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7)
-        tfig.legend(handles=handles_r,ncols=3,loc='upper right',framealpha=0.7)
+        fig.legend(bbox_to_anchor=(1, 1.01),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7)
+        tfig.legend(bbox_to_anchor=(1, 1.01),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7)
         fig.savefig(fig_path)
         tfig.savefig(tfig_path)
         # plt.show()
