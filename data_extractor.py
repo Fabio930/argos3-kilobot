@@ -266,7 +266,6 @@ class Results:
                             self.dump_resume_csv(l,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,self.thresholds.get(COMMIT)[t],MINS,BUFFER_DIM,len(multi_run_data))
 
 ##########################################################################################################
-
     def dump_times(self,data_in,BASE,PATH,COMMIT,MINS,BUFFER_DIM,limit):
         for t in range(len(self.thresholds.get(COMMIT))):
             if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])) is not None:
