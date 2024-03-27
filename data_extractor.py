@@ -213,7 +213,7 @@ class Results:
     def dump_quorum_and_buffer(self,data_in,BASE,PATH,COMMIT,MINS,BUFFER_DIM):
         for t in range(len(self.thresholds.get(COMMIT))):
             if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])) is not None:
-                for l in range(len(data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))-1):
+                for l in range(len(data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))):
                     if data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t]))[l] is not None:
                         mean_val = 0
                         multi_run_data = (data_in.get((COMMIT,MINS,self.thresholds.get(COMMIT)[t])))[l]
