@@ -2,12 +2,12 @@ import numpy as np
 import os, csv, math, sys
 
 class Results:
-    thresholds = {}
-    ground_truth = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
-    min_buff_dim = [5]
-    ticks_per_sec = 10
-    x_limit = 100
-    limit = 0.8 
+    thresholds      = {}
+    ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
+    min_buff_dim    = [5]
+    ticks_per_sec   = 10
+    x_limit         = 100
+    limit           = 0.8 
 
 ##########################################################################################################
     def __init__(self):
@@ -51,10 +51,10 @@ class Results:
                         sys.stdout.flush()
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
-                tmp_dim_1[j] = tmp_dim_2
-                tmp_ones_1[j] = tmp_ones_2
-            tmp_dim_0[i] = tmp_dim_1
-            tmp_ones_0[i] = tmp_ones_1
+                tmp_dim_1[j]    = tmp_dim_2
+                tmp_ones_1[j]   = tmp_ones_2
+            tmp_dim_0[i]        = tmp_dim_1
+            tmp_ones_0[i]       = tmp_ones_1
         return (tmp_dim_0,tmp_ones_0)
 
 #########################################################################################################
