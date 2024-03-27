@@ -111,7 +111,7 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
     
 ##########################################################################################################
-    def plot_active(self,data_in,times,msg_buffer):
+    def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/c_images/"):
             os.mkdir(self.base+"/proc_data/c_images/")
         path = self.base+"/proc_data/c_images/"
@@ -162,7 +162,6 @@ class Data:
                                             for thr in threshlds:
                                                 s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
                                                 t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
-                                                b_data = msg_buffer[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
                                                 if s_data != None:
                                                     if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
                                                         p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
@@ -213,21 +212,24 @@ class Data:
         self.print_borders(path,'avg','min',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
         self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
         self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
-        # self.print_messages(path,'msgs')
 ##########################################################################################################
     def print_messages(self,path,_type,data_in,keys):
         plt.rcParams.update({"font.size":22})
+        cm = plt.get_cmap('viridis') 
 
         return
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":22})
+        cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
         p_k, o_k = keys[0],keys[1]
         arena = more_k[0]
-        colors_map = ['r','b','g']
+        typo = [0,1,2]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         vals8p = [[0]*len(threshlds)]*len(o_k)
         vals2p = [[0]*len(threshlds)]*len(o_k)
         vals8a = [[0]*len(threshlds)]*len(o_k)
@@ -241,9 +243,9 @@ class Data:
 
         dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='P = 0.2')
         triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='P = 0.8')
-        red         = mlines.Line2D([], [], color='r', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color='b', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color='g', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
         void        = mlines.Line2D([], [], linestyle='None')
 
         handles_c   = [triangles,dots]
@@ -374,16 +376,16 @@ class Data:
                         tvalsp[k][th] = p_valst
                         tvalsa[k][th] = a_valst
                         tvalso[k][th] = o_valst
-                    ax[row][k].plot(vals2p[k],color=colors_map[0],lw=6,ls='--')
-                    ax[row][k].plot(vals8p[k],color=colors_map[0],lw=6,ls='-')
-                    ax[row][k].plot(vals2a[k],color=colors_map[1],lw=6,ls='--')
-                    ax[row][k].plot(vals8a[k],color=colors_map[1],lw=6,ls='-')
-                    ax[row][k].plot(vals2o[k],color=colors_map[2],lw=6,ls='--')
-                    ax[row][k].plot(vals8o[k],color=colors_map[2],lw=6,ls='-')
-                    ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=3,ls=':')
-                    tax[row][k].plot(tvalsp[k],color=colors_map[0],lw=6)
-                    tax[row][k].plot(tvalsa[k],color=colors_map[1],lw=6)
-                    tax[row][k].plot(tvalso[k],color=colors_map[2],lw=6)
+                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                    ax[row][k].plot(vals2o[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    ax[row][k].plot(vals8o[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
+                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
+                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
+                    tax[row][k].plot(tvalso[k],color=scalarMap.to_rgba(typo[2]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
@@ -396,6 +398,11 @@ class Data:
                             void_str_gt.append('')
                         for x in range(0,601,100):
                             void_str_tim.append('')
+                    ax[row][k].set_xlim(0.5,1)
+                    tax[row][k].set_xlim(0.5,1)
+                    ax[row][k].set_ylim(0.5,1)
+                    tax[row][k].set_ylim(0.5,1)
+
                     if row==2:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)

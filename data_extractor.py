@@ -20,7 +20,6 @@ class Results:
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
             _thresholds=np.arange(50,101,1)
-            # _thresholds=np.arange(50,int(self.ground_truth[gt]*100)+1,1)
             f_thresholds = []
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
