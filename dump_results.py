@@ -35,23 +35,25 @@ def check_inputs():
     return ticks,files_to_elaborate
 
 def main():
-    min_bf = 10
-    results = dex.Results()
+    to_print    = []
+    min_bf      = 10
+    results     = dex.Results()
     results.ticks_per_sec, files_to_elaborate = check_inputs()
     for base in results.bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
-                exp_length=int(adir.split('#')[1])
-                pre_path=os.path.join(base, adir)
+                exp_length  = int(adir.split('#')[1])
+                pre_path    = os.path.join(base, adir)
                 for zdir in sorted(os.listdir(pre_path)):
                     if '.' not in zdir and '#' in zdir:
-                        communication=int(zdir.split('#')[1])
-                        dtemp=os.path.join(pre_path, zdir)
+                        communication   = int(zdir.split('#')[1])
+                        dtemp           = os.path.join(pre_path, zdir)
                         for zzdir in sorted(os.listdir(dtemp)):
                             if '.' not in zzdir and '#' in zzdir:
-                                n_agents=int(zzdir.split('#')[1])
-                                ddtemp=os.path.join(dtemp, zzdir)
-                                results.extract_k_data(base,ddtemp,exp_length,n_agents,min_bf)
+                                n_agents    = int(zzdir.split('#')[1])
+                                ddtemp      = os.path.join(dtemp, zzdir)
+                                # results.extract_k_data(base,ddtemp,exp_length,n_agents,min_bf)
+                                results.compute_buff_size(base,ddtemp,exp_length,n_agents,min_bf,communication)
 
 if __name__ == "__main__":
     main()

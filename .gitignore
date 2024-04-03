@@ -9,3 +9,4 @@ build
 **/*cache*
 Experiments.txt
 *proc_data*
+*msgs_data*

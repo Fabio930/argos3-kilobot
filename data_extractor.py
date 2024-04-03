@@ -16,7 +16,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0]=="Presults":
+                if selem[0]=="Presults" or selem[0]=="Oresults":
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
             _thresholds=np.arange(50,101,1)
@@ -71,7 +71,7 @@ class Results:
         return out,compl
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,n_agents,min_bf): 
+    def compute_buff_size(self,base,path_temp,max_steps,n_agents,min_bf,brdcst_type):
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
@@ -80,6 +80,130 @@ class Results:
                 num_runs = int(len(os.listdir(sub_path))/n_agents)
                 msgs_bigM_1 = [np.array([])] * n_agents
                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
+                # assign randomly the state to agents at each run
+                print(sub_path)
+                print("--- Extract data ---")
+                a_ = 0
+                prev_id = -1
+                for elem in sorted(os.listdir(sub_path)):
+                    if '.' in elem:
+                        selem=elem.split('.')
+                        if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
+                            a_+=1
+                            seed = int(selem[0].split('#')[-1])
+                            agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                            if prev_id != agent_id:
+                                a_ = 0
+                            if a_ == 0:
+                                print("- Reading files of agent",agent_id)
+                                prev_id = agent_id                            
+                            with open(os.path.join(sub_path, elem), newline='') as f:
+                                reader = csv.reader(f)
+                                log_count = 0
+                                for row in reader:
+                                    log_count += 1
+                                    if log_count % self.ticks_per_sec == 0:
+                                        log_count = 0
+                                        msgs = []
+                                        for val in row:
+                                            if val.count('\t')==0 and val.count('-')==0:
+                                                msgs.append(int(val))
+                                        if len(msgs) < buffer_dim:
+                                            for i in range(buffer_dim-len(msgs)): msgs.append(-1)
+                                        if len(msgs_M_1[seed-1]) == 0:
+                                            msgs_M_1[seed-1] = [msgs]
+                                        else:
+                                            msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
+                            if len(msgs_M_1[seed-1]) != max_steps: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
+                            if seed == num_runs:
+                                msgs_bigM_1[agent_id] = msgs_M_1
+                                msgs_M_1 = [np.array([],dtype=int)]*num_runs
+                info_vec     = sub_path.split('/')
+                t_messages = sub_path.split('#')[-1]
+                algo     = info_vec[4].split('_')[0][0]
+                arenaS   = info_vec[4].split('_')[-1][:-1]
+                BUFFERS  = [min_bf]
+                mid      = min_bf + math.ceil((buffer_dim - min_bf)*.5)
+                h_mid    = math.ceil((mid - min_bf)*.5)
+                for i in range(10,buffer_dim):
+                    if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
+                BUFFERS.append(buffer_dim)
+                if algo=='P':
+                    for buf in BUFFERS:
+                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,buf,algo)
+                        file_name = "messages_resume.csv"
+                        header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                        write_header = 1
+                        if not os.path.exists(os.path.abspath("")+"/msgs_data"):
+                            os.mkdir(os.path.abspath("")+"/msgs_data")
+                        if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
+                            write_header = 0
+                        fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
+                        fwriter = csv.writer(fw,delimiter='\t')
+                        if write_header == 1:
+                            fwriter.writerow(header)
+                        fwriter.writerow([arenaS,algo,brdcst_type,n_agents,buf,messages])
+                        fw.close()
+                else:
+                    messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo)
+                    file_name = "messages_resume.csv"
+                    header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                    write_header = 1
+                    if not os.path.exists(os.path.abspath("")+"/msgs_data"):
+                        os.mkdir(os.path.abspath("")+"/msgs_data")
+                    if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
+                        write_header = 0
+                    fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
+                    fwriter = csv.writer(fw,delimiter='\t')
+                    if write_header == 1:
+                        fwriter.writerow(header)
+                    fwriter.writerow([arenaS,algo,brdcst_type,n_agents,t_messages,messages])
+                    fw.close()
+
+                    
+
+##########################################################################################################
+    def compute_meaningfull_msgs(self,data,limit,algo):
+        data_partial = np.array([])
+        for ag in range(len(data)):
+            runs = np.array([])
+            for rn in range(len(data[ag])):
+                tmp = [0]*len(data[0][0])
+                for tk in range(len(data[ag][rn])):
+                    flag = []
+                    for el in range(len(data[ag][rn][tk])):
+                        if algo == 'P' and el >= limit: break
+                        elif data[ag][rn][tk][el] not in flag:
+                            flag.append(data[ag][rn][tk][el])
+                            tmp[tk] += 1
+                if len(runs) == 0:
+                    runs = [tmp]
+                else:
+                    runs = np.append(runs,[tmp],axis=0)
+            if len(data_partial) == 0:
+                data_partial = [runs]
+            else:
+                data_partial = np.append(data_partial,[runs],axis=0)
+        msgs_summation = [0]*len(data_partial[0][0])
+        for ag in range(len(data_partial)):
+            for rn in range(len(data_partial[ag])):
+                for tk in range(len(data_partial[ag][rn])):
+                    msgs_summation[tk] += data_partial[ag][rn][tk]
+        for tk in range(len(msgs_summation)):
+            msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
+            msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
+        return msgs_summation
+    
+##########################################################################################################
+    def extract_k_data(self,base,path_temp,max_steps,n_agents,min_bf): 
+        for pre_folder in sorted(os.listdir(path_temp)):
+            if '.' not in pre_folder:
+                pre_params  = pre_folder.split('#')
+                buffer_dim  = int(pre_params[-1])
+                sub_path    = os.path.join(path_temp,pre_folder)
+                num_runs    = int(len(os.listdir(sub_path))/n_agents)
+                msgs_bigM_1 = [np.array([])] * n_agents
+                msgs_M_1    = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
                 print(sub_path)
                 print("--- Assigning states ---")
