@@ -75,7 +75,7 @@ class Results:
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
-                buffer_dim = int(pre_params[-1])
+                buffer_dim = n_agents - 1
                 sub_path = os.path.join(path_temp,pre_folder)
                 num_runs = int(len(os.listdir(sub_path))/n_agents)
                 msgs_bigM_1 = [np.array([])] * n_agents
