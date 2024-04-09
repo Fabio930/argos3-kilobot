@@ -13,8 +13,57 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "proc_data":
+            if elem == "msgs_data":
                 self.bases.append(os.path.join(self.base, elem))
+
+##########################################################################################################
+    def plot_messages(self,data):
+        dict_park, dict_adam, dict_our = {},{},{}
+        for k in data.keys():
+            if k[1]=='P':
+                dict_park.update({(k[0],k[3],k[4]):data.get(k)})
+            else:
+                if int(k[2])==0:
+                    dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
+                else:
+                    dict_our.update({(k[0],k[3],k[4]):data.get(k)})
+        self.print_messages([dict_park,dict_adam,dict_our])
+##########################################################################################################
+    def read_msgs_csv(self,path):
+        data = {}
+        lc = 0
+        with open(path,newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if lc == 0:
+                    lc = 1
+                else:
+                    keys = []
+                    array_val=[]
+                    for val in row:
+                        split_val = val.split('\t')
+                        if len(split_val)==1:
+                            tval = val  
+                            if ']' in val:
+                                tval = ''
+                                for c in val:
+                                    if c != ']':
+                                        tval+=c
+                            array_val.append(float(tval))
+                            if ']' in val:
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4]):array_val})
+                        else:
+                            for k in range(len(split_val)):
+                                tval = split_val[k]
+                                if '[' in split_val[k]:
+                                    tval = ''
+                                    for c in split_val[k]:
+                                        if c != '[':
+                                            tval+=c
+                                    array_val.append(float(tval))
+                                else:
+                                    keys.append(tval)
+        return data
 
 ##########################################################################################################
     def read_csv(self,path,algo,n_runs,arena):
@@ -214,11 +263,204 @@ class Data:
         self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
-    def print_messages(self,path,_type,data_in,keys):
-        plt.rcParams.update({"font.size":22})
+    def print_messages(self,data_in):
+        plt.rcParams.update({"font.size":26})
         cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
-        return
+        handles_r   = [red,blue,green]
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        for k in dict_adam.keys():
+            tmp =[]
+            res = dict_adam.get(k)
+            norm = int(k[1])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam.update({k:tmp})
+        for k in dict_park.keys():
+            tmp =[]
+            res = dict_park.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_park.update({k:tmp})
+        for k in dict_our.keys():
+            tmp =[]
+            res = dict_our.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_our.update({k:tmp})
+        for k in dict_park.keys():
+            row = 0
+            col = 0
+            sign = []
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+                if k[2] == '10':
+                    col = 0
+                elif k[2] == '13':
+                    col = 1
+                elif k[2] == '21':
+                    col = 2
+                elif k[2] == '24':
+                    col = 3
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+                if k[2] == '10':
+                    col = 0
+                elif k[2] == '32':
+                    col = 1
+                elif k[2] == '78':
+                    col = 2
+                elif k[2] == '99':
+                    col = 3
+            elif k[0]=='small':
+                row = 1
+                if k[2] == '10':
+                    col = 0
+                elif k[2] == '13':
+                    col = 1
+                elif k[2] == '21':
+                    col = 2
+                elif k[2] == '24':
+                    col = 3
+            for xi in range(0,900):
+                sign.append(int(k[2])/int(k[1]))
+            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            # ax[row][col].plot(sign,color="black",lw=6,ls="--")
+        for k in dict_adam.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            elif k[0]=='small':
+                row = 1
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+        for k in dict_our.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            elif k[0]=='small':
+                row = 1
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '300':
+                    col = 2
+                elif k[2] == '600':
+                    col = 3
+            ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        
+        for x in range(2):
+            for y in range(4):
+                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_xticklabels(empty_string_labels)
+        for x in range(3):
+            for y in range(1,4):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        axt3=ax[0][3].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt3.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 120\, s$")
+        axt2.set_xlabel(r"$T_m = 300\, s$")
+        axt3.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][3].twinx()
+        ayt1=ax[1][3].twinx()
+        ayt2=ax[2][3].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        ax[2][3].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(4):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,900)
+                if x==0 or x==1:
+                    ax[x][y].set_ylim(0,1)
+                else:
+                    ax[x][y].set_ylim(0,1)
+        fig.tight_layout()
+        if not os.path.exists(self.base+"/msgs_data/c_images/"):
+            os.mkdir(self.base+"/msgs_data/c_images/")
+        fig_path = self.base+"/msgs_data/c_images/messages.png"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -251,8 +493,8 @@ class Data:
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,24))
-        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,24))
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -403,24 +645,46 @@ class Data:
                     tax[row][k].set_xlim(0.5,1)
                     ax[row][k].set_ylim(0.5,1)
                     tax[row][k].set_ylim(0.5,1)
-
-                    if row==2:
+                    if row==0:
+                        ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+                        tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+                        axt = ax[row][k].twiny()
+                        taxt = tax[row][k].twiny()
+                        labels = [item.get_text() for item in axt.get_xticklabels()]
+                        empty_string_labels = ['']*len(labels)
+                        axt.set_xticklabels(empty_string_labels)
+                        taxt.set_xticklabels(empty_string_labels)
+                        if k==0:
+                            axt.set_xlabel(r"$T_m = 60\, s$")
+                            taxt.set_xlabel(r"$T_m = 60\, s$")
+                        elif k==1:
+                            axt.set_xlabel(r"$T_m = 120\, s$")
+                            taxt.set_xlabel(r"$T_m = 120\, s$")
+                        elif k==2:
+                            axt.set_xlabel(r"$T_m = 300\, s$")
+                            taxt.set_xlabel(r"$T_m = 300\, s$")
+                        elif k==3:
+                            axt.set_xlabel(r"$T_m = 600\, s$")
+                            taxt.set_xlabel(r"$T_m = 600\, s$")
+                    elif row==2:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         if k==0:
-                            ax[row][k].set_xlabel(r"$T_m (s)=60$")
-                            tax[row][k].set_xlabel(r"$T_m (s)=60$")
+                            ax[row][k].set_xlabel(r"$\tau$")
+                            tax[row][k].set_xlabel(r"$\tau$")
                         elif k==1:
-                            ax[row][k].set_xlabel(r"$T_m (s)=120$")
-                            tax[row][k].set_xlabel(r"$T_m (s)=120$")
+                            ax[row][k].set_xlabel(r"$\tau$")
+                            tax[row][k].set_xlabel(r"$\tau$")
                         elif k==2:
-                            ax[row][k].set_xlabel(r"$T_m (s)=300$")
-                            tax[row][k].set_xlabel(r"$T_m (s)=300$")
+                            ax[row][k].set_xlabel(r"$\tau$")
+                            tax[row][k].set_xlabel(r"$\tau$")
                         elif k==3:
-                            ax[row][k].set_xlabel(r"$T_m (s)=600$")
-                            tax[row][k].set_xlabel(r"$T_m (s)=600$")
+                            ax[row][k].set_xlabel(r"$\tau$")
+                            tax[row][k].set_xlabel(r"$\tau$")
                     else:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
@@ -432,14 +696,34 @@ class Data:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
                         tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
                         if row==0:
-                            ax[row][k].set_ylabel("LD25")
-                            tax[row][k].set_ylabel("LD25")
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
                         elif row==1:
-                            ax[row][k].set_ylabel("HD25")
-                            tax[row][k].set_ylabel("HD25")
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
                         elif row==2:
-                            ax[row][k].set_ylabel("HD100")
-                            tax[row][k].set_ylabel("HD100")
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                    elif k==3:
+                        ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
+                        tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
+                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
+                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
+                        axt = ax[row][k].twinx()
+                        taxt = tax[row][k].twinx()
+                        labels = [item.get_text() for item in axt.get_yticklabels()]
+                        empty_string_labels = ['']*len(labels)
+                        axt.set_yticklabels(empty_string_labels)
+                        taxt.set_yticklabels(empty_string_labels)
+                        if row==0:
+                            axt.set_ylabel("LD25")
+                            taxt.set_ylabel("LD25")
+                        elif row==1:
+                            axt.set_ylabel("HD25")
+                            taxt.set_ylabel("HD25")
+                        elif row==2:
+                            axt.set_ylabel("HD100")
+                            taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
@@ -447,20 +731,15 @@ class Data:
                         tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
                     ax[row][k].grid(which='major')
                     tax[row][k].grid(which='major')
-        fig.supxlabel(r"$\tau$")
-        fig.supylabel('G')
-        tfig.supxlabel(r"$\tau$")
-        tfig.supylabel(r"$T_c (s)$")
 
         fig.tight_layout()
         tfig.tight_layout()
         fig_path = path+_type+"_activation.png"
         tfig_path = path+t_type+"_time.png"
-        fig.legend(bbox_to_anchor=(1, 1.01),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7)
-        tfig.legend(bbox_to_anchor=(1, 1.01),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7)
-        fig.savefig(fig_path)
-        tfig.savefig(tfig_path)
-        # plt.show()
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
+        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
 

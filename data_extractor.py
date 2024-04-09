@@ -16,7 +16,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0]=="Presults" or selem[0]=="Oresults":
+                if selem[0]=="Presults":
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
             _thresholds=np.arange(50,101,1)
@@ -122,12 +122,14 @@ class Results:
                 t_messages = sub_path.split('#')[-1]
                 algo     = info_vec[4].split('_')[0][0]
                 arenaS   = info_vec[4].split('_')[-1][:-1]
-                BUFFERS  = [min_bf]
-                mid      = min_bf + math.ceil((buffer_dim - min_bf)*.5)
-                h_mid    = math.ceil((mid - min_bf)*.5)
-                for i in range(10,buffer_dim):
-                    if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
-                BUFFERS.append(buffer_dim)
+                BUFFERS = []
+                if arenaS=='small':
+                    BUFFERS = [19,21,23,24]
+                elif arenaS=='big':
+                    if n_agents==25:
+                        BUFFERS=[10,14,19,21]
+                    elif n_agents==100:
+                        BUFFERS=[40,56,74,83]
                 if algo=='P':
                     for buf in BUFFERS:
                         messages = self.compute_meaningfull_msgs(msgs_bigM_1,buf,algo)
@@ -269,12 +271,18 @@ class Results:
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                BUFFERS = [min_bf]
-                mid = min_bf + math.ceil((buffer_dim - min_bf)*.5)
-                h_mid = math.ceil((mid - min_bf)*.5)
-                for i in range(10,buffer_dim):
-                    if i == mid - h_mid or i == mid + h_mid: BUFFERS.append(i)
-                BUFFERS.append(buffer_dim)
+                info_vec     = sub_path.split('/')
+                t_messages = sub_path.split('#')[-1]
+                algo     = info_vec[4].split('_')[0][0]
+                arenaS   = info_vec[4].split('_')[-1][:-1]
+                BUFFERS = []
+                if arenaS=='small':
+                    BUFFERS = [19,21,23,24]
+                elif arenaS=='big':
+                    if n_agents==25:
+                        BUFFERS=[10,14,19,21]
+                    elif n_agents==100:
+                        BUFFERS=[40,56,74,83]
                 for buf in BUFFERS:
                     for gt in range(len(self.ground_truth)):
                         results = self.compute_quorum_vars_on_ground_truth(msgs_bigM_1,states_by_gt[gt],buf,gt)

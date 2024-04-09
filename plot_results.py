@@ -11,6 +11,8 @@ def main():
         tot_times   = []
         tot_buffer  = []
         for file in sorted(os.listdir(base)):
+            n_runs=0
+            arena=''
             if "images" not in file:
                 file_path=os.path.join(base, file)
                 no_ext_file = file.split('.')[0]
@@ -35,6 +37,17 @@ def main():
                     tot_times   = np.append(tot_times,[times],axis=0)
                     tot_buffer  = np.append(tot_buffer,[buffers],axis=0)
         csv_res.plot_active(tot_st,tot_times)
+        
+##################################################################################
+def main_messages():
+    csv_res = CSVres.Data()
+    for base in csv_res.bases:
+        for file in sorted(os.listdir(base)):
+            if "images" not in file:
+                file_path=os.path.join(base, file)
+                data = csv_res.read_msgs_csv(file_path)
+                csv_res.plot_messages(data)
+
 ##################################################################################
 if __name__ == "__main__":
-    main()
+    main_messages()
