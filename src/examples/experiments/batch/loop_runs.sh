@@ -27,7 +27,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="600"
-RUNS=3
+RUNS=30
 rebroadcast="0 2"
 msg_expiring_sec="60 120 300 600"
 numrobots="25"
@@ -62,7 +62,7 @@ for par in $experiment_length; do
                     sed -i "s|__NUMROBOTS__|$par1|g" $config
                     sed -i "s|__MSG_EXPIRING_SECONDS__|$par2|g" $config
                     sed -i "s|__SEED__|$it|g" $config
-                    sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
+                    sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
                     dt=$(date '+%d-%m-%Y_%H-%M-%S')
                     kilo_file="${dt}__run#${it}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
