@@ -10,3 +10,4 @@ build
 Experiments.txt
 *proc_data*
 *msgs_data*
+*.tar.xz
