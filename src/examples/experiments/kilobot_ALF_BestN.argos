@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="1800"
+        <experiment length="900"
         ticks_per_second="10"/>
     </framework>
     
@@ -54,6 +54,8 @@
             queue_lenght = "99"
             broadcasting_ticks = "16"
             committed_percentage = "0.6"
+            commitment_variation_time = "500"
+            next_committed_percentage = ".5"
         >
         </hierarchicStruct>
 
@@ -80,7 +82,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="40" max_trials="200">
+            <entity quantity="50" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
@@ -141,8 +143,8 @@
         <qt-opengl>
             <camera>
                 <placements>
-                <placement index="0" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="43" />
-                <placement index="1" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="23" />
+                    <placement index="0" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="43" />
+                    <placement index="1" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="23" />
                 </placements>
             </camera>
         </qt-opengl>

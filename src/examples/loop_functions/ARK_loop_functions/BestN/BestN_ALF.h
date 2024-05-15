@@ -64,20 +64,23 @@ private:
     /************************************/
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
-    float committed_percentage;
+    float                   committed_percentage;
+    UInt16                  commitment_variation_time;
+    bool                    variation_done = false;
+    float                   next_committed_percentage;
 
-    UInt8 broadcasting_ticks;
-    UInt8 queue_lenght;
-    UInt8 rebroadcast;
+    UInt8                   broadcasting_ticks;
+    UInt8                   queue_lenght;
+    UInt8                   rebroadcast;
 
-    std::vector<CVector2> m_vecKilobotPositions;
-    std::vector<CDegrees> m_vecKilobotOrientations;
-    std::vector<Real> m_vecLastTimeMessaged;
-    std::vector<UInt8> m_vecStart_experiment;
-    std::vector<UInt8> m_vecKilobotStates;
-    std::vector<UInt8> m_vecKilobotMsgType;
-    UInt8 start_experiment = 0;
-    Real m_fMinTimeBetweenTwoMsg;
+    std::vector<CVector2>   m_vecKilobotPositions;
+    std::vector<CDegrees>   m_vecKilobotOrientations;
+    std::vector<Real>       m_vecLastTimeMessaged;
+    std::vector<UInt8>      m_vecStart_experiment;
+    std::vector<UInt8>      m_vecKilobotStates;
+    std::vector<UInt8>      m_vecKilobotMsgType;
+    Real                    m_fMinTimeBetweenTwoMsg;
+    UInt8                   start_experiment = 0;
 
     // UInt16 log_counter = 0;
 
