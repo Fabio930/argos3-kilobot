@@ -23,26 +23,18 @@ CBestN_ALF::~CBestN_ALF(){}
 void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
-    /* Other initializations: Variables, Log file opening... */
-    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Reset(){
-    /* Close data file */
-    // m_cLog.close();
-    /* Reopen the file, erasing its contents */
-    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Destroy(){
-    /* Close data file */
-    // m_cLog.close();
 }
 
 /****************************************/
@@ -81,35 +73,7 @@ void CBestN_ALF::PostStep(){
             variation_done = true;
         }
     }
-//     if(start_experiment == 1){
-//         log_counter++;
-//         if(log_counter == m_unDataAcquisitionFrequency){
-//             logging_time++;
-//             UpdateLog(logging_time);
-//             log_counter = 0;
-//         }
-//     }
-//     else if(header==0){
-//         UpdateLog(logging_time);
-//         header = 1;
-//     }
 }
-
-/****************************************/
-/****************************************/
-
-// void CBestN_ALF::UpdateLog(UInt16 Time){
-//     if(Time == 0) m_cLog << m_random_seed << '\t';
-//     m_cLog << std::endl;
-//     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
-//     for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
-//         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
-//         << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
-//         << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotStates[i]; 
-//         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
-//     }
-// }
-
 /****************************************/
 /****************************************/
 
@@ -170,9 +134,8 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttribute(tHierarchicalStructNode,"commitment_variation_time",commitment_variation_time);
     GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
+    GetNodeAttribute(tHierarchicalStructNode,"quorum_threshold",quorum_threshold);
     if(commitment_variation_time==0) variation_done = true;
-    // GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
-    // GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
 }
 
 /****************************************/
@@ -249,11 +212,9 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = rebroadcast;
+    tKilobotMessage.m_sType = 0;
     tKilobotMessage.m_sID = expiring_quorum_sec;
-    tKilobotMessage.m_sData = 0;
-    // tKilobotMessage.m_sID = minimum_quorum_length;
-    // tKilobotMessage.m_sData = quorum_scaling_factor*100;
+    tKilobotMessage.m_sData = rebroadcast;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
@@ -266,9 +227,9 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
         else{
             tMessage = tEmptyMessage;
         }
-        m_tMessages[unKilobotID].data[i*3]   = (UInt8)(tMessage.m_sID >> 7) << 1;
+        m_tMessages[unKilobotID].data[i*3]   = (UInt8)(tMessage.m_sID >> 7) << 1 | tKilobotMessage.m_sType;
         m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1;
-        m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sType;
+        m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sData;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
@@ -302,7 +263,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
         else{
             tMessage = tEmptyMessage;
         }
-        m_tMessages[unKilobotID].data[i*3] = (tKilobotMessage.m_sID >> 3) << 1;
+        m_tMessages[unKilobotID].data[i*3] = (tKilobotMessage.m_sID >> 3) << 1 | (tKilobotMessage.m_sType & 0b0001);
         m_tMessages[unKilobotID].data[1+i*3] = (tKilobotMessage.m_sData >> 4) <<2 | (tKilobotMessage.m_sID & 0b0000000110) >> 1;
         m_tMessages[unKilobotID].data[2+i*3] = (tKilobotMessage.m_sID & 0b0000000001) << 7 | (tKilobotMessage.m_sData & 0b0000000001) << 6 | (tKilobotMessage.m_sData & 0b0000001110) << 2 | ((tKilobotMessage.m_sType & 0b1110) >> 1);
     }
@@ -320,8 +281,12 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type   = 0;
     tKilobotMessage.m_sType         = 1;
-    tKilobotMessage.m_sID           = unKilobotID;
-    tKilobotMessage.m_sData         = m_vecKilobotStates[unKilobotID];
+    tKilobotMessage.m_sID           = quorum_threshold*100;
+    tKilobotMessage.m_sID           = tKilobotMessage.m_sID << 7 | unKilobotID;
+    tKilobotMessage.m_sData         = quorum_threshold*100;
+    tKilobotMessage.m_sData         = tKilobotMessage.m_sData >> 3;
+    tKilobotMessage.m_sData         = tKilobotMessage.m_sData << 5 | msgs_n_hops;
+    tKilobotMessage.m_sData         = tKilobotMessage.m_sData << 1 | m_vecKilobotStates[unKilobotID];
     // Prepare an empty ARK-type message to fill the gap in the full kilobot message
     tEmptyMessage.m_sID     = 1023;
     tEmptyMessage.m_sType   = 0;
@@ -335,8 +300,8 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = tKilobotMessage.m_sID << 1 | tKilobotMessage.m_sType;
-        m_tMessages[unKilobotID].data[1+i*3] = msgs_n_hops;
-        m_tMessages[unKilobotID].data[2+i*3] = tKilobotMessage.m_sData;
+        m_tMessages[unKilobotID].data[1+i*3] = (tKilobotMessage.m_sData >> 6) << 3 | (tKilobotMessage.m_sID >> 7)  ;
+        m_tMessages[unKilobotID].data[2+i*3] = tKilobotMessage.m_sData & 0b0000111111;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }

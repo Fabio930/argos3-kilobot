@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="900"
+        <experiment length="1200"
         ticks_per_second="10"/>
     </framework>
     
@@ -52,12 +52,11 @@
         <hierarchicStruct
             rebroadcast = "2"
             msgs_n_hops = "0"
-            expiring_quorum_sec = "300"
-            minimum_quorum_length = "0"
-            quorum_scaling_factor = "0"
-            committed_percentage = "0.8"
-            commitment_variation_time = "500"
-            next_committed_percentage = ".5"
+            expiring_quorum_sec = "900"
+            quorum_threshold = "0.8"
+            committed_percentage = "0.9"
+            commitment_variation_time = "600"
+            next_committed_percentage = "0.7"
         >
         </hierarchicStruct>
 

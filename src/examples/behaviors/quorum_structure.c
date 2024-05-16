@@ -1,9 +1,11 @@
 #include "quorum_structure.h"
 
-void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
+void set_msg_life(const uint32_t Expiring_time){
     expiring_ticks_quorum = Expiring_time;
-    // min_quorum_length = Min_quorum_length;
-    // quorum_scaling_factor = Quorum_scaling_factor*.01;
+}
+
+void set_quorum_threshold(const uint8_t Quorum_threshold){
+    quorum_threshold = Quorum_threshold*.01;
 }
 
 void sort_q(quorum_a **Array[]){

@@ -182,8 +182,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             break;
         case MSG_B:
             if(init_received_A){
-                msg_n_hops = (uint8_t)(sa_payload >> 8);
-                uint8_t state = (uint8_t)sa_payload;
+                uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
+                uint8_t state = (uint8_t)sa_payload & 0b00000001;
+                msg_n_hops = (uint8_t)sa_payload >> 1;
                 switch (state){
                     case 0:
                         led = RGB(0,0,0);
@@ -195,6 +196,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                         my_state = committed;
                         break;
                 }
+                set_quorum_threshold(quorum_threshold);
                 init_received_B = true;
             }
             break;
@@ -243,7 +245,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                         break;
                 }
                 broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
+                set_msg_life(expiring_dist * TICKS_PER_SEC);
                 init_received_A = true;
             }
             break;
@@ -376,11 +378,16 @@ void setup(){
 
 void loop(){
     fp = fopen(log_title,"a");
+    fprintf(fp,"%d\t",my_state);
     for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
+        if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_state);
+        else fprintf(fp,"%d,",quorum_array[i]->agent_state);
+    }
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }    
-    fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info);
+    fprintf(fp,"%ld\t%ld\n",num_own_info,num_other_info);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
