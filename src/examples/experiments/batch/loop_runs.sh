@@ -28,60 +28,82 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 experiment_length="1200"
 variation_time="600"
-RUNS=50
+RUNS=100
 rebroadcast="0 2"
 msg_expiring_sec="60 120 180 300 600"
 numrobots="25"
 threshold="0.8"
-gt_before="0.7"
-gt_after="0.9"
+delta="0.1 -0.1"
 
-strToReplace="."
-replace="_"
-for par in $experiment_length; do
-    dir=$res_dir/"ExperimentLength#"$par
-    if [[ ! -e $dir ]]; then
-        mkdir $dir
+for exp_len_par in $experiment_length; do
+    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    if [[ ! -e $exp_len_dir ]]; then
+        mkdir $exp_len_dir
     fi
-    for par0 in $rebroadcast; do
-        dir0=$dir/"Rebroadcast#"$par0
-        if [[ ! -e $dir0 ]]; then
-            mkdir $dir0
+    for thr_par in $threshold; do
+        thr_dir=$exp_len_dir/"Threshold#"$thr_par
+        if [[ ! -e $thr_dir ]]; then
+            mkdir $thr_dir
         fi
-        for par1 in $numrobots; do
-            dir1=$dir0/"Robots#"$par1
-            if [[ ! -e $dir1 ]]; then
-                mkdir $dir1
+        for dlt_par in $delta; do
+            if (( $(echo "$dlt_par > 0" | bc -l) )); then
+                gt_before=0$(echo "$thr_par - $dlt_par" | bc)
+                gt_after=0$(echo "$thr_par + $dlt_par" | bc)
+            else
+                delta_val_inv=$(echo "$dlt_par * -1" | bc)
+                gt_before=0$(echo "$thr_par + $delta_val_inv" | bc)
+                gt_after=0$(echo "$thr_par - $delta_val_inv" | bc)
             fi
-            last_id=`expr $par1 - 1`
-            for par2 in $msg_expiring_sec; do
-                dir2=$dir1/"MsgExpTime#"$par2
-                if [[ ! -e $dir2 ]]; then
-                    mkdir $dir2
+            gt_before=${gt_before//./_}
+            gt_after=${gt_after//./_}
+            dlt_dir=$thr_dir/"GT#"$gt_before,$gt_after
+            if [[ ! -e $dlt_dir ]]; then
+                mkdir $dlt_dir
+            fi
+
+            gt_before=${gt_before//_/.}
+            gt_after=${gt_after//_/.}
+            for comm_par in $rebroadcast; do
+                comm_dir=$dlt_dir/"Rebroadcast#"$comm_par
+                if [[ ! -e $comm_dir ]]; then
+                    mkdir $comm_dir
                 fi
-                for it in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $par0 $par1 $par2 $it`
-                    cp $base_config $config
-                    sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
-                    sed -i "s|__NUMROBOTS__|$par1|g" $config
-                    sed -i "s|__MSG_EXPIRING_SECONDS__|$par2|g" $config
-                    sed -i "s|__SEED__|$it|g" $config
-                    sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
-                    sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
-                    sed -i "s|__THRESHOLD__|$threshold|g" $config
-                    sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
-                    sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
-                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                    kilo_file="${dt}__run#${it}.tsv"
-                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                    echo "Running next configuration -- $config"
-                    argos3 -c './'$config
-                    for ik in $(seq 0 $last_id); do
-                        rename="quorum_log_agent#$ik"__"$kilo_file"
-                        mv "quorum_log_agent#$ik.tsv" $rename
-                        mv $rename $dir2
+                for agents_par in $numrobots; do
+                    agents_dir=$comm_dir/"Robots#"$agents_par
+                    if [[ ! -e $agents_dir ]]; then
+                        mkdir $agents_dir
+                    fi
+                    last_id=`expr $agents_par - 1`
+                    for msgs_par in $msg_expiring_sec; do
+                        msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
+                        if [[ ! -e $msgs_dir ]]; then
+                            mkdir $msgs_dir
+                        fi
+                        for i in $(seq 1 $RUNS); do
+                            config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
+                            cp $base_config $config
+                            sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                            sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                            sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
+                            sed -i "s|__SEED__|$i|g" $config
+                            sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
+                            sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
+                            sed -i "s|__THRESHOLD__|$threshold|g" $config
+                            sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
+                            sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
+                            dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                            kilo_file="${dt}__run#${i}.tsv"
+                            sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                            echo "Running next configuration -- $config"
+                            argos3 -c './'$config
+                            for j in $(seq 0 $last_id); do
+                                rename="quorum_log_agent#$j"__"$kilo_file"
+                                mv "quorum_log_agent#$j.tsv" $rename
+                                mv $rename $msgs_dir
+                            done
+                            rm *.argos
+                        done
                     done
-                    rm *.argos
                 done
             done
         done
