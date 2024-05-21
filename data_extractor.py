@@ -19,7 +19,7 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_dim(self,msgs_states):
-        print("\n--- Compressing data ---")
+        print("\n--- Processing data ---")
         perc = 0
         compl = len(msgs_states)*len(msgs_states[0])*len(msgs_states[0][0])
         tmp_dim_0 = [np.array([])]*len(msgs_states[0])
@@ -53,11 +53,18 @@ class Results:
     
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
+        print("--- Computing results ---")
+        perc = 0
+        compl = len(m1)*len(m1[0])*len(m1[0][0])
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
+                    sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.flush()
                     out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+                    perc += 1
+        print("\n")
         return out
         
 ##########################################################################################################
@@ -178,9 +185,9 @@ class Results:
                     for mbd in self.min_buff_dim:
                         quorum_results = {}
                         states = self.compute_quorum(results[0],results[1],mbd,threshold)
-                        quorum_results[(threshold+delta,mbd,threshold)] = (states,results[0])
-                        self.dump_times(0,quorum_results,base,path_temp,threshold,threshold+delta,mbd,msg_exp_time,n_agents,self.limit)
-                        self.dump_quorum_and_buffer(0,quorum_results,base,path_temp,threshold,threshold+delta,mbd,msg_exp_time,n_agents)
+                        quorum_results[(threshold,delta,mbd)] = (states,results[0])
+                        self.dump_times(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents,self.limit)
+                        self.dump_quorum_and_buffer(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents)
                                 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
@@ -188,15 +195,15 @@ class Results:
                 print("--- Results saved ---\n")
 
 ##########################################################################################################
-    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs,n_agents):    
-        static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
-        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
+    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs,n_agents):    
+        static_fields=["MinBuffDim","MsgExpTime"]
+        static_values=[MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
         name_fields = []
         values = []
-        file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+str(n_agents)+".csv"
+        file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         tmp_b = base.split('/')
@@ -275,11 +282,11 @@ class Results:
         
 ##########################################################################################################
     def dump_quorum_and_buffer(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
-        if data_in.get((COMMIT,MINS,THR)) is not None:
-            for l in range(len(data_in.get((COMMIT,MINS,THR)))):
-                if data_in.get((COMMIT,MINS,THR))[l] is not None:
+        if data_in.get((THR,COMMIT,MINS)) is not None:
+            for l in range(len(data_in.get((THR,COMMIT,MINS)))):
+                if data_in.get((THR,COMMIT,MINS))[l] is not None:
                     mean_val = 0
-                    multi_run_data = (data_in.get((COMMIT,MINS,THR)))[l]
+                    multi_run_data = (data_in.get((THR,COMMIT,MINS)))[l]
                     flag2=[-1]*len(multi_run_data[0][0])
                     for i in range(len(multi_run_data)):
                         flag1=[-1]*len(multi_run_data[i][0])
@@ -324,14 +331,14 @@ class Results:
                         fstd3[z]=self.extract_median(median_array)
                     ###################################################
                     if l==0:
-                        self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+                        self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
                     else:
-                        self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+                        self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
 
 ##########################################################################################################
     def dump_times(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
-        if data_in.get((COMMIT,MINS,THR)) is not None:
-            multi_run_data = (data_in.get((COMMIT,MINS,THR)))[0]
+        if data_in.get((THR,COMMIT,MINS)) is not None:
+            multi_run_data = (data_in.get((THR,COMMIT,MINS)))[0]
             times = [len(multi_run_data[0][0])] * len(multi_run_data)
             for i in range(len(multi_run_data)): # per ogni run
                 for z in range(len(multi_run_data[i][0])): # per ogni tick
@@ -342,7 +349,7 @@ class Results:
                         times[i] = z
                         break
             times = sorted(times)
-            self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+            self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
 
 ##########################################################################################################
     def extract_median(self,array):
