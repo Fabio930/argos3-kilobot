@@ -14,7 +14,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0]=="Oresults":
+                if selem[0]=="Oresults" or selem[0]=="Presults":
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
@@ -62,11 +62,50 @@ class Results:
                 for k in range(len(m1[i][j])):
                     sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
                     sys.stdout.flush()
-                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
                     perc += 1
+                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         print("\n")
         return out
-        
+    
+##########################################################################################################
+    def compute_meaningfull_msgs(self,data,limit,algo):
+        print("--- Computing avg buffer dimension ---")
+        perc = 0
+        compl = len(data)*len(data[0])*len(data[0][0])
+        data_partial = np.array([])
+        for ag in range(len(data)):
+            runs = np.array([])
+            for rn in range(len(data[ag])):
+                tmp = [0]*len(data[0][0])
+                for tk in range(len(data[ag][rn])):
+                    sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.flush()
+                    flag = []
+                    for el in range(len(data[ag][rn][tk])):
+                        if algo == 'P' and el >= limit: break
+                        elif data[ag][rn][tk][el] not in flag:
+                            flag.append(data[ag][rn][tk][el])
+                            tmp[tk] += 1
+                    perc += 1
+                if len(runs) == 0:
+                    runs = [tmp]
+                else:
+                    runs = np.append(runs,[tmp],axis=0)
+            if len(data_partial) == 0:
+                data_partial = [runs]
+            else:
+                data_partial = np.append(data_partial,[runs],axis=0)
+        msgs_summation = [0]*len(data_partial[0][0])
+        for ag in range(len(data_partial)):
+            for rn in range(len(data_partial[ag])):
+                for tk in range(len(data_partial[ag][rn])):
+                    msgs_summation[tk] += data_partial[ag][rn][tk]
+        for tk in range(len(msgs_summation)):
+            msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
+            msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
+        print("\n")
+        return msgs_summation
+    
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,data_type="all"):
         max_buff_size = n_agents - 1
@@ -188,14 +227,59 @@ class Results:
                         quorum_results[(threshold,delta,mbd)] = (states,results[0])
                         self.dump_times(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents,self.limit)
                         self.dump_quorum_and_buffer(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents)
-                                
+
+                    info_vec     = sub_path.split('/')
+                    t_messages = sub_path.split('#')[-1]
+                    algo     = info_vec[4].split('_')[0][0]
+                    arenaS   = info_vec[4].split('_')[-1][:-1]
+                    BUFFERS = []
+                    if arenaS=='small':
+                        BUFFERS = [19,21,23,24]
+                    elif arenaS=='big':
+                        if n_agents==25:
+                            BUFFERS=[10,14,19,21]
+                        elif n_agents==100:
+                            BUFFERS=[40,56,74,83]
+                    if algo=='P':
+                        for buf in BUFFERS:
+                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,buf,algo)
+                            file_name = "messages_resume.csv"
+                            header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                            write_header = 1
+                            if not os.path.exists(os.path.abspath("")+"/msgs_data"):
+                                os.mkdir(os.path.abspath("")+"/msgs_data")
+                            if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
+                                write_header = 0
+                            fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
+                            fwriter = csv.writer(fw,delimiter='\t')
+                            if write_header == 1:
+                                fwriter.writerow(header)
+                            fwriter.writerow([arenaS,algo,communication,n_agents,buf,messages])
+                            fw.close()
+                    else:
+                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
+                        file_name = "messages_resume.csv"
+                        header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                        write_header = 1
+                        if not os.path.exists(os.path.abspath("")+"/msgs_data"):
+                            os.mkdir(os.path.abspath("")+"/msgs_data")
+                        if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
+                            write_header = 0
+                        fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
+                        fwriter = csv.writer(fw,delimiter='\t')
+                        if write_header == 1:
+                            fwriter.writerow(header)
+                        fwriter.writerow([arenaS,algo,communication,n_agents,t_messages,messages])
+                        fw.close()
+
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
+
                 print("--- Results saved ---\n")
 
 ##########################################################################################################
-    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs,n_agents):    
+    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim","MsgExpTime"]
         static_values=[MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -203,7 +287,10 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+        if base.split('_')[0].split('/')[-1][0] == 'O':
+            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+        else:
+            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         tmp_b = base.split('/')
@@ -278,7 +365,7 @@ class Results:
                     for i in range(len(fstd2)):
                         median_array.append(fstd2[i][z])
                     fstd3[z]=self.extract_median(median_array)
-                self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR,n_agents)
+                self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
     def dump_quorum_and_buffer(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
@@ -331,9 +418,9 @@ class Results:
                         fstd3[z]=self.extract_median(median_array)
                     ###################################################
                     if l==0:
-                        self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+                        self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
                     else:
-                        self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+                        self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def dump_times(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
@@ -349,7 +436,7 @@ class Results:
                         times[i] = z
                         break
             times = sorted(times)
-            self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data),n_agents)
+            self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def extract_median(self,array):
