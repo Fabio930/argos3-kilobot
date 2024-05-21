@@ -19,6 +19,9 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_dim(self,msgs_states):
+        print("\n--- Compressing data ---")
+        perc = 0
+        compl = len(msgs_states)*len(msgs_states[0])*len(msgs_states[0][0])
         tmp_dim_0 = [np.array([])]*len(msgs_states[0])
         tmp_ones_0 = [np.array([])]*len(msgs_states[0])
         for i in range(len(msgs_states[0])):
@@ -30,17 +33,22 @@ class Results:
                 for t in range(len(msgs_states[j][i])):
                     dim = 0
                     ones = 0
+                    sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.flush()
                     for z in range(len(msgs_states[j][i][t])):
                         if(msgs_states[j][i][t][z] == -1):
                             break
                         dim += 1
                         ones += msgs_states[j][i][t][z]
+                    perc += 1
                     tmp_dim_2.append(dim)
                     tmp_ones_2.append(ones)
                 tmp_dim_1[j] = tmp_dim_2
                 tmp_ones_1[j] = tmp_ones_2
             tmp_dim_0[i] = tmp_dim_1
             tmp_ones_0[i] = tmp_ones_1
+        print("\n")
+        
         return (tmp_dim_0,tmp_ones_0)
     
 #########################################################################################################
@@ -177,6 +185,7 @@ class Results:
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
+                print("--- Results saved ---\n")
 
 ##########################################################################################################
     def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs,n_agents):    
