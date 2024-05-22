@@ -164,6 +164,7 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/c_images/"):
             os.mkdir(self.base+"/proc_data/c_images/")
         path = self.base+"/proc_data/c_images/"
+        print(path)
         dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
         dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
         dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
