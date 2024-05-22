@@ -255,14 +255,14 @@ class Results:
                     if algo=='P':
                         for buf in BUFFERS:
                             for gt in range(len(self.ground_truth)):
-                                results = self.compute_quorum_vars_on_ground_truth(base.split('_')[0].split('/')[-1][0],msgs_bigM_1,states_by_gt[gt],buf)
+                                results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],buf)
                                 for minus in self.min_buff_dim:
                                     for thr in self.thresholds.get(self.ground_truth[gt]):
                                         quorum_results = {}
                                         states = self.compute_quorum(results[0],results[1],minus,thr)
                                         quorum_results[(self.ground_truth[gt],minus,thr)] = (states,results[0])
-                                        self.dump_times(base.split('_')[0].split('/')[-1][0],0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
-                                        self.dump_quorum_and_buffer(base.split('_')[0].split('/')[-1][0],0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
+                                        self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
+                                        self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
                                 
                             messages = self.compute_meaningfull_msgs(msgs_bigM_1,buf,algo)
                             file_name = "messages_resume.csv"
@@ -280,14 +280,14 @@ class Results:
                             fw.close()
                     else:
                         for gt in range(len(self.ground_truth)):
-                            results = self.compute_quorum_vars_on_ground_truth(base.split('_')[0].split('/')[-1][0],msgs_bigM_1,states_by_gt[gt],0)
+                            results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0)
                             for minus in self.min_buff_dim:
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
                                     quorum_results = {}
                                     states = self.compute_quorum(results[0],results[1],minus,thr)
                                     quorum_results[(self.ground_truth[gt],minus,thr)] = (states,results[0])
-                                    self.dump_times(base.split('_')[0].split('/')[-1][0],0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
-                                    self.dump_quorum_and_buffer(base.split('_')[0].split('/')[-1][0],0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
+                                    self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time,self.limit)
+                                    self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],minus,msg_exp_time)
 
                         messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo)
                         file_name = "messages_resume.csv"
@@ -306,7 +306,7 @@ class Results:
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
-                    self.dump_msg_freq(base.split('_')[0].split('/')[-1][0],2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
+                    self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
                 
                 print("--- Results saved ---\n")
 
