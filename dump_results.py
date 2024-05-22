@@ -3,6 +3,7 @@
 # if -t is declared then must specify which is the log frequency, default value is 31
 import data_extractor as dex
 import os, sys
+import numpy as np
 
 def check_inputs():
     ticks = 10
@@ -56,7 +57,7 @@ def main():
                             if first>second:
                                 delta_sign = -1
                                 hgh = first
-                            delta = delta_sign*(hgh - threshold)
+                            delta = np.round(delta_sign*(hgh - threshold),2)
                             for comm_dir in sorted(os.listdir(Dgt_path)):
                                 if '.' not in comm_dir and '#' in comm_dir:
                                     comm_path = os.path.join(Dgt_path, comm_dir)
