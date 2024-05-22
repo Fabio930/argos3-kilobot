@@ -2,7 +2,7 @@ import numpy as np
 import os, csv, math, sys
 
 class Results:
-    min_buff_dim = [5]
+    min_buff_dim = 5
     ticks_per_sec = 10
     x_limit = 100
     limit = 0.8
@@ -68,8 +68,8 @@ class Results:
         return out
     
 ##########################################################################################################
-    def compute_meaningfull_msgs(self,data,limit,algo):
-        print("--- Computing avg buffer dimension ---")
+    def compute_meaningfull_msgs(self,data,limit,algo,buf,buf_dim):
+        print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
         perc = 0
         compl = len(data)*len(data[0])*len(data[0][0])
         data_partial = np.array([])
@@ -220,14 +220,6 @@ class Results:
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 if data_type=="all" or data_type=="quorum":
-                    results = self.compute_quorum_dim(msgs_state_bigM_1)
-                    for mbd in self.min_buff_dim:
-                        quorum_results = {}
-                        states = self.compute_quorum(results[0],results[1],mbd,threshold)
-                        quorum_results[(threshold,delta,mbd)] = (states,results[0])
-                        self.dump_times(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents,self.limit)
-                        self.dump_quorum_and_buffer(0,quorum_results,base,path_temp,threshold,delta,mbd,msg_exp_time,n_agents)
-
                     info_vec     = sub_path.split('/')
                     t_messages = sub_path.split('#')[-1]
                     algo     = info_vec[4].split('_')[0][0]
@@ -240,9 +232,16 @@ class Results:
                             BUFFERS=[10,14,19,21]
                         elif n_agents==100:
                             BUFFERS=[40,56,74,83]
+                    results = self.compute_quorum_dim(msgs_state_bigM_1)
+                    quorum_results = {}
+                    states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
+                    quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
+                    self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+                    self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+
                     if algo=='P':
-                        for buf in BUFFERS:
-                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,buf,algo)
+                        for buf in range(len(BUFFERS)):
+                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
@@ -254,10 +253,10 @@ class Results:
                             fwriter = csv.writer(fw,delimiter='\t')
                             if write_header == 1:
                                 fwriter.writerow(header)
-                            fwriter.writerow([arenaS,algo,communication,n_agents,buf,messages])
+                            fwriter.writerow([arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
                             fw.close()
                     else:
-                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
+                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
                         header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                         write_header = 1
@@ -274,12 +273,10 @@ class Results:
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
-                    self.dump_msg_freq(2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
-
-                print("--- Results saved ---\n")
+                    self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
 
 ##########################################################################################################
-    def dump_resume_csv(self,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
+    def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim","MsgExpTime"]
         static_values=[MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -287,7 +284,7 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        if base.split('_')[0].split('/')[-1][0] == 'O':
+        if algo == 'O':
             file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
         else:
             file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
@@ -328,7 +325,7 @@ class Results:
         fw.close()
 
 ##########################################################################################################
-    def dump_msg_freq(self,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,n_agents):
+    def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,n_agents):
         for l in range(len(data_in.get(0))):
             multi_run_data = data_in.get(0)[l]
             if multi_run_data is not None:
@@ -365,10 +362,10 @@ class Results:
                     for i in range(len(fstd2)):
                         median_array.append(fstd2[i][z])
                     fstd3[z]=self.extract_median(median_array)
-                self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
-    def dump_quorum_and_buffer(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
+    def dump_quorum_and_buffer(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
         if data_in.get((THR,COMMIT,MINS)) is not None:
             for l in range(len(data_in.get((THR,COMMIT,MINS)))):
                 if data_in.get((THR,COMMIT,MINS))[l] is not None:
@@ -418,12 +415,12 @@ class Results:
                         fstd3[z]=self.extract_median(median_array)
                     ###################################################
                     if l==0:
-                        self.dump_resume_csv(l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+                        self.dump_resume_csv(algo,l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
                     else:
-                        self.dump_resume_csv(l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+                        self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
-    def dump_times(self,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
         if data_in.get((THR,COMMIT,MINS)) is not None:
             multi_run_data = (data_in.get((THR,COMMIT,MINS)))[0]
             times = [len(multi_run_data[0][0])] * len(multi_run_data)
@@ -436,7 +433,7 @@ class Results:
                         times[i] = z
                         break
             times = sorted(times)
-            self.dump_resume_csv(-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+            self.dump_resume_csv(algo,-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def extract_median(self,array):
