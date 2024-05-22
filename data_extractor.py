@@ -243,7 +243,7 @@ class Results:
                         for buf in range(len(BUFFERS)):
                             messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
-                            header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                            header = ["ArenaSize","algo","threshold","GT","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
                             if not os.path.exists(os.path.abspath("")+"/msgs_data"):
                                 os.mkdir(os.path.abspath("")+"/msgs_data")
@@ -253,12 +253,12 @@ class Results:
                             fwriter = csv.writer(fw,delimiter='\t')
                             if write_header == 1:
                                 fwriter.writerow(header)
-                            fwriter.writerow([arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
+                            fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,BUFFERS[buf],messages])
                             fw.close()
                     else:
                         messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
-                        header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
+                        header = ["ArenaSize","algo","threshold","GT","broadcast","n_agents","buff_dim","data"]
                         write_header = 1
                         if not os.path.exists(os.path.abspath("")+"/msgs_data"):
                             os.mkdir(os.path.abspath("")+"/msgs_data")
@@ -268,7 +268,7 @@ class Results:
                         fwriter = csv.writer(fw,delimiter='\t')
                         if write_header == 1:
                             fwriter.writerow(header)
-                        fwriter.writerow([arenaS,algo,communication,n_agents,t_messages,messages])
+                        fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,t_messages,messages])
                         fw.close()
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
