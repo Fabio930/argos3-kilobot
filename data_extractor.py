@@ -91,12 +91,11 @@ class Results:
     def compute_quorum(self,m1,m2,minus,threshold):
         perc = 0
         compl = len(m1)*len(m1[0])*len(m1[0][0])
-
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
-                    sys.stdout.write(f"\rComputing results for threshold: {threshold}\nProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.write(f"\rComputing results for threshold: {threshold} Progress: {np.round((perc/compl)*100,3)}%")
                     sys.stdout.flush()
                     perc += 1
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
