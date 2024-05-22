@@ -26,7 +26,7 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
-        print("\n--- Processing data ---",gt/gt_dim)
+        print(f"\n--- Processing data {gt}/{gt_dim} ---")
         perc = 0
         compl = len(states)*len(states[0])*len(m1[0][0])
         if algo == 'O':
@@ -96,15 +96,15 @@ class Results:
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
-                    sys.stdout.write(f"Computing results for threshold: {threshold}\n\rProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.write(f"\rComputing results for threshold: {threshold}\nProgress: {np.round((perc/compl)*100,3)}%")
                     sys.stdout.flush()
                     perc += 1
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         return out
 
 ##########################################################################################################
-    def compute_meaningfull_msgs(self,data,limit,algo):
-        print("--- Computing avg buffer dimension ---")
+    def compute_meaningfull_msgs(self,data,limit,algo,buf,buf_dim):
+        print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
         perc = 0
         compl = len(data)*len(data[0])*len(data[0][0])
         data_partial = np.array([])
@@ -250,9 +250,9 @@ class Results:
                         elif n_agents==100:
                             BUFFERS=[40,56,74,83]
                     if algo=='P':
-                        for buf in BUFFERS:
+                        for buf in range(len(BUFFERS)):
                             for gt in range(len(self.ground_truth)):
-                                results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],buf,gt+1,len(self.ground_truth))
+                                results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
                                     quorum_results = {}
                                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
@@ -260,7 +260,7 @@ class Results:
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
                                 
-                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,buf,algo)
+                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
@@ -272,7 +272,7 @@ class Results:
                             fwriter = csv.writer(fw,delimiter='\t')
                             if write_header == 1:
                                 fwriter.writerow(header)
-                            fwriter.writerow([arenaS,algo,communication,n_agents,buf,messages])
+                            fwriter.writerow([arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
                             fw.close()
                     else:
                         for gt in range(len(self.ground_truth)):
@@ -284,7 +284,7 @@ class Results:
                                 self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
 
-                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo)
+                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
                         header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                         write_header = 1
