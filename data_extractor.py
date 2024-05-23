@@ -258,7 +258,7 @@ class Results:
                                     quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
-                                
+                                print("\n")
                             messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
@@ -282,6 +282,7 @@ class Results:
                                 quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                 self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                            print("\n")
 
                         messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
