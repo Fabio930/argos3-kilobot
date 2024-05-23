@@ -21,12 +21,12 @@ class Data:
         dict_park, dict_adam, dict_our = {},{},{}
         for k in data.keys():
             if k[1]=='P':
-                dict_park.update({(k[0],k[3],k[4]):data.get(k)})
+                dict_park.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
             else:
-                if int(k[2])==0:
-                    dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
+                if int(k[4])==0:
+                    dict_adam.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 else:
-                    dict_our.update({(k[0],k[3],k[4]):data.get(k)})
+                    dict_our.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
         self.print_messages([dict_park,dict_adam,dict_our])
 ##########################################################################################################
     def read_msgs_csv(self,path):
@@ -51,7 +51,7 @@ class Data:
                                         tval+=c
                             array_val.append(float(tval))
                             if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4]):array_val})
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6]):array_val})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -129,10 +129,6 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        if not os.path.exists(self.base+"/proc_data/o_images"):
-            os.mkdir(self.base+"/proc_data/o_images")
-        if not os.path.exists(self.base+"/proc_data/p_images"):
-            os.mkdir(self.base+"/proc_data/p_images")
         states, times, buffer, messages_b, messages_r = {},{},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
@@ -161,10 +157,9 @@ class Data:
     
 ##########################################################################################################
     def plot_active(self,data_in,times):
-        if not os.path.exists(self.base+"/proc_data/c_images/"):
-            os.mkdir(self.base+"/proc_data/c_images/")
-        path = self.base+"/proc_data/c_images/"
-        print(path)
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
         dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
         dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
         dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
@@ -276,25 +271,25 @@ class Data:
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,20))
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
-            norm = int(k[1])-1
+            norm = int(k[3])-1
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_adam.update({k:tmp})
         for k in dict_park.keys():
             tmp =[]
             res = dict_park.get(k)
-            norm = int(k[1])-1
+            norm = int(k[3])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_park.update({k:tmp})
         for k in dict_our.keys():
             tmp =[]
             res = dict_our.get(k)
-            norm = int(k[1])-1
+            norm = int(k[3])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_our.update({k:tmp})
@@ -302,116 +297,135 @@ class Data:
             row = 0
             col = 0
             sign = []
-            if k[0]=='big' and k[1]=='25':
+            if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[2] == '10':
+                if k[4] == '10':
                     col = 0
-                elif k[2] == '13':
+                elif k[4] == '13':
                     col = 1
-                elif k[2] == '21':
+                elif k[4] == 'x':
                     col = 2
-                elif k[2] == '24':
+                elif k[4] == '21':
                     col = 3
-            elif k[0]=='big' and k[1]=='100':
+                elif k[4] == '24':
+                    col = 4
+            elif k[0]=='big' and k[3]=='100':
                 row = 2
-                if k[2] == '10':
+                if k[4] == '10':
                     col = 0
-                elif k[2] == '32':
+                elif k[4] == '32':
                     col = 1
-                elif k[2] == '78':
+                elif k[4] == 'x':
                     col = 2
-                elif k[2] == '99':
+                elif k[4] == '78':
                     col = 3
-            elif k[0]=='small':
+                elif k[4] == '99':
+                    col = 4
+            elif k[0]=='small' and k[3]=='25':
                 row = 1
-                if k[2] == '10':
+                if k[4] == '19':
                     col = 0
-                elif k[2] == '13':
+                elif k[4] == '22':
                     col = 1
-                elif k[2] == '21':
+                elif k[4] == '23':
                     col = 2
-                elif k[2] == '24':
+                elif k[4] == '23':
                     col = 3
+                elif k[4] == '24':
+                    col = 4
             for xi in range(0,900):
-                sign.append(int(k[2])/int(k[1]))
+                sign.append(int(k[4])/int(k[3]))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             # ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[1]=='25':
+            if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
-            elif k[0]=='big' and k[1]=='100':
+                elif k[4] == '600':
+                    col = 4
+            elif k[0]=='big' and k[3]=='100':
                 row = 2
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
+                elif k[4] == '600':
+                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
+                elif k[4] == '600':
+                    col = 4
+            print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-30:])*int(k[3])-1,1))
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_our.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[1]=='25':
+            if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
-            elif k[0]=='big' and k[1]=='100':
+                elif k[4] == '600':
+                    col = 4
+            elif k[0]=='big' and k[3]=='100':
                 row = 2
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
+                elif k[4] == '600':
+                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
+                if k[4] == '60':
                     col = 0
-                elif k[2] == '120':
+                elif k[4] == '120':
                     col = 1
-                elif k[2] == '300':
+                elif k[4] == '180':
                     col = 2
-                elif k[2] == '600':
+                elif k[4] == '300':
                     col = 3
+                elif k[4] == '600':
+                    col = 4
             ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         
         for x in range(2):
-            for y in range(4):
+            for y in range(5):
                 labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_xticklabels(empty_string_labels)
         for x in range(3):
-            for y in range(1,4):
+            for y in range(1,5):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
@@ -419,19 +433,22 @@ class Data:
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
         axt3=ax[0][3].twiny()
+        axt4=ax[0][4].twiny()
         labels = [item.get_text() for item in axt0.get_xticklabels()]
         empty_string_labels = ['']*len(labels)
         axt0.set_xticklabels(empty_string_labels)
         axt1.set_xticklabels(empty_string_labels)
         axt2.set_xticklabels(empty_string_labels)
         axt3.set_xticklabels(empty_string_labels)
+        axt4.set_xticklabels(empty_string_labels)
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 120\, s$")
-        axt2.set_xlabel(r"$T_m = 300\, s$")
-        axt3.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][3].twinx()
-        ayt1=ax[1][3].twinx()
-        ayt2=ax[2][3].twinx()
+        axt2.set_xlabel(r"$T_m = 180\, s$")
+        axt3.set_xlabel(r"$T_m = 300\, s$")
+        axt4.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][4].twinx()
+        ayt1=ax[1][4].twinx()
+        ayt2=ax[2][4].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
@@ -447,8 +464,9 @@ class Data:
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
         ax[2][3].set_xlabel(r"$T\, (s)$")
+        ax[2][4].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(4):
+            for y in range(5):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
                 if x==0 or x==1:
@@ -456,9 +474,9 @@ class Data:
                 else:
                     ax[x][y].set_ylim(0,1)
         fig.tight_layout()
-        if not os.path.exists(self.base+"/msgs_data/c_images/"):
-            os.mkdir(self.base+"/msgs_data/c_images/")
-        fig_path = self.base+"/msgs_data/c_images/messages.png"
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
+        fig_path = self.base+"/msgs_data/images/messages.png"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)

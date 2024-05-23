@@ -243,7 +243,7 @@ class Results:
                         for buf in range(len(BUFFERS)):
                             messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
-                            header = ["ArenaSize","algo","threshold","GT","broadcast","n_agents","buff_dim","data"]
+                            header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
                             if not os.path.exists(os.path.abspath("")+"/msgs_data"):
                                 os.mkdir(os.path.abspath("")+"/msgs_data")
@@ -258,7 +258,7 @@ class Results:
                     else:
                         messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
-                        header = ["ArenaSize","algo","threshold","GT","broadcast","n_agents","buff_dim","data"]
+                        header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
                         write_header = 1
                         if not os.path.exists(os.path.abspath("")+"/msgs_data"):
                             os.mkdir(os.path.abspath("")+"/msgs_data")
