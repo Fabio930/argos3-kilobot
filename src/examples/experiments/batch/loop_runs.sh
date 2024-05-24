@@ -26,7 +26,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="12"
+experiment_length="1200"
 variation_time="600"
 RUNS=50
 rebroadcast="0 2"
