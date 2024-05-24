@@ -26,7 +26,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1200"
+experiment_length="12"
 variation_time="600"
 RUNS=50
 rebroadcast="0 2"
@@ -41,10 +41,12 @@ for exp_len_par in $experiment_length; do
         mkdir $exp_len_dir
     fi
     for thr_par in $threshold; do
+        thr_par=${thr_par//./_}
         thr_dir=$exp_len_dir/"Threshold#"$thr_par
         if [[ ! -e $thr_dir ]]; then
             mkdir $thr_dir
         fi
+        thr_par=${thr_par//_/.}
         for dlt_par in $delta; do
             if (( $(echo "$dlt_par > 0" | bc -l) )); then
                 gt_before=0$(echo "$thr_par - $dlt_par" | bc)
@@ -86,9 +88,9 @@ for exp_len_par in $experiment_length; do
                             sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                             sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                             sed -i "s|__SEED__|$i|g" $config
-                            sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
+                            sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                             sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
-                            sed -i "s|__THRESHOLD__|$threshold|g" $config
+                            sed -i "s|__THRESHOLD__|$thr_par|g" $config
                             sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
                             sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
                             dt=$(date '+%d-%m-%Y_%H-%M-%S')
