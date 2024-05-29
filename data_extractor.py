@@ -126,7 +126,6 @@ class Results:
                 states_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
-                # assign randomly the state to agents at each run
                 print("--- Path ---")
                 print(sub_path,"\n")
                 print("--- Extract data ---")
