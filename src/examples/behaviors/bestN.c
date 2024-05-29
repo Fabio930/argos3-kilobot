@@ -353,7 +353,7 @@ void loop(){
     fp = fopen(log_title,"a");
     switch (num_quorum_items){
         case 0:
-            fprintf(fp,"%d\n",my_state);
+            fprintf(fp,"%d\t",my_state);
             break;
         
         default:
