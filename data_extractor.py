@@ -226,12 +226,12 @@ class Results:
                     arenaS   = info_vec[4].split('_')[-1][:-1]
                     BUFFERS = []
                     if arenaS=='small':
-                        BUFFERS = [19,21,23,24]
+                        BUFFERS = [19,22,23,23,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[10,14,19,21]
+                            BUFFERS=[11,15,17,19,22]
                         elif n_agents==100:
-                            BUFFERS=[40,56,74,83]
+                            BUFFERS=[40,56,66,76,85]
                     results = self.compute_quorum_dim(msgs_state_bigM_1)
                     quorum_results = {}
                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)

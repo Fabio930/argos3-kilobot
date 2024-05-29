@@ -156,6 +156,11 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
     
 ##########################################################################################################
+    def plot_active_w_2_gt_1_thr(self,data_in):
+        
+        return
+
+##########################################################################################################
     def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
@@ -299,27 +304,27 @@ class Data:
             sign = []
             if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[4] == '10':
+                if k[4] == '11':
                     col = 0
-                elif k[4] == '13':
+                elif k[4] == '15':
                     col = 1
-                elif k[4] == 'x':
+                elif k[4] == '17':
                     col = 2
-                elif k[4] == '21':
+                elif k[4] == '19':
                     col = 3
-                elif k[4] == '24':
+                elif k[4] == '22':
                     col = 4
             elif k[0]=='big' and k[3]=='100':
                 row = 2
-                if k[4] == '10':
+                if k[4] == '40':
                     col = 0
-                elif k[4] == '32':
+                elif k[4] == '56':
                     col = 1
-                elif k[4] == 'x':
+                elif k[4] == '66':
                     col = 2
-                elif k[4] == '78':
+                elif k[4] == '76':
                     col = 3
-                elif k[4] == '99':
+                elif k[4] == '85':
                     col = 4
             elif k[0]=='small' and k[3]=='25':
                 row = 1
@@ -336,7 +341,7 @@ class Data:
             for xi in range(0,900):
                 sign.append(int(k[4])/int(k[3]))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
-            # ax[row][col].plot(sign,color="black",lw=6,ls="--")
+            ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -376,7 +381,7 @@ class Data:
                     col = 3
                 elif k[4] == '600':
                     col = 4
-            print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-30:])*int(k[3])-1,1))
+            # print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-30:])*int(k[3])-1,1))
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_our.keys():
             row = 0
