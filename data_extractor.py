@@ -95,8 +95,8 @@ class Results:
         return out
     
 ##########################################################################################################
-    def compute_meaningfull_msgs(self,data,limit,algo,buf,buf_dim):
-        print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
+    def compute_meaningfull_msgs(self,data,limit,algo):
+        print("--- Computing avg buffer dimension ---")
         perc = 0
         compl = len(data)*len(data[0])*len(data[0][0])
         data_partial = np.array([])
@@ -267,7 +267,7 @@ class Results:
                             self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
                             print("\n")
-                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
+                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
@@ -289,7 +289,7 @@ class Results:
                         self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
                         print("\n")
-                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo,1,1)
+                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
                         file_name = "messages_resume.csv"
                         header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
                         write_header = 1

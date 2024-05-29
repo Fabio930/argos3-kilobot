@@ -224,112 +224,33 @@ class Data:
         void        = mlines.Line2D([], [], linestyle='None')
 
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        for gt in ground_T:
+            fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+            tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+            for a in arena:
+                if a=="smallA":
+                    agents = ["25"]
+                else:
+                    agents = more_k[1]
+                for ag in agents:
+                    row = 1  if a=="smallA" else 0
+                    p_k = [str(19),str(22),str(23),str(23),str(24)]
+                    if int(ag)==100:
+                        p_k = [str(40),str(56),str(66),str(76),str(85)]
+                        row = 2
+                    for k in range(len(o_k)):
 
-##########################################################################################################
-    def plot_active(self,data_in,times):
-        if not os.path.exists(self.base+"/proc_data/images/"):
-            os.mkdir(self.base+"/proc_data/images/")
-        path = self.base+"/proc_data/images/"
-        dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
-        dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
-        dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
-        dict_park_tmin,dict_adms_tmin,dict_our_tmin = {},{},{}
-        dict_park_tmax,dict_adms_tmax,dict_our_tmax = {},{},{}
-        dict_park_tmed,dict_adms_tmed,dict_our_tmed = {},{},{}
-        ground_T, threshlds , jolly                 = [],[],[]
-        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
-        p_k,o_k                                     = [],[]
-        for i in range(len(data_in)):
-            da_K = data_in[i].keys()
-            for k0 in da_K:
-                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
-                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
-                if k0[9]not in jolly: jolly.append(k0[9])
-                if k0[0]not in algo: algo.append(k0[0])
-                if k0[1]not in arena: arena.append(k0[1])
-                if k0[2]not in runs: runs.append(k0[2])
-                if k0[3]not in time: time.append(k0[3])
-                if k0[4]not in comm: comm.append(k0[4])
-                if k0[5]not in agents: agents.append(k0[5])
-                if k0[8]not in buf_dim: buf_dim.append(k0[8])
-        for i in range(len(data_in)):
-            a='P' if (i==2 or i==3) else 'O'
-            for a_s in arena:
-                for n_r in runs:
-                    for et in time:
-                        for c in comm:
-                            for n_a in agents:
-                                for m_b_d in buf_dim:
-                                    for m_t in jolly:
-                                        vals            = []
-                                        vals_m          = []
-                                        vals_r          = []
-                                        times_min       = []
-                                        times_max       = []
-                                        times_median    = []
-                                        for gt in ground_T:
-                                            tmp         = []
-                                            t_max       = []
-                                            reg         = []
-                                            tmp_tmin    = []
-                                            tmp_tmax    = []
-                                            tmp_tmed    = []
-                                            for thr in threshlds:
-                                                s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
-                                                t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
-                                                if s_data != None:
-                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    tmp.append(np.round(float(s_data[2])/int(n_a),2))
-                                                    t_max.append(np.round(np.max(s_data[0]),2))
-                                                    reg.append(np.round(np.median(s_data[0][-30:]),2))
-                                                    tmp_tmin.append(np.round(np.min(t_data[0]),2))
-                                                    tmp_tmax.append(np.round(np.max(t_data[0]),2))
-                                                    tmp_tmed.append(np.round(np.median(t_data[0][:]),2))
-                                            if len(vals)==0:
-                                                vals            = np.array([tmp])
-                                                vals_m          = np.array([t_max])
-                                                vals_r          = np.array([reg])
-                                                times_min       = np.array([tmp_tmin])
-                                                times_max       = np.array([tmp_tmax])
-                                                times_median    = np.array([tmp_tmed])
-                                            else:
-                                                vals            = np.append(vals,[tmp],axis=0)
-                                                vals_m          = np.append(vals_m,[t_max],axis=0)
-                                                vals_r          = np.append(vals_r,[reg],axis=0)
-                                                times_min       = np.append(times_min,[tmp_tmin],axis=0)
-                                                times_max       = np.append(times_max,[tmp_tmax],axis=0)
-                                                times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                        if a=='P' and int(c)==0 and m_t in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='21' or m_t=='24')) or (n_a=='100' and (m_t=='10' or m_t=='32' or m_t=='78' or m_t=='99')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='21' or m_t=='24')))):
-                                                dict_park_avg.update({(a_s,n_a,m_t):vals})
-                                                dict_park_max.update({(a_s,n_a,m_t):vals_m})
-                                                dict_park_fin.update({(a_s,n_a,m_t):vals_r})
-                                                dict_park_tmin.update({(a_s,n_a,m_t):times_min})
-                                                dict_park_tmax.update({(a_s,n_a,m_t):times_max})
-                                                dict_park_tmed.update({(a_s,n_a,m_t):times_median})
-                                        if a=='O' and m_t in o_k:
-                                            if len(vals[0])>0:
-                                                if int(c)==0:
-                                                    dict_adms_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_adms_max.update({(a_s,n_a,m_t):vals_m})
-                                                    dict_adms_fin.update({(a_s,n_a,m_t):vals_r})
-                                                    dict_adms_tmin.update({(a_s,n_a,m_t):times_min})
-                                                    dict_adms_tmax.update({(a_s,n_a,m_t):times_max})
-                                                    dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
-                                                else:
-                                                    dict_our_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_our_max.update({(a_s,n_a,m_t):vals_m})
-                                                    dict_our_fin.update({(a_s,n_a,m_t):vals_r})
-                                                    dict_our_tmin.update({(a_s,n_a,m_t):times_min})
-                                                    dict_our_tmax.update({(a_s,n_a,m_t):times_max})
-                                                    dict_our_tmed.update({(a_s,n_a,m_t):times_median})
-        self.print_borders(path,'avg','min',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
-        self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
-        self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
-        
+            fig.tight_layout()
+            tfig.tight_layout()
+            fig_path = path+gt+"_activation.png"
+            tfig_path = path+gt+"_time.png"
+            fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
+            tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+            fig.savefig(fig_path, bbox_inches='tight')
+            tfig.savefig(tfig_path, bbox_inches='tight')
+            plt.close(fig)
+            plt.close(tfig)
+
 ##########################################################################################################
     def print_messages(self,data_in):
         plt.rcParams.update({"font.size":26})
