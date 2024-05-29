@@ -187,19 +187,45 @@ class Data:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
-                                        vals    = []
-                                        vals_t  = []
                                         for gt in ground_T:
-                                            tmp     = []
-                                            tmp_t   = []
                                             for thr in threshlds:
                                                 s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
                                                 t_data = times[i].get((a,a_s,n_r,et,str(thr),str(gt),c,n_a,m_b_d,m_t))
                                                 if s_data != None:
                                                     if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
                                                         p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    tmp.append(np.round(float(s_data[2])/int(n_a),2))
-                                                    tmp_t.append(np.round(np.min(t_data[0]),2))
+                                                    
+                                                    if a=='P' and int(c)==0 and m_t in p_k:
+                                                        dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                        dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                    if a=='O' and m_t in o_k:
+                                                        if int(c)==0:
+                                                            dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                            dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                        else:
+                                                            dict_our_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                            dict_our_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_state,dict_our_time],[p_k,o_k],[arena,agents])
+
+##########################################################################################################
+    def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
+        plt.rcParams.update({"font.size":26})
+        cm = plt.get_cmap('viridis') 
+        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
+        p_k, o_k = keys[0],keys[1]
+        arena = more_k[0]
+        typo = [0,1,2,3]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        void        = mlines.Line2D([], [], linestyle='None')
+
+        handles_r   = [red,blue,green]
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
 
 ##########################################################################################################
     def plot_active(self,data_in,times):
