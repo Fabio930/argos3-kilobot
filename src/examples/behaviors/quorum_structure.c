@@ -105,12 +105,12 @@ void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
     *Myquorum=NULL;
 }
 
-uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time){
     uint8_t out;
     out = 1;
     if(num_quorum_items < buffer_lenght){
         if(*Myquorum != NULL){
-            out = update_circular_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
+            out = update_circular_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time);
         }
         else{
             (*Myquorum) = (quorum_a*)malloc(sizeof(quorum_a));
@@ -118,7 +118,6 @@ uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev
             (*Myquorum)->counter = expiring_time;
             (*Myquorum)->agent_state = received_state;
             (*Myquorum)->delivered = 0;
-            (*Myquorum)->msg_n_hops = Msg_n_hops;
             num_quorum_items++;
             if (Prev != NULL && *Prev != NULL){
                 (*Myquorum)->prev = *Prev;
@@ -136,12 +135,12 @@ uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev
         num_quorum_items--;
         sort_q(Array);
         (*Myquorum) = NULL;
-        out = update_circular_q(Array,Myquorum,&((*Array)[num_quorum_items-1]),Agent_id,received_state,expiring_time,Msg_n_hops); 
+        out = update_circular_q(Array,Myquorum,&((*Array)[num_quorum_items-1]),Agent_id,received_state,expiring_time); 
     }
     return out; 
 }
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time){
     uint8_t out;
     out = 1;
     if(*Myquorum != NULL){
@@ -152,10 +151,9 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
                 (*Myquorum)->counter = expiring_time;
                 (*Myquorum)->agent_state = received_state;
                 (*Myquorum)->delivered = 0;
-                (*Myquorum)->msg_n_hops = Msg_n_hops;
             }
         }
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
+        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time);
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
@@ -163,7 +161,6 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         (*Myquorum)->counter = expiring_time;
         (*Myquorum)->agent_state = received_state;
         (*Myquorum)->delivered = 0;
-        (*Myquorum)->msg_n_hops = Msg_n_hops;
         num_quorum_items++;
         if (Prev != NULL && *Prev != NULL){
             (*Myquorum)->prev = *Prev;
@@ -181,17 +178,10 @@ uint16_t select_a_random_message(){
     else return 0b1111111111111111;
 }
 
-uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops){
+uint16_t select_message_by_fifo(quorum_a **Array[]){
     if(num_quorum_items>0){
         for(uint8_t i=num_quorum_items-1;i>=0;i--){
-            switch (check_4_hops){
-                case 0:
-                    if((*Array)[i]->delivered == 0) return i;
-                    break;
-                default:
-                    if((*Array)[i]->delivered == 0 && (*Array)[i]->msg_n_hops > 0) return i;
-                    break;
-            }
+            if((*Array)[i]->delivered == 0) return i;
             if(i==0) break;
         }
     }
