@@ -47,19 +47,11 @@ void talk(){
                 break;
             case 1:
                 selected_msg_indx = select_a_random_message();
-                switch(msg_n_hops){
-                    case 0:
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
-                        else broadcast();
-                        break;
-                    default:
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0 && quorum_array[selected_msg_indx]->msg_n_hops > 0) rebroadcast();
-                        else broadcast();
-                        break;
-                }
+                if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
+                else broadcast();        
                 break;
             case 2:
-                selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
+                selected_msg_indx = select_message_by_fifo(&quorum_array);
                 if(selected_msg_indx != 0b1111111111111111) rebroadcast();
                 else broadcast();                
                 break;
@@ -75,7 +67,7 @@ void broadcast(){
     // frequency log
     num_own_info += 1;
     // message
-    sa_type = msg_n_hops;
+    sa_type = 0;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -88,14 +80,7 @@ void rebroadcast(){
     // frequency log
     num_other_info +=1;
     // message
-    switch (msg_n_hops){
-        case 0:
-            sa_type = 0;
-            break;
-        default:
-            sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
-            break;
-    }
+    sa_type = 0;
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -200,9 +185,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-void update_messages(const uint8_t Msg_n_hops){
+void update_messages(){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
     sort_q(&quorum_array);
 }
 

@@ -166,7 +166,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
 /*-------------------------------------------------------------------*/
 /*                   Check and save incoming data                    */
 /*-------------------------------------------------------------------*/
-void update_messages(const uint8_t Msg_n_hops);
+void update_messages();
 
 /*-------------------------------------------------------------------*/
 /*                      Parse smart messages                         */
