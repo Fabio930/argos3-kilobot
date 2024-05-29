@@ -210,7 +210,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = rebroadcast;
-    tKilobotMessage.m_sID = broadcasting_ticks;
+    tKilobotMessage.m_sID = 0;
     tKilobotMessage.m_sData = queue_lenght;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;

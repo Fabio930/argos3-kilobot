@@ -77,7 +77,6 @@ float RotSpeed = 45.0;
 
 /* current state */
 state_t my_state;
-uint8_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
