@@ -52,7 +52,6 @@
         <hierarchicStruct
             rebroadcast = "0"
             queue_lenght = "99"
-            broadcasting_ticks = "16"
             committed_percentage = "0.6"
             commitment_variation_time = "500"
             next_committed_percentage = ".5"

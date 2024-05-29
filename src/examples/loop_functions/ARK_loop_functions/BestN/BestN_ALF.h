@@ -69,7 +69,6 @@ private:
     bool                    variation_done = false;
     float                   next_committed_percentage;
 
-    UInt8                   broadcasting_ticks;
     UInt8                   queue_lenght;
     UInt8                   rebroadcast;
 

@@ -92,7 +92,7 @@ bool init_received_B = false;
 bool init_received_C = false;
 
 /* counters for broadcast a message */
-uint16_t broadcasting_ticks = 16;
+const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
 uint8_t broadcasting_flag = 0;
 

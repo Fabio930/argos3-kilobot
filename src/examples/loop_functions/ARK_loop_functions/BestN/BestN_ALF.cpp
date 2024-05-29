@@ -131,7 +131,6 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"queue_lenght",queue_lenght);
-    GetNodeAttribute(tHierarchicalStructNode,"broadcasting_ticks",broadcasting_ticks);
     GetNodeAttribute(tHierarchicalStructNode,"commitment_variation_time",commitment_variation_time);
     GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
     if(commitment_variation_time==0) variation_done = true;
@@ -212,7 +211,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = rebroadcast;
-    tKilobotMessage.m_sID = broadcasting_ticks;
+    tKilobotMessage.m_sID = 0;
     tKilobotMessage.m_sData = queue_lenght;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
