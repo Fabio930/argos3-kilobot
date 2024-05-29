@@ -5,7 +5,6 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-
 wdir=`pwd`
 base_config=$1$2
 if [ ! -e $base_config ]; then
@@ -27,58 +26,90 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="600"
-RUNS=3
+experiment_length="1200"
+variation_time="600"
+RUNS=50
 rebroadcast="0"
-numrobots="25"
+numrobots="25 100"
+threshold="0.8"
+delta="0.1 -0.1"
 
-strToReplace="."
-replace="_"
-for par in $experiment_length; do
-    dir=$res_dir/"ExperimentLength#"$par
-    for par0 in $rebroadcast; do
-        dir0=$dir/"Rebroadcast#"$par0
-        for par1 in $numrobots; do
-            dir1=$dir0/"Robots#"$par1
-            last_id=`expr $par1 - 1`
-            if [ $par1 -eq 25 ]; then
-                buffer_dim="24"
-            elif [ $par1 -eq 100 ]; then
-                buffer_dim="99"
+for exp_len_par in $experiment_length; do
+    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    if [[ ! -e $exp_len_dir ]]; then
+        mkdir $exp_len_dir
+    fi
+    for thr_par in $threshold; do
+        thr_par=${thr_par//./_}
+        thr_dir=$exp_len_dir/"Threshold#"$thr_par
+        if [[ ! -e $thr_dir ]]; then
+            mkdir $thr_dir
+        fi
+        thr_par=${thr_par//_/.}
+        for dlt_par in $delta; do
+            if (( $(echo "$dlt_par > 0" | bc -l) )); then
+                gt_before=0$(echo "$thr_par - $dlt_par" | bc)
+                gt_after=0$(echo "$thr_par + $dlt_par" | bc)
+            else
+                delta_val_inv=$(echo "$dlt_par * -1" | bc)
+                gt_before=0$(echo "$thr_par + $delta_val_inv" | bc)
+                gt_after=0$(echo "$thr_par - $delta_val_inv" | bc)
             fi
-            for par2 in $buffer_dim; do
-                dir2=$dir1/"BufferDim#"$par2
-                if [[ ! -e $dir ]]; then
-                    mkdir $dir
+            gt_before=${gt_before//./_}
+            gt_after=${gt_after//./_}
+            dlt_dir=$thr_dir/"GT#"$gt_before,$gt_after
+            if [[ ! -e $dlt_dir ]]; then
+                mkdir $dlt_dir
+            fi
+
+            gt_before=${gt_before//_/.}
+            gt_after=${gt_after//_/.}
+            for comm_par in $rebroadcast; do
+                comm_dir=$dlt_dir/"Rebroadcast#"$comm_par
+                if [[ ! -e $comm_dir ]]; then
+                    mkdir $comm_dir
                 fi
-                if [[ ! -e $dir0 ]]; then
-                    mkdir $dir0
-                fi
-                if [[ ! -e $dir1 ]]; then
-                    mkdir $dir1
-                fi
-                if [[ ! -e $dir2 ]]; then
-                    mkdir $dir2
-                fi
-                for it in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%d_nrobots%d_bufferDim%d_run%d.argos' $par0 $par1 $par2 $it`
-                    cp $base_config $config
-                    sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
-                    sed -i "s|__NUMROBOTS__|$par1|g" $config
-                    sed -i "s|__QUORUM_BUFFER_DIM__|$par2|g" $config
-                    sed -i "s|__SEED__|$it|g" $config
-                    sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
-                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                    kilo_file="${dt}__run#${it}.tsv"
-                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                    echo "Running next configuration -- $config"
-                    argos3 -c './'$config
-                    for ik in $(seq 0 $last_id); do
-                        rename="quorum_log_agent#$ik"__"$kilo_file"
-                        mv "quorum_log_agent#$ik.tsv" $rename
-                        mv $rename $dir2
+                for agents_par in $numrobots; do
+                    agents_dir=$comm_dir/"Robots#"$agents_par
+                    if [[ ! -e $agents_dir ]]; then
+                        mkdir $agents_dir
+                    fi
+                    last_id=`expr $agents_par - 1`
+                    if [ $agents_par -eq 25 ]; then
+                        buffer_dim="24"
+                    elif [ $agents_par -eq 100 ]; then
+                        buffer_dim="99"
+                    fi
+                    for buff_par in $buffer_dim; do
+                        buff_dir=$agents_dir/"BufferDim#"$buff_par
+                        if [[ ! -e $buff_dir ]]; then
+                            mkdir $buff_dir
+                        fi
+                        for i in $(seq 1 $RUNS); do
+                            config=`printf 'config_rebroad%d_nrobots%d_bufferDim%d_run%d.argos' $comm_par $agents_par $buff_par $i`
+                            cp $base_config $config
+                            sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                            sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                            sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                            sed -i "s|__SEED__|$i|g" $config
+                            sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                            sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
+                            sed -i "s|__THRESHOLD__|$thr_par|g" $config
+                            sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
+                            sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
+                            dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                            kilo_file="${dt}__run#${i}.tsv"
+                            sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                            echo "Running next configuration -- $config"
+                            argos3 -c './'$config
+                            for j in $(seq 0 $last_id); do
+                                rename="quorum_log_agent#$j"__"$kilo_file"
+                                mv "quorum_log_agent#$j.tsv" $rename
+                                mv $rename $buff_dir
+                            done
+                            rm *.argos
+                        done
                     done
-                    rm *.argos
                 done
             done
         done

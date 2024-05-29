@@ -55,21 +55,17 @@ public:
     
     Real abs_distance(const CVector2 a,const CVector2 b);
 
-    // void UpdateLog(UInt16 Time);
-
 private:
 
     /************************************/
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    // UInt8 minimum_quorum_length;
     float                   committed_percentage;
     UInt16                  commitment_variation_time;
     bool                    variation_done = false;
     float                   next_committed_percentage;
 
-    UInt8                   broadcasting_ticks;
     UInt8                   queue_lenght;
     UInt8                   rebroadcast;
 
@@ -82,8 +78,6 @@ private:
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
 
-    // UInt16 log_counter = 0;
-
     /************************************/
     /*       Experiment variables       */
     /************************************/
@@ -95,7 +89,6 @@ private:
     uint m_random_seed;
 
     /* output file for data acquisition */
-    // std::ofstream m_cLog;
     UInt8 header = 0;
     UInt16 logging_time = 0;
 
