@@ -30,7 +30,7 @@ experiment_length="1200"
 variation_time="600"
 RUNS=50
 rebroadcast="0"
-numrobots="25 100"
+numrobots="25"
 threshold="0.8"
 delta="0.1 -0.1"
 
@@ -57,7 +57,7 @@ for exp_len_par in $experiment_length; do
             fi
             gt_before=${gt_before//./_}
             gt_after=${gt_after//./_}
-            dlt_dir=$thr_dir/"GT#"$gt_before,$gt_after
+            dlt_dir=$thr_dir/"GT#"$gt_before";"$gt_after
             if [[ ! -e $dlt_dir ]]; then
                 mkdir $dlt_dir
             fi

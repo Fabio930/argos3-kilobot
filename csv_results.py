@@ -156,9 +156,50 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
     
 ##########################################################################################################
-    def plot_active_w_2_gt_1_thr(self,data_in):
-        
-        return
+    def plot_active_w_gt_thr(self,data_in,times):
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
+        dict_park_state,dict_adms_state,dict_our_state    = {},{},{}
+        dict_park_time,dict_adms_time,dict_our_time    = {},{},{}
+        ground_T, threshlds , jolly                 = [],[],[]
+        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
+        p_k,o_k                                     = [],[]
+        for i in range(len(data_in)):
+            da_K = data_in[i].keys()
+            for k0 in da_K:
+                if k0[5] not in ground_T: ground_T.append(k0[5])
+                if k0[4] not in threshlds: threshlds.append(k0[4])
+                if k0[9]not in jolly: jolly.append(k0[9])
+                if k0[0]not in algo: algo.append(k0[0])
+                if k0[1]not in arena: arena.append(k0[1])
+                if k0[2]not in runs: runs.append(k0[2])
+                if k0[3]not in time: time.append(k0[3])
+                if k0[6]not in comm: comm.append(k0[6])
+                if k0[7]not in agents: agents.append(k0[7])
+                if k0[8]not in buf_dim: buf_dim.append(k0[8])
+        for i in range(len(data_in)):
+            a='P' if (i==2 or i==3) else 'O'
+            for a_s in arena:
+                for n_r in runs:
+                    for et in time:
+                        for c in comm:
+                            for n_a in agents:
+                                for m_b_d in buf_dim:
+                                    for m_t in jolly:
+                                        vals    = []
+                                        vals_t  = []
+                                        for gt in ground_T:
+                                            tmp     = []
+                                            tmp_t   = []
+                                            for thr in threshlds:
+                                                s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
+                                                t_data = times[i].get((a,a_s,n_r,et,str(thr),str(gt),c,n_a,m_b_d,m_t))
+                                                if s_data != None:
+                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
+                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
+                                                    tmp.append(np.round(float(s_data[2])/int(n_a),2))
+                                                    tmp_t.append(np.round(np.min(t_data[0]),2))
 
 ##########################################################################################################
     def plot_active(self,data_in,times):
@@ -473,7 +514,7 @@ class Data:
         for x in range(3):
             for y in range(5):
                 ax[x][y].grid(True)
-                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_xlim(0,1200)
                 if x==0 or x==1:
                     ax[x][y].set_ylim(0,1)
                 else:

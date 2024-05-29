@@ -51,8 +51,8 @@ def main():
                             delta_sign = 1
                             Dgt_path = os.path.join(thr_path,Dgt_dir)
                             delta_str = Dgt_dir.split('#')[1].replace('_','.')
-                            first = float(delta_str.split(',')[0])
-                            second = float(delta_str.split(',')[1])
+                            first = float(delta_str.split(';')[0])
+                            second = float(delta_str.split(';')[1])
                             hgh = second
                             if first>second:
                                 delta_sign = -1
