@@ -266,6 +266,7 @@ class Results:
                             quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                             self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
+                            print("\n")
                             messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
@@ -281,12 +282,13 @@ class Results:
                             fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,BUFFERS[buf],messages])
                             fw.close()
                     else:
-                        results = self.compute_quorum_dim(msgs_state_bigM_1,0,1,1)
+                        results = self.compute_quorum_dim(algo,msgs_state_bigM_1,0,1,1)
                         quorum_results = {}
                         states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                         quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                         self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+                        print("\n")
                         messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
                         header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
