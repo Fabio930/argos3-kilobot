@@ -190,7 +190,7 @@ class Data:
                                         for gt in ground_T:
                                             for thr in threshlds:
                                                 s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
-                                                t_data = times[i].get((a,a_s,n_r,et,str(thr),str(gt),c,n_a,m_b_d,m_t))
+                                                t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
                                                 if s_data != None:
                                                     if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
                                                         p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
@@ -212,7 +212,7 @@ class Data:
         plt.rcParams.update({"font.size":26})
         cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
+        # tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
         p_k, o_k = keys[0],keys[1]
         arena = more_k[0]
         typo = [0,1,2,3]
@@ -222,34 +222,143 @@ class Data:
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
         void        = mlines.Line2D([], [], linestyle='None')
-
+        svoid_x_ticks = []
+        void_x_ticks = []
+        void_y_ticks = []
+        real_x_ticks = []
         handles_r   = [red,blue,green]
         for gt in ground_T:
-            fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-            tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-            for a in arena:
-                if a=="smallA":
-                    agents = ["25"]
-                else:
-                    agents = more_k[1]
-                for ag in agents:
-                    row = 1  if a=="smallA" else 0
-                    p_k = [str(19),str(22),str(23),str(23),str(24)]
-                    if int(ag)==100:
-                        p_k = [str(40),str(56),str(66),str(76),str(85)]
-                        row = 2
-                    for k in range(len(o_k)):
-                        break
-            fig.tight_layout()
-            tfig.tight_layout()
-            fig_path = path+gt+"_activation.png"
-            tfig_path = path+gt+"_time.png"
-            fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
-            tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
-            fig.savefig(fig_path, bbox_inches='tight')
-            tfig.savefig(tfig_path, bbox_inches='tight')
-            plt.close(fig)
-            plt.close(tfig)
+            for thr in threshlds:
+                fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(36,20))
+                # tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,20))
+                for a in arena:
+                    if a=="smallA":
+                        agents = ["25"]
+                    else:
+                        agents = more_k[1]
+                    for ag in agents:
+                        if a == "smallA":
+                            row = 1
+                            p_k = [str(19),str(22),str(23),str(23.01),str(24)]
+                        else:
+                            row = 0
+                            p_k = [str(11),str(15),str(17),str(19),str(22)]
+                        if int(ag)==100:
+                            row = 2
+                            p_k = [str(41),str(57),str(66),str(76),str(85)]
+                        for k in range(len(o_k)):
+                            ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            ax[row][k].plot(dict_adam.get((a,ag,o_k[k],gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            ax[row][k].plot(dict_our.get((a,ag,o_k[k],gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            # tax[row][k].plot(tdict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            # tax[row][k].plot(tdict_adam.get((a,ag,o_k[k],gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            # tax[row][k].plot(tdict_our.get((a,ag,o_k[k],gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            ax[row][k].set_xlim(0,1201)
+                            ax[row][k].set_ylim(0,1)
+                            # tax[row][k].set_xlim(0,1201)
+                            if len(real_x_ticks)==0:
+                                for x in range(0,1201,1):
+                                    if x%100 == 0:
+                                        svoid_x_ticks.append('')
+                                        void_x_ticks.append('')
+                                        real_x_ticks.append(str(int(np.round(x/100,0))))
+                                    else:
+                                        void_x_ticks.append('')
+                                for y in range(0,11,1):
+                                    void_y_ticks.append('')
+                            if row == 0:
+                                ax[row][k].set_xticks(np.arange(0,1201,100),labels=svoid_x_ticks)
+                                # tax[row][k].set_xticks(np.arange(0,1201,100),labels=svoid_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                                # tax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                                axt = ax[row][k].twiny()
+                                # taxt = tax[row][k].twiny()
+                                labels = [item.get_text() for item in axt.get_xticklabels()]
+                                empty_string_labels = ['']*len(labels)
+                                axt.set_xticklabels(empty_string_labels)
+                                # taxt.set_xticklabels(empty_string_labels)
+                                if k==0:
+                                    axt.set_xlabel(r"$T_m = 60\, s$")
+                                    # taxt.set_xlabel(r"$T_m = 60\, s$")
+                                elif k==1:
+                                    axt.set_xlabel(r"$T_m = 120\, s$")
+                                    # taxt.set_xlabel(r"$T_m = 120\, s$")
+                                elif k==2:
+                                    axt.set_xlabel(r"$T_m = 180\, s$")
+                                    # taxt.set_xlabel(r"$T_m = 180\, s$")
+                                elif k==3:
+                                    axt.set_xlabel(r"$T_m = 300\, s$")
+                                    # taxt.set_xlabel(r"$T_m = 300\, s$")
+                                elif k==4:
+                                    axt.set_xlabel(r"$T_m = 600\, s$")
+                                    # taxt.set_xlabel(r"$T_m = 600\, s$")
+                            elif row==2:
+                                ax[row][k].set_xticks(np.arange(0,1201,100),labels=real_x_ticks)
+                                # tax[row][k].set_xticks(np.arange(0,1201,100),labels=real_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                                # tax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                                if k==0:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                    # tax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==1:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                    # tax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==2:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                    # tax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==3:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                    # tax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==4:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                    # tax[row][k].set_xlabel(r"$T\,  s$")
+                            else:
+                                ax[row][k].set_xticks(np.arange(0,1201,100),labels=svoid_x_ticks)
+                                # tax[row][k].set_xticks(np.arange(0,1201,100),labels=svoid_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                                # tax[row][k].set_xticks(np.arange(0,1201,1),labels=void_x_ticks,minor=True)
+                            if k==0:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1))
+                                if row==0:
+                                    ax[row][k].set_ylabel(r"$G$")
+                                    # tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                                elif row==1:
+                                    ax[row][k].set_ylabel(r"$G$")
+                                    # tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                                elif row==2:
+                                    ax[row][k].set_ylabel(r"$G$")
+                                    # tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                            elif k==4:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
+                                axt = ax[row][k].twinx()
+                                # taxt = tax[row][k].twinx()
+                                labels = [item.get_text() for item in axt.get_yticklabels()]
+                                empty_string_labels = ['']*len(labels)
+                                axt.set_yticklabels(empty_string_labels)
+                                # taxt.set_yticklabels(empty_string_labels)
+                                if row==0:
+                                    axt.set_ylabel("LD25")
+                                    # taxt.set_ylabel("LD25")
+                                elif row==1:
+                                    axt.set_ylabel("HD25")
+                                    # taxt.set_ylabel("HD25")
+                                elif row==2:
+                                    axt.set_ylabel("HD100")
+                                    # taxt.set_ylabel("HD100")
+                            else:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
+                            ax[row][k].grid(which='major')
+                            # tax[row][k].grid(which='major')
+                fig.tight_layout()
+                # tfig.tight_layout()
+                fig_path = path+thr+"_"+gt+"_activation.png"
+                # tfig_path = path+thr+"_"+gt+"_time.png"
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                # tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.savefig(fig_path, bbox_inches='tight')
+                # tfig.savefig(tfig_path, bbox_inches='tight')
+                plt.close(fig)
+                # plt.close(tfig)
 
 ##########################################################################################################
     def print_messages(self,data_in):
@@ -264,7 +373,7 @@ class Data:
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(36,20))
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -327,7 +436,7 @@ class Data:
                 elif k[4] == '24':
                     col = 4
             for xi in range(0,1200):
-                sign.append(int(k[4])/(int(k[3])-1))
+                sign.append(int(float(k[4]))/(int(k[3])-1))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
@@ -474,287 +583,6 @@ class Data:
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
-##########################################################################################################
-    def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        plt.rcParams.update({"font.size":26})
-        cm = plt.get_cmap('viridis') 
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
-        p_k, o_k = keys[0],keys[1]
-        arena = more_k[0]
-        typo = [0,1,2,3]
-        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        vals8p = [[0]*len(threshlds)]*len(o_k)
-        vals2p = [[0]*len(threshlds)]*len(o_k)
-        vals8a = [[0]*len(threshlds)]*len(o_k)
-        vals2a = [[0]*len(threshlds)]*len(o_k)
-        vals8o = [[0]*len(threshlds)]*len(o_k)
-        vals2o = [[0]*len(threshlds)]*len(o_k)
-
-        tvalsp = [[0]*len(threshlds)]*len(o_k)
-        tvalsa = [[0]*len(threshlds)]*len(o_k)
-        tvalso = [[0]*len(threshlds)]*len(o_k)
-
-        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='P = 0.2')
-        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='P = 0.8')
-        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        void        = mlines.Line2D([], [], linestyle='None')
-
-        handles_c   = [triangles,dots]
-        handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-        str_threshlds = []
-        void_str_threshlds = []
-        svoid_str_threshlds = []
-        void_str_gt = []
-        void_str_tim = []
-        for a in arena:
-            if a=="smallA":
-                agents = ["25"]
-            else:
-                agents = more_k[1]
-            for ag in agents:
-                row = 1  if a=="smallA" else 0
-                p_k = [str(10),str(13),str(21),str(24)]
-                if int(ag)==100:
-                    p_k = [str(10),str(32),str(78),str(99)]
-                    row = 2
-                for k in range(len(o_k)):
-                    for th in range(len(threshlds)):
-                        p_vals2,a_vals2,o_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_vals8,a_vals8,o_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt2,a_gt2,o_gt2       = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt8,a_gt8,o_gt8       = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_valst,a_valst,o_valst = np.nan,np.nan,np.nan
-                        for pt in range(len(ground_T)):
-                            pval    = dict_park.get((a,ag,p_k[k]))[pt][th]
-                            aval    = dict_adam.get((a,ag,o_k[k]))[pt][th]
-                            oval    = dict_our.get((a,ag,o_k[k]))[pt][th]
-                            tpval   = tdict_park.get((a,ag,p_k[k]))[pt][th]
-                            taval   = tdict_adam.get((a,ag,o_k[k]))[pt][th]
-                            toval   = tdict_our.get((a,ag,o_k[k]))[pt][th]
-                            if pval>=0.8:
-                                if p_vals8[1] is np.nan or pval<p_vals8[1]:
-                                    p_valst     = tpval
-                                    p_vals8[1]  = pval
-                                    p_gt8[1]    = ground_T[pt]
-                            elif pval<=0.2:
-                                if p_vals2[0] is np.nan or pval>=p_vals2[0]:
-                                    p_vals2[0]  = pval
-                                    p_gt2[0]    = ground_T[pt]
-                            else:
-                                if p_vals8[0] is np.nan or pval>p_vals8[0]:
-                                    p_vals8[0]  = pval
-                                    p_gt8[0]    = ground_T[pt]
-                                if p_vals2[1] is np.nan or pval<p_vals2[1]:
-                                    p_vals2[1]  = pval
-                                    p_gt2[1]    = ground_T[pt]
-                            if oval>=0.8:
-                                if o_vals8[1] is np.nan or oval<o_vals8[1]:
-                                    o_valst     = toval
-                                    o_vals8[1]  = oval
-                                    o_gt8[1]    = ground_T[pt]
-                            elif oval<=0.2:
-                                if o_vals2[0] is np.nan or oval>=o_vals2[0]:
-                                    o_vals2[0]  = oval
-                                    o_gt2[0]    = ground_T[pt]
-                            else:
-                                if o_vals8[0] is np.nan or oval>o_vals8[0]:
-                                    o_vals8[0]  = oval
-                                    o_gt8[0]    = ground_T[pt]
-                                if o_vals2[1] is np.nan or oval<o_vals2[1]:
-                                    o_vals2[1]  = oval
-                                    o_gt2[1]    = ground_T[pt]
-                            if aval>=0.8:
-                                if a_vals8[1] is np.nan or aval<a_vals8[1]:
-                                    a_valst     = taval
-                                    a_vals8[1]  = aval
-                                    a_gt8[1]    = ground_T[pt]
-                            elif aval<=0.2:
-                                if a_vals2[0] is np.nan or aval>=a_vals2[0]:
-                                    a_vals2[0]  = aval
-                                    a_gt2[0]    = ground_T[pt]
-                            else:
-                                if a_vals8[0] is np.nan or aval>a_vals8[0]:
-                                    a_vals8[0]  = aval
-                                    a_gt8[0]    = ground_T[pt]
-                                if a_vals2[1] is np.nan or aval<a_vals2[1]:
-                                    a_vals2[1]  = aval
-                                    a_gt2[1]    = ground_T[pt]
-                        if p_vals8[0] is np.nan:
-                            p_vals8[0] = p_vals8[1]
-                            p_gt8[0] = p_gt8[1]
-                        elif p_vals8[1] is np.nan:
-                            p_vals8[1] = p_vals8[0]
-                            p_gt8[1] = p_gt8[0]
-                        if p_vals2[0] is np.nan:
-                            p_vals2[0] = p_vals2[1]
-                            p_gt2[0] = p_gt2[1]
-                        elif p_vals2[1] is np.nan:
-                            p_vals2[1] = p_vals2[0]
-                            p_gt2[1] = p_gt2[0]
-                        if o_vals8[0] is np.nan:
-                            o_vals8[0] = o_vals8[1]
-                            o_gt8[0] = o_gt8[1]
-                        elif o_vals8[1] is np.nan:
-                            o_vals8[1] = o_vals8[0]
-                            o_gt8[1] = o_gt8[0]
-                        if o_vals2[0] is np.nan:
-                            o_vals2[0] = o_vals2[1]
-                            o_gt2[0] = o_gt2[1]
-                        elif o_vals2[1] is np.nan:
-                            o_vals2[1] = o_vals2[0]
-                            o_gt2[1] = o_gt2[0]
-                        if a_vals8[0] is np.nan:
-                            a_vals8[0] = a_vals8[1]
-                            a_gt8[0] = a_gt8[1]
-                        elif a_vals8[1] is np.nan:
-                            a_vals8[1] = a_vals8[0]
-                            a_gt8[1] = a_gt8[0]
-                        if a_vals2[0] is np.nan:
-                            a_vals2[0] = a_vals2[1]
-                            a_gt2[0] = a_gt2[1]
-                        elif a_vals2[1] is np.nan:
-                            a_vals2[1] = a_vals2[0]
-                            a_gt2[1] = a_gt2[0]
-
-                        vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
-                        vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
-                        vals2o[k][th] = np.round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
-                        vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
-                        vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
-                        vals8o[k][th] = np.round(np.interp([0.8],o_vals8,o_gt8,right=np.nan)[0],3)
-                        tvalsp[k][th] = p_valst
-                        tvalsa[k][th] = a_valst
-                        tvalso[k][th] = o_valst
-                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
-                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    ax[row][k].plot(vals2o[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    ax[row][k].plot(vals8o[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
-                    ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    tax[row][k].plot(tvalso[k],color=scalarMap.to_rgba(typo[2]),lw=6)
-                    if len(str_threshlds)==0:
-                        for x in threshlds:
-                            if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
-                                str_threshlds.append(str(x))
-                                void_str_threshlds.append('')
-                                svoid_str_threshlds.append('')
-                            else:
-                                void_str_threshlds.append('')
-                        for x in range(5,11,1):
-                            void_str_gt.append('')
-                        for x in range(0,601,100):
-                            void_str_tim.append('')
-                    ax[row][k].set_xlim(0.5,1)
-                    tax[row][k].set_xlim(0.5,1)
-                    ax[row][k].set_ylim(0.5,1)
-                    tax[row][k].set_ylim(0.5,1)
-                    if row==0:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        axt = ax[row][k].twiny()
-                        taxt = tax[row][k].twiny()
-                        labels = [item.get_text() for item in axt.get_xticklabels()]
-                        empty_string_labels = ['']*len(labels)
-                        axt.set_xticklabels(empty_string_labels)
-                        taxt.set_xticklabels(empty_string_labels)
-                        if k==0:
-                            axt.set_xlabel(r"$T_m = 60\, s$")
-                            taxt.set_xlabel(r"$T_m = 60\, s$")
-                        elif k==1:
-                            axt.set_xlabel(r"$T_m = 120\, s$")
-                            taxt.set_xlabel(r"$T_m = 120\, s$")
-                        elif k==2:
-                            axt.set_xlabel(r"$T_m = 300\, s$")
-                            taxt.set_xlabel(r"$T_m = 300\, s$")
-                        elif k==3:
-                            axt.set_xlabel(r"$T_m = 600\, s$")
-                            taxt.set_xlabel(r"$T_m = 600\, s$")
-                    elif row==2:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        if k==0:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==1:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==2:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==3:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                    else:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                    if k==0:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        tax[row][k].set_yticks(np.arange(0,601,100))
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
-                        if row==0:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
-                        elif row==1:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
-                        elif row==2:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
-                    elif k==3:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
-                        axt = ax[row][k].twinx()
-                        taxt = tax[row][k].twinx()
-                        labels = [item.get_text() for item in axt.get_yticklabels()]
-                        empty_string_labels = ['']*len(labels)
-                        axt.set_yticklabels(empty_string_labels)
-                        taxt.set_yticklabels(empty_string_labels)
-                        if row==0:
-                            axt.set_ylabel("LD25")
-                            taxt.set_ylabel("LD25")
-                        elif row==1:
-                            axt.set_ylabel("HD25")
-                            taxt.set_ylabel("HD25")
-                        elif row==2:
-                            axt.set_ylabel("HD100")
-                            taxt.set_ylabel("HD100")
-                    else:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
-                    ax[row][k].grid(which='major')
-                    tax[row][k].grid(which='major')
-
-        fig.tight_layout()
-        tfig.tight_layout()
-        fig_path = path+_type+"_activation.png"
-        tfig_path = path+t_type+"_time.png"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
-        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
-        fig.savefig(fig_path, bbox_inches='tight')
-        tfig.savefig(tfig_path, bbox_inches='tight')
-        plt.close(fig)
-        plt.close(tfig)
-
 ##########################################################################################################
     def extract_median(self,array,max_time):
         mt = int(max_time)
