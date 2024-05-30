@@ -26,8 +26,6 @@ def main():
                             elif val[0] == 'a':
                                 arena = val[1]
                     data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                    print(data)
-                    print("\n=====================\n")
                     keys, states, times, buffers, messages_counts = csv_res.divide_data(data)     
                     if len(tot_st) == 0:
                         tot_st      = [states]
@@ -37,7 +35,7 @@ def main():
                         tot_st      = np.append(tot_st,[states],axis=0)
                         tot_times   = np.append(tot_times,[times],axis=0)
                         tot_buffer  = np.append(tot_buffer,[buffers],axis=0)
-            csv_res.plot_active(tot_st,tot_times)
+            csv_res.plot_active_w_gt_thr(tot_st,tot_times)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:
