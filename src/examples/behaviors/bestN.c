@@ -351,22 +351,10 @@ void setup(){
 
 void loop(){
     fp = fopen(log_title,"a");
-    switch (num_quorum_items){
-        case 0:
-            fprintf(fp,"%d\t",my_state);
-            break;
-        
-        default:
-            fprintf(fp,"%d\t",my_state);
-            for (uint8_t i = 0; i < num_quorum_items; i++){
-                if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_state);
-                else fprintf(fp,"%d,",quorum_array[i]->agent_state);
-            }   
-            for (uint8_t i = 0; i < num_quorum_items; i++){
-                if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
-                else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-            }     
-            break;
+    fprintf(fp,"%d\t",my_state);
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
+        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }
     fprintf(fp,"%ld\t%ld\n",num_own_info,num_other_info);
     fclose(fp);
