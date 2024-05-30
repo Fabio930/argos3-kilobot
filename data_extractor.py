@@ -255,9 +255,9 @@ class Results:
                         BUFFERS = [19,22,23,23.01,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[10,15,17,19,22]
+                            BUFFERS=[11,15,17,19,22]
                         elif n_agents==100:
-                            BUFFERS=[40,56,66,75,85]
+                            BUFFERS=[41,57,66,76,85]
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
                             results = self.compute_quorum_dim(algo,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))

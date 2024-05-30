@@ -292,7 +292,7 @@ class Data:
             sign = []
             if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[4] == '10':
+                if k[4] == '11':
                     col = 0
                 elif k[4] == '15':
                     col = 1
@@ -304,13 +304,13 @@ class Data:
                     col = 4
             elif k[0]=='big' and k[3]=='100':
                 row = 2
-                if k[4] == '40':
+                if k[4] == '41':
                     col = 0
-                elif k[4] == '56':
+                elif k[4] == '57':
                     col = 1
                 elif k[4] == '66':
                     col = 2
-                elif k[4] == '75':
+                elif k[4] == '76':
                     col = 3
                 elif k[4] == '85':
                     col = 4
@@ -369,7 +369,7 @@ class Data:
                     col = 3
                 elif k[4] == '600':
                     col = 4
-            print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-10:])*int(k[3])-1,0))
+            # print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-10:])*(int(k[3])-1),0))
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_our.keys():
             row = 0
