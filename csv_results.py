@@ -327,7 +327,7 @@ class Data:
                 elif k[4] == '24':
                     col = 4
             for xi in range(0,1200):
-                sign.append(int(k[4])/int(k[3]))
+                sign.append(int(k[4])/(int(k[3])-1))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
