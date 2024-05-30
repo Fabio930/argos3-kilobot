@@ -469,6 +469,9 @@ class Data:
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
         p_k, o_k = keys[0],keys[1]
+        for x in range(len(o_k)):
+            o_k[x] = int(o_k[x])
+        o_k = np.sort(o_k)
         arena = more_k[0]
         typo = [0,1,2,3]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -520,11 +523,11 @@ class Data:
                         p_valst,a_valst,o_valst = np.nan,np.nan,np.nan
                         for pt in range(len(ground_T)):
                             pval    = dict_park.get((a,ag,p_k[k]))[pt][th]
-                            aval    = dict_adam.get((a,ag,o_k[k]))[pt][th]
-                            oval    = dict_our.get((a,ag,o_k[k]))[pt][th]
+                            aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
+                            oval    = dict_our.get((a,ag,str(o_k[k])))[pt][th]
                             tpval   = tdict_park.get((a,ag,p_k[k]))[pt][th]
-                            taval   = tdict_adam.get((a,ag,o_k[k]))[pt][th]
-                            toval   = tdict_our.get((a,ag,o_k[k]))[pt][th]
+                            taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
+                            toval   = tdict_our.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
                                 if p_vals8[1] is np.nan or pval<p_vals8[1]:
                                     p_valst     = tpval
