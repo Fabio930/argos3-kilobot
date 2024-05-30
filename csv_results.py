@@ -239,7 +239,7 @@ class Data:
                         p_k = [str(40),str(56),str(66),str(76),str(85)]
                         row = 2
                     for k in range(len(o_k)):
-
+                        break
             fig.tight_layout()
             tfig.tight_layout()
             fig_path = path+gt+"_activation.png"
@@ -292,7 +292,7 @@ class Data:
             sign = []
             if k[0]=='big' and k[3]=='25':
                 row = 0
-                if k[4] == '11':
+                if k[4] == '10':
                     col = 0
                 elif k[4] == '15':
                     col = 1
@@ -310,7 +310,7 @@ class Data:
                     col = 1
                 elif k[4] == '66':
                     col = 2
-                elif k[4] == '76':
+                elif k[4] == '75':
                     col = 3
                 elif k[4] == '85':
                     col = 4
@@ -322,11 +322,11 @@ class Data:
                     col = 1
                 elif k[4] == '23':
                     col = 2
-                elif k[4] == '23':
+                elif k[4] == '23.01':
                     col = 3
                 elif k[4] == '24':
                     col = 4
-            for xi in range(0,900):
+            for xi in range(0,1200):
                 sign.append(int(k[4])/int(k[3]))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             ax[row][col].plot(sign,color="black",lw=6,ls="--")
@@ -369,7 +369,7 @@ class Data:
                     col = 3
                 elif k[4] == '600':
                     col = 4
-            # print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-30:])*int(k[3])-1,1))
+            print(k[0],k[3],k[4],np.round(np.mean(dict_adam.get(k)[-10:])*int(k[3])-1,0))
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_our.keys():
             row = 0

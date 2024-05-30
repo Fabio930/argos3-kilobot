@@ -67,7 +67,7 @@ class Results:
                         start = 0
                         sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
                         sys.stdout.flush()
-                        if len(tmp) > buf_lim: start= len(tmp) - buf_lim
+                        if len(tmp) > int(buf_lim): start = len(tmp) - int(buf_lim)
                         for z in range(start,len(tmp)):
                             dim += 1
                             ones += msgs_states[j][i][t][z]
@@ -109,7 +109,7 @@ class Results:
                     sys.stdout.flush()
                     flag = []
                     for el in range(len(data[ag][rn][tk])):
-                        if algo == 'P' and el >= limit: break
+                        if algo == 'P' and el >= int(limit): break
                         elif data[ag][rn][tk][el] not in flag:
                             flag.append(data[ag][rn][tk][el])
                             tmp[tk] += 1
@@ -252,12 +252,12 @@ class Results:
                     arenaS   = info_vec[4].split('_')[-1][:-1]
                     BUFFERS = []
                     if arenaS=='small':
-                        BUFFERS = [19,22,23,23,24]
+                        BUFFERS = [19,22,23,23.01,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[11,15,17,19,22]
+                            BUFFERS=[10,15,17,19,22]
                         elif n_agents==100:
-                            BUFFERS=[40,56,66,76,85]
+                            BUFFERS=[40,56,66,75,85]
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
                             results = self.compute_quorum_dim(algo,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
