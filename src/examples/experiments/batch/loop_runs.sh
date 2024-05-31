@@ -58,7 +58,7 @@ for exp_len_par in $experiment_length; do
             fi
             gt_before=${gt_before//./_}
             gt_after=${gt_after//./_}
-            dlt_dir=$thr_dir/"GT#"$gt_before;$gt_after
+            dlt_dir=$thr_dir/"GT#"$gt_before";"$gt_after
             if [[ ! -e $dlt_dir ]]; then
                 mkdir $dlt_dir
             fi

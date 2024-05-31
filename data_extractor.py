@@ -145,11 +145,9 @@ class Results:
                 num_runs = int(len(os.listdir(sub_path))/n_agents)
                 states_bigM_1 = [np.array([])] * n_agents
                 msgs_id_bigM_1 = [np.array([])] * n_agents
-                msgs_state_bigM_1 = [np.array([])] * n_agents
                 act_bigM_1 = [np.array([])] * n_agents
                 act_bigM_2 = [np.array([])] * n_agents
                 msgs_id_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
-                msgs_state_M_1 = [np.array([],dtype=int)]*num_runs
                 states_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
@@ -183,6 +181,7 @@ class Results:
                                         re_broadcast_c = 0
                                         sem = 0
                                         for val in row:
+                                            print(val.count('\t'))
                                             if val.count('\t')==0:
                                                 if sem == 1: msgs_state.append(int(val))
                                                 elif sem == 2: msgs_id.append(int(val))
@@ -234,7 +233,6 @@ class Results:
                                             msgs_id_M_1[seed-1] = np.append(msgs_id_M_1[seed-1],[msgs_id],axis=0)
                             if len(msgs_id_M_1[seed-1])!=max_steps: print(seed,len(msgs_id_M_1[seed-1]),len(msgs_id_M_1[seed-1][-1]))
                             if seed == num_runs:
-                                msgs_state_bigM_1[agent_id] = msgs_state_M_1
                                 msgs_id_bigM_1[agent_id] = msgs_id_M_1
                                 states_bigM_1[agent_id] = states_M_1
                                 act_bigM_1[agent_id] = act_M_1
