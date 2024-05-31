@@ -19,7 +19,7 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_dim(self,algo,msgs_states,buf_lim,gt,gt_dim):
-        print(f"\n--- Processing data {gt}/{gt_dim} ---")
+        print(f"--- Processing data {gt}/{gt_dim} ---")
         perc = 0
         compl = len(msgs_states)*len(msgs_states[0])*len(msgs_states[0][0])
         if algo=='O':
@@ -175,61 +175,47 @@ class Results:
                                     log_count += 1
                                     if log_count % self.ticks_per_sec == 0:
                                         msgs_id = []
-                                        msgs_state = []
                                         state = -1
                                         broadcast_c = 0
                                         re_broadcast_c = 0
                                         sem = 0
                                         for val in row:
-                                            print(val.count('\t'))
-                                            if val.count('\t')==0:
-                                                if sem == 1: msgs_state.append(int(val))
-                                                elif sem == 2: msgs_id.append(int(val))
-                                            else:
+                                            if log_count<=30:
                                                 val = val.split('\t')
-                                                if sem == 0:
-                                                    if log_count<=30:
-                                                        sem = 0
+                                                state = int(val[0])
+                                                broadcast_c = int(val[1])
+                                                re_broadcast_c = int(val[2])
+                                            else:
+                                                if val.count('\t') == 0:
+                                                    sem = 1
+                                                    msgs_id.append(int(val))
+                                                else:
+                                                    val = val.split('\t')
+                                                    if len(val)==2:
                                                         state = int(val[0])
+                                                        msgs_id.append(int(val[1]))
+                                                    elif len(val)==3:
+                                                        if sem == 0:
+                                                            state = int(val[0])
+                                                        else:
+                                                            msgs_id.append(int(val[0]))
                                                         broadcast_c = int(val[1])
                                                         re_broadcast_c = int(val[2])
-                                                    else:
-                                                        if len(val) == 5:
-                                                            sem = 0
-                                                            state = int(val[0])
-                                                            msgs_state.append(int(val[1]))
-                                                            msgs_id.append(int(val[2]))
-                                                            broadcast_c = int(val[3])
-                                                            re_broadcast_c = int(val[4])
-                                                        elif len(val) == 3:
-                                                            state = int(val[0])
-                                                            broadcast_c = int(val[1])
-                                                            re_broadcast_c = int(val[2])
-                                                        else:
-                                                            sem = 1
-                                                            state = int(val[0])
-                                                            msgs_state.append(int(val[1]))
-                                                elif sem == 1:
-                                                    sem = 2
-                                                    msgs_state.append(int(val[0]))
-                                                    msgs_id.append(int(val[1]))
-                                                else:
-                                                    sem = 0
-                                                    msgs_id.append(int(val[0]))
-                                                    broadcast_c = int(val[1])
-                                                    re_broadcast_c = int(val[2])
+                                                    elif len(val)==4:
+                                                        state = int(val[0])
+                                                        msgs_id.append(int(val[1]))
+                                                        broadcast_c = int(val[2])
+                                                        re_broadcast_c = int(val[3])
+                                        if state==-1: print(seed,agent_id,log_count,'\n',row,'\n')
                                         states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
                                         act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                         act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                                         if len(msgs_id) < max_buff_size:
                                             for i in range(max_buff_size-len(msgs_id)):
-                                                msgs_state.append(-1)
                                                 msgs_id.append(-1)
                                         if len(msgs_id_M_1[seed-1]) == 0:
-                                            msgs_state_M_1[seed-1] = [msgs_state]
                                             msgs_id_M_1[seed-1] = [msgs_id]
                                         else :
-                                            msgs_state_M_1[seed-1] = np.append(msgs_state_M_1[seed-1],[msgs_state],axis=0)
                                             msgs_id_M_1[seed-1] = np.append(msgs_id_M_1[seed-1],[msgs_id],axis=0)
                             if len(msgs_id_M_1[seed-1])!=max_steps: print(seed,len(msgs_id_M_1[seed-1]),len(msgs_id_M_1[seed-1][-1]))
                             if seed == num_runs:
@@ -238,7 +224,6 @@ class Results:
                                 act_bigM_1[agent_id] = act_M_1
                                 act_bigM_2[agent_id] = act_M_2
 
-                                msgs_state_M_1 = [np.array([],dtype=int)]*num_runs
                                 msgs_id_M_1 = [np.array([],dtype=int)]*num_runs
                                 states_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
@@ -256,6 +241,7 @@ class Results:
                             BUFFERS=[11,15,17,19,22]
                         elif n_agents==100:
                             BUFFERS=[41,57,66,76,85]
+                    msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
                             results = self.compute_quorum_dim(algo,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
@@ -306,6 +292,26 @@ class Results:
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
 
+##########################################################################################################
+    def compute_msgs_state(self,states,msgs_id):
+        print("\n--- Matching states and messages ---")
+        perc = 0
+        compl = len(msgs_id)*len(msgs_id[0])*len(msgs_id[0][0])*len(msgs_id[0][0][0])
+        out = np.copy(msgs_id)
+        for i in range(len(msgs_id)):
+            for j in range(len(msgs_id[i])):
+                for k in range(len(msgs_id[i][j])):
+                    for z in range(len(msgs_id[i][j][k])):
+                        sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
+                        sys.stdout.flush()
+                        if msgs_id[i][j][k][z] == -1:
+                            out[i][j][k][z] = msgs_id[i][j][k][z]
+                        else:
+                            out[i][j][k][z] = states[msgs_id[i][j][k][z]][j][k]
+                        perc += 1
+        print('\n')
+        return out
+    
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim","MsgExpTime"]
