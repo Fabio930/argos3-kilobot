@@ -13,7 +13,7 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "msgs_data":
+            if elem == "msgs_data" or elem == "proc_data":
                 self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
