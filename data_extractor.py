@@ -3,7 +3,7 @@ import os, csv, math, sys
 
 class Results:
     thresholds      = {}
-    ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
+    ground_truth    = 0 # prenderlo dal nome della cartella
     min_buff_dim    = 5
     ticks_per_sec   = 10
     x_limit         = 100
