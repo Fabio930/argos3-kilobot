@@ -32,14 +32,21 @@ RUNS=3
 rebroadcast="0"
 numrobots="25"
 
-strToReplace="."
-replace="_"
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    if [[ ! -e $exp_len_dir ]]; then
+        mkdir $exp_len_dir
+    fi
     for comm_par in $rebroadcast; do
         comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
+        if [[ ! -e $comm_dir ]]; then
+            mkdir $comm_dir
+        fi
         for agents_par in $numrobots; do
             agents_dir=$comm_dir/"Robots#"$agents_par
+            if [[ ! -e $agents_dir ]]; then
+                mkdir $agents_dir
+            fi
             last_id=`expr $agents_par - 1`
             if [ $agents_par -eq 25 ]; then
                 buffer_dim="24"
@@ -48,15 +55,6 @@ for exp_len_par in $experiment_length; do
             fi
             for buff_par in $buffer_dim; do
                 buff_dir=$agents_dir/"BufferDim#"$buff_par
-                if [[ ! -e $exp_len_dir ]]; then
-                    mkdir $exp_len_dir
-                fi
-                if [[ ! -e $comm_dir ]]; then
-                    mkdir $comm_dir
-                fi
-                if [[ ! -e $agents_dir ]]; then
-                    mkdir $agents_dir
-                fi
                 if [[ ! -e $buff_dir ]]; then
                     mkdir $buff_dir
                 fi
