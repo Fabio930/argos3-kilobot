@@ -34,49 +34,49 @@ numrobots="25"
 
 strToReplace="."
 replace="_"
-for par in $experiment_length; do
-    dir=$res_dir/"ExperimentLength#"$par
-    for par0 in $rebroadcast; do
-        dir0=$dir/"Rebroadcast#"$par0
-        for par1 in $numrobots; do
-            dir1=$dir0/"Robots#"$par1
-            last_id=`expr $par1 - 1`
-            if [ $par1 -eq 25 ]; then
+for exp_len_par in $experiment_length; do
+    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    for comm_par in $rebroadcast; do
+        comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
+        for agents_par in $numrobots; do
+            agents_dir=$comm_dir/"Robots#"$agents_par
+            last_id=`expr $agents_par - 1`
+            if [ $agents_par -eq 25 ]; then
                 buffer_dim="24"
-            elif [ $par1 -eq 100 ]; then
+            elif [ $agents_par -eq 100 ]; then
                 buffer_dim="99"
             fi
-            for par2 in $buffer_dim; do
-                dir2=$dir1/"BufferDim#"$par2
-                if [[ ! -e $dir ]]; then
-                    mkdir $dir
+            for buff_par in $buffer_dim; do
+                buff_dir=$agents_dir/"BufferDim#"$buff_par
+                if [[ ! -e $exp_len_dir ]]; then
+                    mkdir $exp_len_dir
                 fi
-                if [[ ! -e $dir0 ]]; then
-                    mkdir $dir0
+                if [[ ! -e $comm_dir ]]; then
+                    mkdir $comm_dir
                 fi
-                if [[ ! -e $dir1 ]]; then
-                    mkdir $dir1
+                if [[ ! -e $agents_dir ]]; then
+                    mkdir $agents_dir
                 fi
-                if [[ ! -e $dir2 ]]; then
-                    mkdir $dir2
+                if [[ ! -e $buff_dir ]]; then
+                    mkdir $buff_dir
                 fi
-                for it in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%d_nrobots%d_bufferDim%d_run%d.argos' $par0 $par1 $par2 $it`
+                for i in $(seq 1 $RUNS); do
+                    config=`printf 'config_rebroad%d_nrobots%d_bufferDim%d_run%d.argos' $comm_par $agents_par $buff_par $i`
                     cp $base_config $config
-                    sed -i "s|__BROADCAST_POLICY__|$par0|g" $config
-                    sed -i "s|__NUMROBOTS__|$par1|g" $config
-                    sed -i "s|__QUORUM_BUFFER_DIM__|$par2|g" $config
-                    sed -i "s|__SEED__|$it|g" $config
-                    sed -i "s|__TIME_EXPERIMENT__|$experiment_length|g" $config
+                    sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                    sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                    sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                    sed -i "s|__SEED__|$i|g" $config
+                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_dir|g" $config
                     dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                    kilo_file="${dt}__run#${it}.tsv"
+                    kilo_file="${dt}__run#${i}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
                     echo "Running next configuration -- $config"
                     argos3 -c './'$config
-                    for ik in $(seq 0 $last_id); do
-                        rename="quorum_log_agent#$ik"__"$kilo_file"
-                        mv "quorum_log_agent#$ik.tsv" $rename
-                        mv $rename $dir2
+                    for j in $(seq 0 $last_id); do
+                        rename="quorum_log_agent#$j"__"$kilo_file"
+                        mv "quorum_log_agent#$j.tsv" $rename
+                        mv $rename $buff_dir
                     done
                     rm *.argos
                 done
