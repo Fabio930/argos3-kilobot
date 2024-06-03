@@ -112,7 +112,6 @@ uint64_t num_other_info=0;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-// uint8_t quorum_reached = 0;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
 

@@ -23,92 +23,25 @@ CBestN_ALF::~CBestN_ALF(){}
 void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
-    /* Other initializations: Variables, Log file opening... */
-    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Reset(){
-    /* Close data file */
-    // m_cLog.close();
-    /* Reopen the file, erasing its contents */
-    // m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Destroy(){
-    /* Close data file */
-    // m_cLog.close();
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::PostStep(){
-    if(!variation_done){
-        m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
-        if((UInt16)m_fTimeInSeconds==commitment_variation_time){
-            // calculate new agents' state
-            std::vector<UInt8> assigned_kilo_states;
-            assigned_kilo_states.resize(m_tKilobotEntities.size());
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
-            UInt8 count = 0;
-            UInt8 p;
-            while (true){
-                for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                    if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*next_committed_percentage){
-                        p = rand()%2;
-                        if(p==1){
-                            assigned_kilo_states[it]=1;
-                            count++;
-                        }
-                    }
-                }
-                if(count>=m_vecKilobotStates.size()*next_committed_percentage) break;
-            }
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                m_vecKilobotStates[it] = assigned_kilo_states[it];
-                SendStateInformation(*m_tKilobotEntities[it]);
-            }
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                m_vecKilobotStates[it] = assigned_kilo_states[it];
-                SendStateInformation(*m_tKilobotEntities[it]);
-            }
-            variation_done = true;
-        }
-    }
-//     if(start_experiment == 1){
-//         log_counter++;
-//         if(log_counter == m_unDataAcquisitionFrequency){
-//             logging_time++;
-//             UpdateLog(logging_time);
-//             log_counter = 0;
-//         }
-//     }
-//     else if(header==0){
-//         UpdateLog(logging_time);
-//         header = 1;
-//     }
 }
-
-/****************************************/
-/****************************************/
-
-// void CBestN_ALF::UpdateLog(UInt16 Time){
-//     if(Time == 0) m_cLog << m_random_seed << '\t';
-//     m_cLog << std::endl;
-//     m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
-//     for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
-//         m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t'
-//         << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t'
-//         << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotStates[i]; 
-//         if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
-//     }
-// }
 
 /****************************************/
 /****************************************/
@@ -153,6 +86,13 @@ void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity,UInt8
     m_vecKilobotStates[unKilobotID] = state;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
+    
+    /* Set the kilobot position */
+    argos::CRadians cOrientationInRadians = argos::ToRadians(m_vecKilobotOrientations[unKilobotID]);
+    argos::CQuaternion cQuaternion;
+    cQuaternion.FromEulerAngles(cOrientationInRadians, argos::CRadians(0.0), argos::CRadians(0.0));
+    argos::CVector3 cPosition(.5,0,0);
+    c_kilobot_entity.GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
 }
 
 /****************************************/
@@ -168,11 +108,6 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
-    GetNodeAttribute(tHierarchicalStructNode,"commitment_variation_time",commitment_variation_time);
-    GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
-    if(commitment_variation_time==0) variation_done = true;
-    // GetNodeAttribute(tHierarchicalStructNode,"minimum_quorum_length",minimum_quorum_length);
-    // GetNodeAttribute(tHierarchicalStructNode,"quorum_scaling_factor",quorum_scaling_factor);
 }
 
 /****************************************/
@@ -252,13 +187,10 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     tKilobotMessage.m_sType = rebroadcast;
     tKilobotMessage.m_sID = expiring_quorum_sec;
     tKilobotMessage.m_sData = 0;
-    // tKilobotMessage.m_sID = minimum_quorum_length;
-    // tKilobotMessage.m_sData = quorum_scaling_factor*100;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
     for (UInt8 i = 0; i < 3; ++i){
         if( i == 0){
             tMessage = tKilobotMessage;
