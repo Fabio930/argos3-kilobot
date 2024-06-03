@@ -26,11 +26,11 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="600"
-RUNS=30
+experiment_length="1"
+RUNS=1
 rebroadcast="0 2"
-msg_expiring_sec="60 120 300 600"
-numrobots="25"
+msg_expiring_sec="60"
+numrobots="1"
 committed_percentage="0.5"
 messages_hops="0"
 
@@ -51,7 +51,9 @@ for exp_len_par in $experiment_length; do
             fi
             last_id=`expr $agents_par - 1`
             for committed_par in $committed_percentage; do
+                committed_par=${committed_par//./_}
                 committed_dir=$agents_dir/"Committed#"$committed_par
+                committed_par=${committed_par//_/.}
                 if [[ ! -e $committed_dir ]]; then
                     mkdir $committed_dir
                 fi
