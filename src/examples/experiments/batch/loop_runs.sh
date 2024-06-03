@@ -53,9 +53,7 @@ for agents_par in $numrobots; do
                 mkdir $depth_dir
             fi
             for k_par in $kappa; do
-                strToReplace="."
-                replace="_"
-                k_par_bis=${k_par//$strToReplace/$replace}
+                k_par_bis=${k_par//./_}
                 k_dir=$depth_dir/"K#"$k_par_bis
                 if [[ ! -e $k_dir ]]; then
                     mkdir $k_dir
