@@ -32,7 +32,7 @@ rebroadcast="0 2"
 msg_expiring_sec="60 120 300 600"
 numrobots="25"
 committed_percentage="0.5"
-messsages_hops="0"
+messages_hops="0"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
