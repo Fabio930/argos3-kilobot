@@ -37,56 +37,56 @@ branches="2"
 depth="2 4"
 control_param="1 3"
 
-for nrob in $numrobots; do
-    dir=$res_dir/"Robots#"$nrob
-    if [[ ! -e $dir ]]; then
-        mkdir $dir
+for agents_par in $numrobots; do
+    agents_dir=$res_dir/"Robots#"$agents_par
+    if [[ ! -e $agents_dir ]]; then
+        mkdir $agents_dir
     fi
-    for par1 in $branches; do
-        dir1=$dir/"Branches#"$par1
-        if [[ ! -e $dir1 ]]; then
-            mkdir $dir1
+    for branches_par in $branches; do
+        branches_dir=$agents_dir/"Branches#"$branches_par
+        if [[ ! -e $branches_dir ]]; then
+            mkdir $branches_dir
         fi
-        for par2 in $depth; do
-            dir2=$dir1/"Depth#"$par2
-            if [[ ! -e $dir2 ]]; then
-                mkdir $dir2
+        for depth_par in $depth; do
+            depth_dir=$branches_dir/"Depth#"$depth_par
+            if [[ ! -e $depth_dir ]]; then
+                mkdir $depth_dir
             fi
-            for par3 in $kappa; do
+            for k_par in $kappa; do
                 strToReplace="."
                 replace="_"
-                par3BIS=${par3//$strToReplace/$replace}
-                dir3=$dir2/"K#"$par3BIS
-                if [[ ! -e $dir3 ]]; then
-                    mkdir $dir3
+                k_par_bis=${k_par//$strToReplace/$replace}
+                k_dir=$depth_dir/"K#"$k_par_bis
+                if [[ ! -e $k_dir ]]; then
+                    mkdir $k_dir
                 fi
-                for par4 in $control_param; do
-                    dir4=$dir3/"R#"$par4"_S#"$experiment_length
-                    if [[ ! -e $dir4 ]]; then
-                        mkdir $dir4
+                for ctrl_par in $control_param; do
+                    ctrl_dir=$k_dir/"R#"$ctrl_par"_S#"$experiment_length
+                    if [[ ! -e $ctrl_dir ]]; then
+                        mkdir $ctrl_dir
                     fi
-                    for it in $(seq 1 $RUNS); do
-                        config=`printf 'config_nrob%d_branches%d_depth%d_K%s_R%d_run%d.argos' $nrob $par1 $par2 $par3 $par4 $it`
+                    for i in $(seq 1 $RUNS); do
+                        config=`printf 'config_nrob%d_branches%d_depth%d_K%s_R%d_run%d.argos' $agents_par $branches_par $depth_par $k_par $ctrl_par $i`
                         echo config $config
                         cp $base_config $config
-                        sed -i "s|__NUMROBOTS__|$nrob|g" $config
-                        sed -i "s|__BRANCHES__|$par1|g" $config
-                        sed -i "s|__DEPTH__|$par2|g" $config
-                        sed -i "s|__K__|$par3|g" $config
-                        sed -i "s|__R__|$par4|g" $config
-                        sed -i "s|__SEED__|$it|g" $config
+                        sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                        sed -i "s|__BRANCHES__|$branches_par|g" $config
+                        sed -i "s|__DEPTH__|$depth_par|g" $config
+                        sed -i "s|__K__|$k_par|g" $config
+                        sed -i "s|__R__|$ctrl_par|g" $config
+                        sed -i "s|__SEED__|$i|g" $config
                         sed -i "s|__TIMEEXPERIMENT__|$experiment_length|g" $config
                         dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                        kilo_file="${dt}__run#${it}_LOG.tsv"
+                        kilo_file="${dt}__run#${i}_LOG.tsv"
                         sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                        echo "Running next configuration Robots $nrob Branches $par1 Depth $par2 K $par3 R $par4 File $kilo_file"
+                        echo "Running next configuration Robots $agents_par Branches $branches_par Depth $depth_par K $k_par R $ctrl_par File $kilo_file"
                         echo "argos3 -c $1$config"
                         argos3 -c './'$config
-                        mv $kilo_file $dir4
-                        rename="quorum_log_${it}.tsv"
+                        mv $kilo_file $ctrl_dir
+                        rename="quorum_log_${i}.tsv"
                         mv "quorum_log.tsv" $rename
                         rm -rf "quorum_log.tsv"
-                        mv $rename $dir4
+                        mv $rename $ctrl_dir
                     done
                 done
             done
