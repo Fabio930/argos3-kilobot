@@ -129,10 +129,6 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        if not os.path.exists(self.base+"/proc_data/o_images"):
-            os.mkdir(self.base+"/proc_data/o_images")
-        if not os.path.exists(self.base+"/proc_data/p_images"):
-            os.mkdir(self.base+"/proc_data/p_images")
         states, times, buffer, messages_b, messages_r = {},{},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
@@ -161,9 +157,9 @@ class Data:
     
 ##########################################################################################################
     def plot_active(self,data_in,times):
-        if not os.path.exists(self.base+"/proc_data/c_images/"):
-            os.mkdir(self.base+"/proc_data/c_images/")
-        path = self.base+"/proc_data/c_images/"
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
         dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
         dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
         dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
@@ -264,7 +260,7 @@ class Data:
         
 ##########################################################################################################
     def print_messages(self,data_in):
-        plt.rcParams.update({"font.size":26})
+        plt.rcParams.update({"font.size":30})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -455,16 +451,16 @@ class Data:
                 else:
                     ax[x][y].set_ylim(0,1)
         fig.tight_layout()
-        if not os.path.exists(self.base+"/msgs_data/c_images/"):
-            os.mkdir(self.base+"/msgs_data/c_images/")
-        fig_path = self.base+"/msgs_data/c_images/messages.png"
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
+        fig_path = self.base+"/msgs_data/images/messages.png"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        plt.rcParams.update({"font.size":26})
+        plt.rcParams.update({"font.size":30})
         cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]

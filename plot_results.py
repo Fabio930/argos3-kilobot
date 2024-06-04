@@ -28,7 +28,6 @@ def main():
                                 arena=val[1]
                     data = csv_res.read_csv(file_path,algo,n_runs,arena)
                     keys, states, times, buffers, messages_counts = csv_res.divide_data(data)     
-                    # csv_res.o_plot_heatmaps(keys,(states,times,buffers),limit) if algo=='O' else csv_res.p_plot_heatmaps(keys,(states,times,buffers),limit)
                     if len(tot_st)==0:
                         tot_st      = [states]
                         tot_times   = [times]
