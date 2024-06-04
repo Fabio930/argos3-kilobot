@@ -1,4 +1,4 @@
-/* Kilobot control software for the simple ALF experment : clustering
+/* Kilobot control software for the simple ALF experment : bestN
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
 #ifndef BESTN_H

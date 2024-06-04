@@ -26,68 +26,75 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1"
-RUNS=1
+experiment_length="900"
+RUNS=100
 rebroadcast="0 2"
-msg_expiring_sec="60"
-numrobots="1"
+msg_expiring_sec="60 120 300 600"
+numrobots="25"
 committed_percentage="0.5"
 messages_hops="0"
+arena_type="square"
 
-for exp_len_par in $experiment_length; do
-    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
-    if [[ ! -e $exp_len_dir ]]; then
-        mkdir $exp_len_dir
+for arena_par in $arena_type; do
+    arena_dir=$res_dir/"ArenaType#"$arena_par
+    if [[ ! -e $arena_dir ]]; then
+        mkdir $arena_dir
     fi
-    for comm_par in $rebroadcast; do
-        comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
-        if [[ ! -e $comm_dir ]]; then
-            mkdir $comm_dir
+    for exp_len_par in $experiment_length; do
+        exp_len_dir=$arena_dir/"ExperimentLength#"$exp_len_par
+        if [[ ! -e $exp_len_dir ]]; then
+            mkdir $exp_len_dir
         fi
-        for agents_par in $numrobots; do
-            agents_dir=$comm_dir/"Robots#"$agents_par
-            if [[ ! -e $agents_dir ]]; then
-                mkdir $agents_dir
+        for comm_par in $rebroadcast; do
+            comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
+            if [[ ! -e $comm_dir ]]; then
+                mkdir $comm_dir
             fi
-            last_id=`expr $agents_par - 1`
-            for committed_par in $committed_percentage; do
-                committed_par=${committed_par//./_}
-                committed_dir=$agents_dir/"Committed#"$committed_par
-                committed_par=${committed_par//_/.}
-                if [[ ! -e $committed_dir ]]; then
-                    mkdir $committed_dir
+            for agents_par in $numrobots; do
+                agents_dir=$comm_dir/"Robots#"$agents_par
+                if [[ ! -e $agents_dir ]]; then
+                    mkdir $agents_dir
                 fi
-                for msgs_hop_par in $messages_hops; do
-                    msgs_hop_dir=$committed_dir/"MsgHop#"$msgs_hop_par
-                    if [[ ! -e $msgs_hop_dir ]]; then
-                        mkdir $msgs_hop_dir
+                last_id=`expr $agents_par - 1`
+                for committed_par in $committed_percentage; do
+                    committed_par=${committed_par//./_}
+                    committed_dir=$agents_dir/"Committed#"$committed_par
+                    committed_par=${committed_par//_/.}
+                    if [[ ! -e $committed_dir ]]; then
+                        mkdir $committed_dir
                     fi
-                    for msgs_par in $msg_expiring_sec; do
-                        msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
-                        if [[ ! -e $msgs_dir ]]; then
-                            mkdir $msgs_dir
+                    for msgs_hop_par in $messages_hops; do
+                        msgs_hop_dir=$committed_dir/"MsgHop#"$msgs_hop_par
+                        if [[ ! -e $msgs_hop_dir ]]; then
+                            mkdir $msgs_hop_dir
                         fi
-                        for i in $(seq 1 $RUNS); do
-                            config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
-                            cp $base_config $config
-                            sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
-                            sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                            sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
-                            sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
-                            sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
-                            sed -i "s|__SEED__|$i|g" $config
-                            sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                            dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                            kilo_file="${dt}__run#${i}.tsv"
-                            sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                            echo "Running next configuration -- $config"
-                            argos3 -c './'$config
-                            for j in $(seq 0 $last_id); do
-                                rename="quorum_log_agent#$j"__"$kilo_file"
-                                mv "quorum_log_agent#$j.tsv" $rename
-                                mv $rename $msgs_dir
+                        for msgs_par in $msg_expiring_sec; do
+                            msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
+                            if [[ ! -e $msgs_dir ]]; then
+                                mkdir $msgs_dir
+                            fi
+                            for i in $(seq 1 $RUNS); do
+                                config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
+                                cp $base_config $config
+                                sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                                sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                                sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
+                                sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
+                                sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
+                                sed -i "s|__SEED__|$i|g" $config
+                                sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                                dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                                kilo_file="${dt}__run#${i}.tsv"
+                                sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                                echo "Running next configuration -- $config"
+                                argos3 -c './'$config
+                                for j in $(seq 0 $last_id); do
+                                    rename="quorum_log_agent#$j"__"$kilo_file"
+                                    mv "quorum_log_agent#$j.tsv" $rename
+                                    mv $rename $msgs_dir
+                                done
+                                rm *.argos
                             done
-                            rm *.argos
                         done
                     done
                 done

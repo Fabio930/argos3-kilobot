@@ -57,7 +57,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     /* Setup the virtual states of a kilobot */
     std::vector<UInt8> assigned_kilo_states;
     assigned_kilo_states.resize(m_tKilobotEntities.size());
-    for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
+    for(UInt16 it = 0;it < m_tKilobotEntities.size();it++) assigned_kilo_states[it] = 0;
     UInt8 count = 0;
     UInt8 p;
     while (true){
@@ -72,7 +72,6 @@ void CBestN_ALF::SetupInitialKilobotStates(){
         }
         if(count>=m_vecKilobotStates.size()*committed_percentage) break;
     }
-    
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
 
@@ -108,6 +107,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
+    GetNodeAttribute(tHierarchicalStructNode,"type",arena_type);
 }
 
 /****************************************/
@@ -192,7 +192,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     tEmptyMessage.m_sType = 0;
     tEmptyMessage.m_sData = 0;
     for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
+        if(i == 0){
             tMessage = tKilobotMessage;
         }
         else{

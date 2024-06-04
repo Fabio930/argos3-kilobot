@@ -55,20 +55,16 @@ public:
     
     Real abs_distance(const CVector2 a,const CVector2 b);
 
-    // void UpdateLog(UInt16 Time);
-
 private:
 
     /************************************/
     /*  Virtual Environment variables   */
     /************************************/
-    /* virtual environment struct*/
-    
+    std::string             arena_type;
     float                   committed_percentage;
 
     UInt16                  expiring_quorum_sec;
     UInt8                   msgs_n_hops;
-    // float quorum_scaling_factor;
     UInt8                   rebroadcast;
 
     std::vector<CVector2>   m_vecKilobotPositions;
@@ -79,8 +75,6 @@ private:
     std::vector<UInt8>      m_vecKilobotMsgType;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
-
-    // UInt16 log_counter = 0;
 
     /************************************/
     /*       Experiment variables       */
@@ -93,7 +87,6 @@ private:
     uint m_random_seed;
 
     /* output file for data acquisition */
-    // std::ofstream m_cLog;
     UInt8 header = 0;
     UInt16 logging_time = 0;
 
