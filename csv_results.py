@@ -459,7 +459,7 @@ class Data:
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        plt.rcParams.update({"font.size":34})
+        plt.rcParams.update({"font.size":40})
         cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
@@ -483,8 +483,8 @@ class Data:
         tvalsa = [[0]*len(threshlds)]*len(o_k)
         tvalso = [[0]*len(threshlds)]*len(o_k)
 
-        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='P = 0.2')
-        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='P = 0.8')
+        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
+        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
@@ -492,7 +492,7 @@ class Data:
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
         str_threshlds = []
         void_str_threshlds = []
