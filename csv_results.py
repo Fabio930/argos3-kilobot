@@ -205,7 +205,7 @@ class Data:
                                                         else:
                                                             dict_our_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                             dict_our_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_state,dict_our_time],[p_k,o_k],[arena,agents])
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_time,dict_our_time],[p_k,o_k],[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
