@@ -260,7 +260,7 @@ class Data:
         
 ##########################################################################################################
     def print_messages(self,data_in):
-        plt.rcParams.update({"font.size":30})
+        plt.rcParams.update({"font.size":34})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -271,7 +271,7 @@ class Data:
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -304,9 +304,9 @@ class Data:
                 elif k[2] == '13':
                     col = 1
                 elif k[2] == '21':
-                    col = 2
-                elif k[2] == '24':
                     col = 3
+                elif k[2] == '24':
+                    col = 2
             elif k[0]=='big' and k[1]=='100':
                 row = 2
                 if k[2] == '10':
@@ -314,9 +314,9 @@ class Data:
                 elif k[2] == '32':
                     col = 1
                 elif k[2] == '78':
-                    col = 2
-                elif k[2] == '99':
                     col = 3
+                elif k[2] == '99':
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[2] == '10':
@@ -324,12 +324,12 @@ class Data:
                 elif k[2] == '13':
                     col = 1
                 elif k[2] == '21':
-                    col = 2
-                elif k[2] == '24':
                     col = 3
+                elif k[2] == '24':
+                    col = 2
             for xi in range(0,900):
                 sign.append(int(k[2])/int(k[1]))
-            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            if col!=3: ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             # ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
@@ -341,9 +341,9 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
+                elif k[2] == '600':
+                    col = 2
             elif k[0]=='big' and k[1]=='100':
                 row = 2
                 if k[2] == '60':
@@ -351,9 +351,9 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
+                elif k[2] == '600':
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[2] == '60':
@@ -361,10 +361,10 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
-            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+                elif k[2] == '600':
+                    col = 2
+            if col!=3: ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_our.keys():
             row = 0
             col = 0
@@ -375,9 +375,9 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
+                elif k[2] == '600':
+                    col = 2
             elif k[0]=='big' and k[1]=='100':
                 row = 2
                 if k[2] == '60':
@@ -385,9 +385,9 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
+                elif k[2] == '600':
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[2] == '60':
@@ -395,38 +395,37 @@ class Data:
                 elif k[2] == '120':
                     col = 1
                 elif k[2] == '300':
-                    col = 2
-                elif k[2] == '600':
                     col = 3
-            ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
-        
+                elif k[2] == '600':
+                    col = 2
+            if col!=3: ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for x in range(2):
-            for y in range(4):
+            for y in range(3):
                 labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_xticklabels(empty_string_labels)
         for x in range(3):
-            for y in range(1,4):
+            for y in range(1,3):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
-        axt3=ax[0][3].twiny()
+        # axt3=ax[0][3].twiny()
         labels = [item.get_text() for item in axt0.get_xticklabels()]
         empty_string_labels = ['']*len(labels)
         axt0.set_xticklabels(empty_string_labels)
         axt1.set_xticklabels(empty_string_labels)
         axt2.set_xticklabels(empty_string_labels)
-        axt3.set_xticklabels(empty_string_labels)
+        # axt3.set_xticklabels(empty_string_labels)
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 120\, s$")
-        axt2.set_xlabel(r"$T_m = 300\, s$")
-        axt3.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][3].twinx()
-        ayt1=ax[1][3].twinx()
-        ayt2=ax[2][3].twinx()
+        axt2.set_xlabel(r"$T_m = 600\, s$")
+        # axt3.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][2].twinx()
+        ayt1=ax[1][2].twinx()
+        ayt2=ax[2][2].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
@@ -441,9 +440,9 @@ class Data:
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
-        ax[2][3].set_xlabel(r"$T\, (s)$")
+        # ax[2][3].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(4):
+            for y in range(3):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
                 if x==0 or x==1:
@@ -460,13 +459,14 @@ class Data:
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        plt.rcParams.update({"font.size":30})
+        plt.rcParams.update({"font.size":40})
         cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
-        p_k, o_k = keys[0],keys[1]
-        for x in range(len(o_k)):
-            o_k[x] = int(o_k[x])
+        p_k, po_k = keys[0],keys[1]
+        o_k = []
+        for x in range(len(po_k)):
+            if po_k[x]!="300": o_k.append(int(po_k[x]))
         o_k = np.sort(o_k)
         arena = more_k[0]
         typo = [0,1,2,3]
@@ -483,8 +483,8 @@ class Data:
         tvalsa = [[0]*len(threshlds)]*len(o_k)
         tvalso = [[0]*len(threshlds)]*len(o_k)
 
-        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label='P = 0.2')
-        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label='P = 0.8')
+        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
+        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
@@ -492,8 +492,8 @@ class Data:
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
-        tfig, tax   = plt.subplots(nrows=3, ncols=4,figsize=(28,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,22))
+        tfig, tax   = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -506,9 +506,9 @@ class Data:
                 agents = more_k[1]
             for ag in agents:
                 row = 1  if a=="smallA" else 0
-                p_k = [str(10),str(13),str(21),str(24)]
+                p_k = [str(10),str(13),str(24)]
                 if int(ag)==100:
-                    p_k = [str(10),str(32),str(78),str(99)]
+                    p_k = [str(10),str(32),str(99)]
                     row = 2
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):
@@ -662,8 +662,8 @@ class Data:
                             axt.set_xlabel(r"$T_m = 120\, s$")
                             taxt.set_xlabel(r"$T_m = 120\, s$")
                         elif k==2:
-                            axt.set_xlabel(r"$T_m = 300\, s$")
-                            taxt.set_xlabel(r"$T_m = 300\, s$")
+                            axt.set_xlabel(r"$T_m = 600\, s$")
+                            taxt.set_xlabel(r"$T_m = 600\, s$")
                         elif k==3:
                             axt.set_xlabel(r"$T_m = 600\, s$")
                             taxt.set_xlabel(r"$T_m = 600\, s$")
@@ -703,7 +703,7 @@ class Data:
                         elif row==2:
                             ax[row][k].set_ylabel(r"$G$")
                             tax[row][k].set_ylabel(r"$T_c\, (s)$")
-                    elif k==3:
+                    elif k==2:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
