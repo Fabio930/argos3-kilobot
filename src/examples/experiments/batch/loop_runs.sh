@@ -28,12 +28,12 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 experiment_length="1200"
 variation_time="600"
-RUNS=50
+RUNS=100
 rebroadcast="0 2"
-msg_expiring_sec="240 360 420"
+msg_expiring_sec="60 120 300 600"
 numrobots="25"
 threshold="0.8"
-delta="0.1 -0.1"
+delta="0.68;0.92 0.92;0.68"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -48,14 +48,9 @@ for exp_len_par in $experiment_length; do
         fi
         thr_par=${thr_par//_/.}
         for dlt_par in $delta; do
-            if (( $(echo "$dlt_par > 0" | bc -l) )); then
-                gt_before=0$(echo "$thr_par - $dlt_par" | bc)
-                gt_after=0$(echo "$thr_par + $dlt_par" | bc)
-            else
-                delta_val_inv=$(echo "$dlt_par * -1" | bc)
-                gt_before=0$(echo "$thr_par + $delta_val_inv" | bc)
-                gt_after=0$(echo "$thr_par - $delta_val_inv" | bc)
-            fi
+        
+            IFS=';' read -r gt_before gt_after <<< "$dlt_par"
+
             gt_before=${gt_before//./_}
             gt_after=${gt_after//./_}
             dlt_dir=$thr_dir/"GT#"$gt_before";"$gt_after
