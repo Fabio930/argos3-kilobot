@@ -30,7 +30,7 @@ experiment_length="1200"
 variation_time="600"
 RUNS=100
 rebroadcast="0"
-numrobots="25"
+numrobots="25 100"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
 
