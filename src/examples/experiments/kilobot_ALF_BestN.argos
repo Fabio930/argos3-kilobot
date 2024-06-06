@@ -54,7 +54,8 @@
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
             committed_percentage = "0.5"
-            type = "square"
+            contact_side = "1"
+            
         >
         </hierarchicStruct>
 

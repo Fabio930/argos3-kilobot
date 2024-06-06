@@ -33,9 +33,9 @@ msg_expiring_sec="60 120 300 600"
 numrobots="25"
 committed_percentage="0.5"
 messages_hops="0"
-arena_type="square"
+contact_side="1"
 
-for arena_par in $arena_type; do
+for arena_par in $contact_side; do
     arena_dir=$res_dir/"ArenaType#"$arena_par
     if [[ ! -e $arena_dir ]]; then
         mkdir $arena_dir
@@ -77,6 +77,7 @@ for arena_par in $arena_type; do
                                 config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
                                 cp $base_config $config
                                 sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                                sed -i "s|__CONTACT_SIDE__|$arena_par|g" $config
                                 sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                                 sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
                                 sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config

@@ -60,7 +60,7 @@ private:
     /************************************/
     /*  Virtual Environment variables   */
     /************************************/
-    std::string             arena_type;
+    float                   contact_side;
     float                   committed_percentage;
 
     UInt16                  expiring_quorum_sec;

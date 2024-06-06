@@ -55,7 +55,7 @@
             msgs_n_hops = "__MSG_HOPS__"
             expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
             committed_percentage = "__COMMITTED_PERC__"
-            type = "__ARENA_TYPE__"
+            contact_side = "__CONTACT_SIDE__"
         >
         </hierarchicStruct>
     

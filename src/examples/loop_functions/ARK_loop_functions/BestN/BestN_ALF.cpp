@@ -107,7 +107,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
-    GetNodeAttribute(tHierarchicalStructNode,"type",arena_type);
+    GetNodeAttribute(tHierarchicalStructNode,"contact_side",contact_side);
 }
 
 /****************************************/
