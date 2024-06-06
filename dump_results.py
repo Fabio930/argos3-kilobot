@@ -48,16 +48,8 @@ def main():
                         thr_path = os.path.join(exp_l_path, thr_dir)
                         threshold = float(thr_dir.split('#')[1].replace('_','.'))
                         for Dgt_dir in sorted(os.listdir(thr_path)):
-                            delta_sign = 1
                             Dgt_path = os.path.join(thr_path,Dgt_dir)
                             delta_str = Dgt_dir.split('#')[1].replace('_','.')
-                            first = float(delta_str.split(';')[0])
-                            second = float(delta_str.split(';')[1])
-                            hgh = second
-                            if first>second:
-                                delta_sign = -1
-                                hgh = first
-                            delta = np.round(delta_sign*(hgh - threshold),2)
                             for comm_dir in sorted(os.listdir(Dgt_path)):
                                 if '.' not in comm_dir and '#' in comm_dir:
                                     comm_path = os.path.join(Dgt_path, comm_dir)
@@ -66,7 +58,7 @@ def main():
                                         if '.' not in agents_dir and '#' in agents_dir:
                                             n_agents = int(agents_dir.split('#')[1])
                                             agents_path = os.path.join(comm_path, agents_dir)
-                                            results.extract_k_data(base,agents_path,exp_length,communication,n_agents,threshold,delta,data_type)
+                                            results.extract_k_data(base,agents_path,exp_length,communication,n_agents,threshold,delta_str,data_type)
 
 if __name__ == "__main__":
     main()
