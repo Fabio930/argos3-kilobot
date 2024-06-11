@@ -261,12 +261,14 @@ class Data:
 ##########################################################################################################
     def print_messages(self,data_in):
         plt.rcParams.update({"font.size":36})
-        clrs = [(0, 0, 0), (0.239, 0.718, 0.914), (0.969, 0.282, 0.647), (0.208, 0.608, 0.451), (0.898, 0.624, 0), (0.133, 0.443, 0.698), (0.941, 0.894, 0.258), (0.835, 0.369, 0)]
-
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5,6,7]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        red         = mlines.Line2D([], [], color=clrs[1], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=clrs[2], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=clrs[3], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
         handles_r   = [red,blue,green]
         fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
@@ -327,7 +329,8 @@ class Data:
                     col = 2
             for xi in range(0,900):
                 sign.append(int(k[2])/int(k[1]))
-            if col!=3: ax[row][col].plot(dict_park.get(k),color=clrs[1],lw=6)
+            if col!=3: ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            # ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -361,7 +364,7 @@ class Data:
                     col = 3
                 elif k[2] == '600':
                     col = 2
-            if col!=3: ax[row][col].plot(dict_adam.get(k),color=clrs[2],lw=6)
+            if col!=3: ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
         for k in dict_our.keys():
             row = 0
             col = 0
@@ -395,7 +398,7 @@ class Data:
                     col = 3
                 elif k[2] == '600':
                     col = 2
-            if col!=3: ax[row][col].plot(dict_our.get(k),color=clrs[3],lw=6)
+            if col!=3: ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6)
         for x in range(2):
             for y in range(3):
                 labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
@@ -409,14 +412,17 @@ class Data:
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
+        # axt3=ax[0][3].twiny()
         labels = [item.get_text() for item in axt0.get_xticklabels()]
         empty_string_labels = ['']*len(labels)
         axt0.set_xticklabels(empty_string_labels)
         axt1.set_xticklabels(empty_string_labels)
         axt2.set_xticklabels(empty_string_labels)
+        # axt3.set_xticklabels(empty_string_labels)
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 120\, s$")
         axt2.set_xlabel(r"$T_m = 600\, s$")
+        # axt3.set_xlabel(r"$T_m = 600\, s$")
         ayt0=ax[0][2].twinx()
         ayt1=ax[1][2].twinx()
         ayt2=ax[2][2].twinx()
@@ -434,6 +440,7 @@ class Data:
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
+        # ax[2][3].set_xlabel(r"$T\, (s)$")
         for x in range(3):
             for y in range(3):
                 ax[x][y].grid(True)
@@ -445,15 +452,15 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/messages.png"
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
 ##########################################################################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        clrs = [(0, 0, 0), (0.239, 0.718, 0.914), (0.969, 0.282, 0.647), (0.208, 0.608, 0.451), (0.898, 0.624, 0), (0.133, 0.443, 0.698), (0.941, 0.894, 0.258), (0.835, 0.369, 0)]
         plt.rcParams.update({"font.size":40})
+        cm = plt.get_cmap('viridis') 
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
         tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
         p_k, po_k = keys[0],keys[1]
@@ -462,7 +469,9 @@ class Data:
             if po_k[x]!="300": o_k.append(int(po_k[x]))
         o_k = np.sort(o_k)
         arena = more_k[0]
-        typo = [0,1,2,3]
+        typo = [0,1,2,3,4,5,6,7]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         vals8p = [[0]*len(threshlds)]*len(o_k)
         vals2p = [[0]*len(threshlds)]*len(o_k)
         vals8a = [[0]*len(threshlds)]*len(o_k)
@@ -476,9 +485,9 @@ class Data:
 
         dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
         triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
-        red         = mlines.Line2D([], [], color=clrs[1], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=clrs[2], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=clrs[3], marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
         void        = mlines.Line2D([], [], linestyle='None')
 
         handles_c   = [triangles,dots]
@@ -609,16 +618,16 @@ class Data:
                         tvalsp[k][th] = p_valst
                         tvalsa[k][th] = a_valst
                         tvalso[k][th] = o_valst
-                    ax[row][k].plot(vals2p[k],color=clrs[1],lw=6,ls='--')
-                    ax[row][k].plot(vals8p[k],color=clrs[1],lw=6,ls='-')
-                    ax[row][k].plot(vals2a[k],color=clrs[2],lw=6,ls='--')
-                    ax[row][k].plot(vals8a[k],color=clrs[2],lw=6,ls='-')
-                    ax[row][k].plot(vals2o[k],color=clrs[3],lw=6,ls='--')
-                    ax[row][k].plot(vals8o[k],color=clrs[3],lw=6,ls='-')
+                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
+                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
+                    ax[row][k].plot(vals2o[k],color=scalarMap.to_rgba(typo[6]),lw=6,ls='--')
+                    ax[row][k].plot(vals8o[k],color=scalarMap.to_rgba(typo[6]),lw=6,ls='-')
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    tax[row][k].plot(tvalsp[k],color=clrs[1],lw=6)
-                    tax[row][k].plot(tvalsa[k],color=clrs[2],lw=6)
-                    tax[row][k].plot(tvalso[k],color=clrs[3],lw=6)
+                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
+                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[3]),lw=6)
+                    tax[row][k].plot(tvalso[k],color=scalarMap.to_rgba(typo[6]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
@@ -724,8 +733,8 @@ class Data:
 
         fig.tight_layout()
         tfig.tight_layout()
-        fig_path = path+_type+"_activation.png"
-        tfig_path = path+t_type+"_time.png"
+        fig_path = path+_type+"_activation.pdf"
+        tfig_path = path+t_type+"_time.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
