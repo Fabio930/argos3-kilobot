@@ -53,9 +53,8 @@
             rebroadcast = "2"
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
-            committed_percentage = "0.5"
-            contact_side = "1"
-            
+            committed_percentage = "__COMMITTED_PERC__"
+            middle_x_area="__MIDDLE_X_AREA__"
         >
         </hierarchicStruct>
 
@@ -63,58 +62,31 @@
     <!-- *********************** -->
     <!-- * Arena configuration * -->
     <!-- *********************** -->
-    <arena size="1.1, 1.1, 1.1" center="0,0,0">
+    <arena size="__ARENA_X__, __ARENA_Y__, 1" center="0,0,0">
         
-        <box id="wall_north" size="1.1,0.01,0.1" movable="false">
-            <body position="0,.55,0" orientation="0,0,0" />
+        <box id="wall_north" size="__ARENA_X__,0.01,0.1" movable="false">
+            <body position="0,__MID_Y_TOP__,0" orientation="0,0,0" />
         </box>
-        <box id="wall_south" size="1.1,0.01,0.1" movable="false">
-            <body position="0,-.55,0" orientation="0,0,0" />
+        <box id="wall_south" size="__ARENA_X__,0.01,0.1" movable="false">
+            <body position="0,__MID_Y_BOT__,0" orientation="0,0,0" />
         </box>
-        <box id="wall_east" size="0.01,1.1,0.1"  movable="false">
-            <body position=".55,0,0" orientation="0,0,0" />
+        <box id="wall_east" size="0.01,__ARENA_Y__,0.1"  movable="false">
+            <body position="__MID_X_TOP__,0,0" orientation="0,0,0" />
         </box>
-        <box id="wall_west" size="0.01,1.1,0.1"  movable="false">
-            <body position="-.55,0,0" orientation="0,0,0" />
+        <box id="wall_west" size="0.01,__ARENA_Y__,0.1"  movable="false">
+            <body position="__MID_X_BOT__,0,0" orientation="0,0,0" />
         </box>
 
 
         <distribute>
-            <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
+            <position method="uniform" min="__AGENT_DIST_X_MIN__,__AGENT_DIST_Y_MIN__,0" max="__AGENT_DIST_X_MAX__,__AGENT_DIST_Y_MAX__,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="1" max_trials="200">
+            <entity quantity="__NUMROBOTS__" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
         </distribute>
-
-    <!-- <arena size=".6, .6, 1" center="0,0,0">
-
-        <box id="wall_north" size=".6,0.01,0.1" movable="false">
-            <body position="0,.3,0" orientation="0,0,0" />
-        </box>
-        <box id="wall_south" size=".6,0.01,0.1" movable="false">
-            <body position="0,-.3,0" orientation="0,0,0" />
-        </box>
-        <box id="wall_east" size="0.01,.6,0.1"  movable="false">
-            <body position=".3,0,0" orientation="0,0,0" />
-        </box>
-        <box id="wall_west" size="0.01,.6,0.1"  movable="false">
-            <body position="-.3,0,0" orientation="0,0,0" />
-        </box>
-
-
-        <distribute>
-            <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
-            <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="10" max_trials="100">
-                <kilobot id="kb">
-                    <controller config="bestN"/> <dynamics2d friction="0.7" />
-                </kilobot>
-            </entity>
-        </distribute>  -->
-        
 
         <floor id="floor"
         source="loop_functions"

@@ -7,6 +7,8 @@
 #define BESTN_ALF_H
 
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
+#include <argos3/examples/behaviors/distribution_functions.c>
+#include <argos3/plugins/robots/kilobot/simulator/kilobot_measures.h>
 
 class CBestN_ALF : public CALF{
 
@@ -60,8 +62,8 @@ private:
     /************************************/
     /*  Virtual Environment variables   */
     /************************************/
-    float                   contact_side;
     float                   committed_percentage;
+    float                   middle_x_area;
 
     UInt16                  expiring_quorum_sec;
     UInt8                   msgs_n_hops;

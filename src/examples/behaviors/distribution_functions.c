@@ -5,6 +5,10 @@
 #include <math.h>
 #include "distribution_functions.h"
 
+double uniform_distribution_neg(double a, double b) {
+    return a + (rand() / (double)RAND_MAX) * (b - a);
+}
+
 double uniform_distribution(double a, double b)
 {
 

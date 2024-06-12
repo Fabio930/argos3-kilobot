@@ -60,7 +60,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     for(UInt16 it = 0;it < m_tKilobotEntities.size();it++) assigned_kilo_states[it] = 0;
     UInt8 count = 0;
     UInt8 p;
-    while (true){
+    while(true){
         for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
             if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*committed_percentage){
                 p = rand()%2;
@@ -71,6 +71,42 @@ void CBestN_ALF::SetupInitialKilobotStates(){
             }
         }
         if(count>=m_vecKilobotStates.size()*committed_percentage) break;
+    }
+    for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+        /* Set the kilobot position */
+        argos::CRadians cOrientationInRadians = argos::ToRadians(m_vecKilobotOrientations[it]);
+        argos::CQuaternion cQuaternion;
+        cQuaternion.FromEulerAngles(cOrientationInRadians, argos::CRadians(0.0), argos::CRadians(0.0));
+        int sem = 0;
+        argos::CVector3 cPosition;
+        double Xr;
+        double Yr;
+        while(sem == 0){
+            sem = 1;
+            if(assigned_kilo_states[it] == 1){
+                do{
+                    Yr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[1]+0.05,middle_x_area);
+                } while (Yr<this->GetSpace().GetArenaLimits().GetMin()[1] || Yr > middle_x_area);
+            }
+            else{
+                do{
+                    Yr = uniform_distribution_neg(middle_x_area,this->GetSpace().GetArenaLimits().GetMax()[1]-0.05);
+                } while (Yr < middle_x_area || Yr > this->GetSpace().GetArenaLimits().GetMax()[1]);
+            }
+            Xr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[0]+0.05,this->GetSpace().GetArenaLimits().GetMax()[0]-0.05);
+            for(UInt16 jt=0;jt< m_tKilobotEntities.size();jt++){
+                if(jt!=it){
+                    if((Xr <= m_vecKilobotPositions[jt].GetX()+KILOBOT_RADIUS && Xr >= m_vecKilobotPositions[jt].GetX()-KILOBOT_RADIUS) &&
+                       (Yr <= m_vecKilobotPositions[jt].GetY()+KILOBOT_RADIUS && Yr >= m_vecKilobotPositions[jt].GetY()-KILOBOT_RADIUS)){
+                        sem = 0;
+                        break;
+                    }
+                }
+            }
+        }
+        cPosition = argos::CVector3(Xr,Yr,0);
+        m_tKilobotEntities[it]->GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
+        
     }
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
@@ -85,13 +121,6 @@ void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity,UInt8
     m_vecKilobotStates[unKilobotID] = state;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
-    
-    /* Set the kilobot position */
-    argos::CRadians cOrientationInRadians = argos::ToRadians(m_vecKilobotOrientations[unKilobotID]);
-    argos::CQuaternion cQuaternion;
-    cQuaternion.FromEulerAngles(cOrientationInRadians, argos::CRadians(0.0), argos::CRadians(0.0));
-    argos::CVector3 cPosition(.5,0,0);
-    c_kilobot_entity.GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
 }
 
 /****************************************/
@@ -107,7 +136,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
-    GetNodeAttribute(tHierarchicalStructNode,"contact_side",contact_side);
+    GetNodeAttribute(tHierarchicalStructNode,"middle_x_area",middle_x_area);
 }
 
 /****************************************/
@@ -290,6 +319,7 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
+    else if (vec_position_on_plane.GetY()<middle_x_area) color=CColor::GREEN;    
     return color;
 }
 
