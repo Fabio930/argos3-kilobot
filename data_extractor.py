@@ -18,7 +18,7 @@ class Results:
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
-    def compute_quorum_dim(self,algo,msgs_states,buf_lim,gt,gt_dim):
+    def compute_quorum_dim(self,algo,states,msgs_states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
         perc = 0
         compl = len(msgs_states)*len(msgs_states[0])*len(msgs_states[0][0])
@@ -32,8 +32,8 @@ class Results:
                     tmp_dim_2 = []
                     tmp_ones_2 = []
                     for t in range(len(msgs_states[j][i])):
-                        dim = 0
-                        ones = 0
+                        dim = 1
+                        ones = states[j][i][t]
                         sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
                         sys.stdout.flush()
                         for z in range(len(msgs_states[j][i][t])):
@@ -61,8 +61,8 @@ class Results:
                     tmp_dim_2 = []
                     tmp_ones_2 = []
                     for t in range(len(msgs_states[j][i])):
-                        dim = 0
-                        ones = 0
+                        dim = 1
+                        ones = states[j][i][t]
                         tmp=np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
                         start = 0
                         sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
@@ -91,7 +91,7 @@ class Results:
                     sys.stdout.write(f"\rComputing results for threshold: {threshold} Progress: {np.round((perc/compl)*100,3)}%")
                     sys.stdout.flush()
                     perc += 1
-                    out[i][j][k] = 1 if m1[i][j][k] >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+                    out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         return out
     
 ##########################################################################################################
@@ -244,7 +244,7 @@ class Results:
                     msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
-                            results = self.compute_quorum_dim(algo,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
+                            results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
                             quorum_results = {}
                             states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                             quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
@@ -266,7 +266,7 @@ class Results:
                             fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,BUFFERS[buf],messages])
                             fw.close()
                     else:
-                        results = self.compute_quorum_dim(algo,msgs_state_bigM_1,0,1,1)
+                        results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
                         quorum_results = {}
                         states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                         quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
