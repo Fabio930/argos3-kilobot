@@ -252,19 +252,7 @@ class Results:
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
                             print("\n")
                             messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
-                            file_name = "messages_resume.csv"
-                            header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
-                            write_header = 1
-                            if not os.path.exists(os.path.abspath("")+"/msgs_data"):
-                                os.mkdir(os.path.abspath("")+"/msgs_data")
-                            if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
-                                write_header = 0
-                            fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
-                            fwriter = csv.writer(fw,delimiter='\t')
-                            if write_header == 1:
-                                fwriter.writerow(header)
-                            fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,BUFFERS[buf],messages])
-                            fw.close()
+                            self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
                     else:
                         results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
                         quorum_results = {}
@@ -274,24 +262,27 @@ class Results:
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
                         print("\n")
                         messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
-                        file_name = "messages_resume.csv"
-                        header = ["ArenaSize","algo","threshold","delta_GT","broadcast","n_agents","buff_dim","data"]
-                        write_header = 1
-                        if not os.path.exists(os.path.abspath("")+"/msgs_data"):
-                            os.mkdir(os.path.abspath("")+"/msgs_data")
-                        if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
-                            write_header = 0
-                        fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
-                        fwriter = csv.writer(fw,delimiter='\t')
-                        if write_header == 1:
-                            fwriter.writerow(header)
-                        fwriter.writerow([arenaS,algo,threshold,delta,communication,n_agents,t_messages,messages])
-                        fw.close()
+                        self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
 
+
+##########################################################################################################
+
+    def write_msgs_data(self, file_name, data):
+        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast", "n_agents", "buff_dim", "data"]
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
+        
+        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
+        
+        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            fwriter.writerow(data)
 ##########################################################################################################
     def compute_msgs_state(self,states,msgs_id):
         print("\n--- Matching states and messages ---")
