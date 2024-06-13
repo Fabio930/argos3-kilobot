@@ -26,7 +26,7 @@ class Results:
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
-        print(f"\n--- Processing data {gt}/{gt_dim} ---")
+        print(f"--- Processing data {gt}/{gt_dim} ---")
         perc = 0
         compl = len(states)*len(states[0])*len(m1[0][0])
         if algo == 'O':
@@ -102,7 +102,7 @@ class Results:
         return out
 
 ##########################################################################################################
-    def compute_meaningfull_msgs(self,data,limit,algo,buf,buf_dim):
+    def compute_meaningful_msgs(self,data,limit,algo,buf,buf_dim):
         print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
         perc = 0
         compl = len(data)*len(data[0])*len(data[0][0])
@@ -251,7 +251,7 @@ class Results:
                             BUFFERS=[41,56,65,74,83]
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
-                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
+                            messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                             for gt in range(len(self.ground_truth)):
                                 results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
@@ -263,7 +263,7 @@ class Results:
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
                                 print("\n")
                     else:
-                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
+                        messages = self.compute_meaningful_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                         for gt in range(len(self.ground_truth)):
                             results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0,gt+1,len(self.ground_truth))
