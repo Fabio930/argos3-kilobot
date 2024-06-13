@@ -252,7 +252,7 @@ class Results:
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
                             print("\n")
                             messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
-                            self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+                            self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
                     else:
                         results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
                         quorum_results = {}
