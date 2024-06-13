@@ -252,7 +252,7 @@ class Results:
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
                             messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
-                            self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
+                            self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
                             for gt in range(len(self.ground_truth)):
                                 results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
