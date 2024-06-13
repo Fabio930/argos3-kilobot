@@ -102,7 +102,7 @@ class Results:
         return out
 
 ##########################################################################################################
-    def compute_meaningful_msgs(self,data,limit,algo,buf,buf_dim):
+    def compute_meaningfull_msgs(self,data,limit,algo,buf,buf_dim):
         print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
         perc = 0
         compl = len(data)*len(data[0])*len(data[0][0])
@@ -212,7 +212,8 @@ class Results:
                                         re_broadcast_c = 0
                                         for val in row:                                            
                                             if val.count('\t')==0:
-                                                msgs.append(int(val))
+                                                if val!='-' : msgs.append(int(val))
+                                                else : msgs.append(0)
                                             else:
                                                 val = val.split('\t')
                                                 if val[0] != '': msgs.append(int(val[0]))
@@ -242,12 +243,12 @@ class Results:
                     arenaS   = info_vec[4].split('_')[-1][:-1]
                     BUFFERS = []
                     if arenaS=='small':
-                        BUFFERS = [19,21,23,24]
+                        BUFFERS = [20,22,23,23.01,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[10,14,19,21]
+                            BUFFERS=[11,15,17.19,21]
                         elif n_agents==100:
-                            BUFFERS=[40,56,74,83]
+                            BUFFERS=[41,56,65,74,83]
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
                             for gt in range(len(self.ground_truth)):
@@ -259,7 +260,7 @@ class Results:
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
                                 print("\n")
-                            messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
+                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
                             file_name = "messages_resume.csv"
                             header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                             write_header = 1
@@ -284,7 +285,7 @@ class Results:
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
                             print("\n")
 
-                        messages = self.compute_meaningful_msgs(msgs_bigM_1,t_messages,algo,1,1)
+                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         file_name = "messages_resume.csv"
                         header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
                         write_header = 1
