@@ -57,7 +57,11 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     /* Setup the virtual states of a kilobot */
     std::vector<UInt8> assigned_kilo_states;
     assigned_kilo_states.resize(m_tKilobotEntities.size());
-    for(UInt16 it = 0;it < m_tKilobotEntities.size();it++) assigned_kilo_states[it] = 0;
+    for(UInt16 it = 0;it < m_tKilobotEntities.size();it++){
+        assigned_kilo_states[it]        = 0;
+        m_vecKilobotPositions[it]       = GetKilobotPosition(*m_tKilobotEntities[it]);
+        m_vecKilobotOrientations[it]    = ToDegrees(GetKilobotOrientation(*m_tKilobotEntities[it])).UnsignedNormalize();
+    }
     UInt8 count = 0;
     UInt8 p;
     while(true){
@@ -85,19 +89,19 @@ void CBestN_ALF::SetupInitialKilobotStates(){
             sem = 1;
             if(assigned_kilo_states[it] == 1){
                 do{
-                    Yr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[1]+0.05,middle_x_area);
-                } while (Yr<this->GetSpace().GetArenaLimits().GetMin()[1] || Yr > middle_x_area);
+                    Xr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[0]+0.05,middle_x_area);
+                } while (Xr<this->GetSpace().GetArenaLimits().GetMin()[0] || Xr > middle_x_area);
             }
             else{
                 do{
-                    Yr = uniform_distribution_neg(middle_x_area,this->GetSpace().GetArenaLimits().GetMax()[1]-0.05);
-                } while (Yr < middle_x_area || Yr > this->GetSpace().GetArenaLimits().GetMax()[1]);
+                    Xr = uniform_distribution_neg(middle_x_area,this->GetSpace().GetArenaLimits().GetMax()[0]-0.05);
+                } while (Xr < middle_x_area || Xr > this->GetSpace().GetArenaLimits().GetMax()[0]);
             }
-            Xr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[0]+0.05,this->GetSpace().GetArenaLimits().GetMax()[0]-0.05);
+            Yr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[1]+0.05,this->GetSpace().GetArenaLimits().GetMax()[1]-0.05);
             for(UInt16 jt=0;jt< m_tKilobotEntities.size();jt++){
                 if(jt!=it){
-                    if((Xr <= m_vecKilobotPositions[jt].GetX()+KILOBOT_RADIUS && Xr >= m_vecKilobotPositions[jt].GetX()-KILOBOT_RADIUS) &&
-                       (Yr <= m_vecKilobotPositions[jt].GetY()+KILOBOT_RADIUS && Yr >= m_vecKilobotPositions[jt].GetY()-KILOBOT_RADIUS)){
+                    if((Xr <= m_vecKilobotPositions[jt].GetX()+(2*KILOBOT_RADIUS) && Xr >= m_vecKilobotPositions[jt].GetX()-(2*KILOBOT_RADIUS)) &&
+                       (Yr <= m_vecKilobotPositions[jt].GetY()+(2*KILOBOT_RADIUS) && Yr >= m_vecKilobotPositions[jt].GetY()-(2*KILOBOT_RADIUS))){
                         sem = 0;
                         break;
                     }
@@ -106,7 +110,7 @@ void CBestN_ALF::SetupInitialKilobotStates(){
         }
         cPosition = argos::CVector3(Xr,Yr,0);
         m_tKilobotEntities[it]->GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
-        
+        std::cout<<assigned_kilo_states[it]<<'\t'<<GetKilobotId(*m_tKilobotEntities[it])<<"\t\t"<<"mid:"<<middle_x_area<<"\tX:"<<Xr<<"\tY:"<<Yr<<'\n';
     }
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
@@ -319,7 +323,7 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
-    else if (vec_position_on_plane.GetY()<middle_x_area) color=CColor::GREEN;    
+    else if (vec_position_on_plane.GetX()<middle_x_area) color=CColor::GREEN;    
     return color;
 }
 

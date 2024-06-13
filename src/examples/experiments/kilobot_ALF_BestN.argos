@@ -115,8 +115,8 @@
         <qt-opengl>
             <camera>
                 <placements>
-                    <placement index="0" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="43" />
-                    <placement index="1" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="23" />
+                    <placement index="0" position="0,0,1" up="0,1,0" look_at="0,0,0" lens_focal_length="43" />
+                    <placement index="1" position="0,0,1" up="0,1,0" look_at="0,0,0" lens_focal_length="23" />
                 </placements>
             </camera>
         </qt-opengl>
