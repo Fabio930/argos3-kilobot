@@ -257,23 +257,11 @@ class Results:
                                     quorum_results = {}
                                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                                     quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
-                                    self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
-                                    self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                                    self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
+                                    self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
                                 print("\n")
                             messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
-                            file_name = "messages_resume.csv"
-                            header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
-                            write_header = 1
-                            if not os.path.exists(os.path.abspath("")+"/msgs_data"):
-                                os.mkdir(os.path.abspath("")+"/msgs_data")
-                            if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
-                                write_header = 0
-                            fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
-                            fwriter = csv.writer(fw,delimiter='\t')
-                            if write_header == 1:
-                                fwriter.writerow(header)
-                            fwriter.writerow([arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
-                            fw.close()
+                            self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                     else:
                         for gt in range(len(self.ground_truth)):
                             results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0,gt+1,len(self.ground_truth))
@@ -286,26 +274,26 @@ class Results:
                             print("\n")
 
                         messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
-                        file_name = "messages_resume.csv"
-                        header = ["ArenaSize","algo","broadcast","n_agents","buff_dim","data"]
-                        write_header = 1
-                        if not os.path.exists(os.path.abspath("")+"/msgs_data"):
-                            os.mkdir(os.path.abspath("")+"/msgs_data")
-                        if os.path.exists(os.path.abspath("")+"/msgs_data/"+file_name):
-                            write_header = 0
-                        fw = open(os.path.abspath("")+"/msgs_data/"+file_name,mode='a',newline='\n')
-                        fwriter = csv.writer(fw,delimiter='\t')
-                        if write_header == 1:
-                            fwriter.writerow(header)
-                        fwriter.writerow([arenaS,algo,communication,n_agents,t_messages,messages])
-                        fw.close()   
-
+                        self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
                 
                 print("--- Results saved ---\n")
 
+##########################################################################################################
+    def write_msgs_data(self, file_name, data):
+        header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
+        
+        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
+        
+        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            fwriter.writerow(data)
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
