@@ -48,17 +48,18 @@ def main():
                         thr_path = os.path.join(exp_l_path, thr_dir)
                         threshold = float(thr_dir.split('#')[1].replace('_','.'))
                         for Dgt_dir in sorted(os.listdir(thr_path)):
-                            Dgt_path = os.path.join(thr_path,Dgt_dir)
-                            delta_str = Dgt_dir.split('#')[1].replace('_','.')
-                            for comm_dir in sorted(os.listdir(Dgt_path)):
-                                if '.' not in comm_dir and '#' in comm_dir:
-                                    comm_path = os.path.join(Dgt_path, comm_dir)
-                                    communication = int(comm_dir.split('#')[1])
-                                    for agents_dir in sorted(os.listdir(comm_path)):
-                                        if '.' not in agents_dir and '#' in agents_dir:
-                                            n_agents = int(agents_dir.split('#')[1])
-                                            agents_path = os.path.join(comm_path, agents_dir)
-                                            results.extract_k_data(base,agents_path,exp_length,communication,n_agents,threshold,delta_str,data_type)
+                            if '.' not in Dgt_dir and '#' in Dgt_dir:
+                                Dgt_path = os.path.join(thr_path,Dgt_dir)
+                                delta_str = Dgt_dir.split('#')[1].replace('_','.')
+                                for comm_dir in sorted(os.listdir(Dgt_path)):
+                                    if '.' not in comm_dir and '#' in comm_dir:
+                                        comm_path = os.path.join(Dgt_path, comm_dir)
+                                        communication = int(comm_dir.split('#')[1])
+                                        for agents_dir in sorted(os.listdir(comm_path)):
+                                            if '.' not in agents_dir and '#' in agents_dir:
+                                                n_agents = int(agents_dir.split('#')[1])
+                                                agents_path = os.path.join(comm_path, agents_dir)
+                                                results.extract_k_data(base,agents_path,exp_length,communication,n_agents,threshold,delta_str,data_type)
 
 if __name__ == "__main__":
     main()
