@@ -251,6 +251,8 @@ class Results:
                             BUFFERS=[41,56,65,74,83]
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
+                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
+                            self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                             for gt in range(len(self.ground_truth)):
                                 results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
@@ -260,9 +262,9 @@ class Results:
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
                                 print("\n")
-                            messages = self.compute_meaningfull_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
-                            self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                     else:
+                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
+                        self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                         for gt in range(len(self.ground_truth)):
                             results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0,gt+1,len(self.ground_truth))
                             for thr in self.thresholds.get(self.ground_truth[gt]):
@@ -273,8 +275,6 @@ class Results:
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
                             print("\n")
 
-                        messages = self.compute_meaningfull_msgs(msgs_bigM_1,t_messages,algo,1,1)
-                        self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
