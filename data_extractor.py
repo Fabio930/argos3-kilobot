@@ -196,7 +196,7 @@ class Results:
                         BUFFERS = [20,22,23,23.01,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[11,15,17.19,21]
+                            BUFFERS=[11,15,17,19,21]
                         elif n_agents==100:
                             BUFFERS=[41,56,65,74,83]
                     if algo=='P':
