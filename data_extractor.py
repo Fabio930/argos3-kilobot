@@ -18,75 +18,52 @@ class Results:
                 selem=elem.split('_')
                 if selem[0]=="Oresults" or selem[0]=="Presults":
                     self.bases.append(os.path.join(self.base, elem))
-        for gt in range(len(self.ground_truth)):
-            _thresholds=np.arange(50,101,1)
-            f_thresholds = []
-            for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
-            self.thresholds.update({self.ground_truth[gt]:f_thresholds})
+        for gt in self.ground_truth:
+            _thresholds = np.arange(50, 101, 1)
+            f_thresholds = [round(float(t) * .01, 2) for t in _thresholds]
+            self.thresholds.update({gt: f_thresholds})
 
 #########################################################################################################
-    def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
+    def compute_quorum_vars_on_ground_truth(self, algo, m1, states, buf_lim, gt, gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
         perc = 0
-        compl = len(states)*len(states[0])*len(m1[0][0])
-        if algo == 'O':
-            tmp_dim_0 = [np.array([])]*len(m1[0])
-            tmp_ones_0 = [np.array([])]*len(m1[0])
-            for i in range(len(states)):
-                tmp_dim_1 = [np.array([])]*len(m1)
-                tmp_ones_1 = [np.array([])]*len(m1)
-                for j in range(len(states[i])):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(m1[j][i])):
-                        dim = 1
-                        ones = states[i][j]
-                        sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
-                        sys.stdout.flush()
-                        for z in range(len(m1[j][i][t])):
-                            if(m1[j][i][t][z] == -1):
+        compl = len(states) * len(states[0]) * len(m1[0][0])
+        
+        tmp_dim_0 = np.empty((len(states), len(m1[0])), dtype=object)
+        tmp_ones_0 = np.empty((len(states), len(m1[0])), dtype=object)
+        
+        for i, state_i in enumerate(states):
+            tmp_dim_1 = np.empty(len(m1), dtype=object)
+            tmp_ones_1 = np.empty(len(m1), dtype=object)
+            for j, state_ij in enumerate(state_i):
+                tmp_dim_2 = np.zeros(len(m1[j][i]), dtype=int)
+                tmp_ones_2 = np.zeros(len(m1[j][i]), dtype=int)
+                for t, m1_jit in enumerate(m1[j][i]):
+                    dim = 1
+                    ones = state_ij
+                    sys.stdout.write(f"\rProgress: {np.round((perc / compl) * 100, 3)}%")
+                    sys.stdout.flush()
+                    if algo == 'O':
+                        for z, m1_jitz in enumerate(m1_jit):
+                            if m1_jitz == -1:
                                 break
                             dim += 1
-                            ones += states[i][m1[j][i][t][z]]
-                        perc += 1
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j] = tmp_dim_2
-                    tmp_ones_1[j] = tmp_ones_2
-                tmp_dim_0[i] = tmp_dim_1
-                tmp_ones_0[i] = tmp_ones_1
-            print("\n")
-            return (tmp_dim_0,tmp_ones_0)
-        else:
-            tmp_dim_0 = [np.array([])]*len(m1[0])
-            tmp_ones_0 = [np.array([])]*len(m1[0])
-            for i in range(len(states)):
-                tmp_dim_1 = [np.array([])]*len(m1)
-                tmp_ones_1 = [np.array([])]*len(m1)
-                for j in range(len(states[i])):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(m1[j][i])):
-                        dim = 1
-                        ones = states[i][j]
-                        tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
-                        start = 0
-                        sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
-                        sys.stdout.flush()
-                        if len(tmp) > buf_lim: start= len(tmp) - buf_lim
-                        for z in range(start,len(tmp)):
-                            dim += 1
-                            ones += states[i][m1[j][i][t][z]]
-                        perc += 1
+                            ones += states[i][m1_jitz]
+                    else:
+                        tmp = m1_jit[m1_jit != -1]
+                        start = max(0, len(tmp) - buf_lim)
+                        dim += len(tmp[start:])
+                        ones += np.sum(states[i][tmp[start:]])
+                    perc += 1
+                    tmp_dim_2[t] = dim
+                    tmp_ones_2[t] = ones
+                tmp_dim_1[j] = tmp_dim_2
+                tmp_ones_1[j] = tmp_ones_2
+            tmp_dim_0[i] = tmp_dim_1
+            tmp_ones_0[i] = tmp_ones_1
 
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j]    = tmp_dim_2
-                    tmp_ones_1[j]   = tmp_ones_2
-                tmp_dim_0[i]        = tmp_dim_1
-                tmp_ones_0[i]       = tmp_ones_1
-            print("\n")
-            return (tmp_dim_0,tmp_ones_0)
+        print("\n")
+        return tmp_dim_0, tmp_ones_0
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
         perc = 0
@@ -102,88 +79,76 @@ class Results:
         return out
 
 ##########################################################################################################
-    def compute_meaningful_msgs(self,data,limit,algo,buf,buf_dim):
+    def compute_meaningful_msgs(self, data, limit, algo, buf, buf_dim):
         print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
         perc = 0
-        compl = len(data)*len(data[0])*len(data[0][0])
-        data_partial = np.array([])
+        compl = len(data) * len(data[0]) * len(data[0][0])
+        data_partial = np.empty(len(data), dtype=object)
+        
         for ag in range(len(data)):
-            runs = np.array([])
+            runs = np.empty(len(data[ag]), dtype=object)
             for rn in range(len(data[ag])):
-                tmp = [0]*len(data[0][0])
+                tmp = np.zeros(len(data[0][0]), dtype=int)
                 for tk in range(len(data[ag][rn])):
-                    sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
+                    sys.stdout.write(f"\rProgress: {np.round((perc / compl) * 100, 3)}%")
                     sys.stdout.flush()
-                    flag = []
-                    for el in range(len(data[ag][rn][tk])):
-                        if algo == 'P' and el >= limit: break
-                        elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
-                            flag.append(data[ag][rn][tk][el])
+                    flag = set()
+                    for el in data[ag][rn][tk]:
+                        if algo == 'P' and el >= limit:
+                            break
+                        if el not in flag and el != -1:
+                            flag.add(el)
                             tmp[tk] += 1
                     perc += 1
-                if len(runs) == 0:
-                    runs = [tmp]
-                else:
-                    runs = np.append(runs,[tmp],axis=0)
-            if len(data_partial) == 0:
-                data_partial = [runs]
-            else:
-                data_partial = np.append(data_partial,[runs],axis=0)
-        msgs_summation = [0]*len(data_partial[0][0])
-        for ag in range(len(data_partial)):
-            for rn in range(len(data_partial[ag])):
-                for tk in range(len(data_partial[ag][rn])):
-                    msgs_summation[tk] += data_partial[ag][rn][tk]
-        for tk in range(len(msgs_summation)):
-            msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
-            msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
+                runs[rn] = tmp
+            data_partial[ag] = runs
+        
+        msgs_summation = np.zeros(len(data_partial[0][0]))
+        for ag in data_partial:
+            for rn in ag:
+                msgs_summation += rn
+        msgs_summation = np.round(msgs_summation / len(data_partial) / len(data_partial[0]), 3)
         print("\n")
-        return msgs_summation
+        return msgs_summation.tolist()
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,data_type="all"):
+    def extract_k_data(self, base, path_temp, max_steps, communication, n_agents, data_type="all"):
         max_buff_size = n_agents - 1
         for pre_folder in sorted(os.listdir(path_temp)):
             if '.' not in pre_folder:
                 pre_params = pre_folder.split('#')
                 msg_exp_time = int(pre_params[-1])
-                sub_path = os.path.join(path_temp,pre_folder)
+                sub_path = os.path.join(path_temp, pre_folder)
                 act_results = {}
-                num_runs = int(len(os.listdir(sub_path))/n_agents)
-                msgs_bigM_1 = [np.array([])] * n_agents
-                act_bigM_1 = [np.array([])] * n_agents
-                act_bigM_2 = [np.array([])] * n_agents
-                msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
-                act_M_1 = [np.array([],dtype=int)]*num_runs
-                act_M_2 = [np.array([],dtype=int)]*num_runs
-                # assign randomly the state to agents at each run
+                num_runs = int(len(os.listdir(sub_path)) / n_agents)
+                
+                msgs_bigM_1 = [np.empty(num_runs, dtype=object) for _ in range(n_agents)]
+                act_bigM_1 = [np.empty(num_runs, dtype=object) for _ in range(n_agents)]
+                act_bigM_2 = [np.empty(num_runs, dtype=object) for _ in range(n_agents)]
+                msgs_M_1 = [np.empty((0, max_buff_size), dtype=int) for _ in range(num_runs)]
+                act_M_1 = [np.empty(0, dtype=int) for _ in range(num_runs)]
+                act_M_2 = [np.empty(0, dtype=int) for _ in range(num_runs)]
+                
                 print(sub_path)
                 print("--- Assign states ---")
-                states_by_gt = [np.array([])]*len(self.ground_truth)
-                for gt in range(len(self.ground_truth)):
-                    runs_states = [np.array([])]*num_runs
-                    num_committed = math.ceil(n_agents*self.ground_truth[gt])
+                states_by_gt = [np.empty(num_runs, dtype=object) for _ in range(len(self.ground_truth))]
+                for gt, gt_value in enumerate(self.ground_truth):
+                    runs_states = np.empty(num_runs, dtype=object)
+                    num_committed = math.ceil(n_agents * gt_value)
                     for i in range(num_runs):
                         ones = 0
-                        agents_state = [0]*n_agents
-                        while(1):
+                        agents_state = np.zeros(n_agents, dtype=int)
+                        while ones < num_committed:
                             for j in range(n_agents):
-                                if agents_state[j]==0:
-                                    tmp = np.random.random_integers(0,1)
-                                    if tmp==1:
-                                        if ones<num_committed:
-                                            ones+=1
-                                            agents_state[j] = tmp
-                                if ones >= num_committed: break
-                            if ones >= num_committed: break
-                        if len(runs_states[0]) == 0:
-                            runs_states = [np.array(agents_state)]
-                        else:
-                            runs_states = np.append(runs_states,[agents_state],axis=0)
-                    if len(states_by_gt[0]) == 0:
-                        states_by_gt = [runs_states]
-                    else:
-                        states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
+                                if agents_state[j] == 0:
+                                    tmp = np.random.randint(0, 2)
+                                    if tmp == 1 and ones < num_committed:
+                                        ones += 1
+                                        agents_state[j] = tmp
+                                    if ones >= num_committed:
+                                        break
+                        runs_states[i] = agents_state
+                    states_by_gt[gt] = runs_states
                 #####################################################
                 print("--- Extract data ---")
                 a_ = 0
