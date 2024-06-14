@@ -20,56 +20,30 @@ class Results:
 #########################################################################################################
     def compute_quorum_dim(self,algo,states,msgs_states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
-        if algo=='O':
-            tmp_dim_0 = [np.array([])]*len(msgs_states[0])
-            tmp_ones_0 = [np.array([])]*len(msgs_states[0])
-            for i in range(len(msgs_states[0])):
-                tmp_dim_1 = [np.array([])]*len(msgs_states)
-                tmp_ones_1 = [np.array([])]*len(msgs_states)
-                for j in range(len(msgs_states)):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(msgs_states[j][i])):
-                        dim = 1
-                        ones = states[j][i][t]
-                        for z in range(len(msgs_states[j][i][t])):
-                            if(msgs_states[j][i][t][z] == -1):
-                                break
-                            dim += 1
-                            ones += msgs_states[j][i][t][z]
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j] = tmp_dim_2
-                    tmp_ones_1[j] = tmp_ones_2
-                tmp_dim_0[i] = tmp_dim_1
-                tmp_ones_0[i] = tmp_ones_1
-            
-            return (tmp_dim_0,tmp_ones_0)
-        else:
-            tmp_dim_0 = [np.array([])]*len(msgs_states[0])
-            tmp_ones_0 = [np.array([])]*len(msgs_states[0])
-            for i in range(len(msgs_states[0])):
-                tmp_dim_1 = [np.array([])]*len(msgs_states)
-                tmp_ones_1 = [np.array([])]*len(msgs_states)
-                for j in range(len(msgs_states)):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(msgs_states[j][i])):
-                        dim = 1
-                        ones = states[j][i][t]
-                        tmp=np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
-                        start = 0
-                        if len(tmp) > int(buf_lim): start = len(tmp) - int(buf_lim)
-                        for z in range(start,len(tmp)):
-                            dim += 1
-                            ones += msgs_states[j][i][t][z]
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j]    = tmp_dim_2
-                    tmp_ones_1[j]   = tmp_ones_2
-                tmp_dim_0[i]        = tmp_dim_1
-                tmp_ones_0[i]       = tmp_ones_1
-            return (tmp_dim_0,tmp_ones_0)
+        tmp_dim_0 = [np.array([])]*len(msgs_states[0])
+        tmp_ones_0 = [np.array([])]*len(msgs_states[0])
+        for i in range(len(msgs_states[0])):
+            tmp_dim_1 = [np.array([])]*len(msgs_states)
+            tmp_ones_1 = [np.array([])]*len(msgs_states)
+            for j in range(len(msgs_states)):
+                tmp_dim_2 = []
+                tmp_ones_2 = []
+                for t in range(len(msgs_states[j][i])):
+                    dim = 1
+                    ones = states[j][i][t]
+                    tmp=np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
+                    start = 0
+                    if algo=='P' and len(tmp) > int(buf_lim): start = len(tmp) - int(buf_lim)
+                    for z in range(start,len(tmp)):
+                        dim += 1
+                        ones += msgs_states[j][i][t][z]
+                    tmp_dim_2.append(dim)
+                    tmp_ones_2.append(ones)
+                tmp_dim_1[j]    = tmp_dim_2
+                tmp_ones_1[j]   = tmp_ones_2
+            tmp_dim_0[i]        = tmp_dim_1
+            tmp_ones_0[i]       = tmp_ones_1
+        return (tmp_dim_0,tmp_ones_0)
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
