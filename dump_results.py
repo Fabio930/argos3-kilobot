@@ -2,44 +2,63 @@ import data_extractor as dex
 import os
 import sys
 from multiprocessing import Pool, cpu_count
+import logging
+from functools import partial
+
+def setup_logging():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
 
 def check_inputs():
     ticks = 10
     data_type = "all"
     if len(sys.argv) > 7:
-        print("Too many arguments --EXIT--")
+        logging.error("Too many arguments --EXIT--")
         exit()
     if len(sys.argv) > 1:
         for i in range(len(sys.argv)):
             if sys.argv[i] == '-d':
                 if i + 1 >= len(sys.argv):
-                    print("BAD format input --EXIT--")
+                    logging.error("BAD format input --EXIT--")
                     exit()
                 data_type = str(sys.argv[i + 1])
             elif sys.argv[i] == '-t':
                 if i + 1 >= len(sys.argv):
-                    print("BAD format input --EXIT--")
+                    logging.error("BAD format input --EXIT--")
                     exit()
                 try:
                     ticks = int(sys.argv[i + 1])
                 except:
-                    print("BAD format input\n-t must be followed by a positive integer --EXIT--")
+                    logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
                     exit()
-    if data_type != "all" and data_type != "quorum" and data_type != "freq":
-        print("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
+    if data_type not in {"all", "quorum", "freq"}:
+        logging.error("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
         exit()
     if ticks <= 0:
-        print("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
+        logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
         exit()
     return ticks, data_type
 
 def process_folder(args):
     base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results = args
-    print(agents_path+"\tStarted")
-    results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
-    print(agents_path+"\tCompleted")
+    try:
+        logging.info(f"{agents_path}\tStarted")
+        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
+        logging.info(f"{agents_path}\tCompleted")
+    except Exception as e:
+        logging.error(f"Error processing {agents_path}: {e}")
+
+def task_done(result):
+    logging.info(f"Task completed with result: {result}")
+
+def task_error(e):
+    logging.error(f"Task failed with error: {e}")
 
 def main():
+    setup_logging()
     results = dex.Results()
     results.ticks_per_sec, data_type = check_inputs()
 
@@ -66,9 +85,16 @@ def main():
                                                 n_agents = int(agents_dir.split('#')[1])
                                                 agents_path = os.path.join(comm_path, agents_dir)
                                                 tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results))
-    print("Pooling")
-    with Pool(cpu_count()) as pool:
-        pool.map(process_folder, tasks)
+
+    logging.info("Pooling")
+    pool = Pool(cpu_count())
+    
+    for task in tasks:
+        pool.apply_async(process_folder, args=(task,), callback=task_done, error_callback=task_error)
+
+    pool.close()
+    pool.join()
+    logging.info("All tasks completed.")
 
 if __name__ == "__main__":
     main()
