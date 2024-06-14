@@ -27,55 +27,31 @@ class Results:
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
-        if algo == 'O':
-            tmp_dim_0 = [np.array([])]*len(m1[0])
-            tmp_ones_0 = [np.array([])]*len(m1[0])
-            for i in range(len(states)):
-                tmp_dim_1 = [np.array([])]*len(m1)
-                tmp_ones_1 = [np.array([])]*len(m1)
-                for j in range(len(states[i])):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(m1[j][i])):
-                        dim = 1
-                        ones = states[i][j]
-                        for z in range(len(m1[j][i][t])):
-                            if(m1[j][i][t][z] == -1):
-                                break
-                            dim += 1
-                            ones += states[i][m1[j][i][t][z]]
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j] = tmp_dim_2
-                    tmp_ones_1[j] = tmp_ones_2
-                tmp_dim_0[i] = tmp_dim_1
-                tmp_ones_0[i] = tmp_ones_1
-            return (tmp_dim_0,tmp_ones_0)
-        else:
-            tmp_dim_0 = [np.array([])]*len(m1[0])
-            tmp_ones_0 = [np.array([])]*len(m1[0])
-            for i in range(len(states)):
-                tmp_dim_1 = [np.array([])]*len(m1)
-                tmp_ones_1 = [np.array([])]*len(m1)
-                for j in range(len(states[i])):
-                    tmp_dim_2 = []
-                    tmp_ones_2 = []
-                    for t in range(len(m1[j][i])):
-                        dim = 1
-                        ones = states[i][j]
-                        tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
-                        start = 0
-                        if len(tmp) > buf_lim: start= len(tmp) - buf_lim
-                        for z in range(start,len(tmp)):
-                            dim += 1
-                            ones += states[i][m1[j][i][t][z]]
-                        tmp_dim_2.append(dim)
-                        tmp_ones_2.append(ones)
-                    tmp_dim_1[j]    = tmp_dim_2
-                    tmp_ones_1[j]   = tmp_ones_2
-                tmp_dim_0[i]        = tmp_dim_1
-                tmp_ones_0[i]       = tmp_ones_1
-            return (tmp_dim_0,tmp_ones_0)
+        tmp_dim_0 = [np.array([])]*len(m1[0])
+        tmp_ones_0 = [np.array([])]*len(m1[0])
+        for i in range(len(states)):
+            tmp_dim_1 = [np.array([])]*len(m1)
+            tmp_ones_1 = [np.array([])]*len(m1)
+            for j in range(len(states[i])):
+                tmp_dim_2 = []
+                tmp_ones_2 = []
+                for t in range(len(m1[j][i])):
+                    dim = 1
+                    ones = states[i][j]
+                    tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
+                    start = 0
+                    if algo=='P' and len(tmp) > buf_lim: start = len(tmp) - buf_lim
+                    for z in range(start,len(tmp)):
+                        dim += 1
+                        ones += states[i][m1[j][i][t][z]]
+                    tmp_dim_2.append(dim)
+                    tmp_ones_2.append(ones)
+                tmp_dim_1[j]    = tmp_dim_2
+                tmp_ones_1[j]   = tmp_ones_2
+            tmp_dim_0[i]        = tmp_dim_1
+            tmp_ones_0[i]       = tmp_ones_1
+        return (tmp_dim_0,tmp_ones_0)
+    
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
@@ -316,44 +292,43 @@ class Results:
 
 ##########################################################################################################
     def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME):
-        if algo == 'O':
-            for l in range(len(data_in.get(0))):
-                multi_run_data = data_in.get(0)[l]
-                if multi_run_data is not None:
-                    flag2 = [-1]*len(multi_run_data[0][0])
-                    for i in range(len([multi_run_data[0]])):
-                        flag1 = [-1]*len(multi_run_data[0][0])
-                        for j in range(len(multi_run_data)):
-                            for z in range(len(multi_run_data[j][i])):
-                                if flag1[z]==-1:
-                                    flag1[z]=float(multi_run_data[j][i][z])
-                                else:
-                                    flag1[z]=flag1[z]+float(multi_run_data[j][i][z])
-                        for j in range(len(flag1)):
-                            flag1[j]=flag1[j]/len(multi_run_data)
-                            if flag2[j]==-1:
-                                flag2[j]=flag1[j]
+        for l in range(len(data_in.get(0))):
+            multi_run_data = data_in.get(0)[l]
+            if multi_run_data is not None:
+                flag2 = [-1]*len(multi_run_data[0][0])
+                for i in range(len([multi_run_data[0]])):
+                    flag1 = [-1]*len(multi_run_data[0][0])
+                    for j in range(len(multi_run_data)):
+                        for z in range(len(multi_run_data[j][i])):
+                            if flag1[z]==-1:
+                                flag1[z]=float(multi_run_data[j][i][z])
                             else:
-                                flag2[j]=flag1[j]+flag2[j]
-                    for i in range(len(flag2)):
-                        flag2[i]=flag2[i]/len(multi_run_data[0])
-                    ###################################################
-                    fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data[0])
-                    fstd3=[-1]*len(multi_run_data[0][0])
-                    for i in range(len(multi_run_data[0])):
-                        fstd1=[-1]*len(multi_run_data[0][0])
-                        for z in range(len(multi_run_data[0][0])): # per ogni tick
-                            std_tmp = []
-                            for j in range(len(multi_run_data)): # per ogni agente
-                                std_tmp.append(float(multi_run_data[j][i][z]))
-                            fstd1[z]=np.std(std_tmp)
-                        fstd2[i] = fstd1
-                    for z in range(len(fstd3)):
-                        median_array = []
-                        for i in range(len(fstd2)):
-                            median_array.append(fstd2[i][z])
-                        fstd3[z]=self.extract_median(median_array)
-                    self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
+                                flag1[z]=flag1[z]+float(multi_run_data[j][i][z])
+                    for j in range(len(flag1)):
+                        flag1[j]=flag1[j]/len(multi_run_data)
+                        if flag2[j]==-1:
+                            flag2[j]=flag1[j]
+                        else:
+                            flag2[j]=flag1[j]+flag2[j]
+                for i in range(len(flag2)):
+                    flag2[i]=flag2[i]/len(multi_run_data[0])
+                ###################################################
+                fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data[0])
+                fstd3=[-1]*len(multi_run_data[0][0])
+                for i in range(len(multi_run_data[0])):
+                    fstd1=[-1]*len(multi_run_data[0][0])
+                    for z in range(len(multi_run_data[0][0])): # per ogni tick
+                        std_tmp = []
+                        for j in range(len(multi_run_data)): # per ogni agente
+                            std_tmp.append(float(multi_run_data[j][i][z]))
+                        fstd1[z]=np.std(std_tmp)
+                    fstd2[i] = fstd1
+                for z in range(len(fstd3)):
+                    median_array = []
+                    for i in range(len(fstd2)):
+                        median_array.append(fstd2[i][z])
+                    fstd3[z]=self.extract_median(median_array)
+                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
     def dump_quorum_and_buffer(self,algo,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
