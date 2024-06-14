@@ -117,7 +117,7 @@ class Results:
                     flag = []
                     for el in range(len(data[ag][rn][tk])):
                         if algo == 'P' and el >= limit: break
-                        elif data[ag][rn][tk][el] not in flag:
+                        elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
                             flag.append(data[ag][rn][tk][el])
                             tmp[tk] += 1
                     perc += 1
