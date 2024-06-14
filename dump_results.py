@@ -34,8 +34,8 @@ def check_inputs():
     return ticks, data_type
 
 def process_folder(args):
-    print(agents_path+"\tStarted")
     base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results = args
+    print(agents_path+"\tStarted")
     results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
     print(agents_path+"\tCompleted")
 
