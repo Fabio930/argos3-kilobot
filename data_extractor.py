@@ -181,7 +181,7 @@ class Results:
                                                         msgs_id.append(int(val[1]))
                                                         broadcast_c = int(val[2])
                                                         re_broadcast_c = int(val[3])
-                                        if state==-1: print(sub_path,'\n',seed,agent_id,log_count,'\n',row)
+                                        if state==-1: print(sub_path,'\n',"run:",seed,"agent;",agent_id,"line:",log_count,'\n',row)
                                         states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
                                         act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                         act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
@@ -192,7 +192,7 @@ class Results:
                                             msgs_id_M_1[seed-1] = [msgs_id]
                                         else :
                                             msgs_id_M_1[seed-1] = np.append(msgs_id_M_1[seed-1],[msgs_id],axis=0)
-                            if len(msgs_id_M_1[seed-1])!=max_steps: print(sub_path,'\n',seed,len(msgs_id_M_1[seed-1]),len(msgs_id_M_1[seed-1][-1]))
+                            if len(msgs_id_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",len(msgs_id_M_1[seed-1][-1]),"num lines:",len(msgs_id_M_1[seed-1]))
                             if seed == num_runs:
                                 msgs_id_bigM_1[agent_id] = msgs_id_M_1
                                 states_bigM_1[agent_id] = states_M_1
