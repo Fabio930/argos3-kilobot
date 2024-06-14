@@ -184,12 +184,12 @@ class Results:
                     arenaS   = info_vec[4].split('_')[-1][:-1]
                     BUFFERS = []
                     if arenaS=='small':
-                        BUFFERS = [19,22,23,23.01,24]
+                        BUFFERS = [19,22,23,24]
                     elif arenaS=='big':
                         if n_agents==25:
-                            BUFFERS=[11,15,17,19,22]
+                            BUFFERS=[11,15,19,22]
                         elif n_agents==100:
-                            BUFFERS=[41,57,66,76,85]
+                            BUFFERS=[41,57,76,85]
                     msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
