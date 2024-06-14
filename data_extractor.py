@@ -61,7 +61,9 @@ class Results:
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         print("THR:",threshold)
         for i in range(len(out)):
-            print(out[i],'\n')
+            for j in range(len(out[i])):
+                print(out[i][j])
+            print('\n')
         return out
 
 ##########################################################################################################
