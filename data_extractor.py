@@ -59,6 +59,7 @@ class Results:
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
+        print(threshold,'\n',out)
         return out
 
 ##########################################################################################################
@@ -207,6 +208,7 @@ class Results:
                                 results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
                                     quorum_results = {}
+                                    print('\n',self.ground_truth[gt])
                                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                                     quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
