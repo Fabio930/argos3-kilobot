@@ -5,6 +5,7 @@ import numpy as np
 ##################################################################################
 def main():
     csv_res = CSVres.Data()
+    limit = 0.8
     for base in csv_res.bases:
         if base.split('/')[-1] == "proc_data":
             tot_st      = []
