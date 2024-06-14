@@ -56,9 +56,10 @@ def main():
                     if '.' not in dir and '#' in dir:
                         communication = int(dir.split('#')[1])
                         tasks.append((base, pre_apath, exp_length, dir, communication, data_type, results))
-    
+    print("Pooling")
     with Pool(cpu_count()) as pool:
         pool.map(process_folder, tasks)
 
 if __name__ == "__main__":
     main()
+    print("Done")
