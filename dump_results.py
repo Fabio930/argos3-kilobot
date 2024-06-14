@@ -36,7 +36,7 @@ def check_inputs():
 def process_folder(args):
     base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results = args
     results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
-    print(agents_path+'\tCompleted')
+    print(agents_path+"\tCompleted")
 
 def main():
     results = dex.Results()
