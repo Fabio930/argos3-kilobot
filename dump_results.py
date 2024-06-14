@@ -34,14 +34,9 @@ def check_inputs():
     return ticks, data_type
 
 def process_folder(args):
-    base, pre_apath, exp_length, dir, communication, data_type, results = args
-    pre_path = os.path.join(pre_apath, dir)
-    for zdir in sorted(os.listdir(pre_path)):
-        if '.' not in zdir and '#' in zdir:
-            n_agents = int(zdir.split('#')[1])
-            dtemp = os.path.join(pre_path, zdir)
-            results.extract_k_data(base, dtemp, exp_length, communication, n_agents, data_type)
-            print(dtemp+"\tCompleted")
+    base, dtemp, exp_length, n_agents, communication, data_type, results = args
+    results.extract_k_data(base, dtemp, exp_length, communication, n_agents, data_type)
+    print(dtemp+"\tCompleted")
 
 def main():
     results = dex.Results()
@@ -56,7 +51,12 @@ def main():
                 for dir in sorted(os.listdir(pre_apath)):
                     if '.' not in dir and '#' in dir:
                         communication = int(dir.split('#')[1])
-                        tasks.append((base, pre_apath, exp_length, dir, communication, data_type, results))
+                        pre_path = os.path.join(pre_apath, dir)
+                        for zdir in sorted(os.listdir(pre_path)):
+                            if '.' not in zdir and '#' in zdir:
+                                n_agents = int(zdir.split('#')[1])
+                                dtemp = os.path.join(pre_path, zdir)
+                                tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, results))
     print("Pooling")
     with Pool(cpu_count()) as pool:
         pool.map(process_folder, tasks)
