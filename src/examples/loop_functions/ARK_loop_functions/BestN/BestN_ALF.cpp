@@ -89,28 +89,33 @@ void CBestN_ALF::SetupInitialKilobotStates(){
             sem = 1;
             if(assigned_kilo_states[it] == 1){
                 do{
-                    Xr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[0]+0.05,middle_x_area);
-                } while (Xr<this->GetSpace().GetArenaLimits().GetMin()[0] || Xr > middle_x_area);
+                    Xr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[0]+0.05,middle_x_area-KILOBOT_RADIUS);
+                } while (Xr<this->GetSpace().GetArenaLimits().GetMin()[0]+0.05+KILOBOT_RADIUS || Xr > middle_x_area-KILOBOT_RADIUS);
             }
             else{
                 do{
-                    Xr = uniform_distribution_neg(middle_x_area,this->GetSpace().GetArenaLimits().GetMax()[0]-0.05);
-                } while (Xr < middle_x_area || Xr > this->GetSpace().GetArenaLimits().GetMax()[0]);
+                    Xr = uniform_distribution_neg(middle_x_area+KILOBOT_RADIUS,this->GetSpace().GetArenaLimits().GetMax()[0]-0.05);
+                } while (Xr < middle_x_area+KILOBOT_RADIUS || Xr > this->GetSpace().GetArenaLimits().GetMax()[0]-0.05-KILOBOT_RADIUS);
             }
-            Yr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[1]+0.05,this->GetSpace().GetArenaLimits().GetMax()[1]-0.05);
+            do{
+                Yr = uniform_distribution_neg(this->GetSpace().GetArenaLimits().GetMin()[1]+0.05,this->GetSpace().GetArenaLimits().GetMax()[1]-0.05);
+            } while (Yr<this->GetSpace().GetArenaLimits().GetMin()[1]+0.05+KILOBOT_RADIUS || Yr>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05-KILOBOT_RADIUS);
             for(UInt16 jt=0;jt< m_tKilobotEntities.size();jt++){
                 if(jt!=it){
-                    if((Xr <= m_vecKilobotPositions[jt].GetX()+(2*KILOBOT_RADIUS) && Xr >= m_vecKilobotPositions[jt].GetX()-(2*KILOBOT_RADIUS)) &&
-                       (Yr <= m_vecKilobotPositions[jt].GetY()+(2*KILOBOT_RADIUS) && Yr >= m_vecKilobotPositions[jt].GetY()-(2*KILOBOT_RADIUS))){
+                    if((Xr <= m_vecKilobotPositions[jt].GetX()+(2*KILOBOT_RADIUS)+0.005 && Xr >= m_vecKilobotPositions[jt].GetX()-(2*KILOBOT_RADIUS)-0.005) &&
+                       (Yr <= m_vecKilobotPositions[jt].GetY()+(2*KILOBOT_RADIUS)+0.005 && Yr >= m_vecKilobotPositions[jt].GetY()-(2*KILOBOT_RADIUS)-0.005)){
                         sem = 0;
                         break;
                     }
                 }
             }
+            if(sem==1){
+                cPosition = argos::CVector3(Xr,Yr,0);
+                bool out = m_tKilobotEntities[it]->GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
+                if(!out) sem = 0;
+                // else std::cout<<out<<'\t'<<assigned_kilo_states[it]<<'\t'<<GetKilobotId(*m_tKilobotEntities[it])<<"\t\t"<<"mid:"<<middle_x_area<<"\tX:"<<Xr<<"\tY:"<<Yr<<'\n';
+            }
         }
-        cPosition = argos::CVector3(Xr,Yr,0);
-        m_tKilobotEntities[it]->GetEmbodiedEntity().MoveTo(cPosition,cQuaternion);
-        std::cout<<assigned_kilo_states[it]<<'\t'<<GetKilobotId(*m_tKilobotEntities[it])<<"\t\t"<<"mid:"<<middle_x_area<<"\tX:"<<Xr<<"\tY:"<<Yr<<'\n';
     }
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
