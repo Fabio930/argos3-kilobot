@@ -1,5 +1,5 @@
 import numpy as np
-import os, csv, math, sys
+import os, csv, math, sys, gc
 
 class Results:
     min_buff_dim = 5
@@ -157,8 +157,9 @@ class Results:
                                                         re_broadcast_c = int(val[3])
                                         if state==-1: print(sub_path,'\n',"run:",seed,"agent;",agent_id,"line:",log_count,'\n',row)
                                         states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
-                                        act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
-                                        act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
+                                        if (data_type=="all" or data_type=="freq"):
+                                            act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
+                                            act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                                         if len(msgs_id) < max_buff_size:
                                             for i in range(max_buff_size-len(msgs_id)):
                                                 msgs_id.append(-1)
@@ -170,13 +171,15 @@ class Results:
                             if seed == num_runs:
                                 msgs_id_bigM_1[agent_id] = msgs_id_M_1
                                 states_bigM_1[agent_id] = states_M_1
-                                act_bigM_1[agent_id] = act_M_1
-                                act_bigM_2[agent_id] = act_M_2
+                                if (data_type=="all" or data_type=="freq"):
+                                    act_bigM_1[agent_id] = act_M_1
+                                    act_bigM_2[agent_id] = act_M_2
 
                                 msgs_id_M_1 = [np.array([],dtype=int)]*num_runs
                                 states_M_1 = [np.array([],dtype=int)]*num_runs
-                                act_M_1 = [np.array([],dtype=int)]*num_runs
-                                act_M_2 = [np.array([],dtype=int)]*num_runs
+                                if (data_type=="all" or data_type=="freq"):
+                                    act_M_1 = [np.array([],dtype=int)]*num_runs
+                                    act_M_2 = [np.array([],dtype=int)]*num_runs
                 if data_type in ("all","quorum"):
                     info_vec     = sub_path.split('/')
                     t_messages = sub_path.split('#')[-1]
@@ -201,6 +204,9 @@ class Results:
                             quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                             self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
+                            results,states,messages = [],[],[]
+                            quorum_results = {}
+                            gc.collect()
                     else:
                         messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
                         self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
@@ -210,11 +216,22 @@ class Results:
                         quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                         self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
-
-                act_results[0] = (act_bigM_1,act_bigM_2)
+                        results,states,messages = [],[],[]
+                        quorum_results = {}
+                        gc.collect()
                 if (data_type=="all" or data_type=="freq"):
+                    act_results[0] = (act_bigM_1,act_bigM_2)
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
-
+                act_results = []
+                states_bigM_1 = []
+                msgs_id_bigM_1 = []
+                act_bigM_1 = []
+                act_bigM_2 = []
+                msgs_id_M_1 = []
+                states_M_1 = []
+                act_M_1 = []
+                act_M_2 = []
+                gc.collect()
 
 ##########################################################################################################
 
