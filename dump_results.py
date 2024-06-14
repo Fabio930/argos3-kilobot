@@ -47,12 +47,11 @@ def process_folder(args):
     try:
         logging.info(f"{agents_path}\tStarted")
         results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
-        logging.info(f"{agents_path}\tCompleted")
     except Exception as e:
         logging.error(f"Error processing {agents_path}: {e}")
 
 def task_done(result):
-    logging.info(f"Task completed with result: {result}")
+    logging.info("Task completed")
 
 def task_error(e):
     logging.error(f"Task failed with error: {e}")
