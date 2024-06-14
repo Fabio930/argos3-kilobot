@@ -59,11 +59,6 @@ class Results:
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
-        print("THR:",threshold)
-        for i in range(len(out)):
-            for j in range(len(out[i])):
-                print(out[i][j])
-            print('\n')
         return out
 
 ##########################################################################################################
@@ -212,11 +207,12 @@ class Results:
                                 results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                                 for thr in self.thresholds.get(self.ground_truth[gt]):
                                     quorum_results = {}
-                                    print("\n\nGT:",self.ground_truth[gt])
                                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
+                                    recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                                     quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
+                                    self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
                     else:
                         messages = self.compute_meaningful_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
@@ -225,14 +221,27 @@ class Results:
                             for thr in self.thresholds.get(self.ground_truth[gt]):
                                 quorum_results = {}
                                 states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
+                                recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                                 quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                 self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                                self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
                 
+##########################################################################################################
+    def compute_recovery(gt,thr,data):
+        out = np.copy(data)
+        # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
+        # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
+        return out
+
+##########################################################################################################
+    def dump_recovery(self,algo,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
+        return
+    
 ##########################################################################################################
     def write_msgs_data(self, file_name, data):
         header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
