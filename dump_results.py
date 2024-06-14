@@ -41,6 +41,7 @@ def process_folder(args):
             n_agents = int(zdir.split('#')[1])
             dtemp = os.path.join(pre_path, zdir)
             results.extract_k_data(base, dtemp, exp_length, communication, n_agents, data_type)
+            print(dtemp+"\tCompleted")
 
 def main():
     results = dex.Results()
@@ -62,4 +63,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print("Done")
