@@ -181,7 +181,7 @@ class Results:
                                                         msgs_id.append(int(val[1]))
                                                         broadcast_c = int(val[2])
                                                         re_broadcast_c = int(val[3])
-                                        if state==-1: print(sub_path,'\n',seed,agent_id,log_count,'\n',row)
+                                        if state==-1: print(sub_path,'\n',"run:",seed,"agent;",agent_id,"line:",log_count,'\n',row)
                                         states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
                                         act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                         act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
@@ -192,7 +192,7 @@ class Results:
                                             msgs_id_M_1[seed-1] = [msgs_id]
                                         else :
                                             msgs_id_M_1[seed-1] = np.append(msgs_id_M_1[seed-1],[msgs_id],axis=0)
-                            if len(msgs_id_M_1[seed-1])!=max_steps: print(sub_path,'\n',seed,len(msgs_id_M_1[seed-1]),len(msgs_id_M_1[seed-1][-1]))
+                            if len(msgs_id_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",len(msgs_id_M_1[seed-1][-1]),"num lines:",len(msgs_id_M_1[seed-1]))
                             if seed == num_runs:
                                 msgs_id_bigM_1[agent_id] = msgs_id_M_1
                                 states_bigM_1[agent_id] = states_M_1
@@ -219,23 +219,23 @@ class Results:
                     msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
                     if algo=='P':
                         for buf in range(len(BUFFERS)):
+                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
+                            self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
                             results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
                             quorum_results = {}
                             states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                             quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                             self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
-                            messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
-                            self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
                     else:
+                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
+                        self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
                         results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
                         quorum_results = {}
                         states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                         quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                         self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
-                        messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
-                        self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
