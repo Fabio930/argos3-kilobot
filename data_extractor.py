@@ -14,7 +14,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0]=="Oresults" or selem[0]=="Presults":
+                if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
 
 #########################################################################################################
@@ -110,7 +110,7 @@ class Results:
                     flag = []
                     for el in range(len(data[ag][rn][tk])):
                         if algo == 'P' and el >= int(limit): break
-                        elif data[ag][rn][tk][el] not in flag:
+                        elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
                             flag.append(data[ag][rn][tk][el])
                             tmp[tk] += 1
                     perc += 1
@@ -187,13 +187,13 @@ class Results:
                                                 re_broadcast_c = int(val[2])
                                             else:
                                                 if val.count('\t') == 0:
-                                                    sem = 1
                                                     msgs_id.append(int(val))
                                                 else:
                                                     val = val.split('\t')
                                                     if len(val)==2:
                                                         state = int(val[0])
                                                         msgs_id.append(int(val[1]))
+                                                        sem = 1
                                                     elif len(val)==3:
                                                         if sem == 0:
                                                             state = int(val[0])
@@ -228,7 +228,7 @@ class Results:
                                 states_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_1 = [np.array([],dtype=int)]*num_runs
                                 act_M_2 = [np.array([],dtype=int)]*num_runs
-                if data_type=="all" or data_type=="quorum":
+                if data_type in ("all","quorum"):
                     info_vec     = sub_path.split('/')
                     t_messages = sub_path.split('#')[-1]
                     algo     = info_vec[4].split('_')[0][0]
