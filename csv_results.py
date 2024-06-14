@@ -443,9 +443,9 @@ class Data:
         axt2.set_xlabel(r"$T_m = 180\, s$")
         axt3.set_xlabel(r"$T_m = 300\, s$")
         axt4.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][2].twinx()
-        ayt1=ax[1][2].twinx()
-        ayt2=ax[2][2].twinx()
+        ayt0=ax[0][4].twinx()
+        ayt1=ax[1][4].twinx()
+        ayt2=ax[2][4].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
