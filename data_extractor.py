@@ -27,8 +27,6 @@ class Results:
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
-        perc = 0
-        compl = len(states)*len(states[0])*len(m1[0][0])
         if algo == 'O':
             tmp_dim_0 = [np.array([])]*len(m1[0])
             tmp_ones_0 = [np.array([])]*len(m1[0])
@@ -41,21 +39,17 @@ class Results:
                     for t in range(len(m1[j][i])):
                         dim = 1
                         ones = states[i][j]
-                        sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
-                        sys.stdout.flush()
                         for z in range(len(m1[j][i][t])):
                             if(m1[j][i][t][z] == -1):
                                 break
                             dim += 1
                             ones += states[i][m1[j][i][t][z]]
-                        perc += 1
                         tmp_dim_2.append(dim)
                         tmp_ones_2.append(ones)
                     tmp_dim_1[j] = tmp_dim_2
                     tmp_ones_1[j] = tmp_ones_2
                 tmp_dim_0[i] = tmp_dim_1
                 tmp_ones_0[i] = tmp_ones_1
-            print("\n")
             return (tmp_dim_0,tmp_ones_0)
         else:
             tmp_dim_0 = [np.array([])]*len(m1[0])
@@ -71,56 +65,41 @@ class Results:
                         ones = states[i][j]
                         tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
                         start = 0
-                        sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
-                        sys.stdout.flush()
                         if len(tmp) > buf_lim: start= len(tmp) - buf_lim
                         for z in range(start,len(tmp)):
                             dim += 1
                             ones += states[i][m1[j][i][t][z]]
-                        perc += 1
-
                         tmp_dim_2.append(dim)
                         tmp_ones_2.append(ones)
                     tmp_dim_1[j]    = tmp_dim_2
                     tmp_ones_1[j]   = tmp_ones_2
                 tmp_dim_0[i]        = tmp_dim_1
                 tmp_ones_0[i]       = tmp_ones_1
-            print("\n")
             return (tmp_dim_0,tmp_ones_0)
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
-        perc = 0
-        compl = len(m1)*len(m1[0])*len(m1[0][0])
         out = np.copy(m1)
         for i in range(len(m1)):
             for j in range(len(m1[i])):
                 for k in range(len(m1[i][j])):
-                    sys.stdout.write(f"\rComputing results for threshold: {threshold} Progress: {np.round((perc/compl)*100,3)}%")
-                    sys.stdout.flush()
-                    perc += 1
                     out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
         return out
 
 ##########################################################################################################
     def compute_meaningful_msgs(self,data,limit,algo,buf,buf_dim):
         print(f"--- Computing avg buffer dimension {buf}/{buf_dim} ---")
-        perc = 0
-        compl = len(data)*len(data[0])*len(data[0][0])
         data_partial = np.array([])
         for ag in range(len(data)):
             runs = np.array([])
             for rn in range(len(data[ag])):
                 tmp = [0]*len(data[0][0])
                 for tk in range(len(data[ag][rn])):
-                    sys.stdout.write(f"\rProgress: {np.round((perc/compl)*100,3)}%")
-                    sys.stdout.flush()
                     flag = []
                     for el in range(len(data[ag][rn][tk])):
                         if algo == 'P' and el >= limit: break
                         elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
                             flag.append(data[ag][rn][tk][el])
                             tmp[tk] += 1
-                    perc += 1
                 if len(runs) == 0:
                     runs = [tmp]
                 else:
@@ -137,7 +116,6 @@ class Results:
         for tk in range(len(msgs_summation)):
             msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
             msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
-        print("\n")
         return msgs_summation
     
 ##########################################################################################################
@@ -157,8 +135,6 @@ class Results:
                 act_M_1 = [np.array([],dtype=int)]*num_runs
                 act_M_2 = [np.array([],dtype=int)]*num_runs
                 # assign randomly the state to agents at each run
-                print(sub_path)
-                print("--- Assign states ---")
                 states_by_gt = [np.array([])]*len(self.ground_truth)
                 for gt in range(len(self.ground_truth)):
                     runs_states = [np.array([])]*num_runs
@@ -185,7 +161,6 @@ class Results:
                     else:
                         states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
                 #####################################################
-                print("--- Extract data ---")
                 a_ = 0
                 prev_id = -1
                 for elem in sorted(os.listdir(sub_path)):
@@ -198,7 +173,6 @@ class Results:
                             if prev_id != agent_id:
                                 a_ = 0
                             if a_ == 0:
-                                print("- Reading files of agent",agent_id)
                                 prev_id = agent_id
                             with open(os.path.join(sub_path, elem), newline='') as f:
                                 reader = csv.reader(f)
@@ -227,7 +201,7 @@ class Results:
                                             msgs_M_1[seed-1] = [msgs]
                                         else :
                                             msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
-                            if len(msgs_M_1[seed-1])!=max_steps: print(seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
+                            if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',seed,len(msgs_M_1[seed-1]),len(msgs_M_1[seed-1][-1]))
                             if seed == num_runs:
                                 msgs_bigM_1[agent_id] = msgs_M_1
                                 act_bigM_1[agent_id] = act_M_1
@@ -261,7 +235,6 @@ class Results:
                                     quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                     self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
                                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
-                                print("\n")
                     else:
                         messages = self.compute_meaningful_msgs(msgs_bigM_1,t_messages,algo,1,1)
                         self.write_msgs_data("messages_resume.csv",[arenaS,algo,communication,n_agents,t_messages,messages])
@@ -273,14 +246,11 @@ class Results:
                                 quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                                 self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
-                            print("\n")
 
                 act_results[0] = (act_bigM_1,act_bigM_2)
                 if (data_type=="all" or data_type=="freq"):
                     self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
                 
-                print("--- Results saved ---\n")
-
 ##########################################################################################################
     def write_msgs_data(self, file_name, data):
         header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
