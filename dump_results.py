@@ -2,17 +2,16 @@ import data_extractor as dex
 import os
 import sys
 import logging
-import signal
 import gc
 import time
 import psutil
-from multiprocessing import Pool, cpu_count, TimeoutError
+from multiprocessing import Process, Manager, Queue
 
 # Setup logging
 def setup_logging():
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(asctime)s %(levelname)s %(message)s',
+        format='%(asctime)s %(message)s',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
@@ -47,70 +46,45 @@ def check_inputs():
         exit()
     return ticks, data_type
 
-# Signal handler for stuck processes
-def signal_handler(signum, frame):
-    raise TimeoutError("Task timed out")
-
 # Process folder with retries and memory management
-def process_folder(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results, retry_count=3):
-    try:
-        signal.signal(signal.SIGALRM, signal_handler)
-        signal.alarm(5400)  # Set alarm for 5400 seconds for each task
-        logging.info(f"{agents_path}\tStarted")
+def process_folder(task):
+    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, sub_path = task
+    retry_count = 50
 
-        # Memory usage logging
-        process = psutil.Process(os.getpid())
-        logging.info(f"Memory usage before processing {agents_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+    while retry_count > 0:
+        try:
+            # Memory usage logging
+            process = psutil.Process(os.getpid())
+            logging.info(f"Memory usage before processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
 
-        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type)
+            results = dex.Results()
+            results.ticks_per_sec = ticks_per_sec
+            results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, sub_path, data_type)
+            gc.collect()
+            # Memory usage logging
+            logging.info(f"Memory usage after processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
 
-        gc.collect()
-        # Memory usage logging
-        logging.info(f"Memory usage after processing {agents_path}: {process.memory_info().rss / (1024 * 1024)} MB")
-
-        signal.alarm(0)  # Disable the alarm after successful completion
-
-        # Garbage collection after task completion
-        logging.info("Garbage collection completed")
-
-    except TimeoutError as e:
-        logging.error(f"Timeout processing {agents_path}: {e}")
-        if retry_count > 0:
-            logging.info(f"Retrying {agents_path} ({3 - retry_count + 1}/3)")
-            gc.collect()  # Explicit garbage collection before retrying
-            time.sleep(300)  # Delay before retrying
-            process_folder(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results, retry_count - 1)
-        else:
-            logging.error(f"Failed {agents_path} after 3 retries")
-            return str(e)
-    except MemoryError as e:
-        logging.error(f"MemoryError processing {agents_path}: {e}")
-        if retry_count > 0:
-            logging.info(f"Retrying {agents_path} ({3 - retry_count + 1}/3) after MemoryError")
-            gc.collect()  # Explicit garbage collection before retrying
-            time.sleep(300)  # Delay before retrying
-            process_folder(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results, retry_count - 1)
-        else:
-            logging.error(f"Failed {agents_path} after 3 retries due to MemoryError")
-            return str(e)
-    except Exception as e:
-        logging.error(f"Error processing {agents_path}: {e}")
-        return str(e)
-    return "Success"
-
-def task_done(result):
-    logging.info(f"Task completed with result: {result}")
-
-def task_error(e):
-    logging.error(f"Task failed with error: {e}")
+            break
+        except MemoryError as e:
+            logging.error(f"MemoryError processing {sub_path}: {e}")
+            retry_count -= 1
+            if retry_count > 0:
+                logging.info(f"Retrying {sub_path} ({retry_count}) after MemoryError")
+                time.sleep(600)  # Delay before retrying
+            else:
+                logging.error(f"Failed {sub_path} due to MemoryError")
+            gc.collect()
+        except Exception as e:
+            logging.error(f"Error processing {sub_path}: {e}")
+            gc.collect()
+            break
 
 def main():
     setup_logging()
-    results = dex.Results()
-    results.ticks_per_sec, data_type = check_inputs()
+    ticks_per_sec, data_type = check_inputs()
 
     tasks = []
-    for base in results.bases:
+    for base in dex.Results().bases:
         for exp_l_dir in sorted(os.listdir(base)):
             if '.' not in exp_l_dir and '#' in exp_l_dir:
                 exp_l_path = os.path.join(base, exp_l_dir)
@@ -131,28 +105,51 @@ def main():
                                             if '.' not in agents_dir and '#' in agents_dir:
                                                 n_agents = int(agents_dir.split('#')[1])
                                                 agents_path = os.path.join(comm_path, agents_dir)
-                                                tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, results))
+                                                for pre_folder in sorted(os.listdir(agents_path)):
+                                                    if '.' not in pre_folder:
+                                                        msg_exp_time = int(pre_folder.split('#')[-1])
+                                                        sub_path = os.path.join(agents_path, pre_folder)
+                                                        tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, sub_path))
 
-    logging.info("Pooling")
-    pool = Pool(cpu_count())
+    # Using a manager to handle the queue
+    manager = Manager()
+    queue = manager.Queue()
 
-    async_results = []
     for task in tasks:
-        async_result = pool.apply_async(process_folder, args=task, callback=task_done, error_callback=task_error)
-        async_results.append(async_result)
+        queue.put(task)
 
-    pool.close()
+    active_processes = []
+    total_memory = psutil.virtual_memory().total / (1024 * 1024)  # Total memory in MB
+    memory_per_process_25 = 1509948.44 / 1024 # Memory used by each process with 25 agents
+    memory_per_process_100 = 11085398.56 / 1024 # Memory used by each process with 100 agents
 
-    # Wait for all tasks to complete or timeout
-    for async_result in async_results:
-        try:
-            async_result.get()  # Remove global timeout, handled within the process
-        except TimeoutError:
-            logging.error("Task timed out")
-        except Exception as e:
-            logging.error(f"Task failed with exception: {e}")
+    while not queue.empty() or active_processes:
+        # Calculate total memory used by active processes
+        total_memory_used = sum(memory_per_process_25 if n_agents == 25 else memory_per_process_100 for p, n_agents in active_processes)
 
-    pool.join()
+        # Launch new processes if there is room
+        while total_memory_used + min(memory_per_process_25, memory_per_process_100) <= total_memory and not queue.empty():
+            task = queue.get()
+            n_agents = task[4]
+            required_memory = memory_per_process_25 if n_agents == 25 else memory_per_process_100
+            if total_memory_used + required_memory <= total_memory:
+                p = Process(target=process_folder, args=(task,))
+                p.start()
+                active_processes.append((p, n_agents))
+                total_memory_used += required_memory
+
+        # Check for completed processes
+        for p, n_agents in active_processes:
+            if not p.is_alive():
+                p.join()
+                active_processes.remove((p, n_agents))
+                if n_agents == 25:
+                    total_memory_used -= memory_per_process_25
+                elif n_agents == 100:
+                    total_memory_used -= memory_per_process_100
+
+        time.sleep(1)  # Avoid busy-waiting
+
     logging.info("All tasks completed.")
 
 if __name__ == "__main__":
