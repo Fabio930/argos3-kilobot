@@ -232,7 +232,7 @@ class Results:
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
-            del act_results
+            del act_results,act_results,num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
             gc.collect()
                 
 ##########################################################################################################
