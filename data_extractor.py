@@ -164,8 +164,9 @@ class Results:
                                         if val[0] != '': msgs.append(int(val[0]))
                                         broadcast_c = val[1]
                                         re_broadcast_c = val[2]
-                                act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
-                                act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
+                                if (data_type=="all" or data_type=="freq"):
+                                    act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
+                                    act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                                 if len(msgs) < max_buff_size:
                                     for i in range(max_buff_size-len(msgs)): msgs.append(-1)
                                 if len(msgs_M_1[seed-1]) == 0:
@@ -175,11 +176,12 @@ class Results:
                     if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",len(msgs_M_1[seed-1][-1]),"tot lines:",len(msgs_M_1[seed-1]))
                     if seed == num_runs:
                         msgs_bigM_1[agent_id] = msgs_M_1
-                        act_bigM_1[agent_id] = act_M_1
-                        act_bigM_2[agent_id] = act_M_2
                         msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                        act_M_1 = [np.array([],dtype=int)]*num_runs
-                        act_M_2 = [np.array([],dtype=int)]*num_runs
+                        if (data_type=="all" or data_type=="freq"):
+                            act_bigM_1[agent_id] = act_M_1
+                            act_bigM_2[agent_id] = act_M_2
+                            act_M_1 = [np.array([],dtype=int)]*num_runs
+                            act_M_2 = [np.array([],dtype=int)]*num_runs
         
         if data_type=="all" or data_type=="quorum":
             info_vec     = sub_path.split('/')
@@ -203,10 +205,10 @@ class Results:
                         for thr in self.thresholds.get(self.ground_truth[gt]):
                             quorum_results = {}
                             states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                            recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                             quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                             self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
+                            recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                             self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
                             del quorum_results, recovery_res, states
                             gc.collect()
@@ -220,10 +222,10 @@ class Results:
                     for thr in self.thresholds.get(self.ground_truth[gt]):
                         quorum_results = {}
                         states = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                        recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                         quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                         self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                        recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                         self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
                         del quorum_results, recovery_res, states
                         gc.collect()
