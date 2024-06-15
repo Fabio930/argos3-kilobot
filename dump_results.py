@@ -1,18 +1,21 @@
 import data_extractor as dex
 import os
 import sys
-from multiprocessing import Pool, cpu_count
 import logging
-from functools import partial
+import gc
 import time
+import psutil
+from multiprocessing import Process, Manager, Queue
 
+# Setup logging
 def setup_logging():
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(asctime)s %(levelname)s %(message)s',
+        format='%(asctime)s %(message)s',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
+# Check command line inputs
 def check_inputs():
     ticks = 10
     data_type = "all"
@@ -43,26 +46,45 @@ def check_inputs():
         exit()
     return ticks, data_type
 
-def process_folder(base, dtemp, exp_length, n_agents, communication, data_type, results):
-    try:
-        logging.info(f"{dtemp}\tStarted")
-        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, data_type)
-    except Exception as e:
-        logging.error(f"Error processing {dtemp}: {e}")
+# Process folder with retries and memory management
+def process_folder(task):
+    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, sub_path, ticks_per_sec = task
+    retry_count = 50
 
-def task_done(result):
-    logging.info("Task completed")
+    while retry_count > 0:
+        try:
+            # Memory usage logging
+            process = psutil.Process(os.getpid())
+            logging.info(f"Memory usage before processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
 
-def task_error(e):
-    logging.error(f"Task failed with error: {e}")
+            results = dex.Results()
+            results.ticks_per_sec = ticks_per_sec
+            results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, sub_path, data_type)
+            gc.collect()
+            # Memory usage logging
+            logging.info(f"Memory usage after processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+
+            break
+        except MemoryError as e:
+            logging.error(f"MemoryError processing {sub_path}: {e}")
+            retry_count -= 1
+            if retry_count > 0:
+                logging.info(f"Retrying {sub_path} ({retry_count}) after MemoryError")
+                time.sleep(600)  # Delay before retrying
+            else:
+                logging.error(f"Failed {sub_path} due to MemoryError")
+            gc.collect()
+        except Exception as e:
+            logging.error(f"Error processing {sub_path}: {e}")
+            gc.collect()
+            break
 
 def main():
     setup_logging()
-    results = dex.Results()
-    results.ticks_per_sec, data_type = check_inputs()
+    ticks_per_sec, data_type = check_inputs()
 
     tasks = []
-    for base in results.bases:
+    for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
                 pre_apath = os.path.join(base, adir)
@@ -75,16 +97,51 @@ def main():
                             if '.' not in zdir and '#' in zdir:
                                 n_agents = int(zdir.split('#')[1])
                                 dtemp = os.path.join(pre_path, zdir)
-                                tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, results))
+                                for pre_folder in sorted(os.listdir(dtemp)):
+                                    if '.' not in pre_folder:
+                                        msg_exp_time = int(pre_folder.split('#')[-1])
+                                        sub_path = os.path.join(dtemp,pre_folder)
+                                        tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,sub_path,ticks_per_sec))
 
-    logging.info("Pooling")
-    pool = Pool(cpu_count())
-    
+    # Using a manager to handle the queue
+    manager = Manager()
+    queue = manager.Queue()
+
     for task in tasks:
-        pool.apply_async(process_folder, args=task, callback=task_done, error_callback=task_error)
+        queue.put(task)
 
-    pool.close()
-    pool.join()
+    active_processes = []
+    total_memory = psutil.virtual_memory().total / (1024 * 1024)  # Total memory in MB
+    memory_per_process_25 = 1509948.44 / 1024 # Memory used by each process with 25 agents
+    memory_per_process_100 = 11085398.56 / 1024 # Memory used by each process with 100 agents
+
+    while not queue.empty() or active_processes:
+        # Calculate total memory used by active processes
+        total_memory_used = sum(memory_per_process_25 if n_agents == 25 else memory_per_process_100 for p, n_agents in active_processes)
+
+        # Launch new processes if there is room
+        while total_memory_used + min(memory_per_process_25, memory_per_process_100) <= total_memory and not queue.empty():
+            task = queue.get()
+            n_agents = task[4]
+            required_memory = memory_per_process_25 if n_agents == 25 else memory_per_process_100
+            if total_memory_used + required_memory <= total_memory:
+                p = Process(target=process_folder, args=(task,))
+                p.start()
+                active_processes.append((p, n_agents))
+                total_memory_used += required_memory
+
+        # Check for completed processes
+        for p, n_agents in active_processes:
+            if not p.is_alive():
+                p.join()
+                active_processes.remove((p, n_agents))
+                if n_agents == 25:
+                    total_memory_used -= memory_per_process_25
+                elif n_agents == 100:
+                    total_memory_used -= memory_per_process_100
+
+        time.sleep(1)  # Avoid busy-waiting
+
     logging.info("All tasks completed.")
 
 if __name__ == "__main__":
