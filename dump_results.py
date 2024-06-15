@@ -129,6 +129,10 @@ def main():
                 p.start()
                 active_processes.append((p, n_agents))
                 total_memory_used += required_memory
+            else:
+                # Requeue the task if there's not enough memory
+                queue.put(task)
+                break
 
         # Check for completed processes
         for p, n_agents in active_processes:
