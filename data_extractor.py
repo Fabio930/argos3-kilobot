@@ -166,13 +166,11 @@ class Results:
                     if seed == num_runs:
                         msgs_id_bigM_1[agent_id] = msgs_id_M_1
                         states_bigM_1[agent_id] = states_M_1
-                        if (data_type=="all" or data_type=="freq"):
-                            act_bigM_1[agent_id] = act_M_1
-                            act_bigM_2[agent_id] = act_M_2
-
                         msgs_id_M_1 = [np.array([],dtype=int)]*num_runs
                         states_M_1 = [np.array([],dtype=int)]*num_runs
                         if (data_type=="all" or data_type=="freq"):
+                            act_bigM_1[agent_id] = act_M_1
+                            act_bigM_2[agent_id] = act_M_2
                             act_M_1 = [np.array([],dtype=int)]*num_runs
                             act_M_2 = [np.array([],dtype=int)]*num_runs
         if data_type in ("all","quorum"):
