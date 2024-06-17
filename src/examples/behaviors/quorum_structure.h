@@ -7,7 +7,6 @@ uint8_t min_quorum_length = 5;
 float quorum_threshold;
 uint8_t num_quorum_items;
 uint8_t quorum_reached = 0;
-uint8_t true_quorum_items;
 uint8_t buffer_lenght;
 
 typedef struct quorum_structure{
