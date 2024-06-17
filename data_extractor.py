@@ -191,17 +191,21 @@ class Results:
                 for buf in range(len(BUFFERS)):
                     messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
                     self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
+                    del messages
+                    gc.collect()
                     results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
                     quorum_results = {}
                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
                     quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                     self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
                     self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
-                    del results,states,messages,quorum_results
+                    del results,states,quorum_results
                     gc.collect()
             else:
                 messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
                 self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+                del messages
+                gc.collect()
                 results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
                 quorum_results = {}
                 states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
@@ -213,7 +217,9 @@ class Results:
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
-        del act_results,states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2
+            del act_results
+            gc.collect()
+        del states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2
         gc.collect()
 
 ##########################################################################################################
