@@ -208,9 +208,11 @@ class Results:
                             quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                             self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf],self.limit)
                             self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
+                            del quorum_results
+                            gc.collect()
                             recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                             self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
-                            del quorum_results, recovery_res, states
+                            del recovery_res, states
                             gc.collect()
                         del results
                         gc.collect()
@@ -225,28 +227,42 @@ class Results:
                         quorum_results[(self.ground_truth[gt],self.min_buff_dim,thr)] = (states,results[0])
                         self.dump_times(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time,self.limit)
                         self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                        del quorum_results
+                        gc.collect()
                         recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
                         self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
-                        del quorum_results, recovery_res, states
+                        del recovery_res, states
                         gc.collect()
                     del results
                     gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time)
-            del act_results,act_results,num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
+            del act_results
             gc.collect()
+        del act_results,num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
+        gc.collect()
                 
 ##########################################################################################################
-    def compute_recovery(gt,thr,data):
+    def compute_recovery(self,gt,thr,data):
         out = np.copy(data)
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
         return out
 
 ##########################################################################################################
-    def dump_recovery(self,algo,bias,data_in,BASE,PATH,COMMIT,MINS,MSG_EXP_TIME):
-        return
+    def dump_recovery(self,file_name,data):
+        header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
+        # write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
+        
+        # if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
+        #     os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
+        
+        # with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
+        #     fwriter = csv.writer(fw, delimiter='\t')
+        #     if write_header:
+        #         fwriter.writerow(header)
+        #     fwriter.writerow(data)
     
 ##########################################################################################################
     def write_msgs_data(self, file_name, data):
