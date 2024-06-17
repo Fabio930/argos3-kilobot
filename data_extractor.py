@@ -1,5 +1,5 @@
 import numpy as np
-import os, csv, math, sys, gc
+import os, csv, math, gc
 
 class Results:
     min_buff_dim = 5
@@ -31,7 +31,7 @@ class Results:
                 for t in range(len(msgs_states[j][i])):
                     dim = 1
                     ones = states[j][i][t]
-                    tmp=np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
+                    tmp = np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
                     start = 0
                     if algo=='P' and len(tmp) > int(buf_lim): start = len(tmp) - int(buf_lim)
                     for z in range(start,len(tmp)):
@@ -44,6 +44,7 @@ class Results:
             tmp_dim_0[i]        = tmp_dim_1
             tmp_ones_0[i]       = tmp_ones_1
         return (tmp_dim_0,tmp_ones_0)
+    
 #########################################################################################################
     def compute_quorum(self,m1,m2,minus,threshold):
         out = np.copy(m1)
@@ -85,6 +86,18 @@ class Results:
             msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
             msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
         return msgs_summation
+
+##########################################################################################################
+    def compute_msgs_state(self,states,msgs_id):
+        print("--- Matching states and messages ---")
+        out = np.copy(msgs_id)
+        for i in range(len(msgs_id)):
+            for j in range(len(msgs_id[i])):
+                for k in range(len(msgs_id[i][j])):
+                    for z in range(len(msgs_id[i][j][k])):
+                        if msgs_id[i][j][k][z] != -1:
+                            out[i][j][k][z] = states[msgs_id[i][j][k][z]][j][k]
+        return out
     
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,sub_path,data_type="all"):
@@ -132,6 +145,7 @@ class Results:
                                     else:
                                         if val.count('\t') == 0:
                                             msgs_id.append(int(val))
+                                            sem = 1
                                         else:
                                             val = val.split('\t')
                                             if len(val)==2:
@@ -183,14 +197,14 @@ class Results:
                 BUFFERS = [19,22,23,24]
             elif arenaS=='big':
                 if n_agents==25:
-                    BUFFERS=[11,15,19,22]
+                    BUFFERS = [11,15,19,22]
                 elif n_agents==100:
-                    BUFFERS=[41,57,76,85]
+                    BUFFERS = [41,57,76,85]
             msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
             if algo=='P':
                 for buf in range(len(BUFFERS)):
                     messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
-                    self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
+                    self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
                     del messages
                     gc.collect()
                     results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
@@ -203,7 +217,7 @@ class Results:
                     gc.collect()
             else:
                 messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
-                self.write_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+                self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
                 del messages
                 gc.collect()
                 results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
@@ -212,19 +226,20 @@ class Results:
                 quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
                 self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
                 self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
-                del results,states,messages,quorum_results
+                del results,states,quorum_results
                 gc.collect()
+            del msgs_state_bigM_1
+            gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
             del act_results
             gc.collect()
-        del states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2
+        del states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2,
         gc.collect()
 
 ##########################################################################################################
-
-    def write_msgs_data(self, file_name, data):
+    def dump_msgs_data(self, file_name, data):
         header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast", "n_agents", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
@@ -236,20 +251,7 @@ class Results:
             if write_header:
                 fwriter.writerow(header)
             fwriter.writerow(data)
-##########################################################################################################
-    def compute_msgs_state(self,states,msgs_id):
-        print("--- Matching states and messages ---")
-        out = np.copy(msgs_id)
-        for i in range(len(msgs_id)):
-            for j in range(len(msgs_id[i])):
-                for k in range(len(msgs_id[i][j])):
-                    for z in range(len(msgs_id[i][j][k])):
-                        if msgs_id[i][j][k][z] == -1:
-                            out[i][j][k][z] = msgs_id[i][j][k][z]
-                        else:
-                            out[i][j][k][z] = states[msgs_id[i][j][k][z]][j][k]
-        return out
-    
+
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim","MsgExpTime"]
