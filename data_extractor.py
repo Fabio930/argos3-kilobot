@@ -1,5 +1,5 @@
 import numpy as np
-import os, csv, math, sys, gc
+import os, csv, math, gc
 
 class Results:
     thresholds      = {}
