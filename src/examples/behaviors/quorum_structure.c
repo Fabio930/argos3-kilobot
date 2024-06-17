@@ -1,7 +1,11 @@
 #include "quorum_structure.h"
 
-void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
+void set_quorum_vars(const uint32_t Expiring_time){
     expiring_ticks_quorum = Expiring_time;
+}
+
+void set_quorum_threshold(const uint8_t Quorum_threshold){
+    quorum_threshold = Quorum_threshold*.01;
 }
 
 void sort_q(quorum_a **Array[]){
@@ -46,6 +50,12 @@ void print_q(quorum_a **Array[],uint8_t id){
         if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
         else printf("NULL\n");
     }
+}
+void check_quorum(quorum_a **Array[]){
+    uint8_t tmp = 0;
+    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
+    if(num_quorum_items >= min_quorum_length && tmp >= num_quorum_items*quorum_threshold) quorum_reached = 1;
+    else quorum_reached = 0;
 }
 
 void increment_quorum_counter(quorum_a **Array[]){

@@ -67,6 +67,7 @@ private:
     float                   next_committed_percentage;
 
     UInt8                   queue_lenght;
+    float                   quorum_threshold;
     UInt8                   rebroadcast;
 
     std::vector<CVector2>   m_vecKilobotPositions;

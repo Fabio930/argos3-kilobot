@@ -167,7 +167,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             break;
         case MSG_B:
             if(init_received_A){
-                uint8_t state = (uint8_t)sa_payload;
+                uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
+                uint8_t state = (uint8_t)sa_payload & 0b00000001;
                 switch (state){
                     case 0:
                         led = RGB(0,0,0);
@@ -179,6 +180,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                         my_state = committed;
                         break;
                 }
+                set_quorum_threshold(quorum_threshold);
                 init_received_B = true;
             }
             break;
@@ -350,16 +352,17 @@ void setup(){
 }
 
 void loop(){
+    random_way_point_model();
+    check_quorum(&quorum_array);
+    if(init_received_C) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t",my_state);
+    fprintf(fp,"%d\t%d\t",my_state,quorum_reached);
     for (uint8_t i = 0; i < num_quorum_items; i++){
         if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }
     fprintf(fp,"%ld\t%ld\n",num_own_info,num_other_info);
     fclose(fp);
-    random_way_point_model();
-    if(init_received_C) talk();
 }
 
 void deallocate_memory(){
