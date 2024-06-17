@@ -377,18 +377,19 @@ void setup(){
 }
 
 void loop(){
+    decrement_quorum_counter(&quorum_array);
+    erase_expired_items(&quorum_array,&quorum_list);
+    random_way_point_model();
+    check_quorum(&quorum_array);
+    if(init_received_C) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t",my_state);
+    fprintf(fp,"%d\t%d\t",my_state,quorum_reached);
     for (uint8_t i = 0; i < num_quorum_items; i++){
         if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }    
     fprintf(fp,"%ld\t%ld\n",num_own_info,num_other_info);
     fclose(fp);
-    decrement_quorum_counter(&quorum_array);
-    erase_expired_items(&quorum_array,&quorum_list);
-    random_way_point_model();
-    if(init_received_C) talk();
 }
 
 void deallocate_memory(){

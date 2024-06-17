@@ -6,6 +6,7 @@ uint32_t expiring_ticks_quorum = 10000;
 uint8_t min_quorum_length = 5;
 float quorum_threshold;
 uint8_t num_quorum_items;
+uint8_t quorum_reached = 0;
 
 typedef struct quorum_structure{
     uint32_t counter;
@@ -17,6 +18,8 @@ typedef struct quorum_structure{
 }quorum_a;
 
 void set_msg_life(const uint32_t Expiring_time);
+
+void check_quorum(quorum_a **Array[]);
 
 void set_quorum_threshold(const uint8_t Quorum_threshold);
 

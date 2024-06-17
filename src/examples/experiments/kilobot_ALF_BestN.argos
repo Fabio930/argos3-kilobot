@@ -52,11 +52,11 @@
         <hierarchicStruct
             rebroadcast = "2"
             msgs_n_hops = "0"
-            expiring_quorum_sec = "900"
+            expiring_quorum_sec = "1200"
             quorum_threshold = "0.8"
-            committed_percentage = "0.9"
+            committed_percentage = "0.68"
             commitment_variation_time = "600"
-            next_committed_percentage = "0.7"
+            next_committed_percentage = "0.92"
         >
         </hierarchicStruct>
 
@@ -140,7 +140,7 @@
     <!-- ****************** -->
     <!-- * Visualization  * -->
     <!-- ****************** -->
-    <visualization>
+    <!-- <visualization>
         <qt-opengl>
             <camera>
                 <placements>
@@ -149,6 +149,6 @@
                 </placements>
             </camera>
         </qt-opengl>
-    </visualization>
+    </visualization> -->
     
 </argos-configuration>
