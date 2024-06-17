@@ -151,7 +151,7 @@ def main():
                 elif n_agents == 100:
                     total_memory_used -= memory_per_process_100
 
-        time.sleep(30)  # Avoid busy-waiting
+        time.sleep(1)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
