@@ -127,7 +127,7 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        states, times, buffer, messages_b, messages_r = {},{},{},{},{}
+        states, times, messages_b, messages_r = {},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
@@ -145,13 +145,11 @@ class Data:
                 times.update({k[:-1]:data.get(k)})
             elif k[-1] == "swarm_state":
                 states.update({k[:-1]:data.get(k)})
-            elif k[-1] == "quorum_length":
-                buffer.update({k[:-1]:data.get(k)})
             elif k[-1] == "broadcast_msg":
                 messages_b.update({k[:-1]:data.get(k)})
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
     
 ##########################################################################################################
     def plot_active_w_gt_thr(self,data_in,times):

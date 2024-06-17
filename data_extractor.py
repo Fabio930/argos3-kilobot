@@ -208,12 +208,10 @@ class Results:
                     del messages
                     gc.collect()
                     results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
-                    quorum_results = {}
                     states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
-                    quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
-                    self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
-                    self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
-                    del results,states,quorum_results
+                    self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
+                    self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
+                    del results,states
                     gc.collect()
             else:
                 messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
@@ -221,18 +219,16 @@ class Results:
                 del messages
                 gc.collect()
                 results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
-                quorum_results = {}
                 states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
-                quorum_results[(threshold,delta,self.min_buff_dim)] = (states,results[0])
-                self.dump_times(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-                self.dump_quorum_and_buffer(algo,0,quorum_results,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
-                del results,states,quorum_results
+                self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+                self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+                del results,states
                 gc.collect()
             del msgs_state_bigM_1
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,2,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
+            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
             del act_results
             gc.collect()
         del states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2,
@@ -286,10 +282,8 @@ class Results:
         elif indx+bias==0:
             values.append("swarm_state")
         elif indx+bias==1:
-            values.append("quorum_length")
-        elif indx+bias==2:
             values.append("broadcast_msg")
-        elif indx+bias==3:
+        elif indx+bias==2:
             values.append("rebroadcast_msg")
         values.append(value)
         values.append(data_in)
@@ -342,59 +336,53 @@ class Results:
                 self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
-    def dump_quorum_and_buffer(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
-        if data_in.get((THR,COMMIT,MINS)) is not None:
-            for l in range(len(data_in.get((THR,COMMIT,MINS)))):
-                if data_in.get((THR,COMMIT,MINS))[l] is not None:
-                    mean_val = 0
-                    multi_run_data = (data_in.get((THR,COMMIT,MINS)))[l]
-                    flag2=[-1]*len(multi_run_data[0][0])
-                    for i in range(len(multi_run_data)):
-                        flag1=[-1]*len(multi_run_data[i][0])
-                        flagmv=[-1]*len(multi_run_data[i])
-                        for j in range(len(multi_run_data[i])):
-                            for z in range(len(multi_run_data[i][j])):
-                                if flag1[z]==-1:
-                                    flag1[z]=multi_run_data[i][j][z]
-                                else:
-                                    flag1[z]=flag1[z]+multi_run_data[i][j][z]
-                                if flagmv[j]==-1:
-                                    flagmv[j]=multi_run_data[i][j][z]
-                                else:
-                                    flagmv[j]=flagmv[j]+multi_run_data[i][j][z]
-                            flagmv[j] = flagmv[j]/len(multi_run_data[i][j])
-                        for j in flagmv:
-                            mean_val+=j
-                        for j in range(len(flag1)):
-                            flag1[j]=flag1[j]/len(multi_run_data[i])
-                            if flag2[j]==-1:
-                                flag2[j]=flag1[j]
-                            else:
-                                flag2[j]=flag1[j]+flag2[j]
-                    for i in range(len(flag2)):
-                        flag2[i]=flag2[i]/len(multi_run_data)
-                    mean_val = mean_val/len(multi_run_data)
-                    ###################################################
-                    fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
-                    fstd3=[-1]*len(multi_run_data[0][0])
-                    for i in range(len(multi_run_data)):
-                        fstd1=[-1]*len(multi_run_data[i][0])
-                        for z in range(len(multi_run_data[i][0])): # per ogni tick
-                            std_tmp = []
-                            for j in range(len(multi_run_data[i])): # per ogni agente
-                                std_tmp.append(float(multi_run_data[i][j][z]))
-                            fstd1[z]=np.std(std_tmp)
-                        fstd2[i]=fstd1
-                    for z in range(len(fstd3)):
-                        median_array = []
-                        for i in range(len(fstd2)):
-                            median_array.append(fstd2[i][z])
-                        fstd3[z]=self.extract_median(median_array)
-                    ###################################################
-                    if l==0:
-                        self.dump_resume_csv(algo,l,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
+        mean_val = 0
+        multi_run_data = data_in
+        flag2=[-1]*len(multi_run_data[0][0])
+        for i in range(len(multi_run_data)):
+            flag1=[-1]*len(multi_run_data[i][0])
+            flagmv=[-1]*len(multi_run_data[i])
+            for j in range(len(multi_run_data[i])):
+                for z in range(len(multi_run_data[i][j])):
+                    if flag1[z]==-1:
+                        flag1[z]=multi_run_data[i][j][z]
                     else:
-                        self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+                        flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                    if flagmv[j]==-1:
+                        flagmv[j]=multi_run_data[i][j][z]
+                    else:
+                        flagmv[j]=flagmv[j]+multi_run_data[i][j][z]
+                flagmv[j] = flagmv[j]/len(multi_run_data[i][j])
+            for j in flagmv:
+                mean_val+=j
+            for j in range(len(flag1)):
+                flag1[j]=flag1[j]/len(multi_run_data[i])
+                if flag2[j]==-1:
+                    flag2[j]=flag1[j]
+                else:
+                    flag2[j]=flag1[j]+flag2[j]
+        for i in range(len(flag2)):
+            flag2[i]=flag2[i]/len(multi_run_data)
+        mean_val = mean_val/len(multi_run_data)
+        ###################################################
+        fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
+        fstd3=[-1]*len(multi_run_data[0][0])
+        for i in range(len(multi_run_data)):
+            fstd1=[-1]*len(multi_run_data[i][0])
+            for z in range(len(multi_run_data[i][0])): # per ogni tick
+                std_tmp = []
+                for j in range(len(multi_run_data[i])): # per ogni agente
+                    std_tmp.append(float(multi_run_data[i][j][z]))
+                fstd1[z]=np.std(std_tmp)
+            fstd2[i]=fstd1
+        for z in range(len(fstd3)):
+            median_array = []
+            for i in range(len(fstd2)):
+                median_array.append(fstd2[i][z])
+            fstd3[z]=self.extract_median(median_array)
+        ###################################################
+        self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
