@@ -158,7 +158,6 @@ class Results:
                                 for val in row:                                            
                                     if val.count('\t')==0:
                                         if val!='-' : msgs.append(int(val))
-                                        else : msgs.append(0)
                                     else:
                                         val = val.split('\t')
                                         if val[0] != '': msgs.append(int(val[0]))
