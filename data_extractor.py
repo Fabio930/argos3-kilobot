@@ -230,9 +230,12 @@ class Results:
     def compute_recovery(self,gt,thr,data):
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
-        out = np.copy(data)
+        median_times, median_buffers, t_mins, t_maxs, b_mins, b_maxs = [0]*2,[0]*2, [0]*2,[0]*2, [0]*2,[0]*2
         
-        return out
+
+        t_median = median_times, t_mins, t_maxs
+        b_median = median_buffers, b_mins, b_maxs
+        return (t_median,b_median)
 
 ##########################################################################################################
     def dump_recovery(self,file_name,data):
