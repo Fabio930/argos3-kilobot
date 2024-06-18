@@ -214,7 +214,7 @@ class Data:
                                                     reg.append(round(np.median(s_data[0][-30:]),2))
                                                     tmp_tmin.append(round(np.min(t_data[0]),2))
                                                     tmp_tmax.append(round(np.max(t_data[0]),2))
-                                                    tmp_tmed.append(round(np.median(t_data[0][:]),2))
+                                                    tmp_tmed.append(round(self.extract_median(t_data[0][:],len(s_data[0])),2))
                                             if len(vals)==0:
                                                 vals            = np.array([tmp])
                                                 vals_m          = np.array([t_max])
@@ -772,7 +772,7 @@ class Data:
 ##########################################################################################################
     def extract_median(self,array,max_time):
         mt = int(max_time)
-        median = -1
+        median = max_time
         sortd_arr = np.sort(array)
         if len(sortd_arr)%2 == 0 and sortd_arr[(len(sortd_arr)//2)]!=mt:
             median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
