@@ -236,9 +236,10 @@ class Results:
                 
 ##########################################################################################################
     def compute_recovery(self,gt,thr,data):
-        out = np.copy(data)
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
+        out = np.copy(data)
+        
         return out
 
 ##########################################################################################################
