@@ -37,12 +37,12 @@ for exp_len_par in $experiment_length; do
     if [[ ! -e $exp_len_dir ]]; then
         mkdir $exp_len_dir
     fi
-    for comm_par in $rebroadcast; do
-        comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
-        if [[ ! -e $comm_dir ]]; then
-            mkdir $comm_dir
-        fi
-        for agents_par in $numrobots; do
+    for agents_par in $numrobots; do
+        for comm_par in $rebroadcast; do
+            comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
+            if [[ ! -e $comm_dir ]]; then
+                mkdir $comm_dir
+            fi
             agents_dir=$comm_dir/"Robots#"$agents_par
             if [[ ! -e $agents_dir ]]; then
                 mkdir $agents_dir
@@ -59,7 +59,7 @@ for exp_len_par in $experiment_length; do
                     mkdir $buff_dir
                 fi
                 for i in $(seq 1 $RUNS); do
-                    config=`printf 'config_rebroad%d_nrobots%d_bufferDim%d_run%d.argos' $comm_par $agents_par $buff_par $i`
+                    config=`printf 'config_nrobots%d_rebroad%d_bufferDim%d_run%d.argos' $agents_par $comm_par $buff_par $i`
                     cp $base_config $config
                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                     sed -i "s|__NUMROBOTS__|$agents_par|g" $config
