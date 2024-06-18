@@ -383,12 +383,7 @@ void loop(){
     check_quorum(&quorum_array);
     if(init_received_C) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t%d\t",my_state,quorum_reached);
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d\t",quorum_array[i]->agent_id);
-        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-    }    
-    fprintf(fp,"%ld\t%ld\n",num_own_info,num_other_info);
+    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
     fclose(fp);
 }
 
