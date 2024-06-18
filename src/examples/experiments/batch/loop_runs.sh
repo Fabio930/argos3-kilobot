@@ -39,30 +39,30 @@ for exp_len_par in $experiment_length; do
     if [[ ! -e $exp_len_dir ]]; then
         mkdir $exp_len_dir
     fi
-    for thr_par in $threshold; do
-        thr_par=${thr_par//./_}
-        thr_dir=$exp_len_dir/"Threshold#"$thr_par
-        if [[ ! -e $thr_dir ]]; then
-            mkdir $thr_dir
-        fi
-        thr_par=${thr_par//_/.}
-        for dlt_par in $delta; do
-            IFS=';' read -r gt_before gt_after <<< "$dlt_par"
-            gt_before=${gt_before//./_}
-            gt_after=${gt_after//./_}
-            dlt_dir=$thr_dir/"GT#"$gt_before";"$gt_after
-            if [[ ! -e $dlt_dir ]]; then
-                mkdir $dlt_dir
+    for agents_par in $numrobots; do
+        for thr_par in $threshold; do
+            thr_par=${thr_par//./_}
+            thr_dir=$exp_len_dir/"Threshold#"$thr_par
+            if [[ ! -e $thr_dir ]]; then
+                mkdir $thr_dir
             fi
-
-            gt_before=${gt_before//_/.}
-            gt_after=${gt_after//_/.}
-            for comm_par in $rebroadcast; do
-                comm_dir=$dlt_dir/"Rebroadcast#"$comm_par
-                if [[ ! -e $comm_dir ]]; then
-                    mkdir $comm_dir
+            thr_par=${thr_par//_/.}
+            for dlt_par in $delta; do
+                IFS=';' read -r gt_before gt_after <<< "$dlt_par"
+                gt_before=${gt_before//./_}
+                gt_after=${gt_after//./_}
+                dlt_dir=$thr_dir/"GT#"$gt_before";"$gt_after
+                if [[ ! -e $dlt_dir ]]; then
+                    mkdir $dlt_dir
                 fi
-                for agents_par in $numrobots; do
+
+                gt_before=${gt_before//_/.}
+                gt_after=${gt_after//_/.}
+                for comm_par in $rebroadcast; do
+                    comm_dir=$dlt_dir/"Rebroadcast#"$comm_par
+                    if [[ ! -e $comm_dir ]]; then
+                        mkdir $comm_dir
+                    fi
                     agents_dir=$comm_dir/"Robots#"$agents_par
                     if [[ ! -e $agents_dir ]]; then
                         mkdir $agents_dir
@@ -80,7 +80,7 @@ for exp_len_par in $experiment_length; do
                             mkdir $buff_dir
                         fi
                         for i in $(seq 1 $RUNS); do
-                            config=`printf 'config_rebroad%s_nrobots%s_buffDim%s_Thr%s_Gt%s_run%s.argos' $comm_par $agents_par $buff_par $thr_par $dlt_par $i`
+                            config=`printf 'config_nrobots%s_rebroad%s_buffDim%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $buff_par $thr_par $dlt_par $i`
                             cp $base_config $config
                             sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                             sed -i "s|__NUMROBOTS__|$agents_par|g" $config
