@@ -95,7 +95,7 @@ class Results:
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
             messages    = self.compute_avg_msgs(msgs_bigM_1,algo)
-            self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
             states = self.rearrange_quorum(quorum_bigM_1)
@@ -112,7 +112,7 @@ class Results:
         gc.collect()
 
 ##########################################################################################################
-    def dump_msgs_data(self, file_name, data):
+    def dump_msgs(self, file_name, data):
         header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast", "n_agents", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
