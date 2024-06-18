@@ -385,7 +385,6 @@ class Results:
         for i in range(len(flag2)):
             flag2[i]=flag2[i]/len(data_in)
         mean_val = mean_val/len(data_in)
-        ###################################################
         fstd2=[[-1]*len(data_in[0][0])]*len(data_in)
         fstd3=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
@@ -401,7 +400,6 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        ###################################################
         self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
