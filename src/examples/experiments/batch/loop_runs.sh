@@ -54,7 +54,7 @@ for exp_len_par in $experiment_length; do
                     mkdir $msgs_dir
                 fi
                 for i in $(seq 1 $RUNS); do
-                    config=`printf 'config_nrobots%d_rebroad%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
+                    config=`printf 'config_nrobots%d_rebroad%d_MsgExpTime%d_run%d.argos' $agents_par $comm_par $msgs_par $i`
                     cp $base_config $config
                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                     sed -i "s|__NUMROBOTS__|$agents_par|g" $config
