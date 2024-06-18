@@ -16,44 +16,11 @@ class Results:
                 selem=elem.split('_')
                 if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
+    
+#########################################################################################################
+    def rearrange_quorum(self,data):
+        return np.transpose(data, (1,0,2))
 
-#########################################################################################################
-    def compute_quorum_dim(self,algo,states,msgs_states,buf_lim,gt,gt_dim):
-        print(f"--- Processing data {gt}/{gt_dim} ---")
-        tmp_dim_0 = [np.array([])]*len(msgs_states[0])
-        tmp_ones_0 = [np.array([])]*len(msgs_states[0])
-        for i in range(len(msgs_states[0])):
-            tmp_dim_1 = [np.array([])]*len(msgs_states)
-            tmp_ones_1 = [np.array([])]*len(msgs_states)
-            for j in range(len(msgs_states)):
-                tmp_dim_2 = []
-                tmp_ones_2 = []
-                for t in range(len(msgs_states[j][i])):
-                    dim = 1
-                    ones = states[j][i][t]
-                    tmp = np.delete(msgs_states[j][i][t], np.where(msgs_states[j][i][t] == -1))
-                    start = 0
-                    if algo=='P' and len(tmp) > int(buf_lim): start = len(tmp) - int(buf_lim)
-                    for z in range(start,len(tmp)):
-                        dim += 1
-                        ones += msgs_states[j][i][t][z]
-                    tmp_dim_2.append(dim)
-                    tmp_ones_2.append(ones)
-                tmp_dim_1[j]    = tmp_dim_2
-                tmp_ones_1[j]   = tmp_ones_2
-            tmp_dim_0[i]        = tmp_dim_1
-            tmp_ones_0[i]       = tmp_ones_1
-        return (tmp_dim_0,tmp_ones_0)
-    
-#########################################################################################################
-    def compute_quorum(self,m1,m2,minus,threshold):
-        out = np.copy(m1)
-        for i in range(len(m1)):
-            for j in range(len(m1[i])):
-                for k in range(len(m1[i][j])):
-                    out[i][j][k] = 1 if m1[i][j][k]-1 >= minus and m2[i][j][k] >= threshold * m1[i][j][k] else 0
-        return out
-    
 ##########################################################################################################
     def compute_meaningfull_msgs(self,data,limit,algo):
         print("--- Computing avg buffer dimension ---")
@@ -86,18 +53,6 @@ class Results:
             msgs_summation[tk] = msgs_summation[tk]/len(data_partial)
             msgs_summation[tk] = np.round(msgs_summation[tk]/len(data_partial[0]),3)
         return msgs_summation
-
-##########################################################################################################
-    def compute_msgs_state(self,states,msgs_id):
-        print("--- Matching states and messages ---")
-        out = np.copy(msgs_id)
-        for i in range(len(msgs_id)):
-            for j in range(len(msgs_id[i])):
-                for k in range(len(msgs_id[i][j])):
-                    for z in range(len(msgs_id[i][j][k])):
-                        if msgs_id[i][j][k][z] != -1:
-                            out[i][j][k][z] = states[msgs_id[i][j][k][z]][j][k]
-        return out
     
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,sub_path,data_type="all"):
@@ -105,11 +60,13 @@ class Results:
         act_results = {}
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1 = [np.array([])] * n_agents
+        quorum_bigM_1 = [np.array([])] * n_agents
         msgs_id_bigM_1 = [np.array([])] * n_agents
         act_bigM_1 = [np.array([])] * n_agents
         act_bigM_2 = [np.array([])] * n_agents
         msgs_id_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
         states_M_1 = [np.array([],dtype=int)]*num_runs
+        quorum_M_1 = [np.array([],dtype=int)]*num_runs
         act_M_1 = [np.array([],dtype=int)]*num_runs
         act_M_2 = [np.array([],dtype=int)]*num_runs
         a_ = 0
@@ -140,32 +97,38 @@ class Results:
                                     if log_count<=30:
                                         val = val.split('\t')
                                         state = int(val[0])
-                                        broadcast_c = int(val[1])
-                                        re_broadcast_c = int(val[2])
+                                        quorum = int(val[1])
+                                        broadcast_c = 0
+                                        re_broadcast_c = 0
                                     else:
                                         if val.count('\t') == 0:
                                             msgs_id.append(int(val))
-                                            sem = 1
                                         else:
                                             val = val.split('\t')
-                                            if len(val)==2:
-                                                state = int(val[0])
-                                                msgs_id.append(int(val[1]))
-                                                sem = 1
-                                            elif len(val)==3:
+                                            if len(val)==3:
                                                 if sem == 0:
                                                     state = int(val[0])
+                                                    quorum = int(val[1])
+                                                    msgs_id.append(int(val[2]))
+                                                    sem = 1
                                                 else:
                                                     msgs_id.append(int(val[0]))
-                                                broadcast_c = int(val[1])
-                                                re_broadcast_c = int(val[2])
+                                                    broadcast_c = int(val[1])
+                                                    re_broadcast_c = int(val[2])
                                             elif len(val)==4:
                                                 state = int(val[0])
-                                                msgs_id.append(int(val[1]))
+                                                quorum = int(val[1])
                                                 broadcast_c = int(val[2])
                                                 re_broadcast_c = int(val[3])
+                                            elif len(val)==5:
+                                                state = int(val[0])
+                                                quorum = int(val[1])
+                                                msgs_id.append(int(val[2]))
+                                                broadcast_c = int(val[3])
+                                                re_broadcast_c = int(val[4])
                                 if state==-1: print(sub_path,'\n',"run:",seed,"agent;",agent_id,"line:",log_count,'\n',row)
                                 states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
+                                quorum_M_1[seed-1] = np.append(quorum_M_1[seed-1],quorum)
                                 if (data_type=="all" or data_type=="freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
@@ -180,58 +143,35 @@ class Results:
                     if seed == num_runs:
                         msgs_id_bigM_1[agent_id] = msgs_id_M_1
                         states_bigM_1[agent_id] = states_M_1
+                        quorum_bigM_1[agent_id] = quorum_M_1
                         msgs_id_M_1 = [np.array([],dtype=int)]*num_runs
                         states_M_1 = [np.array([],dtype=int)]*num_runs
+                        quorum_M_1 = [np.array([],dtype=int)]*num_runs
                         if (data_type=="all" or data_type=="freq"):
                             act_bigM_1[agent_id] = act_M_1
                             act_bigM_2[agent_id] = act_M_2
                             act_M_1 = [np.array([],dtype=int)]*num_runs
                             act_M_2 = [np.array([],dtype=int)]*num_runs
         if data_type in ("all","quorum"):
-            info_vec     = sub_path.split('/')
-            t_messages = sub_path.split('#')[-1]
-            algo     = info_vec[4].split('_')[0][0]
-            arenaS   = info_vec[4].split('_')[-1][:-1]
-            BUFFERS = []
-            if arenaS=='small':
-                BUFFERS = [19,22,23,24]
-            elif arenaS=='big':
-                if n_agents==25:
-                    BUFFERS = [11,15,19,22]
-                elif n_agents==100:
-                    BUFFERS = [41,57,76,85]
-            msgs_state_bigM_1 = self.compute_msgs_state(states_bigM_1,msgs_id_bigM_1)
-            if algo=='P':
-                for buf in range(len(BUFFERS)):
-                    messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,BUFFERS[buf],algo)
-                    self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, BUFFERS[buf], messages])
-                    del messages
-                    gc.collect()
-                    results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,BUFFERS[buf],buf+1,len(BUFFERS))
-                    states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
-                    self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents,self.limit)
-                    self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,BUFFERS[buf],n_agents)
-                    del results,states
-                    gc.collect()
-            else:
-                messages = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
-                self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
-                del messages
-                gc.collect()
-                results = self.compute_quorum_dim(algo,states_bigM_1,msgs_state_bigM_1,0,1,1)
-                states = self.compute_quorum(results[0],results[1],self.min_buff_dim,threshold)
-                self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-                self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
-                del results,states
-                gc.collect()
-            del msgs_state_bigM_1
+            info_vec    = sub_path.split('/')
+            t_messages  = sub_path.split('#')[-1]
+            algo        = info_vec[4].split('_')[0][0]
+            arenaS      = info_vec[4].split('_')[-1][:-1]
+            messages    = self.compute_meaningfull_msgs(msgs_id_bigM_1,t_messages,algo)
+            self.dump_msgs_data("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+            del messages
+            gc.collect()
+            states = self.rearrange_quorum(quorum_bigM_1)
+            self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+            self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+            del states
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
             del act_results
             gc.collect()
-        del states_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,states_M_1,act_M_1,act_M_2,
+        del states_bigM_1,quorum_bigM_1,msgs_id_bigM_1,act_bigM_1,act_bigM_2,msgs_id_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
         gc.collect()
 
 ##########################################################################################################
@@ -338,42 +278,40 @@ class Results:
 ##########################################################################################################
     def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
         mean_val = 0
-        multi_run_data = data_in
-        flag2=[-1]*len(multi_run_data[0][0])
-        for i in range(len(multi_run_data)):
-            flag1=[-1]*len(multi_run_data[i][0])
-            flagmv=[-1]*len(multi_run_data[i])
-            for j in range(len(multi_run_data[i])):
-                for z in range(len(multi_run_data[i][j])):
+        flag2=[-1]*len(data_in[0][0])
+        for i in range(len(data_in)):
+            flag1=[-1]*len(data_in[i][0])
+            flagmv=[-1]*len(data_in[i])
+            for j in range(len(data_in[i])):
+                for z in range(len(data_in[i][j])):
                     if flag1[z]==-1:
-                        flag1[z]=multi_run_data[i][j][z]
+                        flag1[z]=data_in[i][j][z]
                     else:
-                        flag1[z]=flag1[z]+multi_run_data[i][j][z]
+                        flag1[z]=flag1[z]+data_in[i][j][z]
                     if flagmv[j]==-1:
-                        flagmv[j]=multi_run_data[i][j][z]
+                        flagmv[j]=data_in[i][j][z]
                     else:
-                        flagmv[j]=flagmv[j]+multi_run_data[i][j][z]
-                flagmv[j] = flagmv[j]/len(multi_run_data[i][j])
+                        flagmv[j]=flagmv[j]+data_in[i][j][z]
+                flagmv[j] = flagmv[j]/len(data_in[i][j])
             for j in flagmv:
                 mean_val+=j
             for j in range(len(flag1)):
-                flag1[j]=flag1[j]/len(multi_run_data[i])
+                flag1[j]=flag1[j]/len(data_in[i])
                 if flag2[j]==-1:
                     flag2[j]=flag1[j]
                 else:
                     flag2[j]=flag1[j]+flag2[j]
         for i in range(len(flag2)):
-            flag2[i]=flag2[i]/len(multi_run_data)
-        mean_val = mean_val/len(multi_run_data)
-        ###################################################
-        fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data)
-        fstd3=[-1]*len(multi_run_data[0][0])
-        for i in range(len(multi_run_data)):
-            fstd1=[-1]*len(multi_run_data[i][0])
-            for z in range(len(multi_run_data[i][0])): # per ogni tick
+            flag2[i]=flag2[i]/len(data_in)
+        mean_val = mean_val/len(data_in)
+        fstd2=[[-1]*len(data_in[0][0])]*len(data_in)
+        fstd3=[-1]*len(data_in[0][0])
+        for i in range(len(data_in)):
+            fstd1=[-1]*len(data_in[i][0])
+            for z in range(len(data_in[i][0])): # per ogni tick
                 std_tmp = []
-                for j in range(len(multi_run_data[i])): # per ogni agente
-                    std_tmp.append(float(multi_run_data[i][j][z]))
+                for j in range(len(data_in[i])): # per ogni agente
+                    std_tmp.append(float(data_in[i][j][z]))
                 fstd1[z]=np.std(std_tmp)
             fstd2[i]=fstd1
         for z in range(len(fstd3)):
@@ -381,24 +319,21 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        ###################################################
-        self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+        self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
-        if data_in.get((THR,COMMIT,MINS)) is not None:
-            multi_run_data = (data_in.get((THR,COMMIT,MINS)))[0]
-            times = [len(multi_run_data[0][0])] * len(multi_run_data)
-            for i in range(len(multi_run_data)): # per ogni run
-                for z in range(len(multi_run_data[i][0])): # per ogni tick
-                    sum = 0
-                    for j in range(len(multi_run_data[i])): # per ogni agente
-                        sum += multi_run_data[i][j][z]
-                    if sum >= limit * len(multi_run_data[i]):
-                        times[i] = z
-                        break
-            times = sorted(times)
-            self.dump_resume_csv(algo,-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(multi_run_data))
+        times = [len(data_in[0][0])] * len(data_in)
+        for i in range(len(data_in)): # per ogni run
+            for z in range(len(data_in[i][0])): # per ogni tick
+                sum = 0
+                for j in range(len(data_in[i])): # per ogni agente
+                    sum += data_in[i][j][z]
+                if sum >= limit * len(data_in[i]):
+                    times[i] = z
+                    break
+        times = sorted(times)
+        self.dump_resume_csv(algo,-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
     def extract_median(self,array):
