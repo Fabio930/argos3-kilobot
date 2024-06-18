@@ -375,7 +375,6 @@ class Data:
                 elif k[2] == '600':
                     col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-            print("arena:",k[0],"\t agents:",k[1],"\t msgs life:",k[2],"\t buff dim:",np.round(np.mean(dict_adam.get(k)[-10:])*(int(k[1])-1),0))
         for k in dict_our.keys():
             row = 0
             col = 0
