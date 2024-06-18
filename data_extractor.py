@@ -339,23 +339,7 @@ class Results:
                             flag2[j]=flag1[j]+flag2[j]
                 for i in range(len(flag2)):
                     flag2[i]=flag2[i]/len(multi_run_data[0])
-                ###################################################
-                fstd2=[[-1]*len(multi_run_data[0][0])]*len(multi_run_data[0])
-                fstd3=[-1]*len(multi_run_data[0][0])
-                for i in range(len(multi_run_data[0])):
-                    fstd1=[-1]*len(multi_run_data[0][0])
-                    for z in range(len(multi_run_data[0][0])): # per ogni tick
-                        std_tmp = []
-                        for j in range(len(multi_run_data)): # per ogni agente
-                            std_tmp.append(float(multi_run_data[j][i][z]))
-                        fstd1[z]=np.std(std_tmp)
-                    fstd2[i] = fstd1
-                for z in range(len(fstd3)):
-                    median_array = []
-                    for i in range(len(fstd2)):
-                        median_array.append(fstd2[i][z])
-                    fstd3[z]=self.extract_median(median_array)
-                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),"-",BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
     def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME):
