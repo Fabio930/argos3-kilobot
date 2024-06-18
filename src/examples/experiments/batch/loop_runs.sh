@@ -69,9 +69,10 @@ for exp_len_par in $experiment_length; do
                     fi
                     last_id=`expr $agents_par - 1`
                     if [ $agents_par -eq 25 ]; then
-                        buffer_dim="24"
+                        buffer_dim="19 22 23 24" # small arena
+                        # buffer_dim="11 15 19 22" # big arena
                     elif [ $agents_par -eq 100 ]; then
-                        buffer_dim="99"
+                        buffer_dim="41 57 76 85"
                     fi
                     for buff_par in $buffer_dim; do
                         buff_dir=$agents_dir/"BufferDim#"$buff_par
