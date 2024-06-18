@@ -473,7 +473,7 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/messages.png"
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
@@ -760,8 +760,8 @@ class Data:
 
         fig.tight_layout()
         tfig.tight_layout()
-        fig_path = path+_type+"_activation.png"
-        tfig_path = path+t_type+"_time.png"
+        fig_path = path+_type+"_activation.pdf"
+        tfig_path = path+t_type+"_time.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
@@ -774,8 +774,8 @@ class Data:
         mt = int(max_time)
         median = max_time
         sortd_arr = np.sort(array)
-        if len(sortd_arr)%2 == 0 and sortd_arr[(len(sortd_arr)//2)]!=mt:
-            median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
+        if len(sortd_arr)%2 == 0:
+            if sortd_arr[(len(sortd_arr)//2)]!=mt: median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
         else:
             if sortd_arr[math.ceil(len(sortd_arr)/2)]!=mt: median = sortd_arr[math.floor(len(sortd_arr)/2)]
         return median
