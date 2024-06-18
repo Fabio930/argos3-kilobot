@@ -132,19 +132,12 @@ class Results:
             else:
                 states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
         #####################################################
-        a_ = 0
-        prev_id = -1
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem=elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                    a_+=1
                     seed = int(selem[0].split('#')[-1])
                     agent_id = int(selem[0].split('__')[0].split('#')[-1])
-                    if prev_id != agent_id:
-                        a_ = 0
-                    if a_ == 0:
-                        prev_id = agent_id
                     with open(os.path.join(sub_path, elem), newline='') as f:
                         reader = csv.reader(f)
                         log_count = 0
@@ -161,8 +154,8 @@ class Results:
                                     else:
                                         val = val.split('\t')
                                         if val[0] != '': msgs.append(int(val[0]))
-                                        broadcast_c = val[1]
-                                        re_broadcast_c = val[2]
+                                        broadcast_c = int(val[1])
+                                        re_broadcast_c = int(val[2])
                                 if (data_type=="all" or data_type=="freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
@@ -172,7 +165,7 @@ class Results:
                                     msgs_M_1[seed-1] = [msgs]
                                 else :
                                     msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
-                    if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",len(msgs_M_1[seed-1][-1]),"tot lines:",len(msgs_M_1[seed-1]))
+                    if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
                     if seed == num_runs:
                         msgs_bigM_1[agent_id] = msgs_M_1
                         msgs_M_1 = [np.array([],dtype=int)]*num_runs
@@ -181,7 +174,6 @@ class Results:
                             act_bigM_2[agent_id] = act_M_2
                             act_M_1 = [np.array([],dtype=int)]*num_runs
                             act_M_2 = [np.array([],dtype=int)]*num_runs
-        
         if data_type=="all" or data_type=="quorum":
             info_vec     = sub_path.split('/')
             t_messages = sub_path.split('#')[-1]
@@ -206,7 +198,7 @@ class Results:
                             self.dump_times(algo,0,states,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],self.limit)
                             self.dump_quorum(algo,0,states,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
                             recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
-                            self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,BUFFERS[buf])
+                            self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
                             del recovery_res, states
                             gc.collect()
                         del results
@@ -221,7 +213,7 @@ class Results:
                         self.dump_times(algo,0,states,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,self.limit)
                         self.dump_quorum(algo,0,states,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
                         recovery_res = self.compute_recovery(self.ground_truth[gt],thr,states)
-                        self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],self.min_buff_dim,msg_exp_time)
+                        self.dump_recovery(algo,0,recovery_res,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
                         del recovery_res, states
                         gc.collect()
                     del results
@@ -244,17 +236,7 @@ class Results:
 
 ##########################################################################################################
     def dump_recovery(self,file_name,data):
-        header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
-        # write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
-        
-        # if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
-        #     os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
-        
-        # with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
-        #     fwriter = csv.writer(fw, delimiter='\t')
-        #     if write_header:
-        #         fwriter.writerow(header)
-        #     fwriter.writerow(data)
+        return
     
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
