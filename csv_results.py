@@ -519,7 +519,7 @@ class Data:
 ##########################################################################################################
     def extract_median(self,array,max_time):
         mt = int(max_time)
-        median = -1
+        median = max_time
         sortd_arr = np.sort(array)
         if len(sortd_arr)%2 == 0 and sortd_arr[(len(sortd_arr)//2)]!=mt:
             median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
