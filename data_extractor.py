@@ -30,7 +30,7 @@ class Results:
                 for t in range(len(data[i][j])):
                     out[t]+=data[i][j][t]
         for t in range(len(out)):
-            out[t] = out[t]/(len(data[0])*len(data[0][0]))
+            out[t] = out[t]/(len(data)*len(data[0]))
         return out
     
 ##########################################################################################################
