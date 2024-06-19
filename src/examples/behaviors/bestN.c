@@ -376,11 +376,7 @@ void setup(){
 
 void loop(){
     fp = fopen(log_title,"a");
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
-        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-    }    
-    fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info);
+    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
