@@ -55,6 +55,8 @@ public:
 
     void SendStateInformation(CKilobotEntity &c_kilobot_entity);
     
+    void SendArenaDimensions(CKilobotEntity &c_kilobot_entity);
+    
     Real abs_distance(const CVector2 a,const CVector2 b);
 
 private:
@@ -63,7 +65,8 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     float                   committed_percentage;
-    float                   middle_x_area;
+    double                  middle_x_area;
+    float                   quorum_threshold;
 
     UInt16                  expiring_quorum_sec;
     UInt8                   msgs_n_hops;

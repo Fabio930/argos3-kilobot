@@ -11,13 +11,7 @@
 
 #define PI 3.14159265358979323846
 FILE *fp;
-
-/* divided by 10 */
-typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
-}arena_size;
-
+const float_t arena_border = 0.05;
 /* Enum for messages type */
 typedef enum{
   ARK_BROADCAST_MSG = 0,
@@ -90,6 +84,7 @@ uint16_t sa_payload = 0;
 bool init_received_A = false;
 bool init_received_B = false;
 bool init_received_C = false;
+bool init_received_D = false;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;

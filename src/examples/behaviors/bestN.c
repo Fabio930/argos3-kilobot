@@ -173,15 +173,15 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
             gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
-            if(init_received_B && !init_received_C){
-                init_received_C = true;
+            if(init_received_C && !init_received_D){
                 select_new_point(true);
                 set_motion(FORWARD);
                 set_color(led);
+                init_received_D = true;
             }
             break;
         case MSG_B:
-            if(init_received_A){
+            if(!init_received_A){
                 uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
                 uint8_t state = (uint8_t)sa_payload & 0b00000001;
                 msg_n_hops = (uint8_t)sa_payload >> 1;
@@ -197,7 +197,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                         break;
                 }
                 set_quorum_threshold(quorum_threshold);
-                init_received_B = true;
+                init_received_A = true;
             }
             break;
     }
@@ -229,16 +229,54 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     
     switch (sa_type){
         case MSG_A:
-            sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
-            if(!init_received_A){   
-                led = RGB(3,3,0);
-                set_color(led);
+            sa_payload = (uint16_t)data[1] << 8 | data[2];
+            if(init_received_A && !init_received_B){   
                 complete_tree(&the_arena);
-                set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
+                uint8_t x_max_info = sa_payload >> 10;
+                uint8_t y_max_info = (sa_payload >> 8) & 0b00000011;
+                float_t x_max;
+                float_t y_max;
+                switch (x_max_info){
+                    case 0:
+                        x_max = 0.5;
+                        break;
+                    case 1:
+                        x_max = 1.0;
+                        break;
+                    case 2:
+                        x_max = 2.0;
+                        break;
+                }
+                switch (y_max_info){
+                    case 0:
+                        y_max = 0.25;
+                        break;
+                    case 1:
+                        y_max = 0.5;
+                        break;
+                    case 2:
+                        y_max = 1.0;
+                        break;
+                }
+                float_t x_mid = (float_t)((uint8_t)sa_payload & 0b00000001) + (((float_t)((uint8_t)sa_payload>>1))*.01);
+                switch (my_state){
+                    case 1:
+                        set_vertices(&the_arena,arena_border,arena_border,x_mid-arena_border,y_max-arena_border);
+                        break;
+                    case 0:
+                        set_vertices(&the_arena,x_mid+arena_border,arena_border,x_max-arena_border,y_max-arena_border);
+                        break;
+                }
+                init_received_B = true;
+            }
+            break;
+        case MSG_B:
+            sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
+            if(init_received_B && !init_received_C){
                 uint32_t expiring_dist;
                 switch (sa_payload){
                     case 0:
-                        expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                        expiring_dist = (uint32_t)sqrt(pow((the_arena->brX)*10,2)+pow((the_arena->brY)*10,2));
                         break;
                     default:
                         expiring_dist = sa_payload;
@@ -246,16 +284,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 }
                 broadcasting_flag = data[2];
                 set_quorum_vars(expiring_dist * TICKS_PER_SEC);
-                init_received_A = true;
+                init_received_C = true;
             }
-            break;
-        case MSG_B:
-            id1 = (data[0] & 0b11111110) >> 1;
-            id2 = (data[3] & 0b11111110) >> 1;
-            id3 = (data[6] & 0b11111110) >> 1;
-            if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
-            else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
-            else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
             break;
     }
 }
@@ -312,7 +342,7 @@ float AngleToGoal(){
 }
 
 void random_way_point_model(){   
-    if(init_received_C){
+    if(init_received_D){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
@@ -359,7 +389,7 @@ void random_way_point_model(){
 void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     /* Init LED and motors */
-    set_color(RGB(0,0,0));
+    set_color(RGB(3,3,0));
     set_motors(0,0);
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
@@ -381,7 +411,7 @@ void loop(){
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     check_quorum(&quorum_array);
-    if(init_received_C) talk();
+    if(init_received_D) talk();
     fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
     fclose(fp);
