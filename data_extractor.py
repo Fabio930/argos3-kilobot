@@ -180,7 +180,7 @@ class Results:
             arenaS   = info_vec[4].split('_')[-1][:-1]
             BUFFERS = []
             if arenaS=='small':
-                BUFFERS = [20,22,23,23.01,24]
+                BUFFERS = [19,22,23,23.01,24]
             elif arenaS=='big':
                 if n_agents==25:
                     BUFFERS=[11,15,17,19,21]
@@ -196,7 +196,7 @@ class Results:
                             quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                             self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],self.limit)
                             self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
-                            recovery_res = self.compute_recovery(self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                            recovery_res = self.compute_recovery(algo,self.ground_truth[gt],thr,quorums,msgs_bigM_1,BUFFERS[buf])
                             self.dump_recovery("recovery_resume.csv",[arenaS,algo,communication,n_agents,BUFFERS[buf],self.ground_truth[gt],thr,self.min_buff_dim,recovery_res])
                             del recovery_res, quorums
                             gc.collect()
@@ -211,7 +211,7 @@ class Results:
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                         self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,self.limit)
                         self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
-                        recovery_res = self.compute_recovery(self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                        recovery_res = self.compute_recovery(algo,self.ground_truth[gt],thr,quorums,msgs_bigM_1,0)
                         self.dump_recovery("recovery_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,self.ground_truth[gt],thr,self.min_buff_dim,recovery_res])
                         del recovery_res, quorums
                         gc.collect()
@@ -226,7 +226,7 @@ class Results:
         gc.collect()
                 
 ##########################################################################################################
-    def compute_recovery(self,gt,thr,quorums,buffers):
+    def compute_recovery(self,algo,gt,thr,quorums,buffers,limit_buf):
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
         t_mins, t_maxs, b_mins, b_maxs, r_mimax = [99999]*2, [-1]*2, [99999]*2, [-1]*2, [99999,-1]
@@ -234,23 +234,48 @@ class Results:
         for i in range(len(quorums)):
             for j in range(len(quorums[i])):
                 recovery = 0
+                sem = 0
                 for t in range(1,len(quorums[i][j])):
                     if quorums[i][j][t] != quorums[i][j][t-1]:
-                        if gt < thr and quorums[i][j][t] == 1 or gt >= thr and quorums[i][j][t] == 0:
+                        if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
+                            sem = 1
                             if t < t_mins[0]: t_mins[0] = t
                             elif t > t_maxs[0]: t_maxs[0] = t
-                            if buffers[j][i][t] < b_mins[0]: b_mins[0] = buffers[j][i][t]
-                            elif buffers[j][i][t] > b_maxs[0]: b_maxs[0] = buffers[j][i][t]
+                            tmp = []
+                            st = 0
+                            bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                            if algo=='P':
+                                if len(bf)>limit_buf:
+                                    st = len(bf)-limit_buf
+                                for z in range(st,len(bf)):
+                                    if bf[z] not in tmp:
+                                        tmp.append(bf[z])
+                            else: tmp = bf
+                            b = len(tmp)
+                            if b < b_mins[0]: b_mins[0] = b
+                            elif b > b_maxs[0]: b_maxs[0] = b
                             t_starts.append(t)
-                            b_starts.append(buffers[j][i][t])
+                            b_starts.append(b)
                             recovery +=1
-                        elif gt < thr and quorums[i][j][t] == 0 or gt >= thr and quorums[i][j][t] == 1:
+                        elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
+                            sem = 0
                             if t < t_mins[1]: t_mins[1] = t
                             elif t > t_maxs[1]: t_maxs[1] = t
-                            if buffers[j][i][t] < b_mins[1]: b_mins[1] = buffers[j][i][t]
-                            elif buffers[j][i][t] > b_maxs[1]: b_maxs[1] = buffers[j][i][t]
+                            tmp = []
+                            st = 0
+                            bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                            if algo=='P':
+                                if len(bf)>limit_buf:
+                                    st = len(bf)-limit_buf
+                                for z in range(st,len(bf)):
+                                    if bf[z] not in tmp:
+                                        tmp.append(bf[z])
+                            else: tmp = bf
+                            b = len(tmp)
+                            if b < b_mins[1]: b_mins[1] = b
+                            elif b > b_maxs[1]: b_maxs[1] = b
                             t_ends.append(t)
-                            b_ends.append(buffers[j][i][t])
+                            b_ends.append(b)
                 if recovery < r_mimax[0]: r_mimax[0] = recovery
                 elif recovery > r_mimax[1]: r_mimax[1] = recovery
                 recoveries.append(recovery)
@@ -260,16 +285,16 @@ class Results:
 
 ##########################################################################################################
     def dump_recovery(self,file_name,data):
-        header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "min_buff_dim",
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "min_buff_dim",
                   "recovey_median", "recovery_min", "recovery_max",
                   "start_time_median", "end_time_median", "start_time_min", "end_time_min", "start_time_max", "end_time_max",
                   "start_buff_median", "end_buff_median", "start_buff_min", "end_buff_min", "start_buff_max", "end_buff_max"]
-        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", file_name))
         
-        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
-            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
+        if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "proc_data"))
         
-        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
+        with open(os.path.join(os.path.abspath(""), "proc_data", file_name), mode='a', newline='\n') as fw:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
@@ -280,7 +305,7 @@ class Results:
             
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "broadcast", "n_agents", "buff_dim", "data"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -294,7 +319,7 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
-        static_fields=["CommittedPerc","Threshold","MinBuffDim","MsgExpTime"]
+        static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time"]
         static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
