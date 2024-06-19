@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="900"
+        <experiment length="1200"
         ticks_per_second="10"/>
     </framework>
     
@@ -53,6 +53,7 @@
             rebroadcast = "2"
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
+            quorum_threshold = "0.8"
             committed_percentage = "__COMMITTED_PERC__"
             middle_x_area="__MIDDLE_X_AREA__"
         >

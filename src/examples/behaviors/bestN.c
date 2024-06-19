@@ -182,8 +182,9 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             break;
         case MSG_B:
             if(init_received_A){
-                msg_n_hops = (uint8_t)(sa_payload >> 8);
-                uint8_t state = (uint8_t)sa_payload;
+                uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
+                uint8_t state = (uint8_t)sa_payload & 0b00000001;
+                msg_n_hops = (uint8_t)sa_payload >> 1;
                 switch (state){
                     case 0:
                         led = RGB(0,0,0);
@@ -195,6 +196,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                         my_state = committed;
                         break;
                 }
+                set_quorum_threshold(quorum_threshold);
                 init_received_B = true;
             }
             break;
@@ -243,7 +245,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                         break;
                 }
                 broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
+                set_quorum_vars(expiring_dist * TICKS_PER_SEC);
                 init_received_A = true;
             }
             break;
@@ -375,13 +377,14 @@ void setup(){
 }
 
 void loop(){
-    fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
-    fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
+    check_quorum(&quorum_array);
     if(init_received_C) talk();
+    fp = fopen(log_title,"a");
+    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
+    fclose(fp);
 }
 
 void deallocate_memory(){
