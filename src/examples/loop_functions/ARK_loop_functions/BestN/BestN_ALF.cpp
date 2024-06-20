@@ -252,6 +252,7 @@ void CBestN_ALF::SendArenaDimensions(CKilobotEntity &c_kilobot_entity){
     int x_mid_int_info = (int)x_mid_int;
     int x_mid_frc_info = (int)(x_mid_frc*100);
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    // if(unKilobotID == 0) printf("ARENA ---\t x max: %f\t y max: %f\t x mid int: %d\t x mid frc: %d\n",x_max,y_max,x_mid_int_info,x_mid_frc_info);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
@@ -399,7 +400,8 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
-    else if (vec_position_on_plane.GetX()<middle_x_area) color=CColor::GREEN;    
+    else if (vec_position_on_plane.GetX()<middle_x_area) color=CColor::GREEN;
+    else if (vec_position_on_plane.GetX()==middle_x_area) color=CColor::BLACK;
     return color;
 }
 

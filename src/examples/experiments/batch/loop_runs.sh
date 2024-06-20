@@ -74,11 +74,11 @@ numrobots="25"
 committed_percentage="0.75"
 messages_hops="0"
 # small arena dimensions
-arena_x_side="0.50 1.0"
-arena_y_side="0.50 0.25"
+arena_x_side="0.500 1.000"
+arena_y_side="0.500 0.250"
 # big arena dimensions
-# arena_x_side="1.0 2.0"
-# arena_y_side="1.0 0.50"
+# arena_x_side="1.000 2.000"
+# arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)

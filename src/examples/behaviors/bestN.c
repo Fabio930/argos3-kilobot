@@ -118,6 +118,8 @@ void select_new_point(bool force){
         }
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
+        // printf("SELECTED POSITION --- K_ID: %d\t K_ST: %d\t x: %f\t y: %f\n",kilo_uid,my_state,goal_position.position_x,goal_position.position_y);
+        // printf("GPS POSITION --- K_ID: %d\t K_ST: %d\t x: %f\t y: %f\n",kilo_uid,my_state,gps_position.position_x,gps_position.position_y);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         reaching_goal_ticks = expiring_dist * goal_ticks_sec;
 
@@ -209,6 +211,13 @@ void update_messages(const uint8_t Msg_n_hops){
     sort_q(&quorum_array);
 }
 
+void check_quorum(quorum_a **Array[]){
+    uint8_t tmp = my_state;
+    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
+    if(num_quorum_items >= min_quorum_length && tmp >= (num_quorum_items + 1)*quorum_threshold) quorum_reached = 1;
+    else quorum_reached = 0;
+}
+
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
     if(sa_id!=(uint8_t)kilo_uid){
@@ -225,8 +234,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     uint8_t id1;
     uint8_t id2;
     uint8_t id3;
-    sa_type = data[0] & 0b00000001;
-    
+    sa_type = data[0] & 0b00000001;    
     switch (sa_type){
         case MSG_A:
             sa_payload = (uint16_t)data[1] << 8 | data[2];
@@ -261,10 +269,12 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 float_t x_mid = (float_t)((uint8_t)sa_payload & 0b00000001) + (((float_t)((uint8_t)sa_payload>>1))*.01);
                 switch (my_state){
                     case 1:
-                        set_vertices(&the_arena,arena_border,arena_border,x_mid-arena_border,y_max-arena_border);
+                        set_vertices(&the_arena,arena_border,arena_border,x_mid+arena_border-0.01,y_max+arena_border);
+                        // printf("KILO 1 ---\t x min: %f\t x max: %f\t y min: %f\t y max: %f\n",arena_border,x_mid+arena_border,arena_border,y_max+arena_border);
                         break;
                     case 0:
-                        set_vertices(&the_arena,x_mid+arena_border,arena_border,x_max-arena_border,y_max-arena_border);
+                        set_vertices(&the_arena,x_mid+arena_border+0.01,arena_border,x_max+arena_border,y_max+arena_border);
+                        // printf("KILO 0 ---\t x min: %f\t x max: %f\t y min: %f\t y max: %f\n",x_mid+arena_border,x_max+arena_border,arena_border,y_max+arena_border);
                         break;
                 }
                 init_received_B = true;

@@ -31,12 +31,6 @@ void print_q(quorum_a **Array[],uint8_t id){
         else printf("NULL\n");
     }
 }
-void check_quorum(quorum_a **Array[]){
-    uint8_t tmp = 0;
-    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
-    if(num_quorum_items >= min_quorum_length && tmp >= num_quorum_items*quorum_threshold) quorum_reached = 1;
-    else quorum_reached = 0;
-}
 
 void increment_quorum_counter(quorum_a **Array[]){
     for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
