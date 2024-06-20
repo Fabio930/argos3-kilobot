@@ -20,9 +20,8 @@ typedef struct quorum_structure{
 
 void set_quorum_vars(const uint32_t Expiring_time);
 
-void check_quorum(quorum_a **Array[]);
-
 void set_quorum_threshold(const uint8_t Quorum_threshold);
+
 void sort_q(quorum_a **Array[]);
 
 void init_array_qrm(quorum_a **Array[], uint8_t N);

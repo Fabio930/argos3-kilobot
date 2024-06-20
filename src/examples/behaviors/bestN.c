@@ -193,6 +193,13 @@ void update_messages(){
     sort_q(&quorum_array);
 }
 
+void check_quorum(quorum_a **Array[]){
+    uint8_t tmp = my_state;
+    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
+    if(num_quorum_items >= min_quorum_length && tmp >= (num_quorum_items + 1)*quorum_threshold) quorum_reached = 1;
+    else quorum_reached = 0;
+}
+
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
     if(sa_id!=(uint8_t)kilo_uid){
