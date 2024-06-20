@@ -132,7 +132,7 @@ def main():
             task = queue.get()
             n_agents = task[4]
             required_memory = memory_per_process_25 if n_agents == 25 else memory_per_process_100
-            if total_memory_used + required_memory <= total_memory:
+            if total_memory_used + required_memory < total_memory:
                 p = Process(target=process_folder, args=(task,))
                 p.start()
                 active_processes.append((p, n_agents))
