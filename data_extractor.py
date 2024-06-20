@@ -231,6 +231,7 @@ class Results:
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
         t_mins, t_maxs, b_mins, b_maxs, r_mimax = [99999]*2, [-1]*2, [99999]*2, [-1]*2, [99999,-1]
         recoveries, t_starts, t_ends, b_starts, b_ends = [], [], [], [], []
+        limit_buf = int(limit_buf)
         for i in range(len(quorums)):
             for j in range(len(quorums[i])):
                 recovery = 0
