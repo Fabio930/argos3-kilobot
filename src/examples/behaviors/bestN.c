@@ -170,7 +170,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     sa_payload = ((uint16_t)(data[shift + 1]) << 8) | data[shift + 2];
     switch(sa_type){
         case MSG_A:
-            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
+            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 4;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
             gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
             if(init_received_C && !init_received_D){

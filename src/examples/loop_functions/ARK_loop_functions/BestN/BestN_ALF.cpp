@@ -322,7 +322,7 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].type = 1;
     tKilobotMessage.m_sType = 0;
     UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100)*.5;
+    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100)*.25;
     UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + this->GetSpace().GetArenaLimits().GetMax()[1]) * 100)*.5;   
     tKilobotMessage.m_sType = (valY & 0b00000111) << 1 | tKilobotMessage.m_sType;
     tKilobotMessage.m_sID = unKilobotID << 3 | angle >> 1;
@@ -400,7 +400,6 @@ CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
     CColor color=CColor::WHITE;
     if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
     else if (vec_position_on_plane.GetX()<middle_x_area) color=CColor::GREEN;
-    else if (vec_position_on_plane.GetX()==middle_x_area) color=CColor::BLACK;
     return color;
 }
 
