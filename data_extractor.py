@@ -1,5 +1,7 @@
 import numpy as np
 import os, csv, math, gc
+import pandas as pd
+from lifelines import KaplanMeierFitter
 
 class Results:
     thresholds      = {}
@@ -196,9 +198,8 @@ class Results:
                             quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                             self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],self.limit)
                             self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
-                            recovery_res = self.compute_recovery(algo,self.ground_truth[gt],thr,quorums,msgs_bigM_1,BUFFERS[buf])
-                            self.dump_recovery("recovery_resume.csv",[arenaS,algo,communication,n_agents,BUFFERS[buf],self.ground_truth[gt],thr,self.min_buff_dim,recovery_res])
-                            del recovery_res, quorums
+                            self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                            del quorums
                             gc.collect()
                         del results
                         gc.collect()
@@ -211,9 +212,8 @@ class Results:
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                         self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,self.limit)
                         self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
-                        recovery_res = self.compute_recovery(algo,self.ground_truth[gt],thr,quorums,msgs_bigM_1,0)
-                        self.dump_recovery("recovery_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,self.ground_truth[gt],thr,self.min_buff_dim,recovery_res])
-                        del recovery_res, quorums
+                        self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,msg_exp_time,self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                        del quorums
                         gc.collect()
                     del results
                     gc.collect()
@@ -226,84 +226,121 @@ class Results:
         gc.collect()
                 
 ##########################################################################################################
-    def compute_recovery(self,algo,gt,thr,quorums,buffers,limit_buf):
+    def compute_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,gt,thr,quorums,buffers):
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
-        t_mins, t_maxs, b_mins, b_maxs, r_mimax = [99999]*2, [-1]*2, [99999]*2, [-1]*2, [99999,-1]
-        recoveries, t_starts, t_ends, b_starts, b_ends = [], [], [], [], []
-        limit_buf = int(limit_buf)
+        t_starts, t_ends, b_starts, b_ends = [], [], [], []
+        starts_cens, ends_cens, = [], []
+        limit_buf = int(buf_dim)
         for i in range(len(quorums)):
             for j in range(len(quorums[i])):
-                recovery = 0
                 sem = 0
                 for t in range(1,len(quorums[i][j])):
-                    if quorums[i][j][t] != quorums[i][j][t-1]:
-                        if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
-                            sem = 1
-                            if t < t_mins[0]: t_mins[0] = t
-                            elif t > t_maxs[0]: t_maxs[0] = t
-                            tmp = []
-                            st = 0
-                            bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
-                            if algo=='P':
-                                if len(bf)>limit_buf:
-                                    st = len(bf)-limit_buf
-                                for z in range(st,len(bf)):
-                                    if bf[z] not in tmp:
-                                        tmp.append(bf[z])
-                            else: tmp = bf
-                            b = len(tmp)
-                            if b < b_mins[0]: b_mins[0] = b
-                            elif b > b_maxs[0]: b_maxs[0] = b
-                            t_starts.append(t)
-                            b_starts.append(b)
-                            recovery +=1
-                        elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
-                            sem = 0
-                            if t < t_mins[1]: t_mins[1] = t
-                            elif t > t_maxs[1]: t_maxs[1] = t
-                            tmp = []
-                            st = 0
-                            bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
-                            if algo=='P':
-                                if len(bf)>limit_buf:
-                                    st = len(bf)-limit_buf
-                                for z in range(st,len(bf)):
-                                    if bf[z] not in tmp:
-                                        tmp.append(bf[z])
-                            else: tmp = bf
-                            b = len(tmp)
-                            if b < b_mins[1]: b_mins[1] = b
-                            elif b > b_maxs[1]: b_maxs[1] = b
-                            t_ends.append(t)
-                            b_ends.append(b)
-                if recovery < r_mimax[0]: r_mimax[0] = recovery
-                elif recovery > r_mimax[1]: r_mimax[1] = recovery
-                recoveries.append(recovery)
-        t_median = [[self.extract_median(t_starts),self.extract_median(t_ends)], t_mins, t_maxs]
-        b_median = [[self.extract_median(b_starts),self.extract_median(b_ends)], b_mins, b_maxs]
-        return ([self.extract_median(recoveries),r_mimax],t_median,b_median)
+                    tmp = []
+                    st = 0
+                    bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                    if algo=='P':
+                        if len(bf)>limit_buf:
+                            st = len(bf)-limit_buf
+                        for z in range(st,len(bf)):
+                            if bf[z] not in tmp:
+                                tmp.append(bf[z])
+                    else: tmp = bf
+                    b = len(tmp)
+                    if b >= self.min_buff_dim:
+                        if quorums[i][j][t] != quorums[i][j][t-1]:
+                            if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
+                                sem = 1
+                                t_starts.append(t)
+                                b_starts.append(b)
+                                starts_cens.append(1)
+                            elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
+                                sem = 0
+                                t_ends.append(t)
+                                b_ends.append(b)
+                                ends_cens.append(1)
+                        else:
+                            if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
+                                sem = 1
+                                t_starts.append(t)
+                                b_starts.append(b)
+                                starts_cens.append(0)
+                if sem == 1:
+                    tmp = []
+                    st = 0
+                    t = len(quorums[i][j]) - 1
+                    bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                    if algo=='P':
+                        if len(bf)>limit_buf:
+                            st = len(bf)-limit_buf
+                        for z in range(st,len(bf)):
+                            if bf[z] not in tmp:
+                                tmp.append(bf[z])
+                    else: tmp = bf
+                    b = len(tmp)
+                    t_ends.append(t)
+                    b_ends.append(b)
+                    ends_cens.append(0)
+        # Calculate the duration
+        durations = [f - i for i, f in zip(t_starts, t_ends)]
 
-##########################################################################################################
-    def dump_recovery(self,file_name,data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "min_buff_dim",
-                  "recovey_median", "recovery_min", "recovery_max",
-                  "start_time_median", "end_time_median", "start_time_min", "end_time_min", "start_time_max", "end_time_max",
-                  "start_buff_median", "end_buff_median", "start_buff_min", "end_buff_min", "start_buff_max", "end_buff_max"]
-        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", file_name))
-        
-        if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data")):
-            os.mkdir(os.path.join(os.path.abspath(""), "proc_data"))
-        
-        with open(os.path.join(os.path.abspath(""), "proc_data", file_name), mode='a', newline='\n') as fw:
-            fwriter = csv.writer(fw, delimiter='\t')
-            if write_header:
-                fwriter.writerow(header)
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],
-                              data[8][0][0],data[8][0][1][0],data[8][0][1][1],
-                              data[8][1][0][0],data[8][1][0][1],data[8][1][1][0],data[8][1][1][1],data[8][1][2][0],data[8][1][2][1],
-                              data[8][2][0][0],data[8][2][0][1],data[8][2][1][0],data[8][2][1][1],data[8][2][2][0],data[8][2][2][1]])
-            
+        # Combine censoring indicators
+        event_observed = [ic * fc for ic, fc in zip(starts_cens, ends_cens)]
+
+        # Fit the Kaplan-Meier model
+        kmf = KaplanMeierFitter()
+        kmf.fit(durations, event_observed=event_observed)
+
+        # Extract the survival function data
+        survival_function = kmf.survival_function_
+        survival_function.reset_index(inplace=True)
+        survival_function.columns = ['Time', 'Survival Probability']
+
+        # Fit the Kaplan-Meier model for initial buffer dimensions
+        kmf_initial = KaplanMeierFitter()
+        kmf_initial.fit(b_starts, event_observed=starts_cens)
+
+        # Fit the Kaplan-Meier model for final buffer dimensions
+        kmf_final = KaplanMeierFitter()
+        kmf_final.fit(b_ends, event_observed=ends_cens)
+
+        # Extract the survival function data for initial buffer dimensions
+        survival_function_initial = kmf_initial.survival_function_
+        survival_function_initial.reset_index(inplace=True)
+        survival_function_initial.columns = ['Buffer Dimension', 'Survival Probability']
+
+        # Extract the survival function data for final buffer dimensions
+        survival_function_final = kmf_final.survival_function_
+        survival_function_final.reset_index(inplace=True)
+        survival_function_final.columns = ['Buffer Dimension', 'Survival Probability']
+
+
+        # External inputs
+        external_data = {
+            'broadcast': communication,
+            'n_agents': n_agents,
+            'buff_dim': buf_dim,
+            'ground_truth': gt,
+            'threshold': thr,
+            'min_buff_dim': self.min_buff_dim
+        }
+
+        # Convert the external data to a DataFrame with the same number of rows as the survival function
+        external_df = pd.DataFrame([external_data] * len(survival_function))
+        # Concatenate the survival function data with the external data
+        combined_df = pd.concat([external_df,survival_function], axis=1)
+        # Concatenate the survival function data with the external data
+        external_df_initial = pd.DataFrame([external_data] * len(survival_function_initial))
+        combined_df_initial = pd.concat([external_df_initial,survival_function_initial], axis=1)
+        external_df_final = pd.DataFrame([external_data] * len(survival_function_final))
+        combined_df_final = pd.concat([external_df_final,survival_function_final], axis=1)
+        # Save the data to a CSV file
+        is_new = False
+        if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv")): is_new = True
+        combined_df.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+        combined_df_initial.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_initial_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+        combined_df_final.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_final_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
         header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "data"]
