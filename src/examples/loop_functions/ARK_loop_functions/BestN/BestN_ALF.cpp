@@ -252,7 +252,6 @@ void CBestN_ALF::SendArenaDimensions(CKilobotEntity &c_kilobot_entity){
     int x_mid_int_info = (int)x_mid_int;
     int x_mid_frc_info = (int)(x_mid_frc*100);
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    // if(unKilobotID == 0) printf("ARENA ---\t x max: %f\t y max: %f\t x mid int: %d\t x mid frc: %d\n",x_max,y_max,x_mid_int_info,x_mid_frc_info);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
     /* Create ARK-type messages variables */
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;

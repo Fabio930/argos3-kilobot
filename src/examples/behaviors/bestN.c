@@ -118,8 +118,6 @@ void select_new_point(bool force){
         }
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
-        // printf("SELECTED POSITION --- K_ID: %d\t K_ST: %d\t x: %f\t y: %f\n",kilo_uid,my_state,goal_position.position_x,goal_position.position_y);
-        // printf("GPS POSITION --- K_ID: %d\t K_ST: %d\t x: %f\t y: %f\n",kilo_uid,my_state,gps_position.position_x,gps_position.position_y);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         reaching_goal_ticks = expiring_dist * goal_ticks_sec;
 
