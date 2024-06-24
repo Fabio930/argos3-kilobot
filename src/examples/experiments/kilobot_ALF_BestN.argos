@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="900"
+        <experiment length="0"
         ticks_per_second="10"/>
     </framework>
     
@@ -51,10 +51,8 @@
 
         <hierarchicStruct
             rebroadcast = "0"
-            queue_lenght = "99"
+            queue_lenght = "49"
             committed_percentage = "0.6"
-            commitment_variation_time = "500"
-            next_committed_percentage = ".5"
         >
         </hierarchicStruct>
 

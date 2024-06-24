@@ -41,38 +41,6 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 
 void CBestN_ALF::PostStep(){
-    if(!variation_done){
-        m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
-        if((UInt16)m_fTimeInSeconds==commitment_variation_time){
-            // calculate new agents' state
-            std::vector<UInt8> assigned_kilo_states;
-            assigned_kilo_states.resize(m_tKilobotEntities.size());
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
-            UInt8 count = 0;
-            UInt8 p;
-            while (true){
-                for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                    if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*next_committed_percentage){
-                        p = rand()%2;
-                        if(p==1){
-                            assigned_kilo_states[it]=1;
-                            count++;
-                        }
-                    }
-                }
-                if(count>=m_vecKilobotStates.size()*next_committed_percentage) break;
-            }
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                m_vecKilobotStates[it] = assigned_kilo_states[it];
-                SendStateInformation(*m_tKilobotEntities[it]);
-            }
-            for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-                m_vecKilobotStates[it] = assigned_kilo_states[it];
-                SendStateInformation(*m_tKilobotEntities[it]);
-            }
-            variation_done = true;
-        }
-    }
 }
 
 /****************************************/
@@ -131,9 +99,6 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"queue_lenght",queue_lenght);
-    GetNodeAttribute(tHierarchicalStructNode,"commitment_variation_time",commitment_variation_time);
-    GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
-    if(commitment_variation_time==0) variation_done = true;
 }
 
 /****************************************/

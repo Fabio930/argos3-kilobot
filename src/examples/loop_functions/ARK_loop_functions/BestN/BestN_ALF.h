@@ -65,9 +65,6 @@ private:
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
     float                   committed_percentage;
-    UInt16                  commitment_variation_time;
-    bool                    variation_done = false;
-    float                   next_committed_percentage;
 
     UInt8                   queue_lenght;
     UInt8                   rebroadcast;
