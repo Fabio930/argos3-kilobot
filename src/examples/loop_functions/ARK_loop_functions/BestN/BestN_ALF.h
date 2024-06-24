@@ -65,13 +65,9 @@ private:
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
     float                   committed_percentage;
-    UInt16                  commitment_variation_time;
-    bool                    variation_done = false;
-    float                   next_committed_percentage;
 
     UInt16                  expiring_quorum_sec;
     UInt8                   msgs_n_hops;
-    // float quorum_scaling_factor;
     UInt8                   rebroadcast;
 
     std::vector<CVector2>   m_vecKilobotPositions;
@@ -82,8 +78,6 @@ private:
     std::vector<UInt8>      m_vecKilobotMsgType;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
-
-    // UInt16 log_counter = 0;
 
     /************************************/
     /*       Experiment variables       */

@@ -53,11 +53,7 @@
             rebroadcast = "2"
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
-            minimum_quorum_length = "0"
-            quorum_scaling_factor = "0"
             committed_percentage = "0.8"
-            commitment_variation_time = "500"
-            next_committed_percentage = ".5"
         >
         </hierarchicStruct>
 
