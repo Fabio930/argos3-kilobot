@@ -152,7 +152,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     /* Get dimensions and quality scaling factor*/
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
-    GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
+    GetNodeAttribute(tHierarchicalStructNode,"queue_lenght",queue_lenght);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttribute(tHierarchicalStructNode,"middle_x_area",middle_x_area);
     GetNodeAttribute(tHierarchicalStructNode,"quorum_threshold",quorum_threshold);
@@ -290,7 +290,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = 1;
-    tKilobotMessage.m_sID = expiring_quorum_sec;
+    tKilobotMessage.m_sID = queue_lenght;
     tKilobotMessage.m_sData = rebroadcast;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;

@@ -67,9 +67,8 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="900"
-RUNS=2
+RUNS=100
 rebroadcast="0"
-msg_expiring_sec="60"
 numrobots="25"
 committed_percentage="0.75"
 messages_hops="0"
@@ -112,6 +111,12 @@ for ap in "${!arena_x_side_array[@]}"; do
                     mkdir $agents_dir
                 fi
                 last_id=`expr $agents_par - 1`
+                if [ $agents_par -eq 25 ]; then
+                    # buffer_dim="19 22 23 24" # small arena
+                    buffer_dim="11 15 19 22" # big arena
+                elif [ $agents_par -eq 100 ]; then
+                    buffer_dim="41 57 76 85"
+                fi
                 for committed_par in $committed_percentage; do
                     committed_par=${committed_par//./_}
                     committed_dir=$agents_dir/"Committed#"$committed_par
@@ -124,10 +129,10 @@ for ap in "${!arena_x_side_array[@]}"; do
                         if [[ ! -e $msgs_hop_dir ]]; then
                             mkdir $msgs_hop_dir
                         fi
-                        for msgs_par in $msg_expiring_sec; do
-                            msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
-                            if [[ ! -e $msgs_dir ]]; then
-                                mkdir $msgs_dir
+                        for buff_par in $buffer_dim; do
+                            buff_dir=$agents_dir/"BufferDim#"$buff_par
+                            if [[ ! -e $buff_dir ]]; then
+                                mkdir $buff_dir
                             fi
 
                             read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
@@ -155,7 +160,7 @@ for ap in "${!arena_x_side_array[@]}"; do
                                 sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                                 sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
                                 sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
-                                sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
+                                sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
                                 sed -i "s|__SEED__|$i|g" $config
                                 sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                 sed -i "s|__ARENA_X__|$Wr|g" $config
@@ -176,7 +181,7 @@ for ap in "${!arena_x_side_array[@]}"; do
                                 for j in $(seq 0 $last_id); do
                                     rename="quorum_log_agent#$j"__"$kilo_file"
                                     mv "quorum_log_agent#$j.tsv" $rename
-                                    mv $rename $msgs_dir
+                                    mv $rename $buff_dir
                                 done
                                 rm *.argos
                             done

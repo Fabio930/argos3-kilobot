@@ -205,7 +205,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
     sort_q(&quorum_array);
 }
 
@@ -281,17 +281,9 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
         case MSG_B:
             sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
             if(init_received_B && !init_received_C){
-                uint32_t expiring_dist;
-                switch (sa_payload){
-                    case 0:
-                        expiring_dist = (uint32_t)sqrt(pow((the_arena->brX)*10,2)+pow((the_arena->brY)*10,2));
-                        break;
-                    default:
-                        expiring_dist = sa_payload;
-                        break;
-                }
+                uint8_t queue_lenght = sa_payload;
+                init_array_qrm(&quorum_array,queue_lenght);
                 broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC);
                 init_received_C = true;
             }
             break;
@@ -402,7 +394,6 @@ void setup(){
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
-    init_array_qrm(&quorum_array);
 
     /* Init random seed */
     uint8_t seed = rand_hard();
@@ -415,8 +406,6 @@ void setup(){
 }
 
 void loop(){
-    decrement_quorum_counter(&quorum_array);
-    erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     check_quorum(&quorum_array);
     if(init_received_D) talk();

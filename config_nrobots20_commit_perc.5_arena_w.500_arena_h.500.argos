@@ -54,8 +54,8 @@
             msgs_n_hops = "0"
             queue_lenght = "19"
             quorum_threshold = "0.8"
-            committed_percentage = "__COMMITTED_PERC__"
-            middle_x_area="__MIDDLE_X_AREA__"
+            committed_percentage = ".5"
+            middle_x_area="0"
         >
         </hierarchicStruct>
 
@@ -63,26 +63,26 @@
     <!-- *********************** -->
     <!-- * Arena configuration * -->
     <!-- *********************** -->
-    <arena size="__ARENA_X__, __ARENA_Y__, 1" center="0,0,0">
+    <arena size=".600, .600, 1" center="0,0,0">
         
-        <box id="wall_north" size="__ARENA_X__,0.01,0.1" movable="false">
-            <body position="0,__MID_Y_TOP__,0" orientation="0,0,0" />
+        <box id="wall_north" size=".600,0.01,0.1" movable="false">
+            <body position="0,.300,0" orientation="0,0,0" />
         </box>
-        <box id="wall_south" size="__ARENA_X__,0.01,0.1" movable="false">
-            <body position="0,__MID_Y_BOT__,0" orientation="0,0,0" />
+        <box id="wall_south" size=".600,0.01,0.1" movable="false">
+            <body position="0,-.300,0" orientation="0,0,0" />
         </box>
-        <box id="wall_east" size="0.01,__ARENA_Y__,0.1"  movable="false">
-            <body position="__MID_X_TOP__,0,0" orientation="0,0,0" />
+        <box id="wall_east" size="0.01,.600,0.1"  movable="false">
+            <body position=".300,0,0" orientation="0,0,0" />
         </box>
-        <box id="wall_west" size="0.01,__ARENA_Y__,0.1"  movable="false">
-            <body position="__MID_X_BOT__,0,0" orientation="0,0,0" />
+        <box id="wall_west" size="0.01,.600,0.1"  movable="false">
+            <body position="-.300,0,0" orientation="0,0,0" />
         </box>
 
 
         <distribute>
-            <position method="uniform" min="__AGENT_DIST_X_MIN__,__AGENT_DIST_Y_MIN__,0" max="__AGENT_DIST_X_MAX__,__AGENT_DIST_Y_MAX__,0" />
+            <position method="uniform" min="-.250,-.250,0" max=".250,.250,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="__NUMROBOTS__" max_trials="200">
+            <entity quantity="20" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

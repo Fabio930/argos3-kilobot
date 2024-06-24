@@ -108,6 +108,7 @@ uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 char log_title[30];
+
 uint8_t led = RGB(0,0,0);
 
 /*-------------------------------------------------------------------*/
