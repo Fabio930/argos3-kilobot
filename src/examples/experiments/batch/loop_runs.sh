@@ -66,12 +66,12 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="900"
-RUNS=2
-rebroadcast="0"
-msg_expiring_sec="60"
+experiment_length="1200"
+RUNS=100
+rebroadcast="0 2"
+msg_expiring_sec="60 120 300 600"
 numrobots="25"
-committed_percentage="0.75"
+committed_percentage="0.68"
 messages_hops="0"
 # small arena dimensions
 arena_x_side="0.500 1.000"
