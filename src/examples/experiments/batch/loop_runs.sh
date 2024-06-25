@@ -67,7 +67,7 @@ echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="1200"
-RUNS=100
+RUNS=2
 rebroadcast="0 2"
 msg_expiring_sec="60 120 300 600"
 numrobots="25"
@@ -86,25 +86,25 @@ arena_x_side_array=($arena_x_side)
 arena_y_side_array=($arena_y_side)
 
 # Loop over the indices of the arrays
-for ap in "${!arena_x_side_array[@]}"; do
-    arena_x_par=${arena_x_side_array[$ap]}
-    arena_y_par=${arena_y_side_array[$ap]}
-    arena_x_par=${arena_x_par//./_}
-    arena_y_par=${arena_y_par//./_}
-    arena_dir=$res_dir/"ArenaType#${arena_x_par};${arena_y_par}"
-    arena_x_par=${arena_x_par//_/.}
-    arena_y_par=${arena_y_par//_/.}
-    if [[ ! -e $arena_dir ]]; then
-        mkdir $arena_dir
+for exp_len_par in $experiment_length; do
+    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    if [[ ! -e $exp_len_dir ]]; then
+        mkdir $exp_len_dir
     fi
-    for exp_len_par in $experiment_length; do
-        exp_len_dir=$arena_dir/"ExperimentLength#"$exp_len_par
-        if [[ ! -e $exp_len_dir ]]; then
-            mkdir $exp_len_dir
+    for ap in "${!arena_x_side_array[@]}"; do
+        arena_x_par=${arena_x_side_array[$ap]}
+        arena_y_par=${arena_y_side_array[$ap]}
+        arena_x_par=${arena_x_par//./_}
+        arena_y_par=${arena_y_par//./_}
+        arena_dir=$exp_len_dir/"ArenaType#${arena_x_par};${arena_y_par}"
+        arena_x_par=${arena_x_par//_/.}
+        arena_y_par=${arena_y_par//_/.}
+        if [[ ! -e $arena_dir ]]; then
+            mkdir $arena_dir
         fi
         for agents_par in $numrobots; do
             for comm_par in $rebroadcast; do
-                comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
+                comm_dir=$arena_dir/"Rebroadcast#"$comm_par
                 if [[ ! -e $comm_dir ]]; then
                     mkdir $comm_dir
                 fi
@@ -115,7 +115,7 @@ for ap in "${!arena_x_side_array[@]}"; do
                 last_id=`expr $agents_par - 1`
                 for thr_par in $threshold; do
                     thr_par=${thr_par//./_}
-                    thr_dir=$exp_len_dir/"Threshold#"$thr_par
+                    thr_dir=$agents_dir/"Threshold#"$thr_par
                     if [[ ! -e $thr_dir ]]; then
                         mkdir $thr_dir
                     fi
@@ -156,7 +156,7 @@ for ap in "${!arena_x_side_array[@]}"; do
                                 midXbot=$(echo "$midXbot - $Wr" | bc)
                                 midYbot=$(echo "$midYbot - $Hr" | bc)
                                 for i in $(seq 1 $RUNS); do
-                                    config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
+                                    config=`printf 'config_arenaX%s_Y%s_nrobots%s_rebroad%s_MsgExpTime%s_Thr%s_GT%s_run%s.argos' $arena_x_par $arena_y_par $agents_par $comm_par $msgs_par $thr_par $committed_par $i`
                                     cp $base_config $config
                                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                     sed -i "s|__SEED__|$i|g" $config
