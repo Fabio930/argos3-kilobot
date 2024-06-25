@@ -222,7 +222,7 @@ class Results:
             self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time)
             del act_results
             gc.collect()
-        del act_results,num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
+        del num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
         gc.collect()
                 
 ##########################################################################################################
@@ -247,24 +247,23 @@ class Results:
                                 tmp.append(bf[z])
                     else: tmp = bf
                     b = len(tmp)
-                    if b >= self.min_buff_dim:
-                        if quorums[i][j][t] != quorums[i][j][t-1]:
-                            if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
-                                sem = 1
-                                t_starts.append(t)
-                                b_starts.append(b)
-                                starts_cens.append(1)
-                            elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
-                                sem = 0
-                                t_ends.append(t)
-                                b_ends.append(b)
-                                ends_cens.append(1)
-                        else:
-                            if sem == 0 and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
-                                sem = 1
-                                t_starts.append(t)
-                                b_starts.append(b)
-                                starts_cens.append(0)
+                    if quorums[i][j][t] != quorums[i][j][t-1]:
+                        if sem == 0 and b >= self.min_buff_dim and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
+                            sem = 1
+                            t_starts.append(int(t))
+                            b_starts.append(int(b))
+                            starts_cens.append(1)
+                        elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
+                            sem = 0
+                            t_ends.append(int(t))
+                            b_ends.append(int(b))
+                            ends_cens.append(1)
+                    else:
+                        if sem == 0 and b >= self.min_buff_dim and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
+                            sem = 1
+                            t_starts.append(int(t))
+                            b_starts.append(int(b))
+                            starts_cens.append(0)
                 if sem == 1:
                     tmp = []
                     st = 0
@@ -278,68 +277,69 @@ class Results:
                                 tmp.append(bf[z])
                     else: tmp = bf
                     b = len(tmp)
-                    t_ends.append(t)
-                    b_ends.append(b)
+                    t_ends.append(int(t))
+                    b_ends.append(int(b))
                     ends_cens.append(0)
-        # Calculate the duration
-        durations = [f - i for i, f in zip(t_starts, t_ends)]
+        if len(t_starts) > 0:
+            # Calculate the duration
+            durations = [f - i for i, f in zip(t_starts, t_ends)]
 
-        # Combine censoring indicators
-        event_observed = [ic * fc for ic, fc in zip(starts_cens, ends_cens)]
+            # Combine censoring indicators
+            event_observed = [ic * fc for ic, fc in zip(starts_cens, ends_cens)]
 
-        # Fit the Kaplan-Meier model
-        kmf = KaplanMeierFitter()
-        kmf.fit(durations, event_observed=event_observed)
+            # Fit the Kaplan-Meier model
+            kmf = KaplanMeierFitter()
+            kmf.fit(durations, event_observed=event_observed)
 
-        # Extract the survival function data
-        survival_function = kmf.survival_function_
-        survival_function.reset_index(inplace=True)
-        survival_function.columns = ['Time', 'Survival Probability']
+            # Extract the survival function data
+            survival_function = kmf.survival_function_
+            survival_function.reset_index(inplace=True)
+            survival_function.columns = ['Time', 'Survival Probability']
 
-        # Fit the Kaplan-Meier model for initial buffer dimensions
-        kmf_initial = KaplanMeierFitter()
-        kmf_initial.fit(b_starts, event_observed=starts_cens)
+            # Fit the Kaplan-Meier model for initial buffer dimensions
+            kmf_initial = KaplanMeierFitter()
+            kmf_initial.fit(b_starts, event_observed=starts_cens)
 
-        # Fit the Kaplan-Meier model for final buffer dimensions
-        kmf_final = KaplanMeierFitter()
-        kmf_final.fit(b_ends, event_observed=ends_cens)
+            # Fit the Kaplan-Meier model for final buffer dimensions
+            kmf_final = KaplanMeierFitter()
+            kmf_final.fit(b_ends, event_observed=ends_cens)
 
-        # Extract the survival function data for initial buffer dimensions
-        survival_function_initial = kmf_initial.survival_function_
-        survival_function_initial.reset_index(inplace=True)
-        survival_function_initial.columns = ['Buffer Dimension', 'Survival Probability']
+            # Extract the survival function data for initial buffer dimensions
+            survival_function_initial = kmf_initial.survival_function_
+            survival_function_initial.reset_index(inplace=True)
+            survival_function_initial.columns = ['Buffer Dimension', 'Survival Probability']
 
-        # Extract the survival function data for final buffer dimensions
-        survival_function_final = kmf_final.survival_function_
-        survival_function_final.reset_index(inplace=True)
-        survival_function_final.columns = ['Buffer Dimension', 'Survival Probability']
+            # Extract the survival function data for final buffer dimensions
+            survival_function_final = kmf_final.survival_function_
+            survival_function_final.reset_index(inplace=True)
+            survival_function_final.columns = ['Buffer Dimension', 'Survival Probability']
 
 
-        # External inputs
-        external_data = {
-            'broadcast': communication,
-            'n_agents': n_agents,
-            'buff_dim': buf_dim,
-            'ground_truth': gt,
-            'threshold': thr,
-            'min_buff_dim': self.min_buff_dim
-        }
+            # External inputs
+            external_data = {
+                'broadcast': communication,
+                'n_agents': n_agents,
+                'buff_dim': buf_dim,
+                'ground_truth': gt,
+                'threshold': thr,
+                'min_buff_dim': self.min_buff_dim
+            }
 
-        # Convert the external data to a DataFrame with the same number of rows as the survival function
-        external_df = pd.DataFrame([external_data] * len(survival_function))
-        # Concatenate the survival function data with the external data
-        combined_df = pd.concat([external_df,survival_function], axis=1)
-        # Concatenate the survival function data with the external data
-        external_df_initial = pd.DataFrame([external_data] * len(survival_function_initial))
-        combined_df_initial = pd.concat([external_df_initial,survival_function_initial], axis=1)
-        external_df_final = pd.DataFrame([external_data] * len(survival_function_final))
-        combined_df_final = pd.concat([external_df_final,survival_function_final], axis=1)
-        # Save the data to a CSV file
-        is_new = False
-        if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv")): is_new = True
-        combined_df.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
-        combined_df_initial.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_initial_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
-        combined_df_final.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_final_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+            # Convert the external data to a DataFrame with the same number of rows as the survival function
+            external_df = pd.DataFrame([external_data] * len(survival_function))
+            # Concatenate the survival function data with the external data
+            combined_df = pd.concat([external_df,survival_function], axis=1)
+            # Concatenate the survival function data with the external data
+            external_df_initial = pd.DataFrame([external_data] * len(survival_function_initial))
+            combined_df_initial = pd.concat([external_df_initial,survival_function_initial], axis=1)
+            external_df_final = pd.DataFrame([external_data] * len(survival_function_final))
+            combined_df_final = pd.concat([external_df_final,survival_function_final], axis=1)
+            # Save the data to a CSV file
+            is_new = False
+            if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv")): is_new = True
+            combined_df.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+            combined_df_initial.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_initial_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+            combined_df_final.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_final_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):

@@ -128,7 +128,7 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        states, times, buffer, messages_b, messages_r = {},{},{},{},{}
+        states, times, messages_b, messages_r = {},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
@@ -146,13 +146,11 @@ class Data:
                 times.update({k[:-1]:data.get(k)})
             elif k[-1] == "swarm_state":
                 states.update({k[:-1]:data.get(k)})
-            elif k[-1] == "quorum_length":
-                buffer.update({k[:-1]:data.get(k)})
             elif k[-1] == "broadcast_msg":
                 messages_b.update({k[:-1]:data.get(k)})
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, buffer, (messages_b, messages_r)
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
     
 ##########################################################################################################
     def plot_active(self,data_in,times):
@@ -254,8 +252,8 @@ class Data:
                                                     dict_our_tmax.update({(a_s,n_a,m_t):times_max})
                                                     dict_our_tmed.update({(a_s,n_a,m_t):times_median})
         self.print_borders(path,'avg','min',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
-        self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
-        self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
+        # self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
+        # self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
     def print_messages(self,data_in):
@@ -550,6 +548,7 @@ class Data:
                                     p_valst     = tpval
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
+                                    print("Parker",p_k[k],tpval,threshlds[th],ground_T[pt])
                             elif pval<=0.2:
                                 if p_vals2[0] is np.nan or pval>=p_vals2[0]:
                                     p_vals2[0]  = pval
@@ -566,6 +565,7 @@ class Data:
                                     o_valst     = toval
                                     o_vals8[1]  = oval
                                     o_gt8[1]    = ground_T[pt]
+                                    print("Our",o_k[k],toval,threshlds[th],ground_T[pt])
                             elif oval<=0.2:
                                 if o_vals2[0] is np.nan or oval>=o_vals2[0]:
                                     o_vals2[0]  = oval
@@ -580,6 +580,7 @@ class Data:
                             if aval>=0.8:
                                 if a_vals8[1] is np.nan or aval<a_vals8[1]:
                                     a_valst     = taval
+                                    print("Adam",o_k[k],taval,threshlds[th],ground_T[pt])
                                     a_vals8[1]  = aval
                                     a_gt8[1]    = ground_T[pt]
                             elif aval<=0.2:

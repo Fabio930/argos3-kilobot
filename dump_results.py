@@ -112,8 +112,8 @@ def main():
 
     active_processes = []
     total_memory = psutil.virtual_memory().total / (1024 * 1024)  # Total memory in MB
-    memory_per_process_25 = 1006632.96/ 1024 # Memory used by each process with 25 agents 2,5
-    memory_per_process_100 = 8053063.68 / 1024 # Memory used by each process with 100 agents
+    memory_per_process_25 = 838861/ 1024 # Memory used by each process with 25 agents 2,5%
+    memory_per_process_100 = 3355444 / 1024 # Memory used by each process with 100 agents 10% check
 
     while not queue.empty() or active_processes:
         # Calculate total memory used by active processes
