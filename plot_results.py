@@ -27,7 +27,7 @@ def main():
                             elif val[0]=='a':
                                 arena=val[1]
                     data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                    keys, states, times, messages_counts = csv_res.divide_data(data)     
+                    keys, states, times, messages_counts = csv_res.divide_data(data)
                     if len(tot_st)==0:
                         tot_st      = [states]
                         tot_times   = [times]
