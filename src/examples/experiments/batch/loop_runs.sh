@@ -70,7 +70,8 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 numrobots="25"
-committed_percentage="0.75"
+threshold="0.8"
+committed_percentage="0.56 0.68 0.80"
 messages_hops="0"
 # small arena dimensions
 arena_x_side="0.500 1.000"
@@ -84,106 +85,115 @@ arena_x_side_array=($arena_x_side)
 arena_y_side_array=($arena_y_side)
 
 # Loop over the indices of the arrays
-for ap in "${!arena_x_side_array[@]}"; do
-    arena_x_par=${arena_x_side_array[$ap]}
-    arena_y_par=${arena_y_side_array[$ap]}
-    arena_x_par=${arena_x_par//./_}
-    arena_y_par=${arena_y_par//./_}
-    arena_dir=$res_dir/"ArenaType#${arena_x_par};${arena_y_par}"
-    arena_x_par=${arena_x_par//_/.}
-    arena_y_par=${arena_y_par//_/.}
-    if [[ ! -e $arena_dir ]]; then
-        mkdir $arena_dir
+for exp_len_par in $experiment_length; do
+    exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
+    if [[ ! -e $exp_len_dir ]]; then
+        mkdir $exp_len_dir
     fi
-    for exp_len_par in $experiment_length; do
-        exp_len_dir=$arena_dir/"ExperimentLength#"$exp_len_par
-        if [[ ! -e $exp_len_dir ]]; then
-            mkdir $exp_len_dir
+    for ap in "${!arena_x_side_array[@]}"; do
+        arena_x_par=${arena_x_side_array[$ap]}
+        arena_y_par=${arena_y_side_array[$ap]}
+        arena_x_par=${arena_x_par//./_}
+        arena_y_par=${arena_y_par//./_}
+        arena_dir=$exp_len_dir/"ArenaType#${arena_x_par};${arena_y_par}"
+        arena_x_par=${arena_x_par//_/.}
+        arena_y_par=${arena_y_par//_/.}
+        if [[ ! -e $arena_dir ]]; then
+            mkdir $arena_dir
         fi
-        for comm_par in $rebroadcast; do
-            comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
-            if [[ ! -e $comm_dir ]]; then
-                mkdir $comm_dir
-            fi
-            for agents_par in $numrobots; do
+        for agents_par in $numrobots; do
+            for comm_par in $rebroadcast; do
+                comm_dir=$arena_dir/"Rebroadcast#"$comm_par
+                if [[ ! -e $comm_dir ]]; then
+                    mkdir $comm_dir
+                fi
                 agents_dir=$comm_dir/"Robots#"$agents_par
                 if [[ ! -e $agents_dir ]]; then
                     mkdir $agents_dir
                 fi
                 last_id=`expr $agents_par - 1`
                 if [ $agents_par -eq 25 ]; then
-                    # buffer_dim="19 22 23 24" # small arena
-                    buffer_dim="11 15 19 22" # big arena
+                    buffer_dim="19 22 23 24" # small arena
+                    # buffer_dim="11 15 19 22" # big arena
                 elif [ $agents_par -eq 100 ]; then
                     buffer_dim="41 57 76 85"
                 fi
-                for committed_par in $committed_percentage; do
-                    committed_par=${committed_par//./_}
-                    committed_dir=$agents_dir/"Committed#"$committed_par
-                    committed_par=${committed_par//_/.}
-                    if [[ ! -e $committed_dir ]]; then
-                        mkdir $committed_dir
+                for thr_par in $threshold; do
+                    thr_par=${thr_par//./_}
+                    thr_dir=$agents_dir/"Threshold#"$thr_par
+                    if [[ ! -e $thr_dir ]]; then
+                        mkdir $thr_dir
                     fi
-                    for msgs_hop_par in $messages_hops; do
-                        msgs_hop_dir=$committed_dir/"MsgHop#"$msgs_hop_par
-                        if [[ ! -e $msgs_hop_dir ]]; then
-                            mkdir $msgs_hop_dir
+                    thr_par=${thr_par//_/.}
+                    for committed_par in $committed_percentage; do
+                        committed_par=${committed_par//./_}
+                        committed_dir=$thr_dir/"GT#"$committed_par
+                        committed_par=${committed_par//_/.}
+                        if [[ ! -e $committed_dir ]]; then
+                            mkdir $committed_dir
                         fi
-                        for buff_par in $buffer_dim; do
-                            buff_dir=$agents_dir/"BufferDim#"$buff_par
-                            if [[ ! -e $buff_dir ]]; then
-                                mkdir $buff_dir
+                        for msgs_hop_par in $messages_hops; do
+                            msgs_hop_dir=$committed_dir/"MsgHop#"$msgs_hop_par
+                            if [[ ! -e $msgs_hop_dir ]]; then
+                                mkdir $msgs_hop_dir
                             fi
+                            for buff_par in $buffer_dim; do
+                                buff_dir=$agents_dir/"BufferDim#"$buff_par
+                                if [[ ! -e $buff_dir ]]; then
+                                    mkdir $buff_dir
+                                fi
 
-                            read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
-                            read width1 height1 x_min1 x_max1 < <(calculate_dimensions_and_coordinates $area1 $arena_x_par $arena_y_par)
-                            read width0 height0 x_min0 x_max0 < <(calculate_dimensions_and_coordinates $area0 $arena_x_par $arena_y_par)
-                            D=0.10
-                            Hd=0.50
-                            distXmax=$(echo "$arena_x_par * 0.50" | bc)
-                            distXmin=$(echo "$distXmax * -1" | bc)
-                            distYmax=$(echo "$arena_y_par * 0.50" | bc)
-                            distYmin=$(echo "$distYmax * -1" | bc)
-                            Wr=$(echo "$arena_x_par + $D" | bc)
-                            Hr=$(echo "$arena_y_par + $D" | bc)
-                            midXtop=$(echo "$Wr * $Hd" | bc)
-                            midXbot=$(echo "$Wr * $Hd" | bc)
-                            midYtop=$(echo "$Hr * $Hd" | bc)
-                            midYbot=$(echo "$Hr * $Hd" | bc)
-                            midXbot=$(echo "$midXbot - $Wr" | bc)
-                            midYbot=$(echo "$midYbot - $Hr" | bc)
-                            for i in $(seq 1 $RUNS); do
-                                config=`printf 'config_rebroad%d_nrobots%d_MsgExpTime%d_run%d.argos' $comm_par $agents_par $msgs_par $i`
-                                cp $base_config $config
-                                sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
-                                sed -i "s|__MIDDLE_X_AREA__|$x_max1|g" $config
-                                sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                                sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
-                                sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
-                                sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
-                                sed -i "s|__SEED__|$i|g" $config
-                                sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                                sed -i "s|__ARENA_X__|$Wr|g" $config
-                                sed -i "s|__ARENA_Y__|$Hr|g" $config
-                                sed -i "s|__MID_X_TOP__|$midXtop|g" $config
-                                sed -i "s|__MID_X_BOT__|$midXbot|g" $config
-                                sed -i "s|__MID_Y_TOP__|$midYtop|g" $config
-                                sed -i "s|__MID_Y_BOT__|$midYbot|g" $config
-                                sed -i "s|__AGENT_DIST_X_MIN__|$distXmin|g" $config
-                                sed -i "s|__AGENT_DIST_Y_MIN__|$distYmin|g" $config
-                                sed -i "s|__AGENT_DIST_X_MAX__|$distXmax|g" $config
-                                sed -i "s|__AGENT_DIST_Y_MAX__|$distYmax|g" $config
-                                dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                                kilo_file="${dt}__run#${i}.tsv"
-                                sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                                echo "Running next configuration -- $config"
-                                argos3 -c './'$config
-                                for j in $(seq 0 $last_id); do
-                                    rename="quorum_log_agent#$j"__"$kilo_file"
-                                    mv "quorum_log_agent#$j.tsv" $rename
-                                    mv $rename $buff_dir
+                                read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
+                                read width1 height1 x_min1 x_max1 < <(calculate_dimensions_and_coordinates $area1 $arena_x_par $arena_y_par)
+                                read width0 height0 x_min0 x_max0 < <(calculate_dimensions_and_coordinates $area0 $arena_x_par $arena_y_par)
+                                D=0.10
+                                Hd=0.50
+                                distXmax=$(echo "$arena_x_par * 0.50" | bc)
+                                distXmin=$(echo "$distXmax * -1" | bc)
+                                distYmax=$(echo "$arena_y_par * 0.50" | bc)
+                                distYmin=$(echo "$distYmax * -1" | bc)
+                                Wr=$(echo "$arena_x_par + $D" | bc)
+                                Hr=$(echo "$arena_y_par + $D" | bc)
+                                midXtop=$(echo "$Wr * $Hd" | bc)
+                                midXbot=$(echo "$Wr * $Hd" | bc)
+                                midYtop=$(echo "$Hr * $Hd" | bc)
+                                midYbot=$(echo "$Hr * $Hd" | bc)
+                                midXbot=$(echo "$midXbot - $Wr" | bc)
+                                midYbot=$(echo "$midYbot - $Hr" | bc)
+                                for i in $(seq 1 $RUNS); do
+                                    config=`printf 'config_arenaX%s_Y%s_nrobots%s_rebroad%s_BuffDim%s_Thr%s_GT%s_run%s.argos' $arena_x_par $arena_y_par $agents_par $comm_par $buff_par $thr_par $committed_par $i`
+                                    cp $base_config $config
+                                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                                    sed -i "s|__SEED__|$i|g" $config
+                                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                                    kilo_file="${dt}__run#${i}.tsv"
+                                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                                    sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                                    sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
+                                    sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                                    sed -i "s|__THRESHOLD__|$thr_par|g" $config
+                                    sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
+                                    sed -i "s|__MIDDLE_X_AREA__|$x_max1|g" $config
+                                    sed -i "s|__ARENA_X__|$Wr|g" $config
+                                    sed -i "s|__ARENA_Y__|$Hr|g" $config
+                                    sed -i "s|__MID_X_TOP__|$midXtop|g" $config
+                                    sed -i "s|__MID_X_BOT__|$midXbot|g" $config
+                                    sed -i "s|__MID_Y_TOP__|$midYtop|g" $config
+                                    sed -i "s|__MID_Y_BOT__|$midYbot|g" $config
+                                    sed -i "s|__AGENT_DIST_X_MIN__|$distXmin|g" $config
+                                    sed -i "s|__AGENT_DIST_Y_MIN__|$distYmin|g" $config
+                                    sed -i "s|__AGENT_DIST_X_MAX__|$distXmax|g" $config
+                                    sed -i "s|__AGENT_DIST_Y_MAX__|$distYmax|g" $config
+                                    sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                                    echo "Running next configuration -- $config"
+                                    argos3 -c './'$config
+                                    for j in $(seq 0 $last_id); do
+                                        rename="quorum_log_agent#$j"__"$kilo_file"
+                                        mv "quorum_log_agent#$j.tsv" $rename
+                                        mv $rename $buff_dir
+                                    done
+                                    rm *.argos
                                 done
-                                rm *.argos
                             done
                         done
                     done
