@@ -34,7 +34,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,sub_path,data_type="all"):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
         act_results = {}
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1 = [np.array([])] * n_agents
@@ -95,12 +95,12 @@ class Results:
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
             messages    = self.compute_avg_msgs(msgs_bigM_1,algo)
-            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
             states = self.rearrange_quorum(quorum_bigM_1)
-            self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+            self.dump_times(algo,0,states,base,path_temp,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+            self.dump_quorum(algo,0,states,base,path_temp,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents)
             del states
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
@@ -113,7 +113,7 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast", "n_agents", "buff_dim", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
