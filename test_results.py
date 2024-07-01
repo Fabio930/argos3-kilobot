@@ -45,7 +45,6 @@ def check_inputs():
 
 def main():
     ticks_per_sec, data_type = check_inputs()
-
     for base in dex.Results().bases:
         for exp_l_dir in sorted(os.listdir(base)):
             if '.' not in exp_l_dir and '#' in exp_l_dir:
