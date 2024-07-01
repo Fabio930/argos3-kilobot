@@ -71,13 +71,17 @@ def main():
                                                     if '.' not in Dgt_dir and '#' in Dgt_dir:
                                                         Dgt_path = os.path.join(thr_path, Dgt_dir)
                                                         delta_str = Dgt_dir.split('#')[1].replace('_', '.')
-                                                        for pre_folder in sorted(os.listdir(Dgt_path)):
-                                                            if '.' not in pre_folder:
-                                                                msg_exp_time = int(pre_folder.split('#')[-1])
-                                                                sub_path = os.path.join(Dgt_path, pre_folder)
-                                                                results = dex.Results()
-                                                                results.ticks_per_sec = ticks_per_sec
-                                                                results.extract_k_data(base, Dgt_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, sub_path, data_type)
+                                                        for msg_hop_dir in sorted(os.listdir(Dgt_path)):
+                                                            if '.' not in msg_hop_dir and '#' in msg_hop_dir:
+                                                                msg_hops = int(msg_hop_dir.split('#')[-1])
+                                                                msg_hop_path = os.path.join(Dgt_path, msg_hop_dir)
+                                                                for msg_exp_dir in sorted(os.listdir(msg_hop_path)):
+                                                                    if '.' not in msg_exp_dir and '#' in msg_exp_dir:
+                                                                        msg_exp_time = int(msg_exp_dir.split('#')[-1])
+                                                                        msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
+                                                                        results = dex.Results()
+                                                                        results.ticks_per_sec = ticks_per_sec
+                                                                        results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type)
 
 if __name__ == "__main__":
     main()

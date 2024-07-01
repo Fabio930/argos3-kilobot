@@ -34,7 +34,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
+    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
         act_results = {}
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1 = [np.array([])] * n_agents
@@ -93,19 +93,19 @@ class Results:
             info_vec    = sub_path.split('/')
             t_messages  = sub_path.split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
-            arenaS      = info_vec[4].split('_')[-1][:-1]
+            arenaS      = info_vec[6].split('#')[-1]
             messages    = self.compute_avg_msgs(msgs_bigM_1)
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
             states = self.rearrange_quorum(quorum_bigM_1)
-            self.dump_times(algo,0,states,base,path_temp,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,states,base,path_temp,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents)
+            self.dump_times(algo,0,states,base,sub_path,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+            self.dump_quorum(algo,0,states,base,sub_path,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents)
             del states
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
+            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
             del act_results
             gc.collect()
         del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
@@ -134,14 +134,14 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        if algo == 'O':
-            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
-        else:
-            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
-        if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
-            write_header = 1
         tmp_b = base.split('/')
         tmp_p = path.split('/')
+        if algo == 'O':
+            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1]+".csv"
+        else:
+            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1]+".csv"
+        if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
+            write_header = 1
         for i in tmp_p:
             if i not in tmp_b:
                 tmp = i.split("#")
