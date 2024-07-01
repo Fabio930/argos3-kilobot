@@ -22,7 +22,7 @@ class Results:
         return np.transpose(data, (1,0,2))
 
 ##########################################################################################################
-    def compute_avg_msgs(self,data,algo):
+    def compute_avg_msgs(self,data):
         print("--- Computing avg buffer dimension ---")
         out = [0]*len(data[0][0])
         for i in range(len(data)):
@@ -94,7 +94,7 @@ class Results:
             t_messages  = sub_path.split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
-            messages    = self.compute_avg_msgs(msgs_bigM_1,algo)
+            messages    = self.compute_avg_msgs(msgs_bigM_1)
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
