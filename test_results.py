@@ -44,8 +44,6 @@ def check_inputs():
 
 def main():
     ticks_per_sec, data_type = check_inputs()
-
-    tasks = []
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
