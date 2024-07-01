@@ -3,6 +3,14 @@ import os
 import sys
 import logging
 
+# Setup logging
+def setup_logging():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
+
 # Check command line inputs
 def check_inputs():
     ticks = 10
