@@ -43,6 +43,7 @@ def check_inputs():
     return ticks, data_type
 
 def main():
+    setup_logging()
     ticks_per_sec, data_type = check_inputs()
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
