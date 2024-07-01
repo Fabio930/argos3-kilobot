@@ -22,7 +22,7 @@ class Results:
         return np.transpose(data, (1,0,2))
 
 ##########################################################################################################
-    def compute_avg_msgs(self,data,algo):
+    def compute_avg_msgs(self,data):
         print("--- Computing avg buffer dimension ---")
         out = [0]*len(data[0][0])
         for i in range(len(data)):
@@ -49,7 +49,7 @@ class Results:
         act_M_2 = [np.array([],dtype=int)]*num_runs
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
-                selem=elem.split('.')
+                selem = elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                     seed = int(selem[0].split('#')[-1])
                     agent_id = int(selem[0].split('__')[0].split('#')[-1])
@@ -59,10 +59,10 @@ class Results:
                         for row in reader:
                             log_count += 1
                             if log_count % self.ticks_per_sec == 0:
-                                state = -1
-                                msgs = -1
-                                broadcast_c = -1
-                                re_broadcast_c = -1
+                                state           = -1
+                                msgs            = -1
+                                broadcast_c     = -1
+                                re_broadcast_c  = -1
                                 for val in row:
                                     val             = val.split('\t')
                                     state           = int(val[0])
@@ -70,31 +70,31 @@ class Results:
                                     msgs            = int(val[2])
                                     broadcast_c     = int(val[3])
                                     re_broadcast_c  = int(val[4])
-                                states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
-                                quorum_M_1[seed-1] = np.append(quorum_M_1[seed-1],quorum)
-                                msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],msgs)
+                                states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
+                                quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
+                                msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
                                 if (data_type=="all" or data_type=="freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                     if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",agent_id,"num lines:",len(msgs_M_1[seed-1]))
                     if seed == num_runs:
-                        msgs_bigM_1[agent_id] = msgs_M_1
-                        states_bigM_1[agent_id] = states_M_1
-                        quorum_bigM_1[agent_id] = quorum_M_1
-                        msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                        states_M_1 = [np.array([],dtype=int)]*num_runs
-                        quorum_M_1 = [np.array([],dtype=int)]*num_runs
+                        msgs_bigM_1[agent_id]       = msgs_M_1
+                        states_bigM_1[agent_id]     = states_M_1
+                        quorum_bigM_1[agent_id]     = quorum_M_1
+                        msgs_M_1                    = [np.array([],dtype=int)]*num_runs
+                        states_M_1                  = [np.array([],dtype=int)]*num_runs
+                        quorum_M_1                  = [np.array([],dtype=int)]*num_runs
                         if (data_type=="all" or data_type=="freq"):
-                            act_bigM_1[agent_id] = act_M_1
-                            act_bigM_2[agent_id] = act_M_2
-                            act_M_1 = [np.array([],dtype=int)]*num_runs
-                            act_M_2 = [np.array([],dtype=int)]*num_runs
+                            act_bigM_1[agent_id]    = act_M_1
+                            act_bigM_2[agent_id]    = act_M_2
+                            act_M_1                 = [np.array([],dtype=int)]*num_runs
+                            act_M_2                 = [np.array([],dtype=int)]*num_runs
         if data_type in ("all","quorum"):
             info_vec    = sub_path.split('/')
             t_messages  = sub_path.split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
-            messages    = self.compute_avg_msgs(msgs_bigM_1,algo)
+            messages    = self.compute_avg_msgs(msgs_bigM_1)
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
