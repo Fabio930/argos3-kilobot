@@ -48,34 +48,34 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, sub_path = task
+    base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type, ticks_per_sec = task
     retry_count = 50
 
     while retry_count > 0:
         try:
             # Memory usage logging
             process = psutil.Process(os.getpid())
-            logging.info(f"Memory usage before processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+            logging.info(f"Memory usage before processing {msg_exp_path}: {process.memory_info().rss / (1024 * 1024)} MB")
 
             results = dex.Results()
             results.ticks_per_sec = ticks_per_sec
-            results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, sub_path, data_type)
+            results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type)
             gc.collect()
             # Memory usage logging
-            logging.info(f"Memory usage after processing {sub_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+            logging.info(f"Memory usage after processing {msg_exp_path}: {process.memory_info().rss / (1024 * 1024)} MB")
 
             break
         except MemoryError as e:
-            logging.error(f"MemoryError processing {sub_path}: {e}")
+            logging.error(f"MemoryError processing {msg_exp_path}: {e}")
             retry_count -= 1
             if retry_count > 0:
-                logging.info(f"Retrying {sub_path} ({retry_count}) after MemoryError")
+                logging.info(f"Retrying {msg_exp_path} ({retry_count}) after MemoryError")
                 time.sleep(600)  # Delay before retrying
             else:
-                logging.error(f"Failed {sub_path} due to MemoryError")
+                logging.error(f"Failed {msg_exp_path} due to MemoryError")
             gc.collect()
         except Exception as e:
-            logging.error(f"Error processing {sub_path}: {e}")
+            logging.error(f"Error processing {msg_exp_path}: {e}")
             gc.collect()
             break
 
@@ -118,7 +118,7 @@ def main():
                                                                     if '.' not in msg_exp_dir and '#' in msg_exp_dir:
                                                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
-                                                                        tasks.append((base, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_exp_path))
+                                                                        tasks.append((base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type, ticks_per_sec))
 
     # Using a manager to handle the queue
     manager = Manager()

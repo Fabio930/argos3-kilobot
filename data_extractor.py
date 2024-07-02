@@ -99,8 +99,8 @@ class Results:
             del messages
             gc.collect()
             states = self.rearrange_quorum(quorum_bigM_1)
-            self.dump_times(algo,0,states,base,sub_path,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,states,base,sub_path,threshold,GT,self.min_buff_dim,msg_exp_time,n_agents)
+            self.dump_times(algo,0,states,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+            self.dump_quorum(algo,0,states,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents)
             del states
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
@@ -127,8 +127,8 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
-        static_fields=["MinBuffDim","MsgExpTime"]
-        static_values=[MINS,MSG_EXP_TIME]
+        static_fields=["MinBuffDim"]
+        static_values=[MINS]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
@@ -137,9 +137,9 @@ class Results:
         tmp_b = base.split('/')
         tmp_p = path.split('/')
         if algo == 'O':
-            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1]+".csv"
+            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1].replace('_',',')+".csv"
         else:
-            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1]+".csv"
+            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1].replace('_',',')+".csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         for i in tmp_p:
@@ -197,7 +197,7 @@ class Results:
                 self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents):
         mean_val = 0
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
@@ -243,7 +243,7 @@ class Results:
         self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
-    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents,limit):
         times = [len(data_in[0][0])] * len(data_in)
         for i in range(len(data_in)): # per ogni run
             for z in range(len(data_in[i][0])): # per ogni tick
