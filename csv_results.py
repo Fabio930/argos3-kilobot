@@ -212,7 +212,7 @@ class Data:
                                                     reg.append(round(np.median(s_data[0][-30:]),2))
                                                     tmp_tmin.append(round(np.min(t_data[0]),2))
                                                     tmp_tmax.append(round(np.max(t_data[0]),2))
-                                                    tmp_tmed.append(round(self.extract_median(t_data[0][:],len(s_data[0])),2))
+                                                    tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
                                             if len(vals)==0:
                                                 vals            = np.array([tmp])
                                                 vals_m          = np.array([t_max])
@@ -228,7 +228,7 @@ class Data:
                                                 times_max       = np.append(times_max,[tmp_tmax],axis=0)
                                                 times_median    = np.append(times_median,[tmp_tmed],axis=0)
                                         if a=='P' and int(c)==0 and m_t in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='21' or m_t=='24')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
+                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='17' or m_t=='21' or m_t=='24')) or (n_a=='100' and (m_t=='10' or m_t=='32' or m_t=='65' or m_t=='78' or m_t=='99')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='23' or m_t=='21' or m_t=='24')))):
                                                 dict_park_avg.update({(a_s,n_a,m_t):vals})
                                                 dict_park_max.update({(a_s,n_a,m_t):vals_m})
                                                 dict_park_fin.update({(a_s,n_a,m_t):vals_r})
@@ -251,9 +251,9 @@ class Data:
                                                     dict_our_tmin.update({(a_s,n_a,m_t):times_min})
                                                     dict_our_tmax.update({(a_s,n_a,m_t):times_max})
                                                     dict_our_tmed.update({(a_s,n_a,m_t):times_median})
-        self.print_borders(path,'avg','min',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
+        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
         # self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
-        # self.print_borders(path,'reg','median',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
+        # self.print_borders(path,'reg','min',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
     def print_messages(self,data_in):
@@ -296,37 +296,37 @@ class Data:
             sign = []
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '11':
+                if k[2] == '10':
                     col = 0
-                elif k[2] == '15':
+                elif k[2] == '13':
                     col = 1
                 elif k[2] == '17':
                     col = 2
-                elif k[2] == '19':
-                    col = 3
                 elif k[2] == '21':
+                    col = 3
+                elif k[2] == '24':
                     col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '41':
+                if k[2] == '10':
                     col = 0
-                elif k[2] == '56':
+                elif k[2] == '32':
                     col = 1
                 elif k[2] == '65':
                     col = 2
-                elif k[2] == '74':
+                elif k[2] == '78':
                     col = 3
-                elif k[2] == '83':
+                elif k[2] == '99':
                     col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '19':
+                if k[2] == '10':
                     col = 0
-                elif k[2] == '22':
+                elif k[2] == '13':
                     col = 1
                 elif k[2] == '23':
                     col = 2
-                elif k[2] == '23.01':
+                elif k[2] == '21':
                     col = 3
                 elif k[2] == '24':
                     col = 4
@@ -506,7 +506,6 @@ class Data:
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        void        = mlines.Line2D([], [], linestyle='None')
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
@@ -524,10 +523,12 @@ class Data:
                 agents = more_k[1]
             for ag in agents:
                 row = 1  if a=="smallA" else 0
-                p_k = [str(11),str(15),str(17),str(19),str(21)]
-                if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
+                p_k = [str(10),str(13),str(21),str(24)]
+                # p_k = [str(11),str(15),str(17),str(19),str(21)]
+                # if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
                 if int(ag)==100:
-                    p_k = [str(41),str(56),str(65),str(74),str(83)]
+                    p_k = [str(10),str(32),str(78),str(99)]
+                    # p_k = [str(41),str(56),str(65),str(74),str(83)]
                     row = 2
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):
@@ -544,11 +545,11 @@ class Data:
                             taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
                             toval   = tdict_our.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and p_valst is np.nan:
+                                    p_valst = tpval
                                 if p_vals8[1] is np.nan or pval<p_vals8[1]:
-                                    p_valst     = tpval
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
-                                    print("Parker",p_k[k],tpval,threshlds[th],ground_T[pt])
                             elif pval<=0.2:
                                 if p_vals2[0] is np.nan or pval>=p_vals2[0]:
                                     p_vals2[0]  = pval
@@ -561,11 +562,11 @@ class Data:
                                     p_vals2[1]  = pval
                                     p_gt2[1]    = ground_T[pt]
                             if oval>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and o_valst is np.nan:
+                                    o_valst = toval
                                 if o_vals8[1] is np.nan or oval<o_vals8[1]:
-                                    o_valst     = toval
                                     o_vals8[1]  = oval
                                     o_gt8[1]    = ground_T[pt]
-                                    print("Our",o_k[k],toval,threshlds[th],ground_T[pt])
                             elif oval<=0.2:
                                 if o_vals2[0] is np.nan or oval>=o_vals2[0]:
                                     o_vals2[0]  = oval
@@ -578,9 +579,9 @@ class Data:
                                     o_vals2[1]  = oval
                                     o_gt2[1]    = ground_T[pt]
                             if aval>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and a_valst is np.nan:
+                                    a_valst = taval
                                 if a_vals8[1] is np.nan or aval<a_vals8[1]:
-                                    a_valst     = taval
-                                    print("Adam",o_k[k],taval,threshlds[th],ground_T[pt])
                                     a_vals8[1]  = aval
                                     a_gt8[1]    = ground_T[pt]
                             elif aval<=0.2:
@@ -630,7 +631,6 @@ class Data:
                         elif a_vals2[1] is np.nan:
                             a_vals2[1] = a_vals2[0]
                             a_gt2[1] = a_gt2[0]
-
                         vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
                         vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
                         vals2o[k][th] = np.round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
@@ -660,7 +660,7 @@ class Data:
                                 void_str_threshlds.append('')
                         for x in range(5,11,1):
                             void_str_gt.append('')
-                        for x in range(0,601,100):
+                        for x in range(0,151,25):
                             void_str_tim.append('')
                     ax[row][k].set_xlim(0.5,1)
                     tax[row][k].set_xlim(0.5,1)
@@ -719,9 +719,9 @@ class Data:
                         tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                     if k==0:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        tax[row][k].set_yticks(np.arange(0,601,100))
+                        tax[row][k].set_yticks(np.arange(0,151,25))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
                         if row==0:
                             ax[row][k].set_ylabel(r"$G$")
                             tax[row][k].set_ylabel(r"$T_c\, (s)$")
@@ -733,9 +733,9 @@ class Data:
                             tax[row][k].set_ylabel(r"$T_c\, (s)$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,151,25),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
                         axt = ax[row][k].twinx()
                         taxt = tax[row][k].twinx()
                         labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -753,9 +753,9 @@ class Data:
                             taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,601,100),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,151,25),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,601,25),labels=['' for x in range(0,601,25)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
                     ax[row][k].grid(which='major')
                     tax[row][k].grid(which='major')
 
