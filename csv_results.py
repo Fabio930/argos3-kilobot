@@ -228,7 +228,7 @@ class Data:
                                                 times_max       = np.append(times_max,[tmp_tmax],axis=0)
                                                 times_median    = np.append(times_median,[tmp_tmed],axis=0)
                                         if a=='P' and int(c)==0 and m_t in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='17' or m_t=='21' or m_t=='24')) or (n_a=='100' and (m_t=='10' or m_t=='32' or m_t=='65' or m_t=='78' or m_t=='99')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='10' or m_t=='13' or m_t=='23' or m_t=='21' or m_t=='24')))):
+                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
                                                 dict_park_avg.update({(a_s,n_a,m_t):vals})
                                                 dict_park_max.update({(a_s,n_a,m_t):vals_m})
                                                 dict_park_fin.update({(a_s,n_a,m_t):vals_r})
@@ -296,37 +296,37 @@ class Data:
             sign = []
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '10':
+                if k[2] == '11':
                     col = 0
-                elif k[2] == '13':
+                elif k[2] == '15':
                     col = 1
                 elif k[2] == '17':
                     col = 2
-                elif k[2] == '21':
+                elif k[2] == '19':
                     col = 3
-                elif k[2] == '24':
+                elif k[2] == '21':
                     col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '10':
+                if k[2] == '41':
                     col = 0
-                elif k[2] == '32':
+                elif k[2] == '56':
                     col = 1
                 elif k[2] == '65':
                     col = 2
-                elif k[2] == '78':
+                elif k[2] == '74':
                     col = 3
-                elif k[2] == '99':
+                elif k[2] == '83':
                     col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '10':
+                if k[2] == '19':
                     col = 0
-                elif k[2] == '13':
+                elif k[2] == '22':
                     col = 1
                 elif k[2] == '23':
                     col = 2
-                elif k[2] == '21':
+                elif k[2] == '23.01':
                     col = 3
                 elif k[2] == '24':
                     col = 4
@@ -523,12 +523,10 @@ class Data:
                 agents = more_k[1]
             for ag in agents:
                 row = 1  if a=="smallA" else 0
-                p_k = [str(10),str(13),str(21),str(24)]
-                # p_k = [str(11),str(15),str(17),str(19),str(21)]
-                # if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
+                p_k = [str(11),str(15),str(17),str(19),str(21)]
+                if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
                 if int(ag)==100:
-                    p_k = [str(10),str(32),str(78),str(99)]
-                    # p_k = [str(41),str(56),str(65),str(74),str(83)]
+                    p_k = [str(41),str(56),str(65),str(74),str(83)]
                     row = 2
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):

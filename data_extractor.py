@@ -1,8 +1,8 @@
 import numpy as np
 import os, csv, math, gc
 import pandas as pd
-from lifelines import KaplanMeierFitter
-
+from scipy.special import gamma
+from lifelines import WeibullFitter
 class Results:
     thresholds      = {}
     ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
@@ -26,6 +26,19 @@ class Results:
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
+##########################################################################################################
+    def get_mean_and_std(self, wf:WeibullFitter):
+        # get the Weibull shape and scale parameter 
+        scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
+
+        # calculate the mean time
+        mean = scale*gamma(1 + 1/shape)
+
+        # calculate the standard deviation
+        std = np.sqrt(scale*(2)*gamma(1 + 2.0/shape) - mean*2)
+        
+        return [mean, std]
+                                
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
@@ -229,7 +242,17 @@ class Results:
     def compute_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,gt,thr,quorums,buffers):
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
-        t_starts, t_ends, b_starts, b_ends = [], [], [], []
+        external_data = {
+            'algorithm': algo,
+            'runs': runs,
+            'arena' : arenaS,
+            'broadcast': communication,
+            'n_agents': n_agents,
+            'buff_dim': buf_dim,
+            'ground_truth': gt,
+            'threshold': thr
+        }
+        t_starts, t_ends, b_starts = [], [], []
         starts_cens, ends_cens, = [], []
         limit_buf = int(buf_dim)
         for i in range(len(quorums)):
@@ -250,96 +273,213 @@ class Results:
                     if quorums[i][j][t] != quorums[i][j][t-1]:
                         if sem == 0 and b >= self.min_buff_dim and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
                             sem = 1
-                            t_starts.append(int(t))
-                            b_starts.append(int(b))
+                            t_starts.append(t+1)
+                            b_starts.append(b)
                             starts_cens.append(1)
                         elif sem == 1 and ((gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
                             sem = 0
-                            t_ends.append(int(t))
-                            b_ends.append(int(b))
+                            t_ends.append(t+1)
                             ends_cens.append(1)
                     else:
                         if sem == 0 and b >= self.min_buff_dim and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
                             sem = 1
-                            t_starts.append(int(t))
-                            b_starts.append(int(b))
+                            t_starts.append(t+1)
+                            b_starts.append(b)
                             starts_cens.append(0)
                 if sem == 1:
-                    tmp = []
-                    st = 0
-                    t = len(quorums[i][j]) - 1
-                    bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
-                    if algo=='P':
-                        if len(bf)>limit_buf:
-                            st = len(bf)-limit_buf
-                        for z in range(st,len(bf)):
-                            if bf[z] not in tmp:
-                                tmp.append(bf[z])
-                    else: tmp = bf
-                    b = len(tmp)
-                    t_ends.append(int(t))
-                    b_ends.append(int(b))
+                    t_ends.append(len(quorums[i][j])+1)
                     ends_cens.append(0)
         if len(t_starts) > 0:
-            # Calculate the duration
-            durations = [f - i for i, f in zip(t_starts, t_ends)]
+            # Calculate the duration and combine censoring indicators
+            durations,event_observed = [],[]
+            for i in range(len(t_starts)):
+                durations.append(t_ends[i]-t_starts[i])
+                event_observed.append(starts_cens[i]*ends_cens[i])
 
-            # Combine censoring indicators
-            event_observed = [ic * fc for ic, fc in zip(starts_cens, ends_cens)]
+            durations_by_buffer = self.divide_event_by_buffer(b_starts,durations,event_observed)
+            # Fit parametric models to the durations
+            durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
+            wb_durations_by_buffer = self.adapt_dict_to_weibull_est(durations_by_buffer)
+            wf = WeibullFitter()
+            estimates = {}
+            for k in durations_by_buffer.keys():
+                wb_data = wb_durations_by_buffer.get(k)[0]
+                wb_censoring = wb_durations_by_buffer.get(k)[1]
+                if len(wb_data)>0:
+                    wf.fit(wb_data, event_observed=wb_censoring,label="Weibull "+k)
+                    estimates.update({k:self.get_mean_and_std(wf)})
+            self.dump_estimates(external_data,estimates)
 
-            # Fit the Kaplan-Meier model
-            kmf = KaplanMeierFitter()
-            kmf.fit(durations, event_observed=event_observed)
+##########################################################################################################
+    def dump_estimates(self,external_data,estimates):
+        header = ["runs", "arena", "broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
+        filename = os.path.abspath("")+"/proc_data"
+        if not os.path.exists(filename):
+            os.mkdir(filename)
+        filename += "/"+external_data['algorithm']+"recovery_estimate_durations.csv"
+        write_header = not os.path.exists(filename)
 
-            # Extract the survival function data
-            survival_function = kmf.survival_function_
-            survival_function.reset_index(inplace=True)
-            survival_function.columns = ['Time', 'Survival Probability']
+        with open(filename, mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            for k in estimates.keys():
+                data = estimates.get(k)
+                fwriter.writerow([external_data['runs'],external_data['arena'],external_data['broadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
+                                  k,data[0],data[1]])
 
-            # Fit the Kaplan-Meier model for initial buffer dimensions
-            kmf_initial = KaplanMeierFitter()
-            kmf_initial.fit(b_starts, event_observed=starts_cens)
-
-            # Fit the Kaplan-Meier model for final buffer dimensions
-            kmf_final = KaplanMeierFitter()
-            kmf_final.fit(b_ends, event_observed=ends_cens)
-
-            # Extract the survival function data for initial buffer dimensions
-            survival_function_initial = kmf_initial.survival_function_
-            survival_function_initial.reset_index(inplace=True)
-            survival_function_initial.columns = ['Buffer Dimension', 'Survival Probability']
-
-            # Extract the survival function data for final buffer dimensions
-            survival_function_final = kmf_final.survival_function_
-            survival_function_final.reset_index(inplace=True)
-            survival_function_final.columns = ['Buffer Dimension', 'Survival Probability']
-
-
-            # External inputs
-            external_data = {
-                'broadcast': communication,
-                'n_agents': n_agents,
-                'buff_dim': buf_dim,
-                'ground_truth': gt,
-                'threshold': thr,
-                'min_buff_dim': self.min_buff_dim
-            }
-
-            # Convert the external data to a DataFrame with the same number of rows as the survival function
-            external_df = pd.DataFrame([external_data] * len(survival_function))
-            # Concatenate the survival function data with the external data
-            combined_df = pd.concat([external_df,survival_function], axis=1)
-            # Concatenate the survival function data with the external data
-            external_df_initial = pd.DataFrame([external_data] * len(survival_function_initial))
-            combined_df_initial = pd.concat([external_df_initial,survival_function_initial], axis=1)
-            external_df_final = pd.DataFrame([external_data] * len(survival_function_final))
-            combined_df_final = pd.concat([external_df_final,survival_function_final], axis=1)
-            # Save the data to a CSV file
-            is_new = False
-            if not os.path.exists(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv")): is_new = True
-            combined_df.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_times_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
-            combined_df_initial.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_initial_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
-            combined_df_final.to_csv(os.path.join(os.path.abspath(""), "proc_data", algo+"recovery_data_final_buffer_r#"+str(runs)+"_"+arenaS+"A.csv"), index=False,mode='a',header=is_new)
+##########################################################################################################
+    def divide_event_by_buffer(self,buffer,durations,event_observed):
+        durations_by_buffer = {}
+        durations_by_buffer.update({"5-9":[[],[]]})
+        durations_by_buffer.update({"10-14":[[],[]]})
+        durations_by_buffer.update({"15-19":[[],[]]})
+        durations_by_buffer.update({"20-24":[[],[]]})
+        durations_by_buffer.update({"25-29":[[],[]]})
+        durations_by_buffer.update({"30-34":[[],[]]})
+        durations_by_buffer.update({"35-39":[[],[]]})
+        durations_by_buffer.update({"40-44":[[],[]]})
+        durations_by_buffer.update({"45-49":[[],[]]})
+        durations_by_buffer.update({"50-54":[[],[]]})
+        durations_by_buffer.update({"55-59":[[],[]]})
+        durations_by_buffer.update({"60-64":[[],[]]})
+        durations_by_buffer.update({"65-69":[[],[]]})
+        durations_by_buffer.update({"70-74":[[],[]]})
+        durations_by_buffer.update({"75-79":[[],[]]})
+        durations_by_buffer.update({"80-84":[[],[]]})
+        durations_by_buffer.update({"85-89":[[],[]]})
+        durations_by_buffer.update({"90-94":[[],[]]})
+        durations_by_buffer.update({"95-99":[[],[]]})
+        for i in range(len(buffer)):
+            if buffer[i]>=5 and buffer[i]<=9:
+                tmp = durations_by_buffer.get("5-9")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"5-9":tmp})
+            elif buffer[i]>=10 and buffer[i]<=14:
+                tmp = durations_by_buffer.get("10-14")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"10-14":tmp})
+            elif buffer[i]>=15 and buffer[i]<=19:
+                tmp = durations_by_buffer.get("15-19")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"15-19":tmp})
+            elif buffer[i]>=20 and buffer[i]<=24:
+                tmp = durations_by_buffer.get("20-24")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"20-24":tmp})
+            elif buffer[i]>=25 and buffer[i]<=29:
+                tmp = durations_by_buffer.get("25-29")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"25-29":tmp})
+            elif buffer[i]>=30 and buffer[i]<=34:
+                tmp = durations_by_buffer.get("30-34")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"30-34":tmp})
+            elif buffer[i]>=35 and buffer[i]<=39:
+                tmp = durations_by_buffer.get("35-39")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"35-39":tmp})
+            elif buffer[i]>=40 and buffer[i]<=44:
+                tmp = durations_by_buffer.get("40-44")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"40-44":tmp})
+            elif buffer[i]>=45 and buffer[i]<=49:
+                tmp = durations_by_buffer.get("45-49")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"45-49":tmp})
+            elif buffer[i]>=50 and buffer[i]<=54:
+                tmp = durations_by_buffer.get("50-54")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"50-54":tmp})
+            elif buffer[i]>=55 and buffer[i]<=59:
+                tmp = durations_by_buffer.get("55-59")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"55-59":tmp})
+            elif buffer[i]>=60 and buffer[i]<=64:
+                tmp = durations_by_buffer.get("60-64")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"60-64":tmp})
+            elif buffer[i]>=65 and buffer[i]<=69:
+                tmp = durations_by_buffer.get("65-69")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"65-69":tmp})
+            elif buffer[i]>=70 and buffer[i]<=74:
+                tmp = durations_by_buffer.get("70-74")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"70-74":tmp})
+            elif buffer[i]>=75 and buffer[i]<=79:
+                tmp = durations_by_buffer.get("75-79")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"75-79":tmp})
+            elif buffer[i]>=80 and buffer[i]<=84:
+                tmp = durations_by_buffer.get("80-84")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"80-84":tmp})
+            elif buffer[i]>=85 and buffer[i]<=89:
+                tmp = durations_by_buffer.get("85-89")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"85-89":tmp})
+            elif buffer[i]>=90 and buffer[i]<=94:
+                tmp = durations_by_buffer.get("90-94")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"90-94":tmp})
+            elif buffer[i]>=95 and buffer[i]<=99:
+                tmp = durations_by_buffer.get("95-99")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"95-99":tmp})
+        return durations_by_buffer
+    
+##########################################################################################################
+    def adapt_dict_to_weibull_est(self,data):
+        out = {}
+        for k in data.keys():
+            durations = data.get(k)[0]
+            event_observed = data.get(k)[1]
+            if len(durations)>0:
+                if durations[0] > 0: durations,event_observed = np.insert(durations,0,0),np.insert(event_observed,0,0)
+                durations = list(durations)
+                event_observed = list(event_observed)
+                for i in range(len(durations)):
+                    if durations[i] == 0: durations[i] = .00001
+            out.update({k:[durations,event_observed]})
+        return out
+    
+##########################################################################################################
+    def sort_arrays_in_dict(self,data_to_sort):
+        out = {}
+        for k in data_to_sort.keys():
+            durations = data_to_sort.get(k)[0]
+            event_obseerved = data_to_sort.get(k)[1]
+            for i in range(len(durations)):
+                for j in range(len(durations)):
+                    if durations[j]<durations[i] and i<j:
+                        tmp = durations[i]
+                        durations[i] = durations[j]
+                        durations[j] = tmp
+                        tmp = event_obseerved[i]
+                        event_obseerved[i] = event_obseerved[j]
+                        event_obseerved[j] = tmp
+            out.update({k:[durations,event_obseerved]})
+        return out
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
