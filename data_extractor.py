@@ -298,7 +298,6 @@ class Results:
                 event_observed.append(starts_cens[i]*ends_cens[i])
 
             durations_by_buffer = self.divide_event_by_buffer(b_starts,durations,event_observed)
-            # Fit parametric models to the durations
             durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
             wb_durations_by_buffer = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
