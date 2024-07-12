@@ -307,7 +307,7 @@ class Results:
                 wb_data = wb_durations_by_buffer.get(k)[0]
                 wb_censoring = wb_durations_by_buffer.get(k)[1]
                 if len(wb_data)>0:
-                    wf.fit(wb_data, event_observed=wb_censoring,label="Weibull "+k)
+                    wf.fit(wb_data, event_observed=wb_censoring)
                     estimates.update({k:self.get_mean_and_std(wf)})
             self.dump_estimates(external_data,estimates)
 
