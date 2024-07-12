@@ -246,7 +246,8 @@ class Results:
             'algorithm': algo,
             'runs': runs,
             'arena' : arenaS,
-            'broadcast': communication,
+            'experiment_length' : len(quorums[0][0]),
+            'rebroadcast': communication,
             'n_agents': n_agents,
             'buff_dim': buf_dim,
             'ground_truth': gt,
@@ -302,7 +303,7 @@ class Results:
             wb_durations_by_buffer = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
             estimates = {}
-            for k in durations_by_buffer.keys():
+            for k in wb_durations_by_buffer.keys():
                 wb_data = wb_durations_by_buffer.get(k)[0]
                 wb_censoring = wb_durations_by_buffer.get(k)[1]
                 if len(wb_data)>0:
@@ -312,20 +313,19 @@ class Results:
 
 ##########################################################################################################
     def dump_estimates(self,external_data,estimates):
-        header = ["runs", "arena", "broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
+        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
         filename = os.path.abspath("")+"/proc_data"
         if not os.path.exists(filename):
             os.mkdir(filename)
-        filename += "/"+external_data['algorithm']+"recovery_estimate_durations.csv"
+        filename += "/"+external_data['algorithm']+"recovery_estimate_durations_r#"+str(external_data['runs'])+"_a#"+external_data['arena']+"A.csv"
         write_header = not os.path.exists(filename)
-
         with open(filename, mode='a', newline='\n') as fw:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
             for k in estimates.keys():
                 data = estimates.get(k)
-                fwriter.writerow([external_data['runs'],external_data['arena'],external_data['broadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
+                fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
                                   k,data[0],data[1]])
 
 ##########################################################################################################
