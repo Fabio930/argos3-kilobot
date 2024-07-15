@@ -112,7 +112,7 @@ class Results:
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
+            self.dump_msg_freq(algo,3,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
             del act_results
             gc.collect()
         del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
@@ -165,8 +165,12 @@ class Results:
         elif indx+bias==0:
             values.append("swarm_state")
         elif indx+bias==1:
-            values.append("broadcast_msg")
+            values.append("committed_state")
         elif indx+bias==2:
+            values.append("uncommitted_state")
+        elif indx+bias==3:
+            values.append("broadcast_msg")
+        elif indx+bias==4:
             values.append("rebroadcast_msg")
         values.append(data_in)
         values.append(data_std)
@@ -202,26 +206,65 @@ class Results:
                 self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
+    def count_committed_agents(self,data):
+        ones = -1
+        for i in range(len(data)):
+            tmp = 0
+            for j in range(len(data[i])):
+                if data[i][j]==1:
+                    tmp+=1
+            if ones == -1: ones = tmp
+            elif ones != tmp:
+                print("ERROR! Number of committed agents change through iterations ---EXIT---")
+                exit(1)
+        return ones
+
+##########################################################################################################
     def dump_quorum(self,algo,bias,q_data,s_data,BASE,PATH,MINS,MSG_EXP_TIME):
         flag2=[-1]*len(q_data[0][0])
-        comm_flag2=[]
-        uncomm_flag2=[]
+        committed_count = self.count_committed_agents(s_data)
+        comm_flag2=[-1]*len(q_data[0][0])
+        uncomm_flag2=[-1]*len(q_data[0][0])
         for i in range(len(q_data)):
             flag1=[-1]*len(q_data[i][0])
+            comm_flag1=[-1]*len(q_data[i][0])
+            uncomm_flag1=[-1]*len(q_data[i][0])
             for j in range(len(q_data[i])):
                 for z in range(len(q_data[i][j])):
                     if flag1[z]==-1:
                         flag1[z]=q_data[i][j][z]
                     else:
                         flag1[z]=flag1[z]+q_data[i][j][z]
+                    if s_data[i][j]==0:
+                        if uncomm_flag1[z]==-1:
+                            uncomm_flag1[z]=q_data[i][j][z]
+                        else:
+                            uncomm_flag1[z]=uncomm_flag1[z]+q_data[i][j][z]
+                    elif s_data[i][j]==1:
+                        if comm_flag1[z]==-1:
+                            comm_flag1[z]=q_data[i][j][z]
+                        else:
+                            comm_flag1[z]=comm_flag1[z]+q_data[i][j][z]
             for j in range(len(flag1)):
-                flag1[j]=flag1[j]/len(q_data[i])
+                flag1[j]        = flag1[j]/len(q_data[i])
+                comm_flag1[j]   = comm_flag1[j]/committed_count
+                uncomm_flag1[j] = uncomm_flag1[j]/(len(q_data[i])-committed_count)
                 if flag2[j]==-1:
                     flag2[j]=flag1[j]
                 else:
                     flag2[j]=flag1[j]+flag2[j]
+                if comm_flag2[j]==-1:
+                    comm_flag2[j]=comm_flag1[j]
+                else:
+                    comm_flag2[j]=comm_flag1[j]+comm_flag2[j]
+                if uncomm_flag2[j]==-1:
+                    uncomm_flag2[j]=uncomm_flag1[j]
+                else:
+                    uncomm_flag2[j]=uncomm_flag1[j]+uncomm_flag2[j]
         for i in range(len(flag2)):
-            flag2[i]=flag2[i]/len(q_data)
+            flag2[i]        = flag2[i]/len(q_data)
+            comm_flag2[i]   = comm_flag2[i]/len(q_data)
+            uncomm_flag2[i] = uncomm_flag2[i]/len(q_data)
         fstd2=[[-1]*len(q_data[0][0])]*len(q_data)
         fstd3=[-1]*len(q_data[0][0])
         for i in range(len(q_data)):
@@ -238,6 +281,8 @@ class Results:
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
         self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
+        self.dump_resume_csv(algo,1,bias,np.round(comm_flag2,2).tolist(),"-",BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
+        self.dump_resume_csv(algo,2,bias,np.round(uncomm_flag2,2).tolist(),"-",BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents,limit):

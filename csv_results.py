@@ -97,7 +97,7 @@ class Data:
                             if ']' in val:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[11]),data_val.get(keys[12]),data_val.get(keys[10]))})
+                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[10]),data_val.get(keys[11]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -115,7 +115,7 @@ class Data:
                             if rval == -1:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[11]),data_val.get(keys[12]),data_val.get(keys[10]))})
+                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[10]),data_val.get(keys[11]))})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
