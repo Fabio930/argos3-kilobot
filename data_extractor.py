@@ -18,7 +18,7 @@ class Results:
                     self.bases.append(os.path.join(self.base, elem))
     
 #########################################################################################################
-    def rearrange_quorum(self,data):
+    def rearrange_matrix(self,data):
         return np.transpose(data, (1,0,2))
 
 ##########################################################################################################
@@ -98,10 +98,17 @@ class Results:
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, messages])
             del messages
             gc.collect()
-            states = self.rearrange_quorum(quorum_bigM_1)
-            self.dump_times(algo,0,states,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,states,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents)
-            del states
+            quorums = self.rearrange_matrix(quorum_bigM_1)
+            states = self.rearrange_matrix(states_bigM_1)
+            # -----------------------------------
+            statescpy = [[0]*len(states[0])]*len(states)
+            for i in range(len(states)):
+                for j in range(len(states[i])):
+                    statescpy[i][j] = states[i][j][-1]
+            # -----------------------------------
+            self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+            self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
+            del quorums, states, statescpy
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
@@ -126,7 +133,7 @@ class Results:
             fwriter.writerow(data)
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim"]
         static_values=[MINS]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -151,7 +158,6 @@ class Results:
             name_fields.append(static_fields[i])
             values.append(static_values[i])
         name_fields.append("type")
-        name_fields.append("mean_value")
         name_fields.append("data")
         name_fields.append("std")
         if indx+bias==-1:
@@ -162,7 +168,6 @@ class Results:
             values.append("broadcast_msg")
         elif indx+bias==2:
             values.append("rebroadcast_msg")
-        values.append(value)
         values.append(data_in)
         values.append(data_std)
         fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
@@ -194,45 +199,37 @@ class Results:
                             flag2[j]=flag1[j]+flag2[j]
                 for i in range(len(flag2)):
                     flag2[i]=flag2[i]/len(multi_run_data[0])
-                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents):
-        mean_val = 0
-        flag2=[-1]*len(data_in[0][0])
-        for i in range(len(data_in)):
-            flag1=[-1]*len(data_in[i][0])
-            flagmv=[-1]*len(data_in[i])
-            for j in range(len(data_in[i])):
-                for z in range(len(data_in[i][j])):
+    def dump_quorum(self,algo,bias,q_data,s_data,BASE,PATH,MINS,MSG_EXP_TIME):
+        flag2=[-1]*len(q_data[0][0])
+        comm_flag2=[]
+        uncomm_flag2=[]
+        for i in range(len(q_data)):
+            flag1=[-1]*len(q_data[i][0])
+            for j in range(len(q_data[i])):
+                for z in range(len(q_data[i][j])):
                     if flag1[z]==-1:
-                        flag1[z]=data_in[i][j][z]
+                        flag1[z]=q_data[i][j][z]
                     else:
-                        flag1[z]=flag1[z]+data_in[i][j][z]
-                    if flagmv[j]==-1:
-                        flagmv[j]=data_in[i][j][z]
-                    else:
-                        flagmv[j]=flagmv[j]+data_in[i][j][z]
-                flagmv[j] = flagmv[j]/len(data_in[i][j])
-            for j in flagmv:
-                mean_val+=j
+                        flag1[z]=flag1[z]+q_data[i][j][z]
             for j in range(len(flag1)):
-                flag1[j]=flag1[j]/len(data_in[i])
+                flag1[j]=flag1[j]/len(q_data[i])
                 if flag2[j]==-1:
                     flag2[j]=flag1[j]
                 else:
                     flag2[j]=flag1[j]+flag2[j]
         for i in range(len(flag2)):
-            flag2[i]=flag2[i]/len(data_in)
-        mean_val = mean_val/len(data_in)
-        fstd2=[[-1]*len(data_in[0][0])]*len(data_in)
-        fstd3=[-1]*len(data_in[0][0])
-        for i in range(len(data_in)):
-            fstd1=[-1]*len(data_in[i][0])
-            for z in range(len(data_in[i][0])): # per ogni tick
+            flag2[i]=flag2[i]/len(q_data)
+        fstd2=[[-1]*len(q_data[0][0])]*len(q_data)
+        fstd3=[-1]*len(q_data[0][0])
+        for i in range(len(q_data)):
+            fstd1=[-1]*len(q_data[i][0])
+            for z in range(len(q_data[i][0])): # per ogni tick
                 std_tmp = []
-                for j in range(len(data_in[i])): # per ogni agente
-                    std_tmp.append(float(data_in[i][j][z]))
+                for j in range(len(q_data[i])): # per ogni agente
+                    std_tmp.append(float(q_data[i][j][z]))
                 fstd1[z]=np.std(std_tmp)
             fstd2[i]=fstd1
         for z in range(len(fstd3)):
@@ -240,7 +237,7 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents,limit):
@@ -254,7 +251,7 @@ class Results:
                     times[i] = z
                     break
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
     def extract_median(self,array):
