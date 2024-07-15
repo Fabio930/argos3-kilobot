@@ -126,7 +126,7 @@ class Results:
             fwriter.writerow(data)
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,value,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
         static_fields=["MinBuffDim","MsgExpTime"]
         static_values=[MINS,MSG_EXP_TIME]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -151,7 +151,6 @@ class Results:
             name_fields.append(static_fields[i])
             values.append(static_values[i])
         name_fields.append("type")
-        name_fields.append("mean_value")
         name_fields.append("data")
         name_fields.append("std")
         if indx+bias==-1:
@@ -162,7 +161,6 @@ class Results:
             values.append("broadcast_msg")
         elif indx+bias==2:
             values.append("rebroadcast_msg")
-        values.append(value)
         values.append(data_in)
         values.append(data_std)
         fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
@@ -194,28 +192,19 @@ class Results:
                             flag2[j]=flag1[j]+flag2[j]
                 for i in range(len(flag2)):
                     flag2[i]=flag2[i]/len(multi_run_data[0])
-                self.dump_resume_csv(algo,l,bias,'-',np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
         
 ##########################################################################################################
     def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
-        mean_val = 0
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
             flag1=[-1]*len(data_in[i][0])
-            flagmv=[-1]*len(data_in[i])
             for j in range(len(data_in[i])):
                 for z in range(len(data_in[i][j])):
                     if flag1[z]==-1:
                         flag1[z]=data_in[i][j][z]
                     else:
                         flag1[z]=flag1[z]+data_in[i][j][z]
-                    if flagmv[j]==-1:
-                        flagmv[j]=data_in[i][j][z]
-                    else:
-                        flagmv[j]=flagmv[j]+data_in[i][j][z]
-                flagmv[j] = flagmv[j]/len(data_in[i][j])
-            for j in flagmv:
-                mean_val+=j
             for j in range(len(flag1)):
                 flag1[j]=flag1[j]/len(data_in[i])
                 if flag2[j]==-1:
@@ -224,7 +213,6 @@ class Results:
                     flag2[j]=flag1[j]+flag2[j]
         for i in range(len(flag2)):
             flag2[i]=flag2[i]/len(data_in)
-        mean_val = mean_val/len(data_in)
         fstd2=[[-1]*len(data_in[0][0])]*len(data_in)
         fstd3=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
@@ -240,7 +228,7 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        self.dump_resume_csv(algo,0,bias,np.round(mean_val,2),np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
@@ -254,7 +242,7 @@ class Results:
                     times[i] = z
                     break
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,'-',times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
 
 ##########################################################################################################
     def extract_median(self,array):
