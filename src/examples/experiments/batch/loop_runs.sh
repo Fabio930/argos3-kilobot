@@ -21,8 +21,6 @@ if [[ ! -e $res_dir ]]; then
     echo "mkdir: directory '$res_dir' "
 fi
 
-echo "$CONFIGURATION_FILE" | egrep "^$SHARED_DIR" &> /dev/null || exit 1
-
 #######################################
 ### experiment_length is in seconds ###
 #######################################
