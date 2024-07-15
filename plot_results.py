@@ -9,6 +9,7 @@ def main():
         if base.split('/')[-1] == "proc_data":
             tot_st      = []
             tot_times   = []
+            tot_stbc    = []
             for file in sorted(os.listdir(base)):
                 n_runs = 0
                 arena = ""
@@ -25,13 +26,16 @@ def main():
                             elif val[0] == 'a':
                                 arena = val[1]
                     data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                    keys, states, times, messages_counts = csv_res.divide_data(data)     
+                    keys, states, times, messages_counts, states_by_commit = csv_res.divide_data(data)     
                     if len(tot_st) == 0:
                         tot_st      = [states]
+                        tot_stbc    = [states_by_commit]
                         tot_times   = [times]
                     else:
                         tot_st      = np.append(tot_st,[states],axis=0)
+                        tot_stbc    = np.append(tot_stbc,[states_by_commit],axis=0)
                         tot_times   = np.append(tot_times,[times],axis=0)
+            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
