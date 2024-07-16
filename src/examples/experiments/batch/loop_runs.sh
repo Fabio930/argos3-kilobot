@@ -67,16 +67,16 @@ fi
 experiment_length="900"
 RUNS=100
 rebroadcast="0"
-numrobots="25"
+numrobots="25 100"
 threshold="0.8"
 committed_percentage="0.56 0.68 0.80"
 messages_hops="0"
 # small arena dimensions
-arena_x_side="0.500 1.000"
-arena_y_side="0.500 0.250"
+# arena_x_side="0.500 1.000"
+# arena_y_side="0.500 0.250"
 # big arena dimensions
-# arena_x_side="1.000 2.000"
-# arena_y_side="1.000 0.500"
+arena_x_side="1.000 2.000"
+arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)
@@ -110,12 +110,6 @@ for exp_len_par in $experiment_length; do
                     mkdir $agents_dir
                 fi
                 last_id=`expr $agents_par - 1`
-                if [ $agents_par -eq 25 ]; then
-                    buffer_dim="19 22 23 24" # small arena
-                    # buffer_dim="11 15 19 22" # big arena
-                elif [ $agents_par -eq 100 ]; then
-                    buffer_dim="41 57 76 85"
-                fi
                 for thr_par in $threshold; do
                     thr_par=${thr_par//./_}
                     thr_dir=$agents_dir/"Threshold#"$thr_par
@@ -135,12 +129,64 @@ for exp_len_par in $experiment_length; do
                             if [[ ! -e $msgs_hop_dir ]]; then
                                 mkdir $msgs_hop_dir
                             fi
+                            if [ $agents_par -eq 25 ]; then
+                                if [[ $arena_x_par == "0.500" && $arena_y_par == "0.500" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="13 15 18 19"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="14 16 19 20"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="15 18 20 22"
+                                    fi
+                                elif [[ $arena_x_par == "1.000" && $arena_y_par == "0.250" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="10 11 12 13"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="11 12 14 14"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="13 15 16 17"
+                                    fi
+                                elif [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="7 9 11 12"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="7 9 12 13"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="7 10 14 15"
+                                    fi
+                                elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="6 8 10 11"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="6 8 11 12"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="7 9 12 14"
+                                    fi
+                                fi
+                            elif [ $agents_par -eq 100 ]; then
+                                if [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="28 36 45 49"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="29 38 48 53"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="31 42 56 62"
+                                    fi
+                                elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
+                                    if [ $committed_par == "0.56" ];then
+                                        buffer_dim="27 34 42 45"
+                                    elif [ $committed_par == "0.68" ];then
+                                        buffer_dim="27 36 45 49"
+                                    elif [ $committed_par == "0.80" ];then
+                                        buffer_dim="28 38 51 56"
+                                    fi
+                                fi
+                            fi
                             for buff_par in $buffer_dim; do
-                                buff_dir=$agents_dir/"BufferDim#"$buff_par
+                                buff_dir=$msgs_hop_dir/"BufferDim#"$buff_par
                                 if [[ ! -e $buff_dir ]]; then
                                     mkdir $buff_dir
                                 fi
-
                                 read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
                                 read width1 height1 x_min1 x_max1 < <(calculate_dimensions_and_coordinates $area1 $arena_x_par $arena_y_par)
                                 read width0 height0 x_min0 x_max0 < <(calculate_dimensions_and_coordinates $area0 $arena_x_par $arena_y_par)
