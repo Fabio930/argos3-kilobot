@@ -1,16 +1,17 @@
 import numpy as np
 import os, csv, math, gc
-import pandas as pd
+import logging
+from matplotlib import pyplot as plt
 from scipy.special import gamma
-from lifelines import WeibullFitter
+from lifelines import WeibullFitter, KaplanMeierFitter
 class Results:
     thresholds      = {}
     ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
     min_buff_dim    = 5
     ticks_per_sec   = 10
-    x_limit         = 100
     limit           = 0.8
-        
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 ##########################################################################################################
     def __init__(self):
         self.bases=[]
@@ -27,18 +28,18 @@ class Results:
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
 
 ##########################################################################################################
-    def get_mean_and_std(self, wf:WeibullFitter):
+    def wb_get_mean_and_std(self, wf:WeibullFitter):
         # get the Weibull shape and scale parameter 
         scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
 
         # calculate the mean time
         mean = scale*gamma(1 + 1/shape)
-
         # calculate the standard deviation
-        std = np.sqrt(scale*(2)*gamma(1 + 2.0/shape) - mean*2)
+        variance = (scale ** 2) * (gamma(1 + 2 / shape) - (gamma(1 + 1 / shape)) ** 2)
+        std = np.sqrt(variance)
         
         return [mean, std]
-                                
+
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
@@ -299,15 +300,33 @@ class Results:
 
             durations_by_buffer = self.divide_event_by_buffer(b_starts,durations,event_observed)
             durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
-            wb_durations_by_buffer = self.adapt_dict_to_weibull_est(durations_by_buffer)
+            adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
+            ## uncomment the following lines to have plots for KM and WB fit
+            # kmf = KaplanMeierFitter()
+            # plt.rcParams.update({"font.size":36})
+            # fig, ax = plt.subplots(figsize=(28,18))
+            # s = 0
             estimates = {}
-            for k in wb_durations_by_buffer.keys():
-                wb_data = wb_durations_by_buffer.get(k)[0]
-                wb_censoring = wb_durations_by_buffer.get(k)[1]
-                if len(wb_data)>0:
-                    wf.fit(wb_data, event_observed=wb_censoring)
-                    estimates.update({k:self.get_mean_and_std(wf)})
+            for k in adapted_durations.keys():
+                # data = durations_by_buffer.get(k)[0]
+                # censoring = durations_by_buffer.get(k)[1]
+                a_data = adapted_durations.get(k)[0]
+                a_censoring = adapted_durations.get(k)[1]
+                if len(a_data)>4:
+                    wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
+                    # kmf.fit(data, event_observed=censoring,label="kmf "+k)
+                    # kmf.cumulative_density_.plot(ax=ax,lw=6,ls="-")
+                    # wf.cumulative_density_.plot(ax=ax,lw=6,ls="--")
+                    # s = 1
+                    estimates.update({(k,"weib"):self.wb_get_mean_and_std(wf)})
+            # if s==1:
+            #     filename = os.path.abspath("")+"/fitting_images/"
+            #     if not os.path.exists(filename):
+            #         os.mkdir(filename)
+            #     filename = filename+arenaS+"_bd#"+str(buf_dim)+"_gt#"+str(gt)+"_th#"+str(thr)+"_fitting.pdf"
+            #     plt.savefig(filename)
+            # plt.close(fig)
             self.dump_estimates(external_data,estimates)
 
 ##########################################################################################################
@@ -458,7 +477,7 @@ class Results:
                 durations = list(durations)
                 event_observed = list(event_observed)
                 for i in range(len(durations)):
-                    if durations[i] == 0: durations[i] = .00001
+                    if durations[i] == 0: durations[i] = .00000001
             out.update({k:[durations,event_observed]})
         return out
     
