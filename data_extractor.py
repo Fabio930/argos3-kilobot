@@ -287,7 +287,7 @@ class Results:
                             sem = 1
                             t_starts.append(t+1)
                             b_starts.append(b)
-                            starts_cens.append(0)
+                            starts_cens.append(1)
                 if sem == 1:
                     t_ends.append(len(quorums[i][j])+1)
                     ends_cens.append(0)
@@ -313,18 +313,27 @@ class Results:
                 # censoring = durations_by_buffer.get(k)[1]
                 a_data = adapted_durations.get(k)[0]
                 a_censoring = adapted_durations.get(k)[1]
-                if len(a_data)>4:
+                if len(a_data)>3:
                     wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                     # kmf.fit(data, event_observed=censoring,label="kmf "+k)
                     # kmf.cumulative_density_.plot(ax=ax,lw=6,ls="-")
                     # wf.cumulative_density_.plot(ax=ax,lw=6,ls="--")
                     # s = 1
-                    estimates.update({(k,"weib"):self.wb_get_mean_and_std(wf)})
+                    estimates.update({k:self.wb_get_mean_and_std(wf)})
             # if s==1:
             #     filename = os.path.abspath("")+"/fitting_images/"
             #     if not os.path.exists(filename):
             #         os.mkdir(filename)
-            #     filename = filename+arenaS+"_bd#"+str(buf_dim)+"_gt#"+str(gt)+"_th#"+str(thr)+"_fitting.pdf"
+            #     filename=filename+arenaS+"/"
+            #     if not os.path.exists(filename):
+            #         os.mkdir(filename)
+            #     filename=filename+str(n_agents)+"/"
+            #     if not os.path.exists(filename):
+            #         os.mkdir(filename)
+            #     filename=filename+str(buf_dim)+"/"
+            #     if not os.path.exists(filename):
+            #         os.mkdir(filename)
+            #     filename = filename+"_gt#"+str(gt)+"_th#"+str(thr)+"_fitting.pdf"
             #     plt.savefig(filename)
             # plt.close(fig)
             self.dump_estimates(external_data,estimates)
