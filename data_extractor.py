@@ -16,22 +16,43 @@ class Results:
                 selem=elem.split('_')
                 if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
-    
+
 #########################################################################################################
     def rearrange_matrix(self,data):
         return np.transpose(data, (1,0,2))
 
 ##########################################################################################################
-    def compute_avg_msgs(self,data):
+    def compute_avg_msgs(self,messages,states):
         print("--- Computing avg buffer dimension ---")
-        out = [0]*len(data[0][0])
-        for i in range(len(data)):
-            for j in range(len(data[i])):
-                for t in range(len(data[i][j])):
-                    out[t]+=data[i][j][t]
-        for t in range(len(out)):
-            out[t] = out[t]/(len(data)*len(data[0]))
-        return out
+        committed_count = self.count_committed_agents(states)
+        tot_avg     = [0]*len(messages[0][0])
+        comm_avg    = []
+        uncomm_avg  = []
+        for i in range(len(messages)):
+            com_flag    = [0]*len(messages[0][0])
+            uncom_flag  = [0]*len(messages[0][0])
+            for j in range(len(messages[i])):
+                for t in range(len(messages[i][j])):
+                    tot_avg[t]+=messages[i][j][t]
+                    if states[i][j] == 1:
+                        com_flag[t]+=messages[i][j][t]
+                    else:
+                        uncom_flag[t]+=messages[i][j][t]
+            for t in range(len(com_flag)):
+                com_flag[t]     = com_flag[t]/committed_count
+                uncom_flag[t]   = uncom_flag[t]/(len(states[0])-committed_count)
+            if i == 0:
+                comm_avg    = com_flag
+                uncomm_avg  = uncom_flag
+            else:
+                for t in range(len(com_flag)):
+                    comm_avg[t]+=com_flag[t]
+                    uncomm_avg[t]+=uncom_flag[t]
+        for t in range(len(tot_avg)):
+            tot_avg[t]      = np.round(tot_avg[t]/(len(messages)*len(messages[0])),3)
+            comm_avg[t]     = np.round(comm_avg[t]/len(messages),3)
+            uncomm_avg[t]   = np.round(uncomm_avg[t]/len(messages),3)
+        return tot_avg, comm_avg, uncomm_avg
     
 ##########################################################################################################
     def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
@@ -73,18 +94,23 @@ class Results:
                                 states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
                                 quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
                                 msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
-                                if (data_type=="all" or data_type=="freq"):
+                                if data_type in ("all","freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                     if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",agent_id,"num lines:",len(msgs_M_1[seed-1]))
-                    if seed == num_runs:
+                    sem = 1
+                    for i in range(num_runs):
+                        if len(states_M_1[i])==0:
+                            sem = 0
+                            break
+                    if sem == 1:
                         msgs_bigM_1[agent_id]       = msgs_M_1
                         states_bigM_1[agent_id]     = states_M_1
                         quorum_bigM_1[agent_id]     = quorum_M_1
                         msgs_M_1                    = [np.array([],dtype=int)]*num_runs
                         states_M_1                  = [np.array([],dtype=int)]*num_runs
                         quorum_M_1                  = [np.array([],dtype=int)]*num_runs
-                        if (data_type=="all" or data_type=="freq"):
+                        if data_type in ("all","freq"):
                             act_bigM_1[agent_id]    = act_M_1
                             act_bigM_2[agent_id]    = act_M_2
                             act_M_1                 = [np.array([],dtype=int)]*num_runs
@@ -94,33 +120,29 @@ class Results:
             t_messages  = sub_path.split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[6].split('#')[-1]
-            messages    = self.compute_avg_msgs(msgs_bigM_1)
-            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, messages])
-            del messages
-            gc.collect()
-            quorums = self.rearrange_matrix(quorum_bigM_1)
-            states = self.rearrange_matrix(states_bigM_1)
-            # -----------------------------------
-            statescpy = [[0]*len(states[0])]*len(states)
+            states      = self.rearrange_matrix(states_bigM_1)
+            messages    = self.rearrange_matrix(msgs_bigM_1)
+            statescpy   = [[0]*len(states[0])]*len(states)
             for i in range(len(states)):
                 for j in range(len(states[i])):
                     statescpy[i][j] = states[i][j][-1]
-            # -----------------------------------
+            avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
+            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
+            del avg_messages,commit_avg_msgs,uncommit_avg_msgs
+            quorums = self.rearrange_matrix(quorum_bigM_1)
             self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
             self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
             del quorums, states, statescpy
-            gc.collect()
-        if (data_type=="all" or data_type=="freq"):
+        if data_type in ("all","freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,3,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
             del act_results
-            gc.collect()
         del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
         gc.collect()
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "type", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -130,7 +152,9 @@ class Results:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
-            fwriter.writerow(data)
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"tot_average",data[-3]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"commit_average",data[-2]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"uncommit_average",data[-1]])
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    

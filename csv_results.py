@@ -18,19 +18,64 @@ class Data:
     def plot_messages(self,data):
         dict_park_square, dict_adam_square, dict_our_square = {},{},{}
         dict_park_rect, dict_adam_rect, dict_our_rect = {},{},{}
+        com_dict_park_square, com_dict_adam_square, com_dict_our_square = {},{},{}
+        com_dict_park_rect, com_dict_adam_rect, com_dict_our_rect = {},{},{}
+        uncom_dict_park_square, uncom_dict_adam_square, uncom_dict_our_square = {},{},{}
+        uncom_dict_park_rect, uncom_dict_adam_rect, uncom_dict_our_rect = {},{},{}
         for k in data.keys():
             if k[1]=='P':
-                if k[0].split(';')[0] == k[0].split(';')[1]: dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                else: dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                if k[0].split(';')[0] == k[0].split(';')[1]:
+                    if k[7] == "commit_average":
+                        com_dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    elif k[7] == "uncommit_average":
+                        uncom_dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                else:
+                    if k[7] == "commit_average":
+                        com_dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    elif k[7] == "uncommit_average":
+                        uncom_dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
             else:
                 if int(k[4])==0:
-                    if k[0].split(';')[0] == k[0].split(';')[1]: dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    else: dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    if k[0].split(';')[0] == k[0].split(';')[1]:
+                        if k[7] == "commit_average":
+                            com_dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        elif k[7] == "uncommit_average":
+                            uncom_dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        else:
+                            dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        if k[7] == "commit_average":
+                            com_dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        elif k[7] == "uncommit_average":
+                            uncom_dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        else:
+                            dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 else:
-                    if k[0].split(';')[0] == k[0].split(';')[1]: dict_our_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    else: dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-        self.print_messages([dict_park_square,dict_adam_square,dict_our_square],0)
-        self.print_messages([dict_park_rect,dict_adam_rect,dict_our_rect],1)
+                    if k[0].split(';')[0] == k[0].split(';')[1]:
+                        if k[7] == "commit_average":
+                            com_dict_our_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        elif k[7] == "uncommit_average":
+                            uncom_dict_our_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        else:
+                            dict_our_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        if k[7] == "commit_average":
+                            com_dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        elif k[7] == "uncommit_average":
+                            uncom_dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                        else:
+                            dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+        self.print_messages("tot_average",[dict_park_square,dict_adam_square,dict_our_square],0)
+        self.print_messages("tot_average",[dict_park_rect,dict_adam_rect,dict_our_rect],1)
+        self.print_messages("commit_average",[com_dict_park_square,com_dict_adam_square,com_dict_our_square],0)
+        self.print_messages("commit_average",[com_dict_park_rect,com_dict_adam_rect,com_dict_our_rect],1)
+        self.print_messages("uncommit_average",[uncom_dict_park_square,uncom_dict_adam_square,uncom_dict_our_square],0)
+        self.print_messages("uncommit_average",[uncom_dict_park_rect,uncom_dict_adam_rect,uncom_dict_our_rect],1)
+
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
@@ -54,7 +99,7 @@ class Data:
                                         tval+=c
                             array_val.append(float(tval))
                             if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6]):array_val})
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -420,7 +465,6 @@ class Data:
                         plt.close(cfig)
                         plt.close(ufig)
 
-
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k,msg_hop):
         plt.rcParams.update({"font.size":36})
@@ -539,12 +583,12 @@ class Data:
                         plt.close(fig)
 
 ##########################################################################################################
-    def print_messages(self,data_in,type):
+    def print_messages(self,c_type,data_in,a_type):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5,6,7]
         arena_type = "square"
-        if type==1: arena_type = "rectangular"
+        if a_type==1: arena_type = "rectangular"
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
@@ -554,7 +598,6 @@ class Data:
         solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
         dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
         dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
-
         handles_r   = [red,blue,green]
         handles_l   = [solid,dashed,dotted]
         fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
@@ -744,7 +787,7 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/"+arena_type+"Arena_messages.png"
+        fig_path = self.base+"/msgs_data/images/"+c_type+"_"+arena_type+"Arena_messages.png"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=6, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
