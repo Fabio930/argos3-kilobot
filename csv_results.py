@@ -92,7 +92,7 @@ class Data:
                             if ']' in val:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -110,7 +110,7 @@ class Data:
                             if rval == -1:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -312,14 +312,14 @@ class Data:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
-                fig_path = path+thr+"_"+gt+"_activation.png"
+                fig_path = path+thr+"_"+gt+"_activation.pdf"
                 fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
     def print_messages(self,data_in):
-        plt.rcParams.update({"font.size":26})
+        plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5,6,7]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -330,7 +330,7 @@ class Data:
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(36,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -355,7 +355,6 @@ class Data:
         for k in dict_park.keys():
             row = 0
             col = 0
-            sign = []
             if k[0]=='big' and k[3]=='25':
                 row = 0
                 if k[4] == '11':
@@ -386,10 +385,7 @@ class Data:
                     col = 2
                 elif k[4] == '24':
                     col = 3
-            for xi in range(0,1200):
-                sign.append(int(float(k[4]))/(int(k[3])-1))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
-            ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -511,7 +507,7 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/messages.png"
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
