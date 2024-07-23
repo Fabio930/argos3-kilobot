@@ -229,31 +229,31 @@ class Data:
                 if k0[8] not in msg_hop: msg_hop.append(k0[8])
                 if k0[9] not in msg_time: msg_time.append(k0[9])
         for i in range(len(data_in)):
-            a='P' if (i==2 or i==3) else 'O'
-            for n_r in runs:
-                for et in time:
-                    for a_s in arena:
-                        for c in comm:
-                            for n_a in agents:
-                                for thr in threshlds:
-                                    for gt in ground_T:
-                                        for m_h in msg_hop:
-                                            for m_t in msg_time:
-                                                comm_data = data_in[i][0].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
-                                                uncomm_data = data_in[i][1].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
-                                                if comm_data != None:
-                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    if a=='P' and int(c)==0 and m_t in p_k:
-                                                        dict_park_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                        dict_park_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
-                                                    if a=='O' and m_t in o_k:
-                                                        if int(c)==0:
-                                                            dict_adms_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                            dict_adms_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
-                                                        else:
-                                                            dict_our_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                            dict_our_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+            for a in algo:
+                for n_r in runs:
+                    for et in time:
+                        for a_s in arena:
+                            for c in comm:
+                                for n_a in agents:
+                                    for thr in threshlds:
+                                        for gt in ground_T:
+                                            for m_h in msg_hop:
+                                                for m_t in msg_time:
+                                                    comm_data = data_in[i][0].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
+                                                    uncomm_data = data_in[i][1].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
+                                                    if comm_data != None:
+                                                        if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
+                                                            p_k.append(m_t) if a=='P' else o_k.append(m_t)
+                                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                                            dict_park_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                            dict_park_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                        if a=='O' and m_t in o_k:
+                                                            if int(c)==0:
+                                                                dict_adms_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                dict_adms_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                            else:
+                                                                dict_our_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                dict_our_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
         self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm,dict_adms_state_comm,dict_our_state_comm],[dict_park_state_uncomm,dict_adms_state_uncomm,dict_our_state_uncomm],[p_k,o_k],[arena,agents],msg_hop)
 
 ##########################################################################################################
@@ -280,32 +280,32 @@ class Data:
                 if k0[8] not in msg_hop: msg_hop.append(k0[8])
                 if k0[9] not in msg_time: msg_time.append(k0[9])
         for i in range(len(data_in)):
-            a='P' if (i==2 or i==3) else 'O'
-            for n_r in runs:
-                for et in time:
-                    for a_s in arena:
-                        for c in comm:
-                            for n_a in agents:
-                                for thr in threshlds:
-                                    for gt in ground_T:
-                                        for m_h in msg_hop:
-                                            for m_t in msg_time:
-                                                s_data = data_in[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
-                                                t_data = times[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
-                                                if s_data != None:
-                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    
-                                                    if a=='P' and int(c)==0 and m_t in p_k:
-                                                        dict_park_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                        dict_park_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
-                                                    if a=='O' and m_t in o_k:
-                                                        if int(c)==0:
-                                                            dict_adms_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                            dict_adms_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
-                                                        else:
-                                                            dict_our_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                            dict_our_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+            for a in algo:
+                for n_r in runs:
+                    for et in time:
+                        for a_s in arena:
+                            for c in comm:
+                                for n_a in agents:
+                                    for thr in threshlds:
+                                        for gt in ground_T:
+                                            for m_h in msg_hop:
+                                                for m_t in msg_time:
+                                                    s_data = data_in[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
+                                                    t_data = times[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
+                                                    if s_data != None:
+                                                        if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
+                                                            p_k.append(m_t) if a=='P' else o_k.append(m_t)
+                                                        
+                                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                                            dict_park_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                            dict_park_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                        if a=='O' and m_t in o_k:
+                                                            if int(c)==0:
+                                                                dict_adms_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                dict_adms_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                            else:
+                                                                dict_our_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                dict_our_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
         self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_time,dict_our_time],[p_k,o_k],[arena,agents],msg_hop)
 
 ##########################################################################################################
@@ -344,15 +344,37 @@ class Data:
                         else:
                             agents = more_k[1]
                         for ag in agents:
-                            if a=="0_500;0_500" or a=="1_000;0_250":
-                                row = 1
-                                p_k = [str(19),str(22),str(23),str(24)]
+                            if ag=="25":
+                                if a=="0_500;0_500" or a=="1_000;0_250":
+                                    row = 1
+                                    if a=="0_500;0_500":
+                                        if gt=="0_56": p_k=["13","15","18","19"]
+                                        elif gt=="0_68": p_k=["14","16","19","20"]
+                                        elif gt=="0_80": p_k=["15","18","20","22"]
+                                    elif a=="1_000;0_250":
+                                        if gt=="0_56": p_k=["10","11","12","13"]
+                                        elif gt=="0_68": p_k=["11","12","14","14_01"]
+                                        elif gt=="0_80": p_k=["13","15","16","17"]
+                                else:
+                                    row = 0
+                                    if a=="1_000;1_000":
+                                        if gt=="0_56": p_k=["7","9","11","12"]
+                                        elif gt=="0_68": p_k=["7","9","12","13"]
+                                        elif gt=="0_80": p_k=["7","10","14","15"]
+                                    elif a=="2_000;0_500":
+                                        if gt=="0_56": p_k=["6","8","10","11"]
+                                        elif gt=="0_68": p_k=["6","8","11","12"]
+                                        elif gt=="0_80": p_k=["7","9","12","14"]
                             else:
-                                row = 0
-                                p_k = [str(11),str(15),str(19),str(22)]
-                            if int(ag)==100:
                                 row = 2
-                                p_k = [str(41),str(57),str(76),str(85)]
+                                if a=="1_000;1_000":
+                                    if gt=="0_56": p_k=["28","36","45","49"]
+                                    elif gt=="0_68": p_k=["29","38","48","53"]
+                                    elif gt=="0_80": p_k=["31","42","56","62"]
+                                elif a=="2_000;0_500":
+                                    if gt=="0_56": p_k=["27","34","42","45"]
+                                    elif gt=="0_68": p_k=["27","36","45","49"]
+                                    elif gt=="0_80": p_k=["28","38","51","56"]
                             for k in range(len(o_k)):
                                 cax[row][k].plot(dict_park_comm.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                                 cax[row][k].plot(dict_adam_comm.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
@@ -499,15 +521,38 @@ class Data:
                         else:
                             agents = more_k[1]
                         for ag in agents:
-                            if a=="0_500;0_500" or a=="1_000;0_250":
-                                row = 1
-                                p_k = [str(19),str(22),str(23),str(24)]
+
+                            if ag=="25":
+                                if a=="0_500;0_500" or a=="1_000;0_250":
+                                    row = 1
+                                    if a=="0_500;0_500":
+                                        if gt=="0_56": p_k=["13","15","18","19"]
+                                        elif gt=="0_68": p_k=["14","16","19","20"]
+                                        elif gt=="0_80": p_k=["15","18","20","22"]
+                                    elif a=="1_000;0_250":
+                                        if gt=="0_56": p_k=["10","11","12","13"]
+                                        elif gt=="0_68": p_k=["11","12","14","14_01"]
+                                        elif gt=="0_80": p_k=["13","15","16","17"]
+                                else:
+                                    row = 0
+                                    if a=="1_000;1_000":
+                                        if gt=="0_56": p_k=["7","9","11","12"]
+                                        elif gt=="0_68": p_k=["7","9","12","13"]
+                                        elif gt=="0_80": p_k=["7","10","14","15"]
+                                    elif a=="2_000;0_500":
+                                        if gt=="0_56": p_k=["6","8","10","11"]
+                                        elif gt=="0_68": p_k=["6","8","11","12"]
+                                        elif gt=="0_80": p_k=["7","9","12","14"]
                             else:
-                                row = 0
-                                p_k = [str(11),str(15),str(19),str(22)]
-                            if int(ag)==100:
                                 row = 2
-                                p_k = [str(41),str(57),str(76),str(85)]
+                                if a=="1_000;1_000":
+                                    if gt=="0_56": p_k=["28","36","45","49"]
+                                    elif gt=="0_68": p_k=["29","38","48","53"]
+                                    elif gt=="0_80": p_k=["31","42","56","62"]
+                                elif a=="2_000;0_500":
+                                    if gt=="0_56": p_k=["27","34","42","45"]
+                                    elif gt=="0_68": p_k=["27","36","45","49"]
+                                    elif gt=="0_80": p_k=["28","38","51","56"]
                             for k in range(len(o_k)):
                                 ax[row][k].plot(dict_park.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                                 ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
@@ -625,43 +670,113 @@ class Data:
         for k in dict_park.keys():
             row = 0
             col = 0
-            sign = []
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '11':
-                    col = 0
-                elif k[4] == '15':
-                    col = 1
-                elif k[4] == '19':
-                    col = 2
-                elif k[4] == '22':
-                    col = 3
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '41':
-                    col = 0
-                elif k[4] == '57':
-                    col = 1
-                elif k[4] == '76':
-                    col = 2
-                elif k[4] == '85':
-                    col = 3
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '19':
-                    col = 0
-                elif k[4] == '22':
-                    col = 1
-                elif k[4] == '23':
-                    col = 2
-                elif k[4] == '24':
-                    col = 3
-            for xi in range(0,900):
-                sign.append(int(float(k[4]))/(int(k[3])-1))
+            if k[3]=="25":
+                if k[0]=="0_500;0_500":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "18": col=2
+                        elif k[4] == "19": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "14": col=0
+                        elif k[4] == "16": col=1
+                        elif k[4] == "19": col=2
+                        elif k[4] == "20": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "15": col=0
+                        elif k[4] == "18": col=1
+                        elif k[4] == "20": col=2
+                        elif k[4] == "22": col=3
+                elif k[0]=="1_000;0_250":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "10": col=0
+                        elif k[4] == "11": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "11": col=0
+                        elif k[4] == "12": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "14_01": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "16": col=2
+                        elif k[4] == "17": col=3
+                elif k[0]=="1_000;1_000":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "10": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "15": col=3
+                elif k[0]=="2_000;0_500":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "10": col=2
+                        elif k[4] == "11": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "14": col=3
+            elif k[3]=="100":
+                if k[0]=="1_000;1_000":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "28": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "29": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "48": col=2
+                        elif k[4] == "53": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "31": col=0
+                        elif k[4] == "42": col=1
+                        elif k[4] == "56": col=2
+                        elif k[4] == "62": col=3
+                elif k[0]=="2_000;0_500":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "27": col=0
+                        elif k[4] == "34": col=1
+                        elif k[4] == "42": col=2
+                        elif k[4] == "45": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "27": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "28": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "51": col=2
+                        elif k[4] == "56": col=3
             if k[2]=="0.56": ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
             elif k[2]=="0.68": ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
             elif k[2]=="0.80": ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls=":")
-            ax[row][col].plot(sign,color="black",lw=6,ls="--")
         for k in dict_adam.keys():
             row = 0
             col = 0
