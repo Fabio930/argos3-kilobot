@@ -172,7 +172,7 @@ class Results:
                                         if val[0] != '': msgs.append(int(val[0]))
                                         broadcast_c = int(val[1])
                                         re_broadcast_c = int(val[2])
-                                if (data_type=="all" or data_type=="freq"):
+                                if data_type in ("all","freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                                 if len(msgs) < max_buff_size:
@@ -185,12 +185,12 @@ class Results:
                     if seed == num_runs:
                         msgs_bigM_1[agent_id] = msgs_M_1
                         msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                        if (data_type=="all" or data_type=="freq"):
+                        if data_type in ("all","freq"):
                             act_bigM_1[agent_id] = act_M_1
                             act_bigM_2[agent_id] = act_M_2
                             act_M_1 = [np.array([],dtype=int)]*num_runs
                             act_M_2 = [np.array([],dtype=int)]*num_runs
-        if data_type=="all" or data_type=="quorum":
+        if data_type in ("all","quorum"):
             info_vec     = sub_path.split('/')
             algo     = info_vec[4].split('_')[0][0]
             arenaS   = info_vec[4].split('_')[-1][:-1]
@@ -214,7 +214,6 @@ class Results:
                             self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
                             self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],self.ground_truth[gt],thr,quorums,msgs_bigM_1)
                             del quorums
-                            gc.collect()
                         del results
                         gc.collect()
             else:
@@ -228,14 +227,12 @@ class Results:
                         self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,msg_exp_time,self.ground_truth[gt],thr,quorums,msgs_bigM_1)
                         del quorums
-                        gc.collect()
                     del results
                     gc.collect()
-        if (data_type=="all" or data_type=="freq"):
+        if data_type in ("all","freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time)
             del act_results
-            gc.collect()
         del num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
         gc.collect()
                 
@@ -313,7 +310,7 @@ class Results:
                 # censoring = durations_by_buffer.get(k)[1]
                 a_data = adapted_durations.get(k)[0]
                 a_censoring = adapted_durations.get(k)[1]
-                if len(a_data)>3:
+                if len(a_data)>2:
                     wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                     # kmf.fit(data, event_observed=censoring,label="kmf "+k)
                     # kmf.cumulative_density_.plot(ax=ax,lw=6,ls="-")
