@@ -210,8 +210,10 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park_state_comm,dict_adms_state_comm,dict_our_state_comm           = {},{},{}
-        dict_park_state_uncomm,dict_adms_state_uncomm,dict_our_state_uncomm     = {},{},{}
+        dict_park_state_comm_sq,dict_adms_state_comm_sq,dict_our_state_comm_sq           = {},{},{}
+        dict_park_state_uncomm_sq,dict_adms_state_uncomm_sq,dict_our_state_uncomm_sq     = {},{},{}
+        dict_park_state_comm_rt,dict_adms_state_comm_rt,dict_our_state_comm_rt           = {},{},{}
+        dict_park_state_uncomm_rt,dict_adms_state_uncomm_rt,dict_our_state_uncomm_rt     = {},{},{}
         ground_T, threshlds , msg_time                                          = [],[],[]
         algo,arena,runs,time,comm,agents,msg_hop                                = [],[],[],[],[],[],[]
         p_k,o_k                                                                 = [],[]
@@ -245,24 +247,39 @@ class Data:
                                                         if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
                                                             p_k.append(m_t) if a=='P' else o_k.append(m_t)
                                                         if a=='P' and int(c)==0 and m_t in p_k:
-                                                            dict_park_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                            dict_park_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                            if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                dict_park_state_comm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                dict_park_state_uncomm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                            else:
+                                                                dict_park_state_comm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                dict_park_state_uncomm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
                                                         if a=='O' and m_t in o_k:
                                                             if int(c)==0:
-                                                                dict_adms_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                                dict_adms_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                                if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                    dict_adms_state_comm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                    dict_adms_state_uncomm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                                else:
+                                                                    dict_adms_state_comm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                    dict_adms_state_uncomm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
                                                             else:
-                                                                dict_our_state_comm.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
-                                                                dict_our_state_uncomm.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
-        self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm,dict_adms_state_comm,dict_our_state_comm],[dict_park_state_uncomm,dict_adms_state_uncomm,dict_our_state_uncomm],[p_k,o_k],[arena,agents],msg_hop)
+                                                                if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                    dict_our_state_comm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                    dict_our_state_uncomm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+                                                                else:
+                                                                    dict_our_state_comm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
+                                                                    dict_our_state_uncomm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
+        self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm_sq,dict_adms_state_comm_sq,dict_our_state_comm_sq],[dict_park_state_uncomm_sq,dict_adms_state_uncomm_sq,dict_our_state_uncomm_sq],[p_k,o_k],[["0_500;0_500","1_000;1_000"],agents],msg_hop,"square")
+        self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm_rt,dict_adms_state_comm_rt,dict_our_state_comm_rt],[dict_park_state_uncomm_rt,dict_adms_state_uncomm_rt,dict_our_state_uncomm_rt],[p_k,o_k],[["1_000;0_250","2_000;0_500"],agents],msg_hop,"rectangular")
 
 ##########################################################################################################
     def plot_active_w_gt_thr(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park_state,dict_adms_state,dict_our_state  = {},{},{}
-        dict_park_time,dict_adms_time,dict_our_time     = {},{},{}
+        dict_park_state_sq,dict_adms_state_sq,dict_our_state_sq  = {},{},{}
+        dict_park_time_sq,dict_adms_time_sq,dict_our_time_sq     = {},{},{}
+        dict_park_state_rt,dict_adms_state_rt,dict_our_state_rt  = {},{},{}
+        dict_park_time_rt,dict_adms_time_rt,dict_our_time_rt     = {},{},{}
         ground_T, threshlds , msg_time                  = [],[],[]
         algo,arena,runs,time,comm,agents,msg_hop        = [],[],[],[],[],[],[]
         p_k,o_k                                         = [],[]
@@ -297,19 +314,33 @@ class Data:
                                                             p_k.append(m_t) if a=='P' else o_k.append(m_t)
                                                         
                                                         if a=='P' and int(c)==0 and m_t in p_k:
-                                                            dict_park_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                            dict_park_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                            if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                dict_park_state_sq.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                dict_park_time_sq.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                            else:
+                                                                dict_park_state_rt.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                dict_park_time_rt.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                            
                                                         if a=='O' and m_t in o_k:
                                                             if int(c)==0:
-                                                                dict_adms_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                                dict_adms_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                                if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                    dict_adms_state_sq.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                    dict_adms_time_sq.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                                else:
+                                                                    dict_adms_state_rt.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                    dict_adms_time_rt.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
                                                             else:
-                                                                dict_our_state.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
-                                                                dict_our_time.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_time,dict_our_time],[p_k,o_k],[arena,agents],msg_hop)
+                                                                if a_s.split(';')[0] == a_s.split(';')[1]:
+                                                                    dict_our_state_sq.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                    dict_our_time_sq.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+                                                                else:
+                                                                    dict_our_state_rt.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
+                                                                    dict_our_time_rt.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state_sq,dict_adms_state_sq,dict_our_state_sq],[dict_park_time_sq,dict_adms_time_sq,dict_our_time_sq],[p_k,o_k],[["0_500;0_500","1_000;1_000"],agents],msg_hop,"square")
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state_rt,dict_adms_state_rt,dict_our_state_rt],[dict_park_time_rt,dict_adms_time_rt,dict_our_time_rt],[p_k,o_k],[["1_000;0_250","2_000;0_500"],agents],msg_hop,"rectangular")
 
 ##########################################################################################################
-    def print_evolutions_by_commit(self,path,ground_T,threshlds,data_comm,data_uncomm,keys,more_k,msg_hop):
+    def print_evolutions_by_commit(self,path,ground_T,threshlds,data_comm,data_uncomm,keys,more_k,msg_hop,arena_type):
         plt.rcParams.update({"font.size":36})
         cm                                                  = plt.get_cmap('viridis') 
         typo                                                = [0,1,2,3,4,5,6,7]
@@ -331,14 +362,11 @@ class Data:
         void_y_ticks    = []
         real_x_ticks    = []
         for m_h in msg_hop:
-            for a in arena:
-                for gt in ground_T:
-                    for thr in threshlds:
-                        cfig, cax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
-                        ufig, uax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
-                        arena_type = ""
-                        if a.split(';')[0] == a.split(';')[1]: arena_type = "square"
-                        else: arena_type = "rectangular"
+            for gt in ground_T:
+                for thr in threshlds:
+                    cfig, cax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+                    ufig, uax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+                    for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
                             agents = ["25"]
                         else:
@@ -476,19 +504,19 @@ class Data:
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 cax[row][k].grid(which='major')
                                 uax[row][k].grid(which='major')
-                        cfig.tight_layout()
-                        ufig.tight_layout()
-                        cfig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_committed.pdf"
-                        ufig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_uncommitted.pdf"
-                        cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
-                        ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
-                        cfig.savefig(cfig_path, bbox_inches='tight')
-                        ufig.savefig(ufig_path, bbox_inches='tight')
-                        plt.close(cfig)
-                        plt.close(ufig)
+                    cfig.tight_layout()
+                    ufig.tight_layout()
+                    cfig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_committed.pdf"
+                    ufig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_uncommitted.pdf"
+                    cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                    ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                    cfig.savefig(cfig_path, bbox_inches='tight')
+                    ufig.savefig(ufig_path, bbox_inches='tight')
+                    plt.close(cfig)
+                    plt.close(ufig)
 
 ##########################################################################################################
-    def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k,msg_hop):
+    def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k,msg_hop,arena_type):
         plt.rcParams.update({"font.size":36})
         cm                              = plt.get_cmap('viridis') 
         typo                            = [0,1,2,3,4,5,6,7]
@@ -509,19 +537,15 @@ class Data:
         void_y_ticks    = []
         real_x_ticks    = []
         for m_h in msg_hop:
-            for a in arena:
-                for gt in ground_T:
-                    for thr in threshlds:
-                        fig, ax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
-                        arena_type = ""
-                        if a.split(';')[0] == a.split(';')[1]: arena_type = "square"
-                        else: arena_type = "rectangular"
+            for gt in ground_T:
+                for thr in threshlds:
+                    fig, ax = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+                    for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
                             agents = ["25"]
                         else:
                             agents = more_k[1]
                         for ag in agents:
-
                             if ag=="25":
                                 if a=="0_500;0_500" or a=="1_000;0_250":
                                     row = 1
@@ -554,6 +578,7 @@ class Data:
                                     elif gt=="0_68": p_k=["27","36","45","49"]
                                     elif gt=="0_80": p_k=["28","38","51","56"]
                             for k in range(len(o_k)):
+                                print((a,ag,p_k[k],m_h,gt,thr))
                                 ax[row][k].plot(dict_park.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                                 ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
                                 ax[row][k].plot(dict_our.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[6]),lw=6)
@@ -621,11 +646,11 @@ class Data:
                                 else:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 ax[row][k].grid(which='major')
-                        fig.tight_layout()
-                        fig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation.pdf"
-                        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
-                        fig.savefig(fig_path, bbox_inches='tight')
-                        plt.close(fig)
+                    fig.tight_layout()
+                    fig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation.pdf"
+                    fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                    fig.savefig(fig_path, bbox_inches='tight')
+                    plt.close(fig)
 
 ##########################################################################################################
     def print_messages(self,c_type,data_in,a_type):

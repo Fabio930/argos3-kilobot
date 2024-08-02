@@ -35,14 +35,14 @@ def main():
                         tot_st      = np.append(tot_st,[states],axis=0)
                         tot_stbc    = np.append(tot_stbc,[states_by_commit],axis=0)
                         tot_times   = np.append(tot_times,[times],axis=0)
-            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
-        elif base.split('/')[-1] == "msgs_data":
-            for file in sorted(os.listdir(base)):
-                if "images" not in file:
-                    file_path = os.path.join(base, file)
-                    data = csv_res.read_msgs_csv(file_path)
-                    csv_res.plot_messages(data)
+            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
+        # elif base.split('/')[-1] == "msgs_data":
+        #     for file in sorted(os.listdir(base)):
+        #         if "images" not in file:
+        #             file_path = os.path.join(base, file)
+        #             data = csv_res.read_msgs_csv(file_path)
+        #             csv_res.plot_messages(data)
 
 ##################################################################################
 if __name__ == "__main__":
