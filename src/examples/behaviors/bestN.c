@@ -410,7 +410,7 @@ void loop(){
     check_quorum(&quorum_array);
     if(init_received_D) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,true_quorum_items,num_own_info,num_other_info);
+    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\t%f\t%f\n",my_state,quorum_reached,true_quorum_items,num_own_info,num_other_info,gps_position.position_x,gps_position.position_y);
     fclose(fp);
 }
 

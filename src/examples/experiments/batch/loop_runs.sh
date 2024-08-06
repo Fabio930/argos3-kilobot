@@ -68,8 +68,8 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 numrobots="25 100"
-threshold="0.8"
-committed_percentage="0.56 0.68 0.80"
+threshold="0.56"
+committed_percentage="0.80"
 messages_hops="0"
 # small arena dimensions
 # arena_x_side="0.500 1.000"
