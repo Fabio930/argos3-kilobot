@@ -578,7 +578,6 @@ class Data:
                                     elif gt=="0_68": p_k=["27","36","45","49"]
                                     elif gt=="0_80": p_k=["28","38","51","56"]
                             for k in range(len(o_k)):
-                                print((a,ag,p_k[k],m_h,gt,thr))
                                 ax[row][k].plot(dict_park.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                                 ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
                                 ax[row][k].plot(dict_our.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[6]),lw=6)
