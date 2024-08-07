@@ -11,8 +11,31 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "proc_data" or elem == "msgs_data":
+            if elem == "proc_data" or elem == "msgs_data" or elem == "pos_data":
                 self.bases.append(os.path.join(self.base, elem))
+
+##########################################################################################################
+    def plot_pos(self,data):
+        dict_park_square, dict_adam_square, dict_our_square = {},{},{}
+        dict_park_rect, dict_adam_rect, dict_our_rect       = {},{},{}
+        for k in data.keys():
+            if k[1]=='P':
+                if k[0].split(';')[0] == k[0].split(';')[1]:
+                    dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                else:
+                    dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+            else:
+                if int(k[4])==0:
+                    if k[0].split(';')[0] == k[0].split(';')[1]:
+                        dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                else:
+                    if k[0].split(';')[0] == k[0].split(';')[1]:
+                        dict_our_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+                    else:
+                        dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+        self.print_pos("tot_average_distance",[dict_park_square,dict_adam_square,dict_our_square],[dict_park_rect,dict_adam_rect,dict_our_rect])
 
 ##########################################################################################################
     def plot_messages(self,data):
@@ -71,10 +94,45 @@ class Data:
                             dict_our_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
         self.print_messages("tot_average",[dict_park_square,dict_adam_square,dict_our_square],0)
         self.print_messages("tot_average",[dict_park_rect,dict_adam_rect,dict_our_rect],1)
-        self.print_messages("commit_average",[com_dict_park_square,com_dict_adam_square,com_dict_our_square],0)
-        self.print_messages("commit_average",[com_dict_park_rect,com_dict_adam_rect,com_dict_our_rect],1)
-        self.print_messages("uncommit_average",[uncom_dict_park_square,uncom_dict_adam_square,uncom_dict_our_square],0)
-        self.print_messages("uncommit_average",[uncom_dict_park_rect,uncom_dict_adam_rect,uncom_dict_our_rect],1)
+        self.print_dif_messages("dif_commit_average",[com_dict_park_square,com_dict_adam_square,com_dict_our_square],[uncom_dict_park_square,uncom_dict_adam_square,uncom_dict_our_square],0)
+        self.print_dif_messages("dif_commit_average",[com_dict_park_rect,com_dict_adam_rect,com_dict_our_rect],[uncom_dict_park_rect,uncom_dict_adam_rect,uncom_dict_our_rect],1)
+
+##########################################################################################################
+    def read_pos_csv(self,path):
+        data = {}
+        lc = 0
+        with open(path,newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if lc == 0:
+                    lc = 1
+                else:
+                    keys = []
+                    array_val=[]
+                    for val in row:
+                        split_val = val.split('\t')
+                        if len(split_val)==1:
+                            tval = val  
+                            if ']' in val:
+                                tval = ''
+                                for c in val:
+                                    if c != ']':
+                                        tval+=c
+                            array_val.append(float(tval))
+                            if ']' in val:
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
+                        else:
+                            for k in range(len(split_val)):
+                                tval = split_val[k]
+                                if '[' in split_val[k]:
+                                    tval = ''
+                                    for c in split_val[k]:
+                                        if c != '[':
+                                            tval+=c
+                                    array_val.append(float(tval))
+                                else:
+                                    keys.append(tval)
+        return data
 
 ##########################################################################################################
     def read_msgs_csv(self,path):
@@ -928,6 +986,604 @@ class Data:
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/"+c_type+"_"+arena_type+"Arena_messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=6, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+
+##########################################################################################################
+    def print_dif_messages(self,c_type,comm_data_in,uncomm_data_in,a_type):
+        plt.rcParams.update({"font.size":36})
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5,6,7]
+        arena_type = "square" if a_type==0 else "rectangular"        
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        comm_dict_park,comm_dict_adam,comm_dict_our         = comm_data_in[0], comm_data_in[1], comm_data_in[2]
+        uncomm_dict_park,uncomm_dict_adam,uncomm_dict_our   = uncomm_data_in[0], uncomm_data_in[1], uncomm_data_in[2]
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
+        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
+        dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
+        handles_r   = [red,blue,green]
+        handles_l   = [solid,dashed,dotted]
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        for k in comm_dict_park.keys():
+            row = 0
+            col = 0
+            if k[3]=="25":
+                if k[0]=="0_500;0_500":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "18": col=2
+                        elif k[4] == "19": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "14": col=0
+                        elif k[4] == "16": col=1
+                        elif k[4] == "19": col=2
+                        elif k[4] == "20": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "15": col=0
+                        elif k[4] == "18": col=1
+                        elif k[4] == "20": col=2
+                        elif k[4] == "22": col=3
+                elif k[0]=="1_000;0_250":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "10": col=0
+                        elif k[4] == "11": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "11": col=0
+                        elif k[4] == "12": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "14_01": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "16": col=2
+                        elif k[4] == "17": col=3
+                elif k[0]=="1_000;1_000":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "10": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "15": col=3
+                elif k[0]=="2_000;0_500":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "10": col=2
+                        elif k[4] == "11": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "14": col=3
+            elif k[3]=="100":
+                if k[0]=="1_000;1_000":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "28": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "29": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "48": col=2
+                        elif k[4] == "53": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "31": col=0
+                        elif k[4] == "42": col=1
+                        elif k[4] == "56": col=2
+                        elif k[4] == "62": col=3
+                elif k[0]=="2_000;0_500":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "27": col=0
+                        elif k[4] == "34": col=1
+                        elif k[4] == "42": col=2
+                        elif k[4] == "45": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "27": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "28": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "51": col=2
+                        elif k[4] == "56": col=3
+            comm_flag   = comm_dict_park.get(k)
+            uncomm_flag = uncomm_dict_park.get(k)
+            flag = []
+            for i in range(len(comm_flag)):
+                flag.append(comm_flag[i]-uncomm_flag[i])
+            if k[2]=="0.56": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6)
+            elif k[2]=="0.68": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
+            elif k[2]=="0.80": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=":")
+        for k in comm_dict_adam.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            comm_flag   = comm_dict_adam.get(k)
+            uncomm_flag = uncomm_dict_adam.get(k)
+            flag = []
+            for i in range(len(comm_flag)):
+                flag.append(comm_flag[i]-uncomm_flag[i])
+            if k[2]=="0.56": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6)
+            elif k[2]=="0.68": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
+            elif k[2]=="0.80": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=":")
+        for k in comm_dict_our.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            comm_flag   = comm_dict_our.get(k)
+            uncomm_flag = uncomm_dict_our.get(k)
+            flag = []
+            for i in range(len(comm_flag)):
+                flag.append(comm_flag[i]-uncomm_flag[i])
+            if k[2]=="0.56": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[6]),lw=6)
+            elif k[2]=="0.68": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[6]),lw=6,ls="--")
+            elif k[2]=="0.80": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[6]),lw=6,ls=":")
+        for x in range(2):
+            for y in range(4):
+                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_xticklabels(empty_string_labels)
+        for x in range(3):
+            for y in range(1,4):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        axt3=ax[0][3].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt3.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 120\, s$")
+        axt2.set_xlabel(r"$T_m = 300\, s$")
+        axt3.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][3].twinx()
+        ayt1=ax[1][3].twinx()
+        ayt2=ax[2][3].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        ax[2][3].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(4):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,900)
+                if x==0:
+                    ax[x][y].set_ylim(0,15)
+                elif x==1:
+                    ax[x][y].set_ylim(0,15)
+                else:
+                    ax[x][y].set_ylim(0,60)
+        fig.tight_layout()
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
+        fig_path = self.base+"/msgs_data/images/"+c_type+"_"+arena_type+"Arena_messages.pdf"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=6, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+    
+##########################################################################################################
+    def print_pos(self,c_type,square_data_in,rect_data_in):
+        plt.rcParams.update({"font.size":36})
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5,6,7]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        square_dict_park,square_dict_adam,square_dict_our   = square_data_in[0], square_data_in[1], square_data_in[2]
+        rect_dict_park,rect_dict_adam,rect_dict_our         = rect_data_in[0], rect_data_in[1], rect_data_in[2]
+        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='large interface')
+        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='small interface')
+        handles_r   = [red,blue,green]
+        handles_l   = [solid,dashed]
+        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        for k in square_dict_park.keys():
+            row = 0
+            col = 0
+            if k[3]=="25":
+                if k[0]=="0_500;0_500":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "18": col=2
+                        elif k[4] == "19": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "14": col=0
+                        elif k[4] == "16": col=1
+                        elif k[4] == "19": col=2
+                        elif k[4] == "20": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "15": col=0
+                        elif k[4] == "18": col=1
+                        elif k[4] == "20": col=2
+                        elif k[4] == "22": col=3
+                elif k[0]=="1_000;1_000":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "10": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "15": col=3
+            elif k[3]=="100":
+                if k[0]=="1_000;1_000":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "28": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "29": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "48": col=2
+                        elif k[4] == "53": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "31": col=0
+                        elif k[4] == "42": col=1
+                        elif k[4] == "56": col=2
+                        elif k[4] == "62": col=3
+            elif k[2]=="0.80": ax[row][col].plot(square_dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls="-")
+        for k in rect_dict_park.keys():
+            row = 0
+            col = 0
+            if k[3]=="25":
+                if k[0]=="1_000;0_250":
+                    row=1
+                    if k[2]=="0.56":
+                        if k[4] == "10": col=0
+                        elif k[4] == "11": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "13": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "11": col=0
+                        elif k[4] == "12": col=1
+                        elif k[4] == "14": col=2
+                        elif k[4] == "14_01": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "13": col=0
+                        elif k[4] == "15": col=1
+                        elif k[4] == "16": col=2
+                        elif k[4] == "17": col=3
+                elif k[0]=="2_000;0_500":
+                    row=0
+                    if k[2]=="0.56":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "10": col=2
+                        elif k[4] == "11": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "6": col=0
+                        elif k[4] == "8": col=1
+                        elif k[4] == "11": col=2
+                        elif k[4] == "12": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "7": col=0
+                        elif k[4] == "9": col=1
+                        elif k[4] == "12": col=2
+                        elif k[4] == "14": col=3
+            elif k[3]=="100":
+                if k[0]=="2_000;0_500":
+                    row = 2
+                    if k[2]=="0.56":
+                        if k[4] == "27": col=0
+                        elif k[4] == "34": col=1
+                        elif k[4] == "42": col=2
+                        elif k[4] == "45": col=3
+                    elif k[2]=="0.68":
+                        if k[4] == "27": col=0
+                        elif k[4] == "36": col=1
+                        elif k[4] == "45": col=2
+                        elif k[4] == "49": col=3
+                    elif k[2]=="0.80":
+                        if k[4] == "28": col=0
+                        elif k[4] == "38": col=1
+                        elif k[4] == "51": col=2
+                        elif k[4] == "56": col=3
+            elif k[2]=="0.80": ax[row][col].plot(rect_dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
+        for k in square_dict_adam.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            if k[2]=="0.80": ax[row][col].plot(square_dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6,ls="-")
+        for k in rect_dict_adam.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            if k[2]=="0.80": ax[row][col].plot(rect_dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
+        for k in square_dict_our.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            if k[2]=="0.80": ax[row][col].plot(square_dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls="-")
+        for k in rect_dict_our.keys():
+            row = 0
+            col = 0
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            if k[2]=="0.80": ax[row][col].plot(rect_dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls="--")
+        for x in range(2):
+            for y in range(4):
+                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_xticklabels(empty_string_labels)
+        for x in range(3):
+            for y in range(1,4):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        axt3=ax[0][3].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt3.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 120\, s$")
+        axt2.set_xlabel(r"$T_m = 300\, s$")
+        axt3.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][3].twinx()
+        ayt1=ax[1][3].twinx()
+        ayt2=ax[2][3].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        ax[2][3].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(4):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_ylim(0,1)
+        fig.tight_layout()
+        if not os.path.exists(self.base+"/pos_data/images/"):
+            os.mkdir(self.base+"/pos_data/images/")
+        fig_path = self.base+"/pos_data/images/"+c_type+".pdf"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     

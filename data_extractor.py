@@ -57,17 +57,19 @@ class Results:
 ##########################################################################################################
     def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
         act_results = {}
-        num_runs = int(len(os.listdir(sub_path))/n_agents)
-        states_bigM_1 = [np.array([])] * n_agents
-        quorum_bigM_1 = [np.array([])] * n_agents
-        msgs_bigM_1 = [np.array([])] * n_agents
-        act_bigM_1 = [np.array([])] * n_agents
-        act_bigM_2 = [np.array([])] * n_agents
-        msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
-        states_M_1 = [np.array([],dtype=int)]*num_runs
-        quorum_M_1 = [np.array([],dtype=int)]*num_runs
-        act_M_1 = [np.array([],dtype=int)]*num_runs
-        act_M_2 = [np.array([],dtype=int)]*num_runs
+        num_runs        = int(len(os.listdir(sub_path))/n_agents)
+        states_bigM_1   = [np.array([])] * n_agents
+        quorum_bigM_1   = [np.array([])] * n_agents
+        msgs_bigM_1     = [np.array([])] * n_agents
+        act_bigM_1      = [np.array([])] * n_agents
+        act_bigM_2      = [np.array([])] * n_agents
+        positions_bigM  = [np.array([])] * n_agents
+        msgs_M_1        = [np.array([],dtype=int)] * num_runs # x num_samples
+        states_M_1      = [np.array([],dtype=int)] * num_runs
+        quorum_M_1      = [np.array([],dtype=int)] * num_runs
+        act_M_1         = [np.array([],dtype=int)] * num_runs
+        act_M_2         = [np.array([],dtype=int)] * num_runs
+        positions_M     = [np.array([])] * num_runs
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem = elem.split('.')
@@ -84,6 +86,8 @@ class Results:
                                 msgs            = -1
                                 broadcast_c     = -1
                                 re_broadcast_c  = -1
+                                val_x           = -1
+                                val_y           = -1
                                 for val in row:
                                     val             = val.split('\t')
                                     state           = int(val[0])
@@ -91,6 +95,12 @@ class Results:
                                     msgs            = int(val[2])
                                     broadcast_c     = int(val[3])
                                     re_broadcast_c  = int(val[4])
+                                    try:
+                                        val_x       = float(val[5])
+                                        val_y       = float(val[6])
+                                    except:
+                                        print("positional values not found")
+                                positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
                                 states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
                                 quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
                                 msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
@@ -107,9 +117,11 @@ class Results:
                         msgs_bigM_1[agent_id]       = msgs_M_1
                         states_bigM_1[agent_id]     = states_M_1
                         quorum_bigM_1[agent_id]     = quorum_M_1
+                        positions_bigM[agent_id]    = positions_M
                         msgs_M_1                    = [np.array([],dtype=int)]*num_runs
                         states_M_1                  = [np.array([],dtype=int)]*num_runs
                         quorum_M_1                  = [np.array([],dtype=int)]*num_runs
+                        positions_M                 = [np.array([])] * num_runs
                         if data_type in ("all","freq"):
                             act_bigM_1[agent_id]    = act_M_1
                             act_bigM_2[agent_id]    = act_M_2
@@ -120,6 +132,7 @@ class Results:
             t_messages  = sub_path.split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[6].split('#')[-1]
+            positions   = self.rearrange_matrix(positions_bigM) if len(positions_bigM)>0 else []
             states      = self.rearrange_matrix(states_bigM_1)
             messages    = self.rearrange_matrix(msgs_bigM_1)
             statescpy   = [[0]*len(states[0])]*len(states)
@@ -132,13 +145,46 @@ class Results:
             quorums = self.rearrange_matrix(quorum_bigM_1)
             self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
             self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
-            del quorums, states, statescpy
+            avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
+            self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages, avg_distance])
+            del quorums, states, statescpy, positions
         if data_type in ("all","freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
             self.dump_msg_freq(algo,3,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
             del act_results
-        del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
+        del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,positions_M,positions_bigM
         gc.collect()
+
+##########################################################################################################
+    def compute_frontier_avg_distance(self,positions,arena_size,gt):
+        out = [0]*len(positions[0][0])
+        distances = np.copy(positions)
+        front = np.round(float(arena_size.split(';')[0].replace('_','.'))*float(gt),3)
+        for x in range(len(positions)):
+            for y in range(len(positions[x])):
+                for t in range(len(positions[x][y])):
+                    distances[x][y][t] = max(positions[x][y][t],front) - min(positions[x][y][t],front)
+        for t in range(len(distances[0][0])):
+            for x in range(len(distances)):
+                for y in range(len(distances[x])):
+                    out[t] += distances[x][y][t]
+        for t in range(len(out)):
+            out[t] = np.round(out[t]/(len(distances)*len(distances[0])),3)
+        return out
+    
+##########################################################################################################
+    def dump_distance(self, file_name, data):
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "type", "data"]
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "pos_data", file_name))
+        
+        if not os.path.exists(os.path.join(os.path.abspath(""), "pos_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "pos_data"))
+        
+        with open(os.path.join(os.path.abspath(""), "pos_data", file_name), mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"tot_average",data[-1]])
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):

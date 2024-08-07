@@ -6,7 +6,8 @@ import numpy as np
 def main():
     csv_res = CSVres.Data()
     for base in csv_res.bases:
-        if base.split('/')[-1] == "proc_data":
+        folder = base.split('/')[-1]
+        if folder == "proc_data":
             tot_st      = []
             tot_times   = []
             tot_stbc    = []
@@ -37,12 +38,19 @@ def main():
                         tot_times   = np.append(tot_times,[times],axis=0)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
             csv_res.plot_by_commit_w_gt_thr(tot_stbc)
-        elif base.split('/')[-1] == "msgs_data":
+        elif folder == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:
                     file_path = os.path.join(base, file)
                     data = csv_res.read_msgs_csv(file_path)
                     csv_res.plot_messages(data)
+        elif folder == "pos_data":
+            for file in sorted(os.listdir(base)):
+                if "images" not in file:
+                    file_path = os.path.join(base, file)
+                    data = csv_res.read_pos_csv(file_path)
+                    csv_res.plot_pos(data)
+
 
 ##################################################################################
 if __name__ == "__main__":

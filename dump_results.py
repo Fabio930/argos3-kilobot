@@ -92,8 +92,6 @@ def main():
                 for arena_dir in sorted(os.listdir(exp_l_path)):
                     if '.' not in arena_dir and '#' in arena_dir:
                         arena_path = os.path.join(exp_l_path, arena_dir)
-                        dim_x = float(arena_dir.split('#')[1].split(';')[0].replace('_', '.'))
-                        dim_y = float(arena_dir.split('#')[1].split(';')[1].replace('_', '.'))
                         for comm_dir in sorted(os.listdir(arena_path)):
                             if '.' not in comm_dir and '#' in comm_dir:
                                 comm_path = os.path.join(arena_path, comm_dir)
