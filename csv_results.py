@@ -64,6 +64,21 @@ class Data:
         return data
 
 ##########################################################################################################
+    def read_recovery_csv(self,path,algo,arena):
+        data = {}
+        lc = 0
+        with open(path,newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if lc == 0:
+                    lc = 1
+                else:
+                    for val in row:
+                        split_val = val.split('\t')
+                        data.update({(algo,arena,split_val[0],split_val[1],split_val[2],split_val[3],split_val[4],split_val[5],split_val[6]):(split_val[7],split_val[8])})                        
+        return data
+
+##########################################################################################################
     def read_csv(self,path,algo,n_runs,arena):
         lc = 0
         keys = []
@@ -152,6 +167,65 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
     
 ##########################################################################################################
+    def plot_recovery(self,data_in):
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
+        dict_park, dict_adms, dict_our              = {},{},{}
+        ground_T, threshlds, jolly                  = [],[],[]
+        algo, arena, time, comm, agents, buf_dim    = [],[],[],[],[],[]
+        p_k, o_k                                    = [],[]
+        for i in range(len(data_in)):
+            da_K = data_in[i].keys()
+            for k0 in da_K:
+                if k0[0] not in algo: algo.append(k0[0])
+                if k0[1] not in arena: arena.append(k0[1])
+                if k0[2] not in time: time.append(k0[2])
+                if k0[3] not in comm: comm.append(k0[3])
+                if k0[4] not in agents: agents.append(k0[4])
+                if k0[5] not in buf_dim: buf_dim.append(k0[5])
+                if k0[6] not in ground_T: ground_T.append(k0[6])
+                if k0[7] not in threshlds: threshlds.append(k0[7])
+                if k0[8] not in jolly: jolly.append(k0[8])
+        for i in range(len(data_in)):
+            for a in algo:
+                for a_s in arena:
+                    for et in time:
+                        for c in comm:
+                            for n_a in agents:
+                                for m_b_d in buf_dim:
+                                    for m_t in jolly:
+                                        vals = []
+                                        for gt in ground_T:
+                                            tmp = []
+                                            for thr in threshlds:
+                                                s_data = data_in[i].get((a,a_s,et,c,n_a,gt,thr,m_b_d,m_t))
+                                                if s_data != None:
+                                                    if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
+                                                        p_k.append(m_b_d) if a=='O' else o_k.append(m_b_d)
+                                                    tmp.append(round(float(s_data[0]),3))
+                                            if len(vals)==0:
+                                                vals = np.array([tmp])
+                                            else:
+                                                vals = np.append(vals,[tmp],axis=0)
+                                        if a=='P' and int(c)==0 and m_b_d in p_k:
+                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
+                                                dict_park.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
+                                        if a=='O' and m_b_d in o_k:
+                                            if len(vals[0])>0:
+                                                if int(c)==0:
+                                                    dict_adms.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
+                                                else:
+                                                    dict_our.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
+        self.print_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        
+##########################################################################################################
+    def print_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa):
+        dict_park, dict_adms, dict_our = data[0], data[1], data[2]
+        
+        return
+    
+##########################################################################################################
     def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
@@ -206,7 +280,7 @@ class Data:
                                                 if s_data != None:
                                                     if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
                                                         p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    tmp.append(round(float(s_data[2])/int(n_a),2))
+                                                    tmp.append(round(float(s_data[0])/int(n_a),2))
                                                     t_max.append(round(np.max(s_data[0]),2))
                                                     reg.append(round(np.median(s_data[0][-30:]),2))
                                                     tmp_tmin.append(round(np.min(t_data[0]),2))
@@ -292,7 +366,6 @@ class Data:
         for k in dict_park.keys():
             row = 0
             col = 0
-            sign = []
             if k[0]=='big' and k[1]=='25':
                 row = 0
                 if k[2] == '11':
@@ -329,8 +402,6 @@ class Data:
                     col = 3
                 elif k[2] == '24':
                     col = 4
-            for xi in range(0,900):
-                sign.append(int(k[2])/(int(k[1])-1))
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
