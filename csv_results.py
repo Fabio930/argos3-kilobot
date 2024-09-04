@@ -473,21 +473,21 @@ class Data:
                                 uax[row][k].set_xlim(0,901)
                                 uax[row][k].set_ylim(0,1)
                                 if len(real_x_ticks)==0:
-                                    for x in range(0,901,10):
-                                        if x%100 == 0:
+                                    for x in range(0,901,50):
+                                        if x%150 == 0:
                                             svoid_x_ticks.append('')
                                             void_x_ticks.append('')
-                                            real_x_ticks.append(str(int(np.round(x/100,0))))
+                                            real_x_ticks.append(str(int(np.round(x,0))))
                                         else:
                                             void_x_ticks.append('')
                                     for y in range(0,11,1):
                                         void_y_ticks.append('')
                                 if row == 0:
-                                    cax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    cax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     caxt = cax[row][k].twiny()
-                                    uax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    uax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     uaxt = uax[row][k].twiny()
                                     labels = [item.get_text() for item in caxt.get_xticklabels()]
                                     empty_string_labels = ['']*len(labels)
@@ -506,10 +506,10 @@ class Data:
                                         caxt.set_xlabel(r"$T_m = 600\, s$")
                                         uaxt.set_xlabel(r"$T_m = 600\, s$")
                                 elif row==2:
-                                    cax[row][k].set_xticks(np.arange(0,901,100),labels=real_x_ticks)
-                                    cax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
-                                    uax[row][k].set_xticks(np.arange(0,901,100),labels=real_x_ticks)
-                                    uax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     if k==0:
                                         cax[row][k].set_xlabel(r"$T\,  s$")
                                         uax[row][k].set_xlabel(r"$T\,  s$")
@@ -523,10 +523,10 @@ class Data:
                                         cax[row][k].set_xlabel(r"$T\,  s$")
                                         uax[row][k].set_xlabel(r"$T\,  s$")
                                 else:
-                                    cax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    cax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
-                                    uax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    uax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                 if k==0:
                                     cax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1))
@@ -642,18 +642,18 @@ class Data:
                                 ax[row][k].set_xlim(0,901)
                                 ax[row][k].set_ylim(0,1)
                                 if len(real_x_ticks)==0:
-                                    for x in range(0,901,10):
-                                        if x%100 == 0:
+                                    for x in range(0,901,50):
+                                        if x%150 == 0:
                                             svoid_x_ticks.append('')
                                             void_x_ticks.append('')
-                                            real_x_ticks.append(str(int(np.round(x/100,0))))
+                                            real_x_ticks.append(str(int(np.round(x,0))))
                                         else:
                                             void_x_ticks.append('')
                                     for y in range(0,11,1):
                                         void_y_ticks.append('')
                                 if row == 0:
-                                    ax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    ax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     axt = ax[row][k].twiny()
                                     labels = [item.get_text() for item in axt.get_xticklabels()]
                                     empty_string_labels = ['']*len(labels)
@@ -667,8 +667,8 @@ class Data:
                                     elif k==3:
                                         axt.set_xlabel(r"$T_m = 600\, s$")
                                 elif row==2:
-                                    ax[row][k].set_xticks(np.arange(0,901,100),labels=real_x_ticks)
-                                    ax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     if k==0:
                                         ax[row][k].set_xlabel(r"$T\,  s$")
                                     elif k==1:
@@ -678,8 +678,8 @@ class Data:
                                     elif k==3:
                                         ax[row][k].set_xlabel(r"$T\,  s$")
                                 else:
-                                    ax[row][k].set_xticks(np.arange(0,901,100),labels=svoid_x_ticks)
-                                    ax[row][k].set_xticks(np.arange(0,901,10),labels=void_x_ticks,minor=True)
+                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                 if k==0:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     if row==0:
@@ -725,9 +725,20 @@ class Data:
         solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
         dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
         dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
+        void_x_ticks = []
+        svoid_x_ticks = []
+        real_x_ticks = []
         handles_r   = [red,blue,green]
         handles_l   = [solid,dashed,dotted]
         fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%150 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -933,14 +944,17 @@ class Data:
             elif k[2]=="0.80": ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls=":")
         for x in range(2):
             for y in range(4):
-                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
-                empty_string_labels = ['']*len(labels)
-                ax[x][y].set_xticklabels(empty_string_labels)
+                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,4):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(4):
+            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
@@ -1005,9 +1019,20 @@ class Data:
         solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
         dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
         dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
+        void_x_ticks = []
+        svoid_x_ticks = []
+        real_x_ticks = []
         handles_r   = [red,blue,green]
         handles_l   = [solid,dashed,dotted]
         fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%150 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
         for k in comm_dict_park.keys():
             row = 0
             col = 0
@@ -1207,14 +1232,16 @@ class Data:
             elif k[2]=="0.80": ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[6]),lw=6,ls=":")
         for x in range(2):
             for y in range(4):
-                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
-                empty_string_labels = ['']*len(labels)
-                ax[x][y].set_xticklabels(empty_string_labels)
+                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,4):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(4):
+            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
@@ -1279,9 +1306,20 @@ class Data:
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
         solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='large interface')
         dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='small interface')
+        real_x_ticks = []
+        void_x_ticks = []
+        svoid_x_ticks = []
         handles_r   = [red,blue,green]
         handles_l   = [solid,dashed]
         fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%150 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
         for k in square_dict_park.keys():
             row = 0
             col = 0
@@ -1534,14 +1572,16 @@ class Data:
             if k[2]=="0.80": ax[row][col].plot(rect_dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls="--")
         for x in range(2):
             for y in range(4):
-                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
-                empty_string_labels = ['']*len(labels)
-                ax[x][y].set_xticklabels(empty_string_labels)
+                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,4):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(4):
+            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
