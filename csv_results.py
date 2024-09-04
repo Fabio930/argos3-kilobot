@@ -231,10 +231,6 @@ class Data:
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
         dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
-        dict_park_max,dict_adms_max,dict_our_max    = {},{},{}
-        dict_park_fin,dict_adms_fin,dict_our_fin    = {},{},{}
-        dict_park_tmin,dict_adms_tmin,dict_our_tmin = {},{},{}
-        dict_park_tmax,dict_adms_tmax,dict_our_tmax = {},{},{}
         dict_park_tmed,dict_adms_tmed,dict_our_tmed = {},{},{}
         ground_T, threshlds , jolly                 = [],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
@@ -262,17 +258,9 @@ class Data:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
                                         vals            = []
-                                        vals_m          = []
-                                        vals_r          = []
-                                        times_min       = []
-                                        times_max       = []
                                         times_median    = []
                                         for gt in ground_T:
                                             tmp         = []
-                                            t_max       = []
-                                            reg         = []
-                                            tmp_tmin    = []
-                                            tmp_tmax    = []
                                             tmp_tmed    = []
                                             for thr in threshlds:
                                                 s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
@@ -280,53 +268,27 @@ class Data:
                                                 if s_data != None:
                                                     if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
                                                         p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    tmp.append(round(float(s_data[0])/int(n_a),2))
-                                                    t_max.append(round(np.max(s_data[0]),2))
-                                                    reg.append(round(np.median(s_data[0][-30:]),2))
-                                                    tmp_tmin.append(round(np.min(t_data[0]),2))
-                                                    tmp_tmax.append(round(np.max(t_data[0]),2))
+                                                    tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
                                                     tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
                                             if len(vals)==0:
                                                 vals            = np.array([tmp])
-                                                vals_m          = np.array([t_max])
-                                                vals_r          = np.array([reg])
-                                                times_min       = np.array([tmp_tmin])
-                                                times_max       = np.array([tmp_tmax])
                                                 times_median    = np.array([tmp_tmed])
                                             else:
                                                 vals            = np.append(vals,[tmp],axis=0)
-                                                vals_m          = np.append(vals_m,[t_max],axis=0)
-                                                vals_r          = np.append(vals_r,[reg],axis=0)
-                                                times_min       = np.append(times_min,[tmp_tmin],axis=0)
-                                                times_max       = np.append(times_max,[tmp_tmax],axis=0)
                                                 times_median    = np.append(times_median,[tmp_tmed],axis=0)
                                         if a=='P' and int(c)==0 and m_t in p_k:
                                             if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
                                                 dict_park_avg.update({(a_s,n_a,m_t):vals})
-                                                dict_park_max.update({(a_s,n_a,m_t):vals_m})
-                                                dict_park_fin.update({(a_s,n_a,m_t):vals_r})
-                                                dict_park_tmin.update({(a_s,n_a,m_t):times_min})
-                                                dict_park_tmax.update({(a_s,n_a,m_t):times_max})
                                                 dict_park_tmed.update({(a_s,n_a,m_t):times_median})
                                         if a=='O' and m_t in o_k:
                                             if len(vals[0])>0:
                                                 if int(c)==0:
                                                     dict_adms_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_adms_max.update({(a_s,n_a,m_t):vals_m})
-                                                    dict_adms_fin.update({(a_s,n_a,m_t):vals_r})
-                                                    dict_adms_tmin.update({(a_s,n_a,m_t):times_min})
-                                                    dict_adms_tmax.update({(a_s,n_a,m_t):times_max})
                                                     dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
                                                 else:
                                                     dict_our_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_our_max.update({(a_s,n_a,m_t):vals_m})
-                                                    dict_our_fin.update({(a_s,n_a,m_t):vals_r})
-                                                    dict_our_tmin.update({(a_s,n_a,m_t):times_min})
-                                                    dict_our_tmax.update({(a_s,n_a,m_t):times_max})
                                                     dict_our_tmed.update({(a_s,n_a,m_t):times_median})
         self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
-        # self.print_borders(path,'max','max',ground_T,threshlds,[dict_park_max,dict_adms_max,dict_our_max],[dict_park_tmax,dict_adms_tmax,dict_our_tmax],[p_k,o_k],[arena,agents])
-        # self.print_borders(path,'reg','min',ground_T,threshlds,[dict_park_fin,dict_adms_fin,dict_our_fin],[dict_park_tmin,dict_adms_tmin,dict_our_tmin],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
     def print_messages(self,data_in):
@@ -579,7 +541,7 @@ class Data:
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,22))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(32,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
         void_str_threshlds = []
@@ -728,7 +690,7 @@ class Data:
                                 void_str_threshlds.append('')
                         for x in range(5,11,1):
                             void_str_gt.append('')
-                        for x in range(0,151,25):
+                        for x in range(0,201,25):
                             void_str_tim.append('')
                     ax[row][k].set_xlim(0.5,1)
                     tax[row][k].set_xlim(0.5,1)
@@ -787,9 +749,9 @@ class Data:
                         tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                     if k==0:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        tax[row][k].set_yticks(np.arange(0,151,25))
+                        tax[row][k].set_yticks(np.arange(0,201,25))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
                         if row==0:
                             ax[row][k].set_ylabel(r"$G$")
                             tax[row][k].set_ylabel(r"$T_c\, (s)$")
@@ -801,9 +763,9 @@ class Data:
                             tax[row][k].set_ylabel(r"$T_c\, (s)$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,151,25),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,201,25),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
                         axt = ax[row][k].twinx()
                         taxt = tax[row][k].twinx()
                         labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -821,9 +783,9 @@ class Data:
                             taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,151,25),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,201,25),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,151,10),labels=['' for x in range(0,151,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
                     ax[row][k].grid(which='major')
                     tax[row][k].grid(which='major')
 

@@ -43,6 +43,7 @@ class Results:
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
         print(f"--- Processing data {gt}/{gt_dim} ---")
+        buf_lim = int(buf_lim)
         tmp_dim_0 = [np.array([])]*len(m1[0])
         tmp_ones_0 = [np.array([])]*len(m1[0])
         for i in range(len(states)):
