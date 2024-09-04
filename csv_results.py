@@ -307,6 +307,14 @@ class Data:
         
         handles_r   = [red,blue,green]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -450,7 +458,7 @@ class Data:
             ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6)
         for x in range(2):
             for y in range(5):
-                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                 ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,5):
@@ -458,7 +466,7 @@ class Data:
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
         for y in range(5):
-            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
             ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
