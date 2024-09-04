@@ -301,7 +301,10 @@ class Data:
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-
+        real_x_ticks = []
+        void_x_ticks = []
+        svoid_x_ticks = []
+        
         handles_r   = [red,blue,green]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         for k in dict_adam.keys():
@@ -447,14 +450,16 @@ class Data:
             ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6)
         for x in range(2):
             for y in range(5):
-                labels = [item.get_text() for item in ax[x][y].get_xticklabels()]
-                empty_string_labels = ['']*len(labels)
-                ax[x][y].set_xticklabels(empty_string_labels)
+                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,5):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(5):
+            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
