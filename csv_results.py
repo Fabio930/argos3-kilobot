@@ -209,7 +209,9 @@ class Data:
                                             else:
                                                 vals = np.append(vals,[tmp],axis=0)
                                         if a=='P' and int(c)==0 and m_b_d in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
+                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
+                                                                    (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
+                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
                                                 dict_park.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
                                         if a=='O' and m_b_d in o_k:
                                             if len(vals[0])>0:
@@ -554,11 +556,14 @@ class Data:
 
         handles_c   = [triangles,dots]
         handles_r   = [red,blue,green]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(32,22))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
+        str_threshlds_y = []
+        void_str_threshlds_y = []
+        svoid_str_threshlds_y = []
         void_str_gt = []
         void_str_tim = []
         for a in arena:
@@ -589,7 +594,7 @@ class Data:
                             toval   = tdict_our.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and p_valst is np.nan:
-                                    p_valst = tpval
+                                    p_valst = np.log10(tpval)
                                 if p_vals8[1] is np.nan or pval<p_vals8[1]:
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
@@ -606,7 +611,7 @@ class Data:
                                     p_gt2[1]    = ground_T[pt]
                             if oval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and o_valst is np.nan:
-                                    o_valst = toval
+                                    o_valst = np.log10(toval)
                                 if o_vals8[1] is np.nan or oval<o_vals8[1]:
                                     o_vals8[1]  = oval
                                     o_gt8[1]    = ground_T[pt]
@@ -623,7 +628,7 @@ class Data:
                                     o_gt2[1]    = ground_T[pt]
                             if aval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and a_valst is np.nan:
-                                    a_valst = taval
+                                    a_valst = np.log10(taval)
                                 if a_vals8[1] is np.nan or aval<a_vals8[1]:
                                     a_vals8[1]  = aval
                                     a_gt8[1]    = ground_T[pt]
@@ -701,19 +706,27 @@ class Data:
                                 svoid_str_threshlds.append('')
                             else:
                                 void_str_threshlds.append('')
+                        for x in threshlds:
+                            if x>.9: break
+                            if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
+                                str_threshlds_y.append(str(x))
+                                void_str_threshlds_y.append('')
+                                svoid_str_threshlds_y.append('')
+                            else:
+                                void_str_threshlds_y.append('')
                         for x in range(5,11,1):
                             void_str_gt.append('')
-                        for x in range(0,201,25):
+                        for x in range(0,31,5):
                             void_str_tim.append('')
                     ax[row][k].set_xlim(0.5,1)
-                    tax[row][k].set_xlim(0.5,1)
+                    tax[row][k].set_xlim(0.5,0.9)
                     ax[row][k].set_ylim(0.5,1)
                     tax[row][k].set_ylim(0.5,1)
                     if row==0:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+                        tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
                         axt = ax[row][k].twiny()
                         taxt = tax[row][k].twiny()
                         labels = [item.get_text() for item in axt.get_xticklabels()]
@@ -737,9 +750,9 @@ class Data:
                             taxt.set_xlabel(r"$T_m = 600\, s$")
                     elif row==2:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
+                        tax[row][k].set_xticks(np.arange(0,41,10),labels=str_threshlds_y)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
                         if k==0:
                             ax[row][k].set_xlabel(r"$\tau$")
                             tax[row][k].set_xlabel(r"$\tau$")
@@ -757,28 +770,28 @@ class Data:
                             tax[row][k].set_xlabel(r"$\tau$")
                     else:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+                        tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
                     if k==0:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        tax[row][k].set_yticks(np.arange(0,201,25))
+                        tax[row][k].set_yticks(np.arange(0,3.1,.5))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
                         if row==0:
                             ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                            tax[row][k].set_ylabel(r"$log_{10}(T_c)\, (s)$")
                         elif row==1:
                             ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                            tax[row][k].set_ylabel(r"$log_{10}(T_c)\, (s)$")
                         elif row==2:
                             ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c\, (s)$")
+                            tax[row][k].set_ylabel(r"$log_{10}(T_c)\, (s)$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,201,25),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,3.1,.5),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
                         axt = ax[row][k].twinx()
                         taxt = tax[row][k].twinx()
                         labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -796,9 +809,9 @@ class Data:
                             taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,201,25),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,3.1,.5),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,201,10),labels=['' for x in range(0,201,10)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
                     ax[row][k].grid(which='major')
                     tax[row][k].grid(which='major')
 
