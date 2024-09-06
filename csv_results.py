@@ -1,5 +1,7 @@
 import numpy as np
 import os, csv, math
+import matplotlib as mpl
+import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
@@ -187,6 +189,7 @@ class Data:
                 if k0[6] not in ground_T: ground_T.append(k0[6])
                 if k0[7] not in threshlds: threshlds.append(k0[7])
                 if k0[8] not in jolly: jolly.append(k0[8])
+        max_v = 0
         for i in range(len(data_in)):
             for a in algo:
                 for a_s in arena:
@@ -199,11 +202,21 @@ class Data:
                                         for gt in ground_T:
                                             tmp = []
                                             for thr in threshlds:
-                                                s_data = data_in[i].get((a,a_s,et,c,n_a,gt,thr,m_b_d,m_t))
+                                                s_data = data_in[i].get((a,a_s,et,c,n_a,m_b_d,gt,thr,m_t))
                                                 if s_data != None:
                                                     if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
-                                                        p_k.append(m_b_d) if a=='O' else o_k.append(m_b_d)
-                                                    tmp.append(round(float(s_data[0]),3))
+                                                        p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
+                                                    value =round(float(s_data[0]),3)
+                                                    if value>max_v and value<901:
+                                                        max_v = value
+                                                    tmp.append(value)
+                                                else:
+                                                    if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
+                                                                    (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
+                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
+                                                        if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
+                                                            p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
+                                                        tmp.append(0)
                                             if len(vals)==0:
                                                 vals = np.array([tmp])
                                             else:
@@ -212,21 +225,90 @@ class Data:
                                             if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
                                                                     (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
                                                                     (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
-                                                dict_park.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
+                                                if vals.any()!=0: dict_park.update({(a_s,n_a,m_b_d,m_t,gt):vals})
                                         if a=='O' and m_b_d in o_k:
                                             if len(vals[0])>0:
                                                 if int(c)==0:
-                                                    dict_adms.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
+                                                    if vals.any()!=0: dict_adms.update({(a_s,n_a,m_b_d,m_t,gt):vals})
                                                 else:
-                                                    dict_our.update({(a_s,n_a,m_b_d,m_t,gt,thr):vals})
-        self.print_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+                                                    if vals.any()!=0: dict_our.update({(a_s,n_a,m_b_d,m_t,gt):vals})
+        self.print_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery',[ground_T,threshlds],[buf_dim,jolly],[arena,agents],max_v)
         
 ##########################################################################################################
-    def print_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa):
+    def print_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa,max_v):
         dict_park, dict_adms, dict_our = data[0], data[1], data[2]
-        
+        if not os.path.exists(save_path+"grids/"):
+            os.mkdir(save_path+"grids/")
+        save_path = save_path+"grids/"
+        GT = []
+        THR = []
+        for gt in gt_thr[0]: GT.append(str(gt))
+        for thr in gt_thr[1]: THR.append(str(thr))
+        for a_s in aa[0]:
+            for n_a in aa[1]:
+                for m_t in buf_dims[1]:
+                    for m_b_d in buf_dims[0]:
+                        park_heatmap  = []
+                        adams_heatmap = []
+                        our_heatmap   = []
+                        for gt in gt_thr[0]:
+                            park_data  = dict_park.get((a_s,n_a,m_b_d,m_t,gt))
+                            adams_data = dict_adms.get((a_s,n_a,m_b_d,m_t,gt))
+                            our_data   = dict_our.get((a_s,n_a,m_b_d,m_t,gt))
+                            if np.array(park_data).all() != None:
+                                if len(park_heatmap) == 0:
+                                    park_heatmap  = np.array(park_data)
+                                else:
+                                    park_heatmap  = np.append(park_heatmap,park_data,axis=0)
+                            if np.array(adams_data).all() != None:
+                                if len(adams_heatmap) == 0:
+                                    adams_heatmap = np.array(adams_data)
+                                else:
+                                    adams_heatmap = np.append(adams_heatmap,adams_data,axis=0)
+                            if np.array(our_data).all() != None:
+                                if len(our_heatmap) == 0:
+                                    our_heatmap   = np.array(our_data)
+                                else:
+                                    our_heatmap   = np.append(our_heatmap,our_data,axis=0)
+                        clrmap = mpl.colormaps["viridis"]
+                        if len(park_heatmap)>0 and park_heatmap.any()!=0:
+                            fig, ax = plt.subplots(figsize=(52,26))
+                            im = sns.heatmap(park_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
+                            # Show all ticks and label them with the respective list entries
+                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
+                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
+                            ax.set_xlabel("threshold")
+                            ax.set_ylabel("committed percentage")
+                            fig.tight_layout()
+                            fig_path = save_path+filename+"_ANONYMOUS_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
+                            plt.savefig(fig_path)
+                            plt.close(fig)
+                        if len(adams_heatmap)>0 and adams_heatmap.any()!=0:
+                            fig, ax = plt.subplots(figsize=(52,26))
+                            im = sns.heatmap(adams_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
+                            # Show all ticks and label them with the respective list entries
+                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
+                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
+                            ax.set_xlabel("threshold")
+                            ax.set_ylabel("committed percentage")
+                            fig.tight_layout()
+                            fig_path = save_path+filename+"_ID+B_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
+                            plt.savefig(fig_path)
+                            plt.close(fig)
+                        if len(our_heatmap)>0 and our_heatmap.any()!=0:
+                            fig, ax = plt.subplots(figsize=(52,26))
+                            im = sns.heatmap(our_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
+                            # Show all ticks and label them with the respective list entries
+                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
+                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
+                            ax.set_xlabel("threshold")
+                            ax.set_ylabel("committed percentage")
+                            fig.tight_layout()
+                            fig_path = save_path+filename+"_ID+R_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
+                            plt.savefig(fig_path)
+                            plt.close(fig)
         return
-    
+
 ##########################################################################################################
     def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
