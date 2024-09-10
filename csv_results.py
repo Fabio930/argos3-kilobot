@@ -1401,7 +1401,7 @@ class Data:
                         elif k[4] == "42": col=1
                         elif k[4] == "56": col=2
                         elif k[4] == "62": col=3
-            elif k[2]=="0.80": ax[row][col].plot(square_dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls="-")
+            elif k[2]=="0.80": ax[row][col].plot(square_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-")
         for k in rect_dict_park.keys():
             row = 0
             col = 0
@@ -1458,7 +1458,7 @@ class Data:
                         elif k[4] == "38": col=1
                         elif k[4] == "51": col=2
                         elif k[4] == "56": col=3
-            elif k[2]=="0.80": ax[row][col].plot(rect_dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
+            elif k[2]=="0.80": ax[row][col].plot(rect_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
         for k in square_dict_adam.keys():
             row = 0
             col = 0
@@ -1492,7 +1492,7 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            if k[2]=="0.80": ax[row][col].plot(square_dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6,ls="-")
+            if k[2]=="0.80": ax[row][col].plot(square_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-")
         for k in rect_dict_adam.keys():
             row = 0
             col = 0
@@ -1526,7 +1526,7 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            if k[2]=="0.80": ax[row][col].plot(rect_dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
+            if k[2]=="0.80": ax[row][col].plot(rect_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
         for k in square_dict_our.keys():
             row = 0
             col = 0
@@ -1560,7 +1560,7 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            if k[2]=="0.80": ax[row][col].plot(square_dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls="-")
+            if k[2]=="0.80": ax[row][col].plot(square_dict_our.get(k)[3:],color=scalarMap.to_rgba(typo[6]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_our.get(k)[10:],color=scalarMap.to_rgba(typo[6]),lw=6,ls="-")
         for k in rect_dict_our.keys():
             row = 0
             col = 0
@@ -1594,7 +1594,7 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            if k[2]=="0.80": ax[row][col].plot(rect_dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6,ls="--")
+            if k[2]=="0.80": ax[row][col].plot(rect_dict_our.get(k)[3:],color=scalarMap.to_rgba(typo[6]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_our.get(k)[10:],color=scalarMap.to_rgba(typo[6]),lw=6,ls="--")
         for x in range(2):
             for y in range(4):
                 ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
