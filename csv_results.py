@@ -531,14 +531,14 @@ class Data:
                                     cax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     if row==0:
-                                        cax[row][k].set_ylabel(r"$G$")
-                                        uax[row][k].set_ylabel(r"$G$")
+                                        cax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                        uax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                     elif row==1:
-                                        cax[row][k].set_ylabel(r"$G$")
-                                        uax[row][k].set_ylabel(r"$G$")
+                                        cax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                        uax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                     elif row==2:
-                                        cax[row][k].set_ylabel(r"$G$")
-                                        uax[row][k].set_ylabel(r"$G$")
+                                        cax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                        uax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                 elif k==3:
                                     cax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                     caxt = cax[row][k].twinx()
@@ -683,11 +683,11 @@ class Data:
                                 if k==0:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     if row==0:
-                                        ax[row][k].set_ylabel(r"$G$")
+                                        ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                     elif row==1:
-                                        ax[row][k].set_ylabel(r"$G$")
+                                        ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                     elif row==2:
-                                        ax[row][k].set_ylabel(r"$G$")
+                                        ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                 elif k==3:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                     axt = ax[row][k].twinx()
@@ -1033,6 +1033,36 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
+        for k in comm_dict_adam.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_adam.get(k)
+            uncom_res = uncomm_dict_adam.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_adam.update({k:com_tmp})
+            uncomm_dict_adam.update({k:uncom_tmp})
+        for k in comm_dict_park.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_park.get(k)
+            uncom_res = uncomm_dict_park.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_park.update({k:com_tmp})
+            uncomm_dict_park.update({k:uncom_tmp})
+        for k in comm_dict_our.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_our.get(k)
+            uncom_res = uncomm_dict_our.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_our.update({k:com_tmp})
+            uncomm_dict_our.update({k:uncom_tmp})
         for k in comm_dict_park.keys():
             row = 0
             col = 0
@@ -1278,12 +1308,7 @@ class Data:
             for y in range(4):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
-                if x==0:
-                    ax[x][y].set_ylim(0,15)
-                elif x==1:
-                    ax[x][y].set_ylim(0,15)
-                else:
-                    ax[x][y].set_ylim(0,60)
+                ax[x][y].set_ylim(0,1)
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
@@ -1607,9 +1632,9 @@ class Data:
         ayt0.set_ylabel("LD25")
         ayt1.set_ylabel("HD25")
         ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$M$")
-        ax[1][0].set_ylabel(r"$M$")
-        ax[2][0].set_ylabel(r"$M$")
+        ax[0][0].set_ylabel(r"$D\, (m)$")
+        ax[1][0].set_ylabel(r"$D\, (m)$")
+        ax[2][0].set_ylabel(r"$D\, (m)$")
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
