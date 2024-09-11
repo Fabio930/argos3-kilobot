@@ -722,9 +722,9 @@ class Data:
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
-        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
-        dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
+        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='G=0.56')
+        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='G=0.68')
+        dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='G=0.80')
         void_x_ticks = []
         svoid_x_ticks = []
         real_x_ticks = []
@@ -1016,9 +1016,9 @@ class Data:
         red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='GT=0.56')
-        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='GT=0.68')
-        dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='GT=0.80')
+        solid       = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='G=0.56')
+        dashed      = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='G=0.68')
+        dotted      = mlines.Line2D([], [], color="black", marker="None", linestyle=":", linewidth=10, label='G=0.80')
         void_x_ticks = []
         svoid_x_ticks = []
         real_x_ticks = []
