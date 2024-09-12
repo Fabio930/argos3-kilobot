@@ -267,11 +267,13 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 float_t x_mid = (float_t)((uint8_t)sa_payload & 0b00000001) + (((float_t)((uint8_t)sa_payload>>1))*.01);
                 switch (my_state){
                     case 1:
-                        set_vertices(&the_arena,arena_border,arena_border,x_mid+arena_border-0.01,y_max+arena_border);
+                        // set_vertices(&the_arena,arena_border,arena_border,x_mid+arena_border-0.01,y_max+arena_border);
+                        set_vertices(&the_arena,arena_border,arena_border,x_mid,y_max+arena_border);
                         // printf("KILO 1 ---\t x min: %f\t x max: %f\t y min: %f\t y max: %f\n",arena_border,x_mid+arena_border,arena_border,y_max+arena_border);
                         break;
                     case 0:
-                        set_vertices(&the_arena,x_mid+arena_border+0.01,arena_border,x_max+arena_border,y_max+arena_border);
+                        // set_vertices(&the_arena,x_mid+arena_border+0.01,arena_border,x_max+arena_border,y_max+arena_border);
+                        set_vertices(&the_arena,x_mid,arena_border,x_max+arena_border,y_max+arena_border);
                         // printf("KILO 0 ---\t x min: %f\t x max: %f\t y min: %f\t y max: %f\n",x_mid+arena_border,x_max+arena_border,arena_border,y_max+arena_border);
                         break;
                 }
