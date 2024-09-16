@@ -67,7 +67,7 @@ fi
 experiment_length="900"
 RUNS=100
 rebroadcast="0 1 2"
-msg_expiring_sec="60 120 300 600"
+msg_expiring_sec="60 300 600"
 numrobots="25 100"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
