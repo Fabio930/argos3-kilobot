@@ -66,11 +66,11 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 2"
+rebroadcast="0 1 2"
 msg_expiring_sec="60 120 300 600"
 numrobots="25 100"
-threshold="0.56"
-committed_percentage="0.80"
+threshold="0.80"
+committed_percentage="0.68 0.76 0.84"
 messages_hops="0"
 # small arena dimensions
 # arena_x_side="0.500 1.000"
