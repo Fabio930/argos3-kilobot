@@ -68,8 +68,8 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 numrobots="25 100"
-threshold="0.56"
-committed_percentage="0.80"
+threshold="0.80"
+committed_percentage="0.68 0.76 0.84"
 messages_hops="0"
 # small arena dimensions
 # arena_x_side="0.500 1.000"
@@ -131,54 +131,54 @@ for exp_len_par in $experiment_length; do
                             fi
                             if [ $agents_par -eq 25 ]; then
                                 if [[ $arena_x_par == "0.500" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="13 15 18 19"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="14 16 19 20"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="15 18 20 22"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="13 18 19"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="14 19 20"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="15 20 22"
                                     fi
                                 elif [[ $arena_x_par == "1.000" && $arena_y_par == "0.250" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="10 11 12 13"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="11 12 14 14_01"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="13 15 16 17"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="10 12 13"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="11 14 15"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="13 16 17"
                                     fi
                                 elif [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="7 9 11 12"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="7 9 12 13"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="7 10 14 15"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="7 11 12"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="7 12 13"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="7 114 15"
                                     fi
                                 elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="6 8 10 11"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="6 8 11 12"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="7 9 12 14"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="6 10 11"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="6 11 12"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="7 12 14"
                                     fi
                                 fi
                             elif [ $agents_par -eq 100 ]; then
                                 if [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="28 36 45 49"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="29 38 48 53"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="31 42 56 62"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="28 45 49"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="29 48 53"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="31 56 62"
                                     fi
                                 elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.56" ];then
-                                        buffer_dim="27 34 42 45"
-                                    elif [ $committed_par == "0.68" ];then
-                                        buffer_dim="27 36 45 49"
-                                    elif [ $committed_par == "0.80" ];then
-                                        buffer_dim="28 38 51 56"
+                                    if [ $committed_par == "0.68" ];then
+                                        buffer_dim="27 42 45"
+                                    elif [ $committed_par == "0.76" ];then
+                                        buffer_dim="27 45 49"
+                                    elif [ $committed_par == "0.84" ];then
+                                        buffer_dim="28 51 56"
                                     fi
                                 fi
                             fi
