@@ -152,7 +152,7 @@ for exp_len_par in $experiment_length; do
                                     elif [ $committed_par == "0.76" ];then
                                         buffer_dim="7 12 13"
                                     elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="7 114 15"
+                                        buffer_dim="7 14 15"
                                     fi
                                 elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
                                     if [ $committed_par == "0.68" ];then
