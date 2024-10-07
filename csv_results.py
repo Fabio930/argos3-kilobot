@@ -1344,9 +1344,9 @@ class Data:
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 300\, s$")
         axt2.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][3].twinx()
-        ayt1=ax[1][3].twinx()
-        ayt2=ax[2][3].twinx()
+        ayt0=ax[0][2].twinx()
+        ayt1=ax[1][2].twinx()
+        ayt2=ax[2][2].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
@@ -1362,7 +1362,7 @@ class Data:
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(4):
+            for y in range(3):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
                 ax[x][y].set_ylim(0,1)
@@ -1690,9 +1690,9 @@ class Data:
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 300\, s$")
         axt2.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][3].twinx()
-        ayt1=ax[1][3].twinx()
-        ayt2=ax[2][3].twinx()
+        ayt0=ax[0][2].twinx()
+        ayt1=ax[1][2].twinx()
+        ayt2=ax[2][2].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
