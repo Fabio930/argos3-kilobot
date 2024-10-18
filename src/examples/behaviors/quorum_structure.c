@@ -18,11 +18,6 @@ void sort_q(quorum_a **Array[]){
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
             }
-            else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter < (*Array)[j]->counter){
-                quorum_a *flag = (*Array)[i];
-                (*Array)[i] = (*Array)[j];
-                (*Array)[j] = flag;
-            }
         }
     }
     for (size_t i = 0; i < num_quorum_items; i++) IDS[i] = 111;
