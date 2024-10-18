@@ -186,9 +186,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(){
-    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
-    sort_q(&quorum_array);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,0);
 }
 
 void parse_kilo_message(uint8_t data[9]){
