@@ -275,6 +275,7 @@ class Data:
                             fig, ax = plt.subplots(figsize=(52,26))
                             im = sns.heatmap(park_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
                             # Show all ticks and label them with the respective list entries
+                            ax.invert_yaxis()
                             ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
                             ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
                             ax.set_xlabel("threshold")
@@ -287,6 +288,7 @@ class Data:
                             fig, ax = plt.subplots(figsize=(52,26))
                             im = sns.heatmap(adams_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
                             # Show all ticks and label them with the respective list entries
+                            ax.invert_yaxis()
                             ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
                             ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
                             ax.set_xlabel("threshold")
@@ -299,6 +301,7 @@ class Data:
                             fig, ax = plt.subplots(figsize=(52,26))
                             im = sns.heatmap(our_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
                             # Show all ticks and label them with the respective list entries
+                            ax.invert_yaxis()
                             ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
                             ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
                             ax.set_xlabel("threshold")
