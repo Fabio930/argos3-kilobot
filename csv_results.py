@@ -678,7 +678,7 @@ class Data:
                             taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
                             toval   = tdict_our.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and p_valst is np.nan:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and p_valst is np.nan:
                                     p_valst = np.log10(tpval)
                                 if p_vals8[1] is np.nan or pval<p_vals8[1]:
                                     p_vals8[1]  = pval
@@ -695,7 +695,7 @@ class Data:
                                     p_vals2[1]  = pval
                                     p_gt2[1]    = ground_T[pt]
                             if oval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and o_valst is np.nan:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and o_valst is np.nan:
                                     o_valst = np.log10(toval)
                                 if o_vals8[1] is np.nan or oval<o_vals8[1]:
                                     o_vals8[1]  = oval
@@ -712,7 +712,7 @@ class Data:
                                     o_vals2[1]  = oval
                                     o_gt2[1]    = ground_T[pt]
                             if aval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and a_valst is np.nan:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and a_valst is np.nan:
                                     a_valst = np.log10(taval)
                                 if a_vals8[1] is np.nan or aval<a_vals8[1]:
                                     a_vals8[1]  = aval
