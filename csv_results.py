@@ -167,7 +167,7 @@ class Data:
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
-    
+        
 ##########################################################################################################
     def plot_recovery(self,data_in):
         if not os.path.exists(self.base+"/proc_data/images/"):
@@ -189,7 +189,6 @@ class Data:
                 if k0[6] not in ground_T: ground_T.append(k0[6])
                 if k0[7] not in threshlds: threshlds.append(k0[7])
                 if k0[8] not in jolly: jolly.append(k0[8])
-        max_v = 0
         for i in range(len(data_in)):
             for a in algo:
                 for a_s in arena:
@@ -198,7 +197,6 @@ class Data:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
-                                        vals = []
                                         for gt in ground_T:
                                             tmp = []
                                             for thr in threshlds:
@@ -207,8 +205,6 @@ class Data:
                                                     if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
                                                         p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
                                                     value =round(float(s_data[0]),3)
-                                                    if value>max_v and value<901:
-                                                        max_v = value
                                                     tmp.append(value)
                                                 else:
                                                     if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
@@ -216,100 +212,239 @@ class Data:
                                                                     (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
                                                         if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
                                                             p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
-                                                        tmp.append(0)
-                                            if len(vals)==0:
-                                                vals = np.array([tmp])
-                                            else:
-                                                vals = np.append(vals,[tmp],axis=0)
-                                        if a=='P' and int(c)==0 and m_b_d in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
-                                                                    (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
-                                                if vals.any()!=0: dict_park.update({(a_s,n_a,m_b_d,m_t,gt):vals})
-                                        if a=='O' and m_b_d in o_k:
-                                            if len(vals[0])>0:
-                                                if int(c)==0:
-                                                    if vals.any()!=0: dict_adms.update({(a_s,n_a,m_b_d,m_t,gt):vals})
-                                                else:
-                                                    if vals.any()!=0: dict_our.update({(a_s,n_a,m_b_d,m_t,gt):vals})
-        self.print_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery',[ground_T,threshlds],[buf_dim,jolly],[arena,agents],max_v)
+                                            tmp = np.array(tmp)
+                                            if a=='P' and int(c)==0 and m_b_d in p_k:
+                                                if len(tmp)>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
+                                                                        (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
+                                                                        (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
+                                                    dict_park.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                            if a=='O' and m_b_d in o_k:
+                                                if len(tmp)>0:
+                                                    if int(c)==0:
+                                                        dict_adms.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                    else:
+                                                        dict_our.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+        # self.print_lines_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery_lines',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_gt(path,[dict_park,dict_adms,dict_our],'recovery_box_gt',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
         
 ##########################################################################################################
-    def print_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa,max_v):
+    def print_box_recovery_by_gt(self,save_path,data,filename,gt_thr,buf_dims,aa):
+        plt.rcParams.update({"font.size":40})
+        cm              = plt.get_cmap('viridis') 
+        typo            = [0,1,2,3,4,5,6,7]
+        cNorm           = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap       = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        anonymous       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        handles_r       = [anonymous,id_broad,id_rebroad]
+        colors_box      = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[6])]
         dict_park, dict_adms, dict_our = data[0], data[1], data[2]
-        if not os.path.exists(save_path+"grids/"):
-            os.mkdir(save_path+"grids/")
-        save_path = save_path+"grids/"
-        GT = []
-        THR = []
-        for gt in gt_thr[0]: GT.append(str(gt))
-        for thr in gt_thr[1]: THR.append(str(thr))
-        for a_s in aa[0]:
-            for n_a in aa[1]:
-                for m_t in buf_dims[1]:
-                    for m_b_d in buf_dims[0]:
-                        park_heatmap  = []
-                        adams_heatmap = []
-                        our_heatmap   = []
-                        for gt in gt_thr[0]:
-                            park_data  = dict_park.get((a_s,n_a,m_b_d,m_t,gt))
-                            adams_data = dict_adms.get((a_s,n_a,m_b_d,m_t,gt))
-                            our_data   = dict_our.get((a_s,n_a,m_b_d,m_t,gt))
-                            if np.array(park_data).all() != None:
-                                if len(park_heatmap) == 0:
-                                    park_heatmap  = np.array(park_data)
-                                else:
-                                    park_heatmap  = np.append(park_heatmap,park_data,axis=0)
-                            if np.array(adams_data).all() != None:
-                                if len(adams_heatmap) == 0:
-                                    adams_heatmap = np.array(adams_data)
-                                else:
-                                    adams_heatmap = np.append(adams_heatmap,adams_data,axis=0)
-                            if np.array(our_data).all() != None:
-                                if len(our_heatmap) == 0:
-                                    our_heatmap   = np.array(our_data)
-                                else:
-                                    our_heatmap   = np.append(our_heatmap,our_data,axis=0)
-                        clrmap = mpl.colormaps["viridis"]
-                        if len(park_heatmap)>0 and park_heatmap.any()!=0:
-                            fig, ax = plt.subplots(figsize=(52,26))
-                            im = sns.heatmap(park_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
-                            # Show all ticks and label them with the respective list entries
-                            ax.invert_yaxis()
-                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
-                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
-                            ax.set_xlabel("threshold")
-                            ax.set_ylabel("committed percentage")
-                            fig.tight_layout()
-                            fig_path = save_path+filename+"_ANONYMOUS_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
-                            plt.savefig(fig_path)
-                            plt.close(fig)
-                        if len(adams_heatmap)>0 and adams_heatmap.any()!=0:
-                            fig, ax = plt.subplots(figsize=(52,26))
-                            im = sns.heatmap(adams_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
-                            # Show all ticks and label them with the respective list entries
-                            ax.invert_yaxis()
-                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
-                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
-                            ax.set_xlabel("threshold")
-                            ax.set_ylabel("committed percentage")
-                            fig.tight_layout()
-                            fig_path = save_path+filename+"_ID+B_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
-                            plt.savefig(fig_path)
-                            plt.close(fig)
-                        if len(our_heatmap)>0 and our_heatmap.any()!=0:
-                            fig, ax = plt.subplots(figsize=(52,26))
-                            im = sns.heatmap(our_heatmap,robust=True, cmap=clrmap,vmin=0,vmax=max_v,cbar=True)
-                            # Show all ticks and label them with the respective list entries
-                            ax.invert_yaxis()
-                            ax.set_xticks(np.arange(len(gt_thr[1])), labels=THR)
-                            ax.set_yticks(np.arange(len(gt_thr[0])), labels=GT)
-                            ax.set_xlabel("threshold")
-                            ax.set_ylabel("committed percentage")
-                            fig.tight_layout()
-                            fig_path = save_path+filename+"_ID+R_as#"+str(a_s)+"_na#"+str(n_a)+"_bufdim#"+str(m_b_d)+"_bufrng#"+str(m_t)+".png"
-                            plt.savefig(fig_path)
-                            plt.close(fig)
+        park_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        adam_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        ours_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        for m_t in range(len(buf_dims[1])):
+            for gt in range(len(gt_thr[0])):
+                for a_s in aa[0]:
+                    row,col = 0,0
+                    for n_a in aa[1]:
+                        if a_s == "smallA":
+                            row = 1
+                        else:
+                            if n_a == "25":
+                                row = 0
+                            else:
+                                row = 2
+                        for m_b_d in buf_dims[0]:
+                            park_data  = np.array(dict_park.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            adams_data = np.array(dict_adms.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            our_data   = np.array(dict_our.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            if m_b_d == '60':
+                                col = 0
+                            elif m_b_d == '120':
+                                col = 1
+                            elif m_b_d == '180':
+                                col = 2
+                            elif m_b_d == '300':
+                                col = 3
+                            elif m_b_d == '600':
+                                col = 4
+                            else:
+                                if a_s=='bigA' and n_a=='25':
+                                    if m_b_d == '11':
+                                        col = 0
+                                    elif m_b_d == '15':
+                                        col = 1
+                                    elif m_b_d == '17':
+                                        col = 2
+                                    elif m_b_d == '19':
+                                        col = 3
+                                    elif m_b_d == '21':
+                                        col = 4
+                                elif a_s=='bigA' and n_a=='100':
+                                    if m_b_d == '41':
+                                        col = 0
+                                    elif m_b_d == '56':
+                                        col = 1
+                                    elif m_b_d == '65':
+                                        col = 2
+                                    elif m_b_d == '74':
+                                        col = 3
+                                    elif m_b_d == '83':
+                                        col = 4
+                                elif a_s=='smallA':
+                                    if m_b_d == '19':
+                                        col = 0
+                                    elif m_b_d == '22':
+                                        col = 1
+                                    elif m_b_d == '23':
+                                        col = 2
+                                    elif m_b_d == '23.01':
+                                        col = 3
+                                    elif m_b_d == '24':
+                                        col = 4
+                            if park_data.any() != None:
+                                for i in range(len(park_data)):
+                                    park_plotting[row][col][gt][i*(m_t+1)] =  park_data[i]
+                            if adams_data.any() != None:
+                                for i in range(len(adams_data)):
+                                    adam_plotting[row][col][gt][i*(m_t+1)] =  adams_data[i]
+                            if our_data.any() != None:
+                                for i in range(len(our_data)):
+                                    ours_plotting[row][col][gt][i*(m_t+1)] =  our_data[i]
+        fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(88,76))
+        positions = range(1,len(gt_thr[0])*4,4)
+        for i in range(3):
+            for j in range(5):
+                park = park_plotting[i][j]
+                park_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(park)):
+                    flag = []
+                    for z in range(len(park[k])):
+                        if park[k][z]!=-1:
+                            flag.append(park[k][z])
+                    park_print[k] = flag                    
+                adam = adam_plotting[i][j]
+                adam_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(adam)):
+                    flag = []
+                    for z in range(len(adam[k])):
+                        if adam[k][z]!=-1:
+                            flag.append(adam[k][z])
+                    adam_print[k] = flag
+
+                ours = ours_plotting[i][j]
+                ours_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(ours)):
+                    flag = []
+                    for z in range(len(ours[k])):
+                        if ours[k][z]!=-1:
+                            flag.append(ours[k][z])
+                    ours_print[k] = flag
+                bpp = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
+                bpa = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
+                bpo = ax[i][j].boxplot(ours_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
+                for bplot, color in zip((bpp, bpa, bpo), colors_box):
+                    for patch in bplot['boxes']:
+                        patch.set_facecolor(color)
+                ax[i][j].set_xticks([p + 1 for p in positions])
+                ax[i][j].set_xticklabels(gt_thr[0])
+                ax[i][j].set_ylim(0,901)
+        fig.tight_layout()
+        fig_path = save_path+filename+".png"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+        return
+
+##########################################################################################################
+    def print_lines_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa):
+        plt.rcParams.update({"font.size":36})
+        cm              = plt.get_cmap('viridis') 
+        typo            = [0,1,2,3,4,5,6,7]
+        cNorm           = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap       = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        anonymous       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        handles_r   = [anonymous,id_broad,id_rebroad]
+        dict_park, dict_adms, dict_our = data[0], data[1], data[2]
+        for m_t in buf_dims[1]:
+            for gt in range(len(gt_thr[0])):
+                save = [False]*3
+                fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+                col, row = 0, 0
+                for a_s in aa[0]:
+                    for n_a in aa[1]:
+                        if a_s == "smallA":
+                            row = 1
+                        else:
+                            if n_a == "25":
+                                row = 0
+                            else:
+                                row = 2
+                        for m_b_d in buf_dims[0]:
+                            park_data  = np.array(dict_park.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
+                            adams_data = np.array(dict_adms.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
+                            our_data   = np.array(dict_our.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
+                            if m_b_d == '60':
+                                col = 0
+                            elif m_b_d == '120':
+                                col = 1
+                            elif m_b_d == '180':
+                                col = 2
+                            elif m_b_d == '300':
+                                col = 3
+                            elif m_b_d == '600':
+                                col = 4
+                            else:
+                                if a_s=='bigA' and n_a=='25':
+                                    if m_b_d == '11':
+                                        col = 0
+                                    elif m_b_d == '15':
+                                        col = 1
+                                    elif m_b_d == '17':
+                                        col = 2
+                                    elif m_b_d == '19':
+                                        col = 3
+                                    elif m_b_d == '21':
+                                        col = 4
+                                elif a_s=='bigA' and n_a=='100':
+                                    if m_b_d == '41':
+                                        col = 0
+                                    elif m_b_d == '56':
+                                        col = 1
+                                    elif m_b_d == '65':
+                                        col = 2
+                                    elif m_b_d == '74':
+                                        col = 3
+                                    elif m_b_d == '83':
+                                        col = 4
+                                elif a_s=='smallA':
+                                    if m_b_d == '19':
+                                        col = 0
+                                    elif m_b_d == '22':
+                                        col = 1
+                                    elif m_b_d == '23':
+                                        col = 2
+                                    elif m_b_d == '23.01':
+                                        col = 3
+                                    elif m_b_d == '24':
+                                        col = 4
+                            if park_data.any() != None:
+                                save[0] = True
+                                ax[row][col].plot(park_data,color=scalarMap.to_rgba(typo[0]),lw=6)
+                            if adams_data.any() != None:
+                                save[1] = True
+                                ax[row][col].plot(adams_data,color=scalarMap.to_rgba(typo[3]),lw=6)
+                            if our_data.any() != None:
+                                save[2] = True
+                                ax[row][col].plot(our_data,color=scalarMap.to_rgba(typo[6]),lw=6)
+                fig.tight_layout()
+                fig_path = save_path+filename+"_G#"+str(gt_thr[0][gt])+"_bufrng#"+str(m_t)+".png"
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+                if np.array(save).any() != False: fig.savefig(fig_path, bbox_inches='tight')
+                plt.close(fig)        
         return
 
 ##########################################################################################################
@@ -385,14 +520,14 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        anonymous         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
         
-        handles_r   = [red,blue,green]
+        handles_r   = [anonymous,id_broad,id_rebroad]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -633,14 +768,14 @@ class Data:
         tvalsa = [[0]*len(threshlds)]*len(o_k)
         tvalso = [[0]*len(threshlds)]*len(o_k)
 
-        dots        = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
-        triangles   = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
-        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        low_bound   = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
+        high_bound  = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
+        anonymous   = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
 
-        handles_c   = [triangles,dots]
-        handles_r   = [red,blue,green]
+        handles_c   = [high_bound,low_bound]
+        handles_r   = [anonymous,id_broad,id_rebroad]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
