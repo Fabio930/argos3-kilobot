@@ -290,50 +290,21 @@ class Results:
                     t_ends.append(len(quorums[i][j])+1)
                     ends_cens.append(0)
         if len(t_starts) > 0:
-            # Calculate the duration and combine censoring indicators
             durations,event_observed = [],[]
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
                 event_observed.append(starts_cens[i]*ends_cens[i])
-
             durations_by_buffer = self.divide_event_by_buffer(b_starts,durations,event_observed)
             durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
             adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
-            ## uncomment the following lines to have plots for KM and WB fit
-            # kmf = KaplanMeierFitter()
-            # plt.rcParams.update({"font.size":36})
-            # fig, ax = plt.subplots(figsize=(28,18))
-            # s = 0
             estimates = {}
             for k in adapted_durations.keys():
-                # data = durations_by_buffer.get(k)[0]
-                # censoring = durations_by_buffer.get(k)[1]
                 a_data = adapted_durations.get(k)[0]
                 a_censoring = adapted_durations.get(k)[1]
                 if len(a_data)>2:
                     wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
-                    # kmf.fit(data, event_observed=censoring,label="kmf "+k)
-                    # kmf.cumulative_density_.plot(ax=ax,lw=6,ls="-")
-                    # wf.cumulative_density_.plot(ax=ax,lw=6,ls="--")
-                    # s = 1
                     estimates.update({k:self.wb_get_mean_and_std(wf)})
-            # if s==1:
-            #     filename = os.path.abspath("")+"/fitting_images/"
-            #     if not os.path.exists(filename):
-            #         os.mkdir(filename)
-            #     filename=filename+arenaS+"/"
-            #     if not os.path.exists(filename):
-            #         os.mkdir(filename)
-            #     filename=filename+str(n_agents)+"/"
-            #     if not os.path.exists(filename):
-            #         os.mkdir(filename)
-            #     filename=filename+str(buf_dim)+"/"
-            #     if not os.path.exists(filename):
-            #         os.mkdir(filename)
-            #     filename = filename+"_gt#"+str(gt)+"_th#"+str(thr)+"_fitting.pdf"
-            #     plt.savefig(filename)
-            # plt.close(fig)
             self.dump_estimates(external_data,estimates)
 
 ##########################################################################################################
