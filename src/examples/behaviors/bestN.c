@@ -41,6 +41,7 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
+        float p;
         switch(broadcasting_flag){
             case 0:
                 broadcast();
@@ -49,15 +50,20 @@ void talk(){
                 selected_msg_indx = select_a_random_message();
                 switch(msg_n_hops){
                     case 0:
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0) rebroadcast();
-                        else broadcast();
+                        p = random_in_range(0,1);
+                        if(p<=0.5){
+                            if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                            else broadcast();
+                        }
+                        else{
+                            broadcast();
+                        }
                         break;
                     default:
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered == 0 && quorum_array[selected_msg_indx]->msg_n_hops > 0) rebroadcast();
+                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops > 0) rebroadcast();
                         else broadcast();
                         break;
                 }
-                break;
             case 2:
                 selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
                 if(selected_msg_indx != 0b1111111111111111) rebroadcast();
