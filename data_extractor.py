@@ -55,7 +55,7 @@ class Results:
         return tot_avg, comm_avg, uncomm_avg
     
 ##########################################################################################################
-    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_exp_time,sub_path,data_type="all"):
+    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,sub_path,data_type="all"):
         act_results = {}
         num_runs        = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1   = [np.array([])] * n_agents
@@ -140,13 +140,13 @@ class Results:
                 for j in range(len(states[i])):
                     statescpy[i][j] = states[i][j][-1]
             avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
-            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
+            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
             del avg_messages,commit_avg_msgs,uncommit_avg_msgs
             quorums = self.rearrange_matrix(quorum_bigM_1)
             self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
             self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
             avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
-            self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages, avg_distance])
+            self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
             del quorums, states, statescpy, positions
         if data_type in ("all","freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
@@ -174,7 +174,7 @@ class Results:
     
 ##########################################################################################################
     def dump_distance(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "type", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "pos_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "pos_data")):
@@ -184,11 +184,11 @@ class Results:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"tot_average",data[-1]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-1]])
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "type", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -198,9 +198,9 @@ class Results:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"tot_average",data[-3]])
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"commit_average",data[-2]])
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],"uncommit_average",data[-1]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-3]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"commit_average",data[-2]])
+            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"uncommit_average",data[-1]])
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    

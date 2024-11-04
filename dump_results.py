@@ -48,7 +48,7 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type, ticks_per_sec = task
+    base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type, ticks_per_sec = task
     retry_count = 50
 
     while retry_count > 0:
@@ -59,7 +59,7 @@ def process_folder(task):
 
             results = dex.Results()
             results.ticks_per_sec = ticks_per_sec
-            results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type)
+            results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type)
             gc.collect()
             # Memory usage logging
             logging.info(f"Memory usage after processing {msg_exp_path}: {process.memory_info().rss / (1024 * 1024)} MB")
@@ -116,7 +116,7 @@ def main():
                                                                     if '.' not in msg_exp_dir and '#' in msg_exp_dir:
                                                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
-                                                                        tasks.append((base, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_exp_path, data_type, ticks_per_sec))
+                                                                        tasks.append((base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type, ticks_per_sec))
 
     # Using a manager to handle the queue
     manager = Manager()
