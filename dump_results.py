@@ -55,14 +55,14 @@ def process_folder(task):
         try:
             # Memory usage logging
             process = psutil.Process(os.getpid())
-            logging.info(f"Memory usage before processing {msg_exp_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+            logging.info(f"Processing {msg_exp_path} : START")
 
             results = dex.Results()
             results.ticks_per_sec = ticks_per_sec
             results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type)
             gc.collect()
             # Memory usage logging
-            logging.info(f"Memory usage after processing {msg_exp_path}: {process.memory_info().rss / (1024 * 1024)} MB")
+            logging.info(f"Processing {msg_exp_path} : END")
 
             break
         except MemoryError as e:
