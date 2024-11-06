@@ -31,7 +31,7 @@ class Data:
                     else:
                         dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 elif int(k[4])==1:
-                    if int(k[])==1:
+                    if int(k[7])==1:
                         if k[0].split(';')[0] == k[0].split(';')[1]:
                             dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
@@ -59,78 +59,78 @@ class Data:
         for k in data.keys():
             if k[1]=='P':
                 if k[0].split(';')[0] == k[0].split(';')[1]:
-                    if k[7] == "commit_average":
+                    if k[8] == "commit_average":
                         com_dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    elif k[7] == "uncommit_average":
+                    elif k[8] == "uncommit_average":
                         uncom_dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                     else:
                         dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 else:
-                    if k[7] == "commit_average":
+                    if k[8] == "commit_average":
                         com_dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    elif k[7] == "uncommit_average":
+                    elif k[8] == "uncommit_average":
                         uncom_dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                     else:
                         dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
             else:
                 if int(k[4])==0:
                     if k[0].split(';')[0] == k[0].split(';')[1]:
-                        if k[7] == "commit_average":
+                        if k[8] == "commit_average":
                             com_dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        elif k[7] == "uncommit_average":
+                        elif k[8] == "uncommit_average":
                             uncom_dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
                             dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                     else:
-                        if k[7] == "commit_average":
+                        if k[8] == "commit_average":
                             com_dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        elif k[7] == "uncommit_average":
+                        elif k[8] == "uncommit_average":
                             uncom_dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
                             dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 elif int(k[4])==1:
-                    if int(k[])==1:
+                    if int(k[7])==1:
                         if k[0].split(';')[0] == k[0].split(';')[1]:
-                            if k[7] == "commit_average":
+                            if k[8] == "commit_average":
                                 com_dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                            elif k[7] == "uncommit_average":
+                            elif k[8] == "uncommit_average":
                                 uncom_dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                             else:
                                 dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
-                            if k[7] == "commit_average":
+                            if k[8] == "commit_average":
                                 com_dict_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                            elif k[7] == "uncommit_average":
+                            elif k[8] == "uncommit_average":
                                 uncom_dict_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                             else:
                                 dict_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                     else:
                         if k[0].split(';')[0] == k[0].split(';')[1]:
-                            if k[7] == "commit_average":
+                            if k[8] == "commit_average":
                                 com_dict_inf_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                            elif k[7] == "uncommit_average":
+                            elif k[8] == "uncommit_average":
                                 uncom_dict_inf_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                             else:
                                 dict_inf_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
-                            if k[7] == "commit_average":
+                            if k[8] == "commit_average":
                                 com_dict_inf_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                            elif k[7] == "uncommit_average":
+                            elif k[8] == "uncommit_average":
                                 uncom_dict_inf_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                             else:
                                 dict_inf_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 elif int(k[4])==2:
                     if k[0].split(';')[0] == k[0].split(';')[1]:
-                        if k[7] == "commit_average":
+                        if k[8] == "commit_average":
                             com_dict_fifo_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        elif k[7] == "uncommit_average":
+                        elif k[8] == "uncommit_average":
                             uncom_dict_fifo_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
                             dict_fifo_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                     else:
-                        if k[7] == "commit_average":
+                        if k[8] == "commit_average":
                             com_dict_fifo_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        elif k[7] == "uncommit_average":
+                        elif k[8] == "uncommit_average":
                             uncom_dict_fifo_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
                             dict_fifo_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
@@ -199,7 +199,7 @@ class Data:
                                         tval+=c
                             array_val.append(float(tval))
                             if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7],keys[8]):array_val})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
