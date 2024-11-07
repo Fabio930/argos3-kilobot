@@ -1204,6 +1204,16 @@ class Data:
                 com_tmp.append(com_res[xi]/norm)
             comm_dict_rnd.update({k:com_tmp})
             uncomm_dict_rnd.update({k:uncom_tmp})
+        for k in comm_dict_inf_rnd.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_inf_rnd.get(k)
+            uncom_res = uncomm_dict_inf_rnd.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_inf_rnd.update({k:com_tmp})
+            uncomm_dict_inf_rnd.update({k:uncom_tmp})
         for k in comm_dict_park.keys():
             row = 0
             col = 0
