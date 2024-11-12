@@ -66,7 +66,7 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 1 2"
+rebroadcast="1"
 msg_expiring_sec="60 300 600"
 numrobots="25 100"
 threshold="0.80"

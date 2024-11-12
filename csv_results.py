@@ -493,11 +493,11 @@ class Data:
         void_x_ticks    = []
         void_y_ticks    = []
         real_x_ticks    = []
-        for m_h in msg_hop:
-            for gt in ground_T:
-                for thr in threshlds:
-                    cfig, cax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
-                    ufig, uax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        for gt in ground_T:
+            for thr in threshlds:
+                cfig, cax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                ufig, uax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
                             agents = ["25"]
@@ -644,16 +644,16 @@ class Data:
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 cax[row][k].grid(which='major')
                                 uax[row][k].grid(which='major')
-                    cfig.tight_layout()
-                    ufig.tight_layout()
-                    cfig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_committed.pdf"
-                    ufig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_uncommitted.pdf"
-                    cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
-                    ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
-                    cfig.savefig(cfig_path, bbox_inches='tight')
-                    ufig.savefig(ufig_path, bbox_inches='tight')
-                    plt.close(cfig)
-                    plt.close(ufig)
+                cfig.tight_layout()
+                ufig.tight_layout()
+                cfig_path = path+"T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_committed.pdf"
+                ufig_path = path+"T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation_uncommitted.pdf"
+                cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
+                ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
+                cfig.savefig(cfig_path, bbox_inches='tight')
+                ufig.savefig(ufig_path, bbox_inches='tight')
+                plt.close(cfig)
+                plt.close(ufig)
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k,msg_hop,arena_type):
@@ -678,10 +678,10 @@ class Data:
         void_x_ticks    = []
         void_y_ticks    = []
         real_x_ticks    = []
-        for m_h in msg_hop:
-            for gt in ground_T:
-                for thr in threshlds:
-                    fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        for gt in ground_T:
+            for thr in threshlds:
+                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
                             agents = ["25"]
@@ -790,11 +790,11 @@ class Data:
                                 else:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 ax[row][k].grid(which='major')
-                    fig.tight_layout()
-                    fig_path = path+"mH#"+m_h+"_T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation.pdf"
-                    fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
-                    fig.savefig(fig_path, bbox_inches='tight')
-                    plt.close(fig)
+                fig.tight_layout()
+                fig_path = path+"T#"+thr+"_G#"+gt+"_"+arena_type+"Arena_activation.pdf"
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.savefig(fig_path, bbox_inches='tight')
+                plt.close(fig)
 
 ##########################################################################################################
     def print_messages(self,c_type,data_in,a_type):
