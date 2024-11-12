@@ -66,12 +66,12 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="1"
+rebroadcast="0 1 2"
 msg_expiring_sec="60 300 600"
 numrobots="25 100"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-messages_hops="0"
+messages_hops="_"
 # small arena dimensions
 # arena_x_side="0.500 1.000"
 # arena_y_side="0.500 0.250"
@@ -105,6 +105,11 @@ for exp_len_par in $experiment_length; do
                 comm_dir=$arena_dir/"Rebroadcast#"$comm_par
                 if [[ ! -e $comm_dir ]]; then
                     mkdir $comm_dir
+                fi
+                if [[ $comm_par == "1" ]]; then
+                    messages_hops="0 1"
+                else
+                    messages_hops="1"
                 fi
                 agents_dir=$comm_dir/"Robots#"$agents_par
                 if [[ ! -e $agents_dir ]]; then
