@@ -109,7 +109,7 @@ for exp_len_par in $experiment_length; do
                 if [[ $comm_par == "1" ]]; then
                     messages_hops="0 1"
                 else
-                    messages_hops="1"
+                    messages_hops="0"
                 fi
                 agents_dir=$comm_dir/"Robots#"$agents_par
                 if [[ ! -e $agents_dir ]]; then
