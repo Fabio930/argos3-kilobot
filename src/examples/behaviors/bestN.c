@@ -64,6 +64,7 @@ void talk(){
                         else broadcast();
                         break;
                 }
+                break;
             case 2:
                 selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
                 if(selected_msg_indx != 0b1111111111111111) rebroadcast();
