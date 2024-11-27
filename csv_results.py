@@ -16,7 +16,7 @@ class Data:
 
 ##########################################################################################################
     def plot_messages(self,data):
-        dict_park, dict_adam, dict_our = {},{},{}
+        dict_park, dict_adam, dict_fifo = {},{},{}
         for k in data.keys():
             if k[1]=='P':
                 dict_park.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
@@ -24,8 +24,8 @@ class Data:
                 if int(k[4])==0:
                     dict_adam.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 else:
-                    dict_our.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-        self.print_messages([dict_park,dict_adam,dict_our])
+                    dict_fifo.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+        self.print_messages([dict_park,dict_adam,dict_fifo])
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
@@ -49,7 +49,7 @@ class Data:
                                         tval+=c
                             array_val.append(float(tval))
                             if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6]):array_val})
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -92,7 +92,7 @@ class Data:
                             if ']' in val:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -110,7 +110,7 @@ class Data:
                             if rval == -1:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -128,7 +128,7 @@ class Data:
 ##########################################################################################################
     def divide_data(self,data):
         states, times, messages_b, messages_r = {},{},{},{}
-        algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
+        algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = [],[],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
                 if i == 0 and k[i] not in algorithm: algorithm.append(k[i])
@@ -141,6 +141,7 @@ class Data:
                 elif i == 7 and k[i] not in thrlds: thrlds.append(k[i])
                 elif i == 8 and k[i] not in min_buff_dim: min_buff_dim.append(k[i])
                 elif i == 9 and k[i] not in msg_time: msg_time.append(k[i])
+                elif i == 10 and k[i] not in msg_hops: msg_hops.append(k[i])
             if k[-1] == "times":
                 times.update({k[:-1]:data.get(k)})
             elif k[-1] == "swarm_state":
@@ -149,18 +150,18 @@ class Data:
                 messages_b.update({k[:-1]:data.get(k)})
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops), states, times, (messages_b, messages_r)
     
 ##########################################################################################################
     def plot_active_w_gt_thr(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park_state,dict_adms_state,dict_our_state    = {},{},{}
-        dict_park_time,dict_adms_time,dict_our_time    = {},{},{}
-        ground_T, threshlds , jolly                 = [],[],[]
-        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
-        p_k,o_k                                     = [],[]
+        dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state   = {},{},{},{},{}
+        dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time        = {},{},{},{},{}
+        ground_T, threshlds , jolly, msg_hops                                               = [],[],[],[]
+        algo,arena,runs,time,comm,agents,buf_dim                                            = [],[],[],[],[],[],[]
+        p_k,o_k                                                                             = [],[]
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -174,6 +175,7 @@ class Data:
                 if k0[6]not in comm: comm.append(k0[6])
                 if k0[7]not in agents: agents.append(k0[7])
                 if k0[8]not in buf_dim: buf_dim.append(k0[8])
+                if k0[10]not in msg_hops: msg_hops.append(k0[10])
         for i in range(len(data_in)):
             a='P' if (i==2 or i==3) else 'O'
             for a_s in arena:
@@ -182,49 +184,58 @@ class Data:
                         for c in comm:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
-                                    for m_t in jolly:
-                                        for gt in ground_T:
-                                            for thr in threshlds:
-                                                s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
-                                                t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t))
-                                                if s_data != None:
-                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    
-                                                    if a=='P' and int(c)==0 and m_t in p_k:
-                                                        dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                        dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                    if a=='O' and m_t in o_k:
-                                                        if int(c)==0:
-                                                            dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                            dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                        else:
-                                                            dict_our_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                            dict_our_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_our_state],[dict_park_time,dict_adms_time,dict_our_time],[p_k,o_k],[arena,agents])
+                                    for m_h in msg_hops:
+                                        for m_t in jolly:
+                                            for gt in ground_T:
+                                                for thr in threshlds:
+                                                    s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
+                                                    t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
+                                                    if s_data != None:
+                                                        if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
+                                                            p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
+                                                        
+                                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                                            dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                            dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                        if a=='O' and m_t in o_k:
+                                                            if int(c)==0:
+                                                                dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                                dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                            elif int(c)==2:
+                                                                dict_fifo_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                                dict_fifo_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                            else:
+                                                                if int(m_h)==1:
+                                                                    dict_rnd_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                                    dict_rnd_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                else:
+                                                                    dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                                    dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time],[p_k,o_k],[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6,7]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
         p_k, o_k = keys[0],keys[1]
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
-        o_k = np.sort(o_k)
-        arena = more_k[0]
-        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        void        = mlines.Line2D([], [], linestyle='None')
-        svoid_x_ticks = []
-        void_x_ticks = []
-        void_y_ticks = []
-        real_x_ticks = []
-        handles_r   = [red,blue,green]
+        o_k     = np.sort(o_k)
+        arena   = more_k[0]
+        park    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        adam    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        fifo    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
+        rnd     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
+        rnd_inf = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R inf')
+        svoid_x_ticks   = []
+        void_x_ticks    = []
+        void_y_ticks    = []
+        real_x_ticks    = []
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         for gt in ground_T:
             for thr in threshlds:
                 fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
@@ -245,8 +256,10 @@ class Data:
                             p_k = [str(41),str(57),str(76),str(85)]
                         for k in range(len(o_k)):
                             ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
-                            ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
-                            ax[row][k].plot(dict_our.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[6]),lw=6)
+                            ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
                             ax[row][k].set_xlim(0,1201)
                             ax[row][k].set_ylim(0,1)
                             if len(real_x_ticks)==0:
@@ -313,7 +326,7 @@ class Data:
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
                 fig_path = path+thr+"_"+gt+"_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -321,16 +334,19 @@ class Data:
     def print_messages(self,data_in):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6,7]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        red         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        blue        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        green       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        svoid_x_ticks = []
-        void_x_ticks = []
-        real_x_ticks = []
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
+        park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
+        rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
+        rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R inf')
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
+        svoid_x_ticks   = []
+        void_x_ticks    = []
+        real_x_ticks    = []
 
         if len(real_x_ticks)==0:
             for x in range(0,1201,50):
@@ -340,7 +356,6 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        handles_r   = [red,blue,green]
         fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
         for k in dict_adam.keys():
             tmp =[]
@@ -356,13 +371,27 @@ class Data:
             for xi in res:
                 tmp.append(xi/norm)
             dict_park.update({k:tmp})
-        for k in dict_our.keys():
+        for k in dict_fifo.keys():
             tmp =[]
-            res = dict_our.get(k)
+            res = dict_fifo.get(k)
             norm = int(k[3])-1
             for xi in res:
                 tmp.append(xi/norm)
-            dict_our.update({k:tmp})
+            dict_fifo.update({k:tmp})
+        for k in dict_rnd.keys():
+            tmp =[]
+            res = dict_rnd.get(k)
+            norm = int(k[3])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd.update({k:tmp})
+        for k in dict_rnd_inf.keys():
+            tmp =[]
+            res = dict_rnd_inf.get(k)
+            norm = int(k[3])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd_inf.update({k:tmp})
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -430,8 +459,8 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-        for k in dict_our.keys():
+            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+        for k in dict_fifo.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[3]=='25':
@@ -464,7 +493,75 @@ class Data:
                     col = 2
                 elif k[4] == '600':
                     col = 3
-            ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6)
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_rnd.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif k[0]=='big' and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif k[0]=='small':
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+        for k in dict_rnd_inf.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[3]=='25':
+                row = 0
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif k[0]=='big' and k[3]=='100':
+                row = 2
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            elif k[0]=='small':
+                row = 1
+                if k[4] == '60':
+                    col = 0
+                elif k[4] == '120':
+                    col = 1
+                elif k[4] == '300':
+                    col = 2
+                elif k[4] == '600':
+                    col = 3
+            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
         for x in range(2):
             for y in range(4):
                 ax[x][y].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
@@ -522,7 +619,7 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     

@@ -48,7 +48,7 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, sub_path = task
+    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, sub_path = task
     retry_count = 50
 
     while retry_count > 0:
@@ -59,7 +59,7 @@ def process_folder(task):
 
             results = dex.Results()
             results.ticks_per_sec = ticks_per_sec
-            results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, sub_path, data_type)
+            results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, sub_path, data_type)
             gc.collect()
             # Memory usage logging
             logging.info(f"Processing {sub_path} : END")
@@ -109,7 +109,11 @@ def main():
                                                     if '.' not in pre_folder:
                                                         msg_exp_time = int(pre_folder.split('#')[-1])
                                                         sub_path = os.path.join(agents_path, pre_folder)
-                                                        tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, sub_path))
+                                                        for folder in sorted(os.listdir(sub_path)):
+                                                            if '.' not in folder:
+                                                                msg_hops = int(folder.split('#')[-1])
+                                                                path = os.path.join(sub_path, folder)
+                                                                tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, path))
 
     # Using a manager to handle the queue
     manager = Manager()

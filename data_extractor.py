@@ -34,7 +34,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,sub_path,data_type="all"):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,msg_hops,sub_path,data_type="all"):
         act_results = {}
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1 = [np.array([])] * n_agents
@@ -95,17 +95,17 @@ class Results:
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
             messages    = self.compute_avg_msgs(msgs_bigM_1)
-            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, n_agents, t_messages, messages])
+            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
             del messages
             gc.collect()
             states = self.rearrange_quorum(quorum_bigM_1)
-            self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,n_agents)
+            self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents,self.limit)
+            self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents)
             del states
             gc.collect()
         if (data_type=="all" or data_type=="freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,n_agents)
+            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,msg_hops,n_agents)
             del act_results
             gc.collect()
         del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,
@@ -113,7 +113,7 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast", "n_agents", "buff_dim", "data"]
+        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast","msg_hops", "n_agents", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -126,9 +126,9 @@ class Results:
             fwriter.writerow(data)
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
-        static_fields=["MinBuffDim","MsgExpTime"]
-        static_values=[MINS,MSG_EXP_TIME]
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,msg_hops,n_runs):    
+        static_fields=["MinBuffDim","MsgExpTime","MsgHops"]
+        static_values=[MINS,MSG_EXP_TIME,msg_hops]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
@@ -171,7 +171,7 @@ class Results:
         fw.close()
 
 ##########################################################################################################
-    def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,n_agents):
+    def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,msg_hops,n_agents):
         for l in range(len(data_in.get(0))):
             multi_run_data = data_in.get(0)[l]
             if multi_run_data is not None:
@@ -192,10 +192,10 @@ class Results:
                             flag2[j]=flag1[j]+flag2[j]
                 for i in range(len(flag2)):
                     flag2[i]=flag2[i]/len(multi_run_data[0])
-                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,msg_hops,dMR)
         
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents):
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents):
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
             flag1=[-1]*len(data_in[i][0])
@@ -228,10 +228,10 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
 
 ##########################################################################################################
-    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,n_agents,limit):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents,limit):
         times = [len(data_in[0][0])] * len(data_in)
         for i in range(len(data_in)): # per ogni run
             for z in range(len(data_in[i][0])): # per ogni tick
@@ -242,7 +242,7 @@ class Results:
                     times[i] = z
                     break
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
 
 ##########################################################################################################
     def extract_median(self,array):
