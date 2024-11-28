@@ -27,8 +27,9 @@ fi
 experiment_length="1200"
 variation_time="600"
 RUNS=100
-rebroadcast="0 2"
-msg_expiring_sec="60 120 300 600"
+msg_hops="_"
+rebroadcast="0 1 2"
+msg_expiring_sec="60 300 600"
 numrobots="25"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
@@ -64,39 +65,51 @@ for exp_len_par in $experiment_length; do
                     if [[ ! -e $comm_dir ]]; then
                         mkdir $comm_dir
                     fi
-                    agents_dir=$comm_dir/"Robots#"$agents_par
-                    if [[ ! -e $agents_dir ]]; then
-                        mkdir $agents_dir
+                    if [[ $comm_par == "1" ]]; then
+                        msg_hops="0 1"
+                    else
+                        msg_hops="0"
                     fi
-                    last_id=`expr $agents_par - 1`
-                    for msgs_par in $msg_expiring_sec; do
-                        msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
-                        if [[ ! -e $msgs_dir ]]; then
-                            mkdir $msgs_dir
+                    for msgh in $msg_hops; do
+                        agents_dir=$comm_dir/"Robots#"$agents_par
+                        if [[ ! -e $agents_dir ]]; then
+                            mkdir $agents_dir
                         fi
-                        for i in $(seq 1 $RUNS); do
-                            config=`printf 'config_nrobots%s_rebroad%s_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
-                            cp $base_config $config
-                            sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
-                            sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                            sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
-                            sed -i "s|__SEED__|$i|g" $config
-                            sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                            sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
-                            sed -i "s|__THRESHOLD__|$thr_par|g" $config
-                            sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
-                            sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
-                            dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                            kilo_file="${dt}__run#${i}.tsv"
-                            sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                            echo "Running next configuration -- $config"
-                            argos3 -c './'$config
-                            for j in $(seq 0 $last_id); do
-                                rename="quorum_log_agent#$j"__"$kilo_file"
-                                mv "quorum_log_agent#$j.tsv" $rename
-                                mv $rename $msgs_dir
+                        last_id=`expr $agents_par - 1`
+                        for msgs_par in $msg_expiring_sec; do
+                            pre_msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
+                            if [[ ! -e $pre_msgs_dir ]]; then
+                                mkdir $pre_msgs_dir
+                            fi
+                            msgs_dir=$pre_msgs_dir/"MsgHops#"$msgh
+                            if [[ ! -e $msgs_dir ]]; then
+                                mkdir $msgs_dir
+                            fi
+                            for i in $(seq 1 $RUNS); do
+                                config=`printf 'config_nrobots%s_rebroad%s_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
+                                cp $base_config $config
+                                sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                                sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                                sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
+                                sed -i "s|__MSG_HOPS__|$msgh|g" $config
+                                sed -i "s|__SEED__|$i|g" $config
+                                sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                                sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
+                                sed -i "s|__THRESHOLD__|$thr_par|g" $config
+                                sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
+                                sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
+                                dt=$(date '+%d-%m-%Y_%H-%M-%S')
+                                kilo_file="${dt}__run#${i}.tsv"
+                                sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                                echo "Running next configuration -- $config"
+                                argos3 -c './'$config
+                                for j in $(seq 0 $last_id); do
+                                    rename="quorum_log_agent#$j"__"$kilo_file"
+                                    mv "quorum_log_agent#$j.tsv" $rename
+                                    mv $rename $msgs_dir
+                                done
+                                rm *.argos
                             done
-                            rm *.argos
                         done
                     done
                 done
