@@ -238,7 +238,7 @@ class Data:
         handles_r       = [park,adam,fifo,rnd,rnd_inf]
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
                 for a in arena:
                     if a=="smallA":
                         agents = ["25"]
@@ -247,13 +247,13 @@ class Data:
                     for ag in agents:
                         if a == "smallA":
                             row = 1
-                            p_k = [str(19),str(22),str(23),str(24)]
+                            p_k = [str(19),str(23),str(24)]
                         else:
                             row = 0
-                            p_k = [str(11),str(15),str(19),str(22)]
+                            p_k = [str(11),str(19),str(22)]
                         if int(ag)==100:
                             row = 2
-                            p_k = [str(41),str(57),str(76),str(85)]
+                            p_k = [str(41),str(76),str(85)]
                         for k in range(len(o_k)):
                             ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                             ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
@@ -282,10 +282,8 @@ class Data:
                                 if k==0:
                                     axt.set_xlabel(r"$T_m = 60\, s$")
                                 elif k==1:
-                                    axt.set_xlabel(r"$T_m = 120\, s$")
-                                elif k==2:
                                     axt.set_xlabel(r"$T_m = 300\, s$")
-                                elif k==3:
+                                elif k==2:
                                     axt.set_xlabel(r"$T_m = 600\, s$")
                             elif row==2:
                                 ax[row][k].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
@@ -295,8 +293,6 @@ class Data:
                                 elif k==1:
                                     ax[row][k].set_xlabel(r"$T\,  s$")
                                 elif k==2:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                                elif k==3:
                                     ax[row][k].set_xlabel(r"$T\,  s$")
                             else:
                                 ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
@@ -309,7 +305,7 @@ class Data:
                                     ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
                                 elif row==2:
                                     ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
-                            elif k==3:
+                            elif k==2:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 axt = ax[row][k].twinx()
                                 labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -356,7 +352,7 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        fig, ax     = plt.subplots(nrows=3, ncols=4,figsize=(36,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
@@ -399,32 +395,26 @@ class Data:
                 row = 0
                 if k[4] == '11':
                     col = 0
-                elif k[4] == '15':
-                    col = 1
                 elif k[4] == '19':
-                    col = 2
+                    col = 1
                 elif k[4] == '22':
-                    col = 3
+                    col = 2
             elif k[0]=='big' and k[3]=='100':
                 row = 2
                 if k[4] == '41':
                     col = 0
-                elif k[4] == '57':
-                    col = 1
                 elif k[4] == '76':
-                    col = 2
+                    col = 1
                 elif k[4] == '85':
-                    col = 3
+                    col = 2
             elif k[0]=='small' and k[3]=='25':
                 row = 1
                 if k[4] == '19':
                     col = 0
-                elif k[4] == '22':
-                    col = 1
                 elif k[4] == '23':
-                    col = 2
+                    col = 1
                 elif k[4] == '24':
-                    col = 3
+                    col = 2
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
@@ -433,32 +423,26 @@ class Data:
                 row = 0
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='big' and k[3]=='100':
                 row = 2
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_fifo.keys():
             row = 0
@@ -467,32 +451,26 @@ class Data:
                 row = 0
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='big' and k[3]=='100':
                 row = 2
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
@@ -501,32 +479,26 @@ class Data:
                 row = 0
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='big' and k[3]=='100':
                 row = 2
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
         for k in dict_rnd_inf.keys():
             row = 0
@@ -535,60 +507,51 @@ class Data:
                 row = 0
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='big' and k[3]=='100':
                 row = 2
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             elif k[0]=='small':
                 row = 1
                 if k[4] == '60':
                     col = 0
-                elif k[4] == '120':
-                    col = 1
                 elif k[4] == '300':
-                    col = 2
+                    col = 1
                 elif k[4] == '600':
-                    col = 3
+                    col = 2
             ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
         for x in range(2):
-            for y in range(4):
+            for y in range(3):
                 ax[x][y].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
                 ax[x][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
         for x in range(3):
-            for y in range(1,4):
+            for y in range(1,3):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
-        for y in range(4):
+        for y in range(3):
             ax[2][y].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
             ax[2][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
 
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
-        axt3=ax[0][3].twiny()
         labels = [item.get_text() for item in axt0.get_xticklabels()]
         empty_string_labels = ['']*len(labels)
         axt0.set_xticklabels(empty_string_labels)
         axt1.set_xticklabels(empty_string_labels)
         axt2.set_xticklabels(empty_string_labels)
-        axt3.set_xticklabels(empty_string_labels)
         axt0.set_xlabel(r"$T_m = 60\, s$")
-        axt1.set_xlabel(r"$T_m = 120\, s$")
-        axt2.set_xlabel(r"$T_m = 300\, s$")
-        axt3.set_xlabel(r"$T_m = 600\, s$")
+        axt1.set_xlabel(r"$T_m = 300\, s$")
+        axt2.set_xlabel(r"$T_m = 600\, s$")
         ayt0=ax[0][3].twinx()
         ayt1=ax[1][3].twinx()
         ayt2=ax[2][3].twinx()
@@ -606,9 +569,8 @@ class Data:
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
-        ax[2][3].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(4):
+            for y in range(3):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,1201)
                 if x==0 or x==1:
