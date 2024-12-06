@@ -294,7 +294,7 @@ class Results:
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
                 event_observed.append(starts_cens[i]*ends_cens[i])
-            durations_by_buffer = self.divide_event_by_buffer(n_agents,b_starts,durations,event_observed)
+            durations_by_buffer = self.divide_event_by_buffer(limit_buf,algo,n_agents,b_starts,durations,event_observed)
             durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
             adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
@@ -325,8 +325,9 @@ class Results:
                                   k,data[0],data[1]])
 
 ##########################################################################################################
-    def divide_event_by_buffer(self,n_agents,buffer,durations,event_observed):
+    def divide_event_by_buffer(self,limit_buf,algo,n_agents,buffer,durations,event_observed):
         max_dim = n_agents - 1
+        if algo=='P': max_dim = limit_buf
         durations_by_buffer = {}
         durations_by_buffer.update({"33":[[],[]]})
         durations_by_buffer.update({"66":[[],[]]})
