@@ -7,3 +7,7 @@ build
 **/*res_*
 **/*results_*
 **/*cache*
+Experiments.txt
+*proc_data*
+*msgs_data*
+*.tar.xz

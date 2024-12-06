@@ -7,7 +7,6 @@
 #define BESTN_ALF_H
 
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
-#include "hierarchicFloor.h"
 
 class CBestN_ALF : public CALF{
 
@@ -29,7 +28,7 @@ public:
     void SetupInitialKilobotStates();
 
     /** Setup the initial state of the kilobot pc_kilobot_entity */
-    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity);
+    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity, UInt8 state);
 
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
@@ -50,13 +49,11 @@ public:
     void SendStructInitInformation(CKilobotEntity &c_kilobot_entity);
     
     /** Used to communicate gps position and angle*/
-    void SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type);
+    void SendInformationGPS(CKilobotEntity &c_kilobot_entity);
+
+    void SendStateInformation(CKilobotEntity &c_kilobot_entity);
     
-    void AskForLevel(CKilobotEntity &c_kilobot_entity, const UInt8 Level);
-
     Real abs_distance(const CVector2 a,const CVector2 b);
-
-    void UpdateLog(UInt16 Time);
 
 private:
 
@@ -64,25 +61,23 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    UInt8 depth,branches,control_gain;
-    float k;
-    CVector2 TL,BR;
-    ChierarchicFloor *vh_floor;
+    float                   committed_percentage;
+    UInt16                  commitment_variation_time;
+    bool                    variation_done = false;
+    float                   next_committed_percentage;
 
-    std::vector<CVector2> m_vecKilobotPositions;
-    std::vector<CDegrees> m_vecKilobotOrientations;
-    std::vector<Real> m_vecLastTimeMessaged;
-    std::vector<UInt8> m_vecStart_experiment;
-    std::vector<UInt8> m_vecKilobotNodes;
-    std::vector<UInt8> m_vecKilobotCommitments;
-    std::vector<UInt8> m_vecKilobotDistFromOpt;
-    std::vector<UInt8> m_vecKilobotAskLevel;
-    std::vector<UInt8> m_vecKilobotMsgType;
-    bool start_experiment = false;
-    Real m_fMinTimeBetweenTwoMsg;
+    UInt8                   queue_lenght;
+    float                   quorum_threshold;
+    UInt8                   rebroadcast;
 
-    UInt16 log_counter = 0;
-    UInt8 best_leaf;
+    std::vector<CVector2>   m_vecKilobotPositions;
+    std::vector<CDegrees>   m_vecKilobotOrientations;
+    std::vector<Real>       m_vecLastTimeMessaged;
+    std::vector<UInt8>      m_vecStart_experiment;
+    std::vector<UInt8>      m_vecKilobotStates;
+    std::vector<UInt8>      m_vecKilobotMsgType;
+    Real                    m_fMinTimeBetweenTwoMsg;
+    UInt8                   start_experiment = 0;
 
     /************************************/
     /*       Experiment variables       */
@@ -95,7 +90,6 @@ private:
     uint m_random_seed;
 
     /* output file for data acquisition */
-    std::ofstream m_cLog;
     UInt8 header = 0;
     UInt16 logging_time = 0;
 
