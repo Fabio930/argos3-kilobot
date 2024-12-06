@@ -294,7 +294,7 @@ class Results:
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
                 event_observed.append(starts_cens[i]*ends_cens[i])
-            durations_by_buffer = self.divide_event_by_buffer(b_starts,durations,event_observed)
+            durations_by_buffer = self.divide_event_by_buffer(n_agents,b_starts,durations,event_observed)
             durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
             adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
             wf = WeibullFitter()
@@ -302,7 +302,7 @@ class Results:
             for k in adapted_durations.keys():
                 a_data = adapted_durations.get(k)[0]
                 a_censoring = adapted_durations.get(k)[1]
-                if len(a_data)>2:
+                if len(a_data)>10:
                     wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                     estimates.update({k:self.wb_get_mean_and_std(wf)})
             self.dump_estimates(external_data,estimates)
@@ -325,123 +325,28 @@ class Results:
                                   k,data[0],data[1]])
 
 ##########################################################################################################
-    def divide_event_by_buffer(self,buffer,durations,event_observed):
+    def divide_event_by_buffer(self,n_agents,buffer,durations,event_observed):
+        max_dim = n_agents - 1
         durations_by_buffer = {}
-        durations_by_buffer.update({"5-9":[[],[]]})
-        durations_by_buffer.update({"10-14":[[],[]]})
-        durations_by_buffer.update({"15-19":[[],[]]})
-        durations_by_buffer.update({"20-24":[[],[]]})
-        durations_by_buffer.update({"25-29":[[],[]]})
-        durations_by_buffer.update({"30-34":[[],[]]})
-        durations_by_buffer.update({"35-39":[[],[]]})
-        durations_by_buffer.update({"40-44":[[],[]]})
-        durations_by_buffer.update({"45-49":[[],[]]})
-        durations_by_buffer.update({"50-54":[[],[]]})
-        durations_by_buffer.update({"55-59":[[],[]]})
-        durations_by_buffer.update({"60-64":[[],[]]})
-        durations_by_buffer.update({"65-69":[[],[]]})
-        durations_by_buffer.update({"70-74":[[],[]]})
-        durations_by_buffer.update({"75-79":[[],[]]})
-        durations_by_buffer.update({"80-84":[[],[]]})
-        durations_by_buffer.update({"85-89":[[],[]]})
-        durations_by_buffer.update({"90-94":[[],[]]})
-        durations_by_buffer.update({"95-99":[[],[]]})
+        durations_by_buffer.update({"33":[[],[]]})
+        durations_by_buffer.update({"66":[[],[]]})
+        durations_by_buffer.update({"100":[[],[]]})
         for i in range(len(buffer)):
-            if buffer[i]>=5 and buffer[i]<=9:
-                tmp = durations_by_buffer.get("5-9")
+            if buffer[i]<=max_dim*0.33:
+                tmp = durations_by_buffer.get("33")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"5-9":tmp})
-            elif buffer[i]>=10 and buffer[i]<=14:
-                tmp = durations_by_buffer.get("10-14")
+                durations_by_buffer.update({"33":tmp})
+            elif buffer[i]>max_dim*0.33 and buffer[i]<=max_dim*0.66:
+                tmp = durations_by_buffer.get("66")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"10-14":tmp})
-            elif buffer[i]>=15 and buffer[i]<=19:
-                tmp = durations_by_buffer.get("15-19")
+                durations_by_buffer.update({"66":tmp})
+            elif buffer[i]>max_dim*0.66:
+                tmp = durations_by_buffer.get("100")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"15-19":tmp})
-            elif buffer[i]>=20 and buffer[i]<=24:
-                tmp = durations_by_buffer.get("20-24")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"20-24":tmp})
-            elif buffer[i]>=25 and buffer[i]<=29:
-                tmp = durations_by_buffer.get("25-29")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"25-29":tmp})
-            elif buffer[i]>=30 and buffer[i]<=34:
-                tmp = durations_by_buffer.get("30-34")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"30-34":tmp})
-            elif buffer[i]>=35 and buffer[i]<=39:
-                tmp = durations_by_buffer.get("35-39")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"35-39":tmp})
-            elif buffer[i]>=40 and buffer[i]<=44:
-                tmp = durations_by_buffer.get("40-44")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"40-44":tmp})
-            elif buffer[i]>=45 and buffer[i]<=49:
-                tmp = durations_by_buffer.get("45-49")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"45-49":tmp})
-            elif buffer[i]>=50 and buffer[i]<=54:
-                tmp = durations_by_buffer.get("50-54")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"50-54":tmp})
-            elif buffer[i]>=55 and buffer[i]<=59:
-                tmp = durations_by_buffer.get("55-59")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"55-59":tmp})
-            elif buffer[i]>=60 and buffer[i]<=64:
-                tmp = durations_by_buffer.get("60-64")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"60-64":tmp})
-            elif buffer[i]>=65 and buffer[i]<=69:
-                tmp = durations_by_buffer.get("65-69")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"65-69":tmp})
-            elif buffer[i]>=70 and buffer[i]<=74:
-                tmp = durations_by_buffer.get("70-74")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"70-74":tmp})
-            elif buffer[i]>=75 and buffer[i]<=79:
-                tmp = durations_by_buffer.get("75-79")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"75-79":tmp})
-            elif buffer[i]>=80 and buffer[i]<=84:
-                tmp = durations_by_buffer.get("80-84")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"80-84":tmp})
-            elif buffer[i]>=85 and buffer[i]<=89:
-                tmp = durations_by_buffer.get("85-89")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"85-89":tmp})
-            elif buffer[i]>=90 and buffer[i]<=94:
-                tmp = durations_by_buffer.get("90-94")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"90-94":tmp})
-            elif buffer[i]>=95 and buffer[i]<=99:
-                tmp = durations_by_buffer.get("95-99")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"95-99":tmp})
+                durations_by_buffer.update({"100":tmp})
         return durations_by_buffer
     
 ##########################################################################################################
