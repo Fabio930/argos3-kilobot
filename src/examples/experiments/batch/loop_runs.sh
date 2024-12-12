@@ -26,9 +26,10 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 2"
-msg_expiring_sec="60 120 300 600"
+rebroadcast="0 1 2"
+msg_expiring_sec="60 120 180 300 600"
 numrobots="25"
+messages_hops="_"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -59,6 +60,7 @@ for exp_len_par in $experiment_length; do
                     sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                     sed -i "s|__SEED__|$i|g" $config
                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                    sed -i "s|__MSGS_HOPS__|$msg_hop|g" $config
                     dt=$(date '+%d-%m-%Y_%H-%M-%S')
                     kilo_file="${dt}__run#${i}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
