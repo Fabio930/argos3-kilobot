@@ -42,6 +42,11 @@ for exp_len_par in $experiment_length; do
             if [[ ! -e $comm_dir ]]; then
                 mkdir $comm_dir
             fi
+            if [[ $comm_par == "1" ]]; then
+                messages_hops="0 1"
+            else
+                messages_hops="0"
+            fi
             agents_dir=$comm_dir/"Robots#"$agents_par
             if [[ ! -e $agents_dir ]]; then
                 mkdir $agents_dir
@@ -52,6 +57,11 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $msgs_dir ]]; then
                     mkdir $msgs_dir
                 fi
+                for msgs_hop_par in $msg_expiring_sec; do
+                    msgs_hop_dir=$msgs_dir/"MsgHops#"$msgs_hop_par
+                    if [[ ! -e $msgs_hop_dir ]]; then
+                        mkdir $msgs_hop_dir
+                    fi
                 for i in $(seq 1 $RUNS); do
                     config=`printf 'config_nrobots%d_rebroad%d_MsgExpTime%d_run%d.argos' $agents_par $comm_par $msgs_par $i`
                     cp $base_config $config
@@ -60,7 +70,7 @@ for exp_len_par in $experiment_length; do
                     sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                     sed -i "s|__SEED__|$i|g" $config
                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                    sed -i "s|__MSGS_HOPS__|$msg_hop|g" $config
+                    sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
                     dt=$(date '+%d-%m-%Y_%H-%M-%S')
                     kilo_file="${dt}__run#${i}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
@@ -69,7 +79,7 @@ for exp_len_par in $experiment_length; do
                     for j in $(seq 0 $last_id); do
                         rename="quorum_log_agent#$j"__"$kilo_file"
                         mv "quorum_log_agent#$j.tsv" $rename
-                        mv $rename $msgs_dir
+                        mv $rename $msgs_hop_dir
                     done
                     rm *.argos
                 done
