@@ -26,7 +26,7 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 1 2"
+rebroadcast="1"
 msg_expiring_sec="60 120 180 300 600"
 numrobots="25"
 messages_hops="_"
