@@ -56,6 +56,7 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $buff_dir ]]; then
                     mkdir $buff_dir
                 fi
+                hops_dir=$agents_dir/"MsgHop#"$buff_par
                 for i in $(seq 1 $RUNS); do
                     config=`printf 'config_nrobots%d_rebroad%d_bufferDim%d_run%d.argos' $agents_par $comm_par $buff_par $i`
                     cp $base_config $config
@@ -72,7 +73,7 @@ for exp_len_par in $experiment_length; do
                     for j in $(seq 0 $last_id); do
                         rename="quorum_log_agent#$j"__"$kilo_file"
                         mv "quorum_log_agent#$j.tsv" $rename
-                        mv $rename $buff_dir
+                        mv $rename $hops_dir
                     done
                     rm *.argos
                 done
