@@ -91,7 +91,7 @@ class Results:
                             act_M_2 = [np.array([],dtype=int)]*num_runs
         if data_type in ("all","quorum"):
             info_vec    = sub_path.split('/')
-            t_messages  = sub_path.split('#')[-1]
+            t_messages  = info_vec[-2].split('#')[-1]
             algo        = info_vec[4].split('_')[0][0]
             arenaS      = info_vec[4].split('_')[-1][:-1]
             messages    = self.compute_avg_msgs(msgs_bigM_1)

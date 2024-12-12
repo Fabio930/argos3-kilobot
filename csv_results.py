@@ -16,16 +16,29 @@ class Data:
 
 ##########################################################################################################
     def plot_messages(self,data):
-        dict_park, dict_adam, dict_fifo = {},{},{}
+        dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf = {},{},{},{},{}
         for k in data.keys():
-            if k[1]=='P':
-                dict_park.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-            else:
-                if int(k[4])==0:
-                    dict_adam.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
+            if(k[3]=="0.68;0.92"):
+                print(k)
+                if k[1]=='P':
+                    dict_park.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                 else:
-                    dict_fifo.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-        self.print_messages([dict_park,dict_adam,dict_fifo])
+                    if int(k[4])==0:
+                        print("a")
+                        dict_adam.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+                    elif int(k[4])==2:
+                        print("b")
+                        dict_fifo.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+                    else:
+                        print("c")
+                        if int(k[5])==0:
+                            dict_rnd_inf.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+                        else:
+                            dict_rnd.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+        print("\n\n")
+        print("park\n", dict_park.keys(),'\n\nadam\n',dict_adam.keys(),'\n\nfifo\n',dict_fifo.keys(),'\n\nrandom\n',dict_rnd.keys(),'\n\nrandom inf\n',dict_rnd_inf.keys(),'\n\n')
+
+        self.print_messages([dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf])
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
@@ -334,6 +347,7 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
+        print("park\n", dict_park.keys(),'\n\nadam\n',dict_adam.keys(),'\n\nfifo\n',dict_fifo.keys(),'\n\nrandom\n',dict_rnd.keys(),'\n\nrandom inf\n',dict_rnd_inf.keys(),'\n\n')
         park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
@@ -356,174 +370,174 @@ class Data:
         for k in dict_adam.keys():
             tmp =[]
             res = dict_adam.get(k)
-            norm = int(k[3])-1
+            norm = int(k[4])-1
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_adam.update({k:tmp})
         for k in dict_park.keys():
             tmp =[]
             res = dict_park.get(k)
-            norm = int(k[3])-1
+            norm = int(k[4])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_park.update({k:tmp})
         for k in dict_fifo.keys():
             tmp =[]
             res = dict_fifo.get(k)
-            norm = int(k[3])-1
+            norm = int(k[4])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_fifo.update({k:tmp})
         for k in dict_rnd.keys():
             tmp =[]
             res = dict_rnd.get(k)
-            norm = int(k[3])-1
+            norm = int(k[4])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_rnd.update({k:tmp})
         for k in dict_rnd_inf.keys():
             tmp =[]
             res = dict_rnd_inf.get(k)
-            norm = int(k[3])-1
+            norm = int(k[4])-1
             for xi in res:
                 tmp.append(xi/norm)
             dict_rnd_inf.update({k:tmp})
         for k in dict_park.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[3]=='25':
+            if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[4] == '11':
+                if k[5] == '11':
                     col = 0
-                elif k[4] == '19':
+                elif k[5] == '19':
                     col = 1
-                elif k[4] == '22':
+                elif k[5] == '22':
                     col = 2
-            elif k[0]=='big' and k[3]=='100':
+            elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[4] == '41':
+                if k[5] == '41':
                     col = 0
-                elif k[4] == '76':
+                elif k[5] == '76':
                     col = 1
-                elif k[4] == '85':
+                elif k[5] == '85':
                     col = 2
-            elif k[0]=='small' and k[3]=='25':
+            elif k[0]=='small' and k[4]=='25':
                 row = 1
-                if k[4] == '19':
+                if k[5] == '19':
                     col = 0
-                elif k[4] == '23':
+                elif k[5] == '23':
                     col = 1
-                elif k[4] == '24':
+                elif k[5] == '24':
                     col = 2
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[3]=='25':
+            if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
-            elif k[0]=='big' and k[3]=='100':
+            elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             elif k[0]=='small':
                 row = 1
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_fifo.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[3]=='25':
+            if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
-            elif k[0]=='big' and k[3]=='100':
+            elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             elif k[0]=='small':
                 row = 1
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[3]=='25':
+            if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
-            elif k[0]=='big' and k[3]=='100':
+            elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             elif k[0]=='small':
                 row = 1
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
         for k in dict_rnd_inf.keys():
             row = 0
             col = 0
-            if k[0]=='big' and k[3]=='25':
+            if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
-            elif k[0]=='big' and k[3]=='100':
+            elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
-                elif k[4] == '600':
+                elif k[5] == '600':
                     col = 2
             elif k[0]=='small':
                 row = 1
-                if k[4] == '60':
+                if k[5] == '60':
                     col = 0
-                elif k[4] == '300':
+                elif k[5] == '300':
                     col = 1
                 elif k[4] == '600':
                     col = 2
@@ -552,9 +566,9 @@ class Data:
         axt0.set_xlabel(r"$T_m = 60\, s$")
         axt1.set_xlabel(r"$T_m = 300\, s$")
         axt2.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][3].twinx()
-        ayt1=ax[1][3].twinx()
-        ayt2=ax[2][3].twinx()
+        ayt0=ax[0][2].twinx()
+        ayt1=ax[1][2].twinx()
+        ayt2=ax[2][2].twinx()
         labels = [item.get_text() for item in axt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)

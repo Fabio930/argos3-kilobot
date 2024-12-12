@@ -71,9 +71,11 @@ def main():
                                                     if '.' not in pre_folder:
                                                         msg_exp_time = int(pre_folder.split('#')[-1])
                                                         sub_path = os.path.join(agents_path, pre_folder)
-                                                        results = dex.Results()
-                                                        results.ticks_per_sec = ticks_per_sec
-                                                        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, sub_path, data_type)
+                                                        for folder in sorted(os.listdir(sub_path)):
+                                                            if '.' not in folder:
+                                                                msg_hops = int(folder.split('#')[-1])
+                                                                path = os.path.join(sub_path, folder)
+                                                                dex.Results().extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, path, data_type)
 
 if __name__ == "__main__":
     main()
