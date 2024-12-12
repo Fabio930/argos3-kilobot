@@ -817,7 +817,7 @@ class Data:
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
-        handles_r       = [park,adam,rnd,rnd_inf]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [solid,dashed,dotted]
         fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
         if len(real_x_ticks)==0:
