@@ -56,7 +56,10 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $buff_dir ]]; then
                     mkdir $buff_dir
                 fi
-                hops_dir=$agents_dir/"MsgHop#"$buff_par
+                hops_dir=$buff_dir/"MsgHops#0"
+                if [[ ! -e $hops_dir ]]; then
+                    mkdir $hops_dir
+                fi
                 for i in $(seq 1 $RUNS); do
                     config=`printf 'config_nrobots%d_rebroad%d_bufferDim%d_run%d.argos' $agents_par $comm_par $buff_par $i`
                     cp $base_config $config
