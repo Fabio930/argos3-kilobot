@@ -1,11 +1,11 @@
 import numpy as np
 import os, csv, math
-import matplotlib as mpl
-import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from lifelines import WeibullFitter, KaplanMeierFitter
+from scipy.special import gamma
 class Data:
 
 ##########################################################################################################
@@ -15,6 +15,127 @@ class Data:
         for elem in sorted(os.listdir(self.base)):
             if elem == "msgs_data" or elem == "proc_data":
                 self.bases.append(os.path.join(self.base, elem))
+
+##########################################################################################################
+    def wb_get_mean_and_std(self, wf:WeibullFitter):
+        # get the Weibull shape and scale parameter 
+        scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
+
+        # calculate the mean time
+        mean = scale*gamma(1 + 1/shape)
+        # calculate the standard deviation
+        variance = (scale ** 2) * (gamma(1 + 2 / shape) - (gamma(1 + 1 / shape)) ** 2)
+        std = np.sqrt(variance)
+        
+        return [mean, std]
+    
+##########################################################################################################
+    def fit_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,gt,thr,quorums,buffers):
+        external_data = {
+            'algorithm': algo,
+            'runs': runs,
+            'arena' : arenaS,
+            'experiment_length' : len(quorums[0][0]),
+            'rebroadcast': communication,
+            'n_agents': n_agents,
+            'buff_dim': buf_dim,
+            'ground_truth': gt,
+            'threshold': thr
+        }
+        # from file
+        limit_buff      = []
+        buff_starts     = []
+        durations       = []
+        event_observed  = []
+
+        durations_by_buffer = self.divide_event_by_buffer(limit_buff,algo,n_agents,buff_starts,durations,event_observed)
+        durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
+        adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
+        wf = WeibullFitter()
+        estimates = {}
+        for k in adapted_durations.keys():
+            a_data = adapted_durations.get(k)[0]
+            a_censoring = adapted_durations.get(k)[1]
+            if len(a_data)>10:
+                wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
+                estimates.update({k:self.wb_get_mean_and_std(wf)})
+        self.dump_estimates(external_data,estimates)
+
+##########################################################################################################
+    def divide_event_by_buffer(self,limit_buf,algo,n_agents,buffer,durations,event_observed):
+        max_dim = n_agents - 1
+        if algo=='P': max_dim = limit_buf
+        durations_by_buffer = {}
+        durations_by_buffer.update({"33":[[],[]]})
+        durations_by_buffer.update({"66":[[],[]]})
+        durations_by_buffer.update({"100":[[],[]]})
+        for i in range(len(buffer)):
+            if buffer[i]<=max_dim*0.33:
+                tmp = durations_by_buffer.get("33")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"33":tmp})
+            elif buffer[i]>max_dim*0.33 and buffer[i]<=max_dim*0.66:
+                tmp = durations_by_buffer.get("66")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"66":tmp})
+            elif buffer[i]>max_dim*0.66:
+                tmp = durations_by_buffer.get("100")
+                tmp[0].append(durations[i])
+                tmp[1].append(event_observed[i])
+                durations_by_buffer.update({"100":tmp})
+        return durations_by_buffer
+
+##########################################################################################################
+    def adapt_dict_to_weibull_est(self,data):
+        out = {}
+        for k in data.keys():
+            durations = data.get(k)[0]
+            event_observed = data.get(k)[1]
+            if len(durations)>0:
+                if durations[0] > 0: durations,event_observed = np.insert(durations,0,0),np.insert(event_observed,0,0)
+                durations = list(durations)
+                event_observed = list(event_observed)
+                for i in range(len(durations)):
+                    if durations[i] == 0: durations[i] = .00000001
+            out.update({k:[durations,event_observed]})
+        return out
+    
+##########################################################################################################
+    def sort_arrays_in_dict(self,data_to_sort):
+        out = {}
+        for k in data_to_sort.keys():
+            durations = data_to_sort.get(k)[0]
+            event_obseerved = data_to_sort.get(k)[1]
+            for i in range(len(durations)):
+                for j in range(len(durations)):
+                    if durations[j]<durations[i] and i<j:
+                        tmp = durations[i]
+                        durations[i] = durations[j]
+                        durations[j] = tmp
+                        tmp = event_obseerved[i]
+                        event_obseerved[i] = event_obseerved[j]
+                        event_obseerved[j] = tmp
+            out.update({k:[durations,event_obseerved]})
+        return out
+    
+##########################################################################################################
+    def dump_estimates(self,external_data,estimates):
+        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
+        filename = os.path.abspath("")+"/proc_data"
+        if not os.path.exists(filename):
+            os.mkdir(filename)
+        filename += "/"+external_data['algorithm']+"recovery_estimate_durations_r#"+str(external_data['runs'])+"_a#"+external_data['arena']+"A.csv"
+        write_header = not os.path.exists(filename)
+        with open(filename, mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            for k in estimates.keys():
+                data = estimates.get(k)
+                fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
+                                  k,data[0],data[1]])
 
 ##########################################################################################################
     def plot_messages(self,data):

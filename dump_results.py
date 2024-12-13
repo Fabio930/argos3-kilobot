@@ -48,7 +48,7 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, sub_path, ticks_per_sec = task
+    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path, ticks_per_sec = task
     retry_count = 50
 
     while retry_count > 0:
@@ -59,7 +59,7 @@ def process_folder(task):
 
             results = dex.Results()
             results.ticks_per_sec = ticks_per_sec
-            results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, sub_path, data_type)
+            results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
             gc.collect()
             # Memory usage logging
             logging.info(f"Processing {sub_path} : END")
@@ -101,7 +101,11 @@ def main():
                                     if '.' not in pre_folder:
                                         msg_exp_time = int(pre_folder.split('#')[-1])
                                         sub_path = os.path.join(dtemp,pre_folder)
-                                        tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,sub_path,ticks_per_sec))
+                                        for folder in sorted(os.listdir(sub_path)):
+                                            if '.' not in folder:
+                                                msg_hops = int(folder.split('#')[-1])
+                                                path = os.path.join(sub_path,folder)
+                                                tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
 
     # Using a manager to handle the queue
     manager = Manager()
