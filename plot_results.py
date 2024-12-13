@@ -34,7 +34,7 @@ def main():
                         else:
                             tot_st      = np.append(tot_st,[states],axis=0)
                             tot_times   = np.append(tot_times,[times],axis=0)
-                    if "estimate" in file:
+                    if "recovery" in file:
                         file_path=os.path.join(base, file)
                         no_ext_file = file.split('.')[0]
                         sets = no_ext_file.split('_')
