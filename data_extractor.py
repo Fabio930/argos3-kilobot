@@ -1,9 +1,6 @@
 import numpy as np
 import os, csv, math, gc
 import logging
-from matplotlib import pyplot as plt
-from scipy.special import gamma
-from lifelines import WeibullFitter, KaplanMeierFitter
 class Results:
     thresholds      = {}
     ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
@@ -26,19 +23,6 @@ class Results:
             f_thresholds = []
             for t in range(len(_thresholds)): f_thresholds.append(round(float(_thresholds[t])*.01,2))
             self.thresholds.update({self.ground_truth[gt]:f_thresholds})
-
-##########################################################################################################
-    def wb_get_mean_and_std(self, wf:WeibullFitter):
-        # get the Weibull shape and scale parameter 
-        scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
-
-        # calculate the mean time
-        mean = scale*gamma(1 + 1/shape)
-        # calculate the standard deviation
-        variance = (scale ** 2) * (gamma(1 + 2 / shape) - (gamma(1 + 1 / shape)) ** 2)
-        std = np.sqrt(variance)
-        
-        return [mean, std]
 
 #########################################################################################################
     def compute_quorum_vars_on_ground_truth(self,algo,m1,states,buf_lim,gt,gt_dim):
@@ -112,7 +96,7 @@ class Results:
         return msgs_summation
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,sub_path,data_type="all"):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,data_type="all"):
         max_buff_size = n_agents - 1
         act_results = {}
         num_runs = int(len(os.listdir(sub_path))/n_agents)
@@ -206,39 +190,39 @@ class Results:
             if algo=='P':
                 for buf in range(len(BUFFERS)):
                     messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo,buf+1,len(BUFFERS))
-                    self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,BUFFERS[buf],messages])
+                    self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,BUFFERS[buf],msg_hops,messages])
                     for gt in range(len(self.ground_truth)):
                         results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                         for thr in self.thresholds.get(self.ground_truth[gt]):
                             quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                            self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],self.limit)
-                            self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf])
-                            self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                            self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],msg_hops,self.limit)
+                            self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,BUFFERS[buf],msg_hops)
+                            self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1)
                             del quorums
                         del results
                         gc.collect()
             else:
                 messages = self.compute_meaningful_msgs(msgs_bigM_1,msg_exp_time,algo,1,1)
-                self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,messages])
+                self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
                 for gt in range(len(self.ground_truth)):
                     results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0,gt+1,len(self.ground_truth))
                     for thr in self.thresholds.get(self.ground_truth[gt]):
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                        self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,self.limit)
-                        self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time)
-                        self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,msg_exp_time,self.ground_truth[gt],thr,quorums,msgs_bigM_1)
+                        self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
+                        self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                        self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,msg_exp_time,msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1)
                         del quorums
                     del results
                     gc.collect()
         if data_type in ("all","freq"):
             act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time)
+            self.dump_msg_freq(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,msg_hops)
             del act_results
         del num_runs,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,act_M_1,act_M_2
         gc.collect()
                 
 ##########################################################################################################
-    def compute_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,gt,thr,quorums,buffers):
+    def compute_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,msg_hops,gt,thr,quorums,buffers):
         # if gt < thr compute the steps in which the agents have the wrong state "1" and the buffer lenght
         # if gt >= thr compute the steps in which the agents have the wrong state "0" and the buffer lenght
         external_data = {
@@ -249,6 +233,7 @@ class Results:
             'rebroadcast': communication,
             'n_agents': n_agents,
             'buff_dim': buf_dim,
+            'msg_hops': msg_hops,
             'ground_truth': gt,
             'threshold': thr
         }
@@ -294,98 +279,27 @@ class Results:
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
                 event_observed.append(starts_cens[i]*ends_cens[i])
-            durations_by_buffer = self.divide_event_by_buffer(limit_buf,algo,n_agents,b_starts,durations,event_observed)
-            durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
-            adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
-            wf = WeibullFitter()
-            estimates = {}
-            for k in adapted_durations.keys():
-                a_data = adapted_durations.get(k)[0]
-                a_censoring = adapted_durations.get(k)[1]
-                if len(a_data)>10:
-                    wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
-                    estimates.update({k:self.wb_get_mean_and_std(wf)})
-            self.dump_estimates(external_data,estimates)
+            self.dump_recovery_raw(self,external_data,[b_starts,durations,event_observed])
+
 
 ##########################################################################################################
-    def dump_estimates(self,external_data,estimates):
-        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
+    def dump_recovery_raw(self,external_data,data):
+        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_hops", "ground_truth", "threshold", "buff_starts", "durations", "events"]
         filename = os.path.abspath("")+"/proc_data"
         if not os.path.exists(filename):
             os.mkdir(filename)
-        filename += "/"+external_data['algorithm']+"recovery_estimate_durations_r#"+str(external_data['runs'])+"_a#"+external_data['arena']+"A.csv"
+        filename += "/"+external_data['algorithm']+"recovery_data_raw_r#"+str(external_data['runs'])+"_a#"+external_data['arena']+"A.csv"
         write_header = not os.path.exists(filename)
         with open(filename, mode='a', newline='\n') as fw:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
-            for k in estimates.keys():
-                data = estimates.get(k)
-                fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
-                                  k,data[0],data[1]])
-
-##########################################################################################################
-    def divide_event_by_buffer(self,limit_buf,algo,n_agents,buffer,durations,event_observed):
-        max_dim = n_agents - 1
-        if algo=='P': max_dim = limit_buf
-        durations_by_buffer = {}
-        durations_by_buffer.update({"33":[[],[]]})
-        durations_by_buffer.update({"66":[[],[]]})
-        durations_by_buffer.update({"100":[[],[]]})
-        for i in range(len(buffer)):
-            if buffer[i]<=max_dim*0.33:
-                tmp = durations_by_buffer.get("33")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"33":tmp})
-            elif buffer[i]>max_dim*0.33 and buffer[i]<=max_dim*0.66:
-                tmp = durations_by_buffer.get("66")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"66":tmp})
-            elif buffer[i]>max_dim*0.66:
-                tmp = durations_by_buffer.get("100")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"100":tmp})
-        return durations_by_buffer
-    
-##########################################################################################################
-    def adapt_dict_to_weibull_est(self,data):
-        out = {}
-        for k in data.keys():
-            durations = data.get(k)[0]
-            event_observed = data.get(k)[1]
-            if len(durations)>0:
-                if durations[0] > 0: durations,event_observed = np.insert(durations,0,0),np.insert(event_observed,0,0)
-                durations = list(durations)
-                event_observed = list(event_observed)
-                for i in range(len(durations)):
-                    if durations[i] == 0: durations[i] = .00000001
-            out.update({k:[durations,event_observed]})
-        return out
-    
-##########################################################################################################
-    def sort_arrays_in_dict(self,data_to_sort):
-        out = {}
-        for k in data_to_sort.keys():
-            durations = data_to_sort.get(k)[0]
-            event_obseerved = data_to_sort.get(k)[1]
-            for i in range(len(durations)):
-                for j in range(len(durations)):
-                    if durations[j]<durations[i] and i<j:
-                        tmp = durations[i]
-                        durations[i] = durations[j]
-                        durations[j] = tmp
-                        tmp = event_obseerved[i]
-                        event_obseerved[i] = event_obseerved[j]
-                        event_obseerved[j] = tmp
-            out.update({k:[durations,event_obseerved]})
-        return out
+            fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
+                                data[0],data[1],data[2]])
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "data"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -398,9 +312,9 @@ class Results:
             fwriter.writerow(data)
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,n_runs):    
-        static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time"]
-        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME]
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,n_runs):    
+        static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time","msg_hops"]
+        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
@@ -443,7 +357,7 @@ class Results:
         fw.close()
 
 ##########################################################################################################
-    def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME):
+    def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,msg_hops):
         for l in range(len(data_in.get(0))):
             multi_run_data = data_in.get(0)[l]
             if multi_run_data is not None:
@@ -464,10 +378,10 @@ class Results:
                             flag2[j]=flag1[j]+flag2[j]
                 for i in range(len(flag2)):
                     flag2[i]=flag2[i]/len(multi_run_data[0])
-                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-","-","-",MSG_EXP_TIME,dMR)
+                self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-","-","-",MSG_EXP_TIME,msg_hops,dMR)
         
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME):
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops):
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
             flag1=[-1]*len(data_in[i][0])
@@ -500,10 +414,10 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=self.extract_median(median_array)
-        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
 
 ##########################################################################################################
-    def dump_times(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,limit):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,limit):
         times = [len(data_in[0][0])] * len(data_in)
         for i in range(len(data_in)): # per ogni run
             for z in range(len(data_in[i][0])): # per ogni tick
@@ -514,7 +428,7 @@ class Results:
                     times[i] = z
                     break
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
 
 ##########################################################################################################
     def extract_median(self,array):
