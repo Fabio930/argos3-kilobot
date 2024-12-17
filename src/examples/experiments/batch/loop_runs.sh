@@ -27,8 +27,8 @@ fi
 experiment_length="900"
 RUNS=100
 rebroadcast="1"
-msg_expiring_sec="60 120 180 300 600"
-numrobots="25 100"
+msg_expiring_sec="600"
+numrobots="100"
 messages_hops="_"
 
 for exp_len_par in $experiment_length; do
