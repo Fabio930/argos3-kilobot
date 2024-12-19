@@ -279,7 +279,7 @@ class Results:
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
                 event_observed.append(starts_cens[i]*ends_cens[i])
-            self.dump_recovery_raw(self,external_data,[b_starts,durations,event_observed])
+            self.dump_recovery_raw(external_data,[b_starts,durations,event_observed])
 
 
 ##########################################################################################################
