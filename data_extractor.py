@@ -294,7 +294,7 @@ class Results:
             fwriter = csv.writer(fw, delimiter='\t')
             if write_header:
                 fwriter.writerow(header)
-            fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['ground_truth'],external_data['threshold'],
+            fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['msg_hops'],external_data['ground_truth'],external_data['threshold'],
                                 data[0],data[1],data[2]])
 
 ##########################################################################################################

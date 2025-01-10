@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
-from lifelines import WeibullFitter, KaplanMeierFitter
+from lifelines import WeibullFitter
 from scipy.special import gamma
 class Data:
 
@@ -121,7 +121,7 @@ class Data:
         return out
     
 ##########################################################################################################
-    def dump_estimates(self,external_data,estimates):
+    def dump_estimates(self,external_data,estimates): # forse inutile
         header = ["experiment_length","broadcast", "n_agents", "buff_dim", "ground_truth", "threshold", "rec_buff", "avg", "std"]
         filename = os.path.abspath("")+"/proc_data"
         if not os.path.exists(filename):
@@ -139,16 +139,22 @@ class Data:
 
 ##########################################################################################################
     def plot_messages(self,data):
-        dict_park, dict_adam, dict_our = {},{},{}
+        dict_park, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{}
         for k in data.keys():
             if k[1]=='P':
                 dict_park.update({(k[0],k[3],k[4]):data.get(k)})
             else:
                 if int(k[2])==0:
                     dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
+                elif int(k[2])==1:
+                    dict_fifo.update({(k[0],k[3],k[4]):data.get(k)})
                 else:
-                    dict_our.update({(k[0],k[3],k[4]):data.get(k)})
-        self.print_messages([dict_park,dict_adam,dict_our])
+                    if int(k[5]) == 1:
+                        dict_rnd.update({(k[0],k[3],k[4]):data.get(k)})
+                    else:
+                        dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)})
+        self.print_messages([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf])
+
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
@@ -172,7 +178,7 @@ class Data:
                                         tval+=c
                             array_val.append(float(tval))
                             if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4]):array_val})
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -187,7 +193,7 @@ class Data:
         return data
 
 ##########################################################################################################
-    def read_recovery_csv(self,path,algo,arena):
+    def read_recovery_csv(self,path,algo,arena): # fix similar to read csv but with 3 arrays as last values
         data = {}
         lc = 0
         with open(path,newline='') as f:
@@ -198,7 +204,7 @@ class Data:
                 else:
                     for val in row:
                         split_val = val.split('\t')
-                        data.update({(algo,arena,split_val[0],split_val[1],split_val[2],split_val[3],split_val[4],split_val[5],split_val[6]):(split_val[7],split_val[8])})                        
+                        data.update({(algo,arena,split_val[0],split_val[1],split_val[2],split_val[3],split_val[4],split_val[5],split_val[6]):(split_val[7],split_val[8],split_val[9])})                        
         return data
 
 ##########################################################################################################
@@ -230,7 +236,7 @@ class Data:
                             if ']' in val:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -248,7 +254,7 @@ class Data:
                             if rval == -1:
                                 data_val.update({keys[-2]:array_val})
                                 data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
@@ -266,7 +272,7 @@ class Data:
 ##########################################################################################################
     def divide_data(self,data):
         states, times, messages_b, messages_r = {},{},{},{}
-        algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time = [],[],[],[],[],[],[],[],[],[]
+        algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = [],[],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
                 if i == 0 and k[i] not in algorithm: algorithm.append(k[i])
@@ -279,6 +285,7 @@ class Data:
                 elif i == 7 and k[i] not in thrlds: thrlds.append(k[i])
                 elif i == 8 and k[i] not in min_buff_dim: min_buff_dim.append(k[i])
                 elif i == 9 and k[i] not in msg_time: msg_time.append(k[i])
+                elif i == 10 and k[i] not in msg_hops: msg_hops.append(k[i])
             if k[-1] == "times":
                 times.update({k[:-1]:data.get(k)})
             elif k[-1] == "swarm_state":
@@ -287,17 +294,17 @@ class Data:
                 messages_b.update({k[:-1]:data.get(k)})
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time), states, times, (messages_b, messages_r)
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times, (messages_b, messages_r)
         
 ##########################################################################################################
     def plot_recovery(self,data_in):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park, dict_adms, dict_our              = {},{},{}
-        ground_T, threshlds, jolly                  = [],[],[]
-        algo, arena, time, comm, agents, buf_dim    = [],[],[],[],[],[]
-        p_k, o_k                                    = [],[]
+        dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = {},{},{},{},{}
+        ground_T, threshlds, jolly, msg_hops                    = [],[],[],[]
+        algo, arena, time, comm, agents, buf_dim                = [],[],[],[],[],[]
+        p_k, o_k                                                = [],[]
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -310,6 +317,7 @@ class Data:
                 if k0[6] not in ground_T: ground_T.append(k0[6])
                 if k0[7] not in threshlds: threshlds.append(k0[7])
                 if k0[8] not in jolly: jolly.append(k0[8])
+                if k0[9] not in msg_hops: msg_hops.append(k0[9])
         for i in range(len(data_in)):
             for a in algo:
                 for a_s in arena:
@@ -318,52 +326,61 @@ class Data:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
-                                        for gt in ground_T:
-                                            tmp = []
-                                            for thr in threshlds:
-                                                s_data = data_in[i].get((a,a_s,et,c,n_a,m_b_d,gt,thr,m_t))
-                                                if s_data != None:
-                                                    if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
-                                                        p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
-                                                    value =round(float(s_data[0]),3)
-                                                    tmp.append(value)
-                                                else:
-                                                    if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
-                                                                    (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
+                                        for m_h in msg_hops:
+                                            for gt in ground_T:
+                                                tmp = []
+                                                for thr in threshlds:
+                                                    s_data = data_in[i].get((a,a_s,et,c,n_a,m_b_d,gt,thr,m_t,m_h))
+                                                    if s_data != None:
                                                         if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
                                                             p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
-                                            tmp = np.array(tmp)
-                                            if a=='P' and int(c)==0 and m_b_d in p_k:
-                                                if len(tmp)>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
-                                                                        (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                        (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
-                                                    dict_park.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
-                                            if a=='O' and m_b_d in o_k:
-                                                if len(tmp)>0:
-                                                    if int(c)==0:
-                                                        dict_adms.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                        value =round(float(s_data[0]),3)
+                                                        tmp.append(value)
                                                     else:
-                                                        dict_our.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
-        # self.print_lines_recovery(path,[dict_park,dict_adms,dict_our],'avg_recovery_lines',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_gt(path,[dict_park,dict_adms,dict_our],'recovery_box_gt',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+                                                        if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
+                                                                        (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
+                                                                        (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
+                                                            if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
+                                                                p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
+                                                tmp = np.array(tmp)
+                                                if a=='P' and int(c)==0 and m_b_d in p_k:
+                                                    if len(tmp)>0 and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
+                                                                            (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
+                                                                            (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24')))):
+                                                        dict_park.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                if a=='O' and m_b_d in o_k:
+                                                    if len(tmp)>0:
+                                                        if int(c)==0:
+                                                            dict_adms.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                        elif int(c)==2:
+                                                            dict_fifo.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                        else:
+                                                            if int(m_h)==1:
+                                                                dict_rnd.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+                                                            else:
+                                                                dict_rnd_inf.update({(a_s,n_a,m_b_d,m_t,gt):tmp})
+        self.print_box_recovery_by_gt(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'recovery_box_gt',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
         
 ##########################################################################################################
     def print_box_recovery_by_gt(self,save_path,data,filename,gt_thr,buf_dims,aa):
         plt.rcParams.update({"font.size":40})
-        cm              = plt.get_cmap('viridis') 
-        typo            = [0,1,2,3,4,5,6,7]
-        cNorm           = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap       = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        anonymous       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        handles_r       = [anonymous,id_broad,id_rebroad]
-        colors_box      = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[6])]
-        dict_park, dict_adms, dict_our = data[0], data[1], data[2]
-        park_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
-        adam_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
-        ours_plotting = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        cm                  = plt.get_cmap('viridis') 
+        typo                = [0,1,2,3,4,5]
+        cNorm               = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap           = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
+        handles_r           = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
+        dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = data[0], data[1], data[2], data[3], data[4]
+        park_plotting       = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        adam_plotting       = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        fifo_plotting       = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        rnd_plotting        = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
+        rnd_inf_plotting    = np.array([[[[-1]*len(buf_dims[1])*len(gt_thr[1])]*len(gt_thr[0])]*5]*3)
         for m_t in range(len(buf_dims[1])):
             for gt in range(len(gt_thr[0])):
                 for a_s in aa[0]:
@@ -377,9 +394,11 @@ class Data:
                             else:
                                 row = 2
                         for m_b_d in buf_dims[0]:
-                            park_data  = np.array(dict_park.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
-                            adams_data = np.array(dict_adms.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
-                            our_data   = np.array(dict_our.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            park_data       = np.array(dict_park.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            adams_data      = np.array(dict_adms.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            fifo_data       = np.array(dict_fifo.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            rnd_data        = np.array(dict_fifo.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
+                            rnd_inf_data    = np.array(dict_fifo.get((a_s,n_a,m_b_d,buf_dims[1][m_t],gt_thr[0][gt])))
                             if m_b_d == '60':
                                 col = 0
                             elif m_b_d == '120':
@@ -430,9 +449,15 @@ class Data:
                             if adams_data.any() != None:
                                 for i in range(len(adams_data)):
                                     adam_plotting[row][col][gt][i*(m_t+1)] =  adams_data[i]
-                            if our_data.any() != None:
-                                for i in range(len(our_data)):
-                                    ours_plotting[row][col][gt][i*(m_t+1)] =  our_data[i]
+                            if fifo_data.any() != None:
+                                for i in range(len(fifo_data)):
+                                    fifo_plotting[row][col][gt][i*(m_t+1)] =  fifo_data[i]
+                            if rnd_data.any() != None:
+                                for i in range(len(rnd_data)):
+                                    rnd_plotting[row][col][gt][i*(m_t+1)] =  rnd_data[i]
+                            if rnd_inf_data.any() != None:
+                                for i in range(len(rnd_inf_data)):
+                                    rnd_inf_plotting[row][col][gt][i*(m_t+1)] =  rnd_inf_data[i]
         fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(88,76))
         positions = range(1,len(gt_thr[0])*4,4)
         for i in range(3):
@@ -453,19 +478,36 @@ class Data:
                         if adam[k][z]!=-1:
                             flag.append(adam[k][z])
                     adam_print[k] = flag
-
-                ours = ours_plotting[i][j]
-                ours_print = [[-1]]*len(gt_thr[0])
-                for k in range(len(ours)):
+                fifo = fifo_plotting[i][j]
+                fifo_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(fifo)):
                     flag = []
-                    for z in range(len(ours[k])):
-                        if ours[k][z]!=-1:
-                            flag.append(ours[k][z])
-                    ours_print[k] = flag
-                bpp = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
-                bpa = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
-                bpo = ax[i][j].boxplot(ours_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
-                for bplot, color in zip((bpp, bpa, bpo), colors_box):
+                    for z in range(len(fifo[k])):
+                        if fifo[k][z]!=-1:
+                            flag.append(fifo[k][z])
+                    fifo_print[k] = flag
+                rnd = rnd_plotting[i][j]
+                rnd_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(rnd)):
+                    flag = []
+                    for z in range(len(rnd[k])):
+                        if rnd[k][z]!=-1:
+                            flag.append(rnd[k][z])
+                    rnd_print[k] = flag
+                rnd_inf = rnd_inf_plotting[i][j]
+                rnd_inf_print = [[-1]]*len(gt_thr[0])
+                for k in range(len(rnd_inf)):
+                    flag = []
+                    for z in range(len(rnd_inf[k])):
+                        if rnd_inf[k][z]!=-1:
+                            flag.append(rnd_inf[k][z])
+                    rnd_inf_print[k] = flag
+                bpp     = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
+                bpa     = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
+                bpf     = ax[i][j].boxplot(fifo_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
+                bpr     = ax[i][j].boxplot(rnd_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
+                bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+4 for p in positions],widths=0.5,patch_artist=True)
+                for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
                     for patch in bplot['boxes']:
                         patch.set_facecolor(color)
                 ax[i][j].set_xticks([p + 1 for p in positions])
@@ -473,99 +515,9 @@ class Data:
                 ax[i][j].set_ylim(0,901)
         fig.tight_layout()
         fig_path = save_path+filename+".png"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
-        return
-
-##########################################################################################################
-    def print_lines_recovery(self,save_path,data,filename,gt_thr,buf_dims,aa):
-        plt.rcParams.update({"font.size":36})
-        cm              = plt.get_cmap('viridis') 
-        typo            = [0,1,2,3,4,5,6,7]
-        cNorm           = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap       = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        anonymous       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
-        handles_r   = [anonymous,id_broad,id_rebroad]
-        dict_park, dict_adms, dict_our = data[0], data[1], data[2]
-        for m_t in buf_dims[1]:
-            for gt in range(len(gt_thr[0])):
-                save = [False]*3
-                fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
-                col, row = 0, 0
-                for a_s in aa[0]:
-                    for n_a in aa[1]:
-                        if a_s == "smallA":
-                            row = 1
-                        else:
-                            if n_a == "25":
-                                row = 0
-                            else:
-                                row = 2
-                        for m_b_d in buf_dims[0]:
-                            park_data  = np.array(dict_park.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
-                            adams_data = np.array(dict_adms.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
-                            our_data   = np.array(dict_our.get((a_s,n_a,m_b_d,m_t,gt_thr[0][gt])))
-                            if m_b_d == '60':
-                                col = 0
-                            elif m_b_d == '120':
-                                col = 1
-                            elif m_b_d == '180':
-                                col = 2
-                            elif m_b_d == '300':
-                                col = 3
-                            elif m_b_d == '600':
-                                col = 4
-                            else:
-                                if a_s=='bigA' and n_a=='25':
-                                    if m_b_d == '11':
-                                        col = 0
-                                    elif m_b_d == '15':
-                                        col = 1
-                                    elif m_b_d == '17':
-                                        col = 2
-                                    elif m_b_d == '19':
-                                        col = 3
-                                    elif m_b_d == '21':
-                                        col = 4
-                                elif a_s=='bigA' and n_a=='100':
-                                    if m_b_d == '41':
-                                        col = 0
-                                    elif m_b_d == '56':
-                                        col = 1
-                                    elif m_b_d == '65':
-                                        col = 2
-                                    elif m_b_d == '74':
-                                        col = 3
-                                    elif m_b_d == '83':
-                                        col = 4
-                                elif a_s=='smallA':
-                                    if m_b_d == '19':
-                                        col = 0
-                                    elif m_b_d == '22':
-                                        col = 1
-                                    elif m_b_d == '23':
-                                        col = 2
-                                    elif m_b_d == '23.01':
-                                        col = 3
-                                    elif m_b_d == '24':
-                                        col = 4
-                            if park_data.any() != None:
-                                save[0] = True
-                                ax[row][col].plot(park_data,color=scalarMap.to_rgba(typo[0]),lw=6)
-                            if adams_data.any() != None:
-                                save[1] = True
-                                ax[row][col].plot(adams_data,color=scalarMap.to_rgba(typo[3]),lw=6)
-                            if our_data.any() != None:
-                                save[2] = True
-                                ax[row][col].plot(our_data,color=scalarMap.to_rgba(typo[6]),lw=6)
-                fig.tight_layout()
-                fig_path = save_path+filename+"_G#"+str(gt_thr[0][gt])+"_bufrng#"+str(m_t)+".png"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
-                if np.array(save).any() != False: fig.savefig(fig_path, bbox_inches='tight')
-                plt.close(fig)        
         return
 
 ##########################################################################################################
@@ -573,9 +525,9 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park_avg,dict_adms_avg,dict_our_avg    = {},{},{}
-        dict_park_tmed,dict_adms_tmed,dict_our_tmed = {},{},{}
-        ground_T, threshlds , jolly                 = [],[],[]
+        dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg         = {},{},{},{},{}
+        dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed    = {},{},{},{},{}
+        ground_T, threshlds , jolly, msg_hop        = [],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
         p_k,o_k                                     = [],[]
         for i in range(len(data_in)):
@@ -591,6 +543,7 @@ class Data:
                 if k0[4]not in comm: comm.append(k0[4])
                 if k0[5]not in agents: agents.append(k0[5])
                 if k0[8]not in buf_dim: buf_dim.append(k0[8])
+                if k0[9]not in msg_hop: msg_hop.append(k0[9])
         for i in range(len(data_in)):
             a='P' if (i==2 or i==3) else 'O'
             for a_s in arena:
@@ -600,55 +553,65 @@ class Data:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
                                     for m_t in jolly:
-                                        vals            = []
-                                        times_median    = []
-                                        for gt in ground_T:
-                                            tmp         = []
-                                            tmp_tmed    = []
-                                            for thr in threshlds:
-                                                s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
-                                                t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t))
-                                                if s_data != None:
-                                                    if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                        p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                    tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
-                                                    tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
-                                            if len(vals)==0:
-                                                vals            = np.array([tmp])
-                                                times_median    = np.array([tmp_tmed])
-                                            else:
-                                                vals            = np.append(vals,[tmp],axis=0)
-                                                times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                        if a=='P' and int(c)==0 and m_t in p_k:
-                                            if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
-                                                dict_park_avg.update({(a_s,n_a,m_t):vals})
-                                                dict_park_tmed.update({(a_s,n_a,m_t):times_median})
-                                        if a=='O' and m_t in o_k:
-                                            if len(vals[0])>0:
-                                                if int(c)==0:
-                                                    dict_adms_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
+                                        for m_h in msg_hop:
+                                            vals            = []
+                                            times_median    = []
+                                            for gt in ground_T:
+                                                tmp         = []
+                                                tmp_tmed    = []
+                                                for thr in threshlds:
+                                                    s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
+                                                    t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
+                                                    if s_data != None:
+                                                        if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
+                                                            p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
+                                                        tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
+                                                        tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
+                                                if len(vals)==0:
+                                                    vals            = np.array([tmp])
+                                                    times_median    = np.array([tmp_tmed])
                                                 else:
-                                                    dict_our_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_our_tmed.update({(a_s,n_a,m_t):times_median})
-        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_our_avg],[dict_park_tmed,dict_adms_tmed,dict_our_tmed],[p_k,o_k],[arena,agents])
+                                                    vals            = np.append(vals,[tmp],axis=0)
+                                                    times_median    = np.append(times_median,[tmp_tmed],axis=0)
+                                            if a=='P' and int(c)==0 and m_t in p_k:
+                                                if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
+                                                    dict_park_avg.update({(a_s,n_a,m_t):vals})
+                                                    dict_park_tmed.update({(a_s,n_a,m_t):times_median})
+                                            if a=='O' and m_t in o_k:
+                                                if len(vals[0])>0:
+                                                    if int(c)==0:
+                                                        dict_adms_avg.update({(a_s,n_a,m_t):vals})
+                                                        dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
+                                                    elif int(c)==2:
+                                                        dict_fifo_avg.update({(a_s,n_a,m_t):vals})
+                                                        dict_fifo_tmed.update({(a_s,n_a,m_t):times_median})
+                                                    else:
+                                                        if int(m_h)==1:
+                                                            dict_rnd_avg.update({(a_s,n_a,m_t):vals})
+                                                            dict_rnd_tmed.update({(a_s,n_a,m_t):times_median})
+                                                        else:
+                                                            dict_rnd_inf_avg.update({(a_s,n_a,m_t):vals})
+                                                            dict_rnd_inf_tmed.update({(a_s,n_a,m_t):times_median})
+        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
     def print_messages(self,data_in):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6,7]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        anonymous         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        id_broad        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad       = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
+        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
         
-        handles_r   = [anonymous,id_broad,id_rebroad]
+        handles_r   = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -672,13 +635,27 @@ class Data:
             for xi in res:
                 tmp.append(xi/norm)
             dict_park.update({k:tmp})
-        for k in dict_our.keys():
+        for k in dict_fifo.keys():
             tmp =[]
-            res = dict_our.get(k)
+            res = dict_fifo.get(k)
             norm = int(k[1])-1
             for xi in res:
                 tmp.append(xi/norm)
-            dict_our.update({k:tmp})
+            dict_fifo.update({k:tmp})
+        for k in dict_rnd.keys():
+            tmp =[]
+            res = dict_rnd.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd.update({k:tmp})
+        for k in dict_rnd_inf.keys():
+            tmp =[]
+            res = dict_rnd_inf.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd_inf.update({k:tmp})
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -758,8 +735,8 @@ class Data:
                     col = 3
                 elif k[2] == '600':
                     col = 4
-            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-        for k in dict_our.keys():
+            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+        for k in dict_fifo.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[1]=='25':
@@ -798,7 +775,87 @@ class Data:
                     col = 3
                 elif k[2] == '600':
                     col = 4
-            ax[row][col].plot(dict_our.get(k),color=scalarMap.to_rgba(typo[6]),lw=6)
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_rnd.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            elif k[0]=='small':
+                row = 1
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+        for k in dict_rnd_inf.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            elif k[0]=='small':
+                row = 1
+                if k[2] == '60':
+                    col = 0
+                elif k[2] == '120':
+                    col = 1
+                elif k[2] == '180':
+                    col = 2
+                elif k[2] == '300':
+                    col = 3
+                elif k[2] == '600':
+                    col = 4
+            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
         for x in range(2):
             for y in range(5):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
@@ -859,7 +916,7 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
@@ -867,36 +924,44 @@ class Data:
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6,7]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_our = data_in[0], data_in[1], data_in[2]
-        tdict_park,tdict_adam,tdict_our = times_in[0], times_in[1], times_in[2]
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
+        tdict_park,tdict_adam,tdict_fifo,tdict_rnd,tdict_rnd_inf = times_in[0], times_in[1], times_in[2], times_in[3], times_in[4]
         p_k, po_k = keys[0],keys[1]
         o_k = []
         for x in range(len(po_k)):
             o_k.append(int(po_k[x]))
         o_k = np.sort(o_k)
         arena = more_k[0]
-        vals8p = [[0]*len(threshlds)]*len(o_k)
-        vals2p = [[0]*len(threshlds)]*len(o_k)
-        vals8a = [[0]*len(threshlds)]*len(o_k)
-        vals2a = [[0]*len(threshlds)]*len(o_k)
-        vals8o = [[0]*len(threshlds)]*len(o_k)
-        vals2o = [[0]*len(threshlds)]*len(o_k)
+        vals8p  = [[0]*len(threshlds)]*len(o_k)
+        vals2p  = [[0]*len(threshlds)]*len(o_k)
+        vals8a  = [[0]*len(threshlds)]*len(o_k)
+        vals2a  = [[0]*len(threshlds)]*len(o_k)
+        vals8f  = [[0]*len(threshlds)]*len(o_k)
+        vals2f  = [[0]*len(threshlds)]*len(o_k)
+        vals8r  = [[0]*len(threshlds)]*len(o_k)
+        vals2r  = [[0]*len(threshlds)]*len(o_k)
+        vals8ri = [[0]*len(threshlds)]*len(o_k)
+        vals2ri = [[0]*len(threshlds)]*len(o_k)
 
-        tvalsp = [[0]*len(threshlds)]*len(o_k)
-        tvalsa = [[0]*len(threshlds)]*len(o_k)
-        tvalso = [[0]*len(threshlds)]*len(o_k)
+        tvalsp  = [[0]*len(threshlds)]*len(o_k)
+        tvalsa  = [[0]*len(threshlds)]*len(o_k)
+        tvalsf  = [[0]*len(threshlds)]*len(o_k)
+        tvalsr  = [[0]*len(threshlds)]*len(o_k)
+        tvalsri = [[0]*len(threshlds)]*len(o_k)
 
-        low_bound   = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
-        high_bound  = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
-        anonymous   = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
-        id_broad    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[6]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R')
+        low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
+        high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
+        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
 
         handles_c   = [high_bound,low_bound]
-        handles_r   = [anonymous,id_broad,id_rebroad]
+        handles_r   = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
@@ -921,18 +986,22 @@ class Data:
                     row = 2
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):
-                        p_vals2,a_vals2,o_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_vals8,a_vals8,o_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt2,a_gt2,o_gt2       = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt8,a_gt8,o_gt8       = [np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_valst,a_valst,o_valst = np.nan,np.nan,np.nan
+                        p_vals2,a_vals2,f_vals2,r_vals2,ri_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_vals8,a_vals8,f_vals8,r_vals8,ri_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_gt2,a_gt2,f_gt2,r_gt2,ri_gt2           = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_gt8,a_gt8,f_gt8,r_gt8,ri_gt8           = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                        p_valst,a_valst,f_valst,r_valst,ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan
                         for pt in range(len(ground_T)):
                             pval    = dict_park.get((a,ag,p_k[k]))[pt][th]
                             aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
-                            oval    = dict_our.get((a,ag,str(o_k[k])))[pt][th]
+                            fval    = dict_fifo.get((a,ag,str(o_k[k])))[pt][th]
+                            rval    = dict_rnd.get((a,ag,str(o_k[k])))[pt][th]
+                            rival   = dict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
                             tpval   = tdict_park.get((a,ag,p_k[k]))[pt][th]
                             taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
-                            toval   = tdict_our.get((a,ag,str(o_k[k])))[pt][th]
+                            tfval   = tdict_fifo.get((a,ag,str(o_k[k])))[pt][th]
+                            trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th]
+                            trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and p_valst is np.nan:
                                     p_valst = np.log10(tpval)
@@ -950,23 +1019,6 @@ class Data:
                                 if p_vals2[1] is np.nan or pval<p_vals2[1]:
                                     p_vals2[1]  = pval
                                     p_gt2[1]    = ground_T[pt]
-                            if oval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and o_valst is np.nan:
-                                    o_valst = np.log10(toval)
-                                if o_vals8[1] is np.nan or oval<o_vals8[1]:
-                                    o_vals8[1]  = oval
-                                    o_gt8[1]    = ground_T[pt]
-                            elif oval<=0.2:
-                                if o_vals2[0] is np.nan or oval>=o_vals2[0]:
-                                    o_vals2[0]  = oval
-                                    o_gt2[0]    = ground_T[pt]
-                            else:
-                                if o_vals8[0] is np.nan or oval>o_vals8[0]:
-                                    o_vals8[0]  = oval
-                                    o_gt8[0]    = ground_T[pt]
-                                if o_vals2[1] is np.nan or oval<o_vals2[1]:
-                                    o_vals2[1]  = oval
-                                    o_gt2[1]    = ground_T[pt]
                             if aval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and a_valst is np.nan:
                                     a_valst = np.log10(taval)
@@ -984,6 +1036,57 @@ class Data:
                                 if a_vals2[1] is np.nan or aval<a_vals2[1]:
                                     a_vals2[1]  = aval
                                     a_gt2[1]    = ground_T[pt]
+                            if fval>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and f_valst is np.nan:
+                                    f_valst = np.log10(tfval)
+                                if f_vals8[1] is np.nan or fval<f_vals8[1]:
+                                    f_vals8[1]  = fval
+                                    f_gt8[1]    = ground_T[pt]
+                            elif fval<=0.2:
+                                if f_vals2[0] is np.nan or fval>=f_vals2[0]:
+                                    f_vals2[0]  = fval
+                                    f_gt2[0]    = ground_T[pt]
+                            else:
+                                if f_vals8[0] is np.nan or fval>f_vals8[0]:
+                                    f_vals8[0]  = fval
+                                    f_gt8[0]    = ground_T[pt]
+                                if f_vals2[1] is np.nan or fval<f_vals2[1]:
+                                    f_vals2[1]  = fval
+                                    f_gt2[1]    = ground_T[pt]
+                            if rval>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and r_valst is np.nan:
+                                    r_valst = np.log10(trval)
+                                if r_vals8[1] is np.nan or rval<r_vals8[1]:
+                                    r_vals8[1]  = rval
+                                    r_gt8[1]    = ground_T[pt]
+                            elif rval<=0.2:
+                                if r_vals2[0] is np.nan or rval>=r_vals2[0]:
+                                    r_vals2[0]  = rval
+                                    r_gt2[0]    = ground_T[pt]
+                            else:
+                                if r_vals8[0] is np.nan or rval>r_vals8[0]:
+                                    r_vals8[0]  = rval
+                                    r_gt8[0]    = ground_T[pt]
+                                if r_vals2[1] is np.nan or rval<r_vals2[1]:
+                                    r_vals2[1]  = rval
+                                    r_gt2[1]    = ground_T[pt]
+                            if rival>=0.8:
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and ri_valst is np.nan:
+                                    ri_valst = np.log10(trival)
+                                if ri_vals8[1] is np.nan or rival<ri_vals8[1]:
+                                    ri_vals8[1]  = rival
+                                    ri_gt8[1]    = ground_T[pt]
+                            elif rival<=0.2:
+                                if ri_vals2[0] is np.nan or rival>=ri_vals2[0]:
+                                    ri_vals2[0]  = rival
+                                    ri_gt2[0]    = ground_T[pt]
+                            else:
+                                if ri_vals8[0] is np.nan or rival>ri_vals8[0]:
+                                    ri_vals8[0]  = rival
+                                    ri_gt8[0]    = ground_T[pt]
+                                if ri_vals2[1] is np.nan or rival<ri_vals2[1]:
+                                    ri_vals2[1]  = rival
+                                    ri_gt2[1]    = ground_T[pt]
                         if p_vals8[0] is np.nan:
                             p_vals8[0] = p_vals8[1]
                             p_gt8[0] = p_gt8[1]
@@ -996,18 +1099,6 @@ class Data:
                         elif p_vals2[1] is np.nan:
                             p_vals2[1] = p_vals2[0]
                             p_gt2[1] = p_gt2[0]
-                        if o_vals8[0] is np.nan:
-                            o_vals8[0] = o_vals8[1]
-                            o_gt8[0] = o_gt8[1]
-                        elif o_vals8[1] is np.nan:
-                            o_vals8[1] = o_vals8[0]
-                            o_gt8[1] = o_gt8[0]
-                        if o_vals2[0] is np.nan:
-                            o_vals2[0] = o_vals2[1]
-                            o_gt2[0] = o_gt2[1]
-                        elif o_vals2[1] is np.nan:
-                            o_vals2[1] = o_vals2[0]
-                            o_gt2[1] = o_gt2[0]
                         if a_vals8[0] is np.nan:
                             a_vals8[0] = a_vals8[1]
                             a_gt8[0] = a_gt8[1]
@@ -1020,25 +1111,74 @@ class Data:
                         elif a_vals2[1] is np.nan:
                             a_vals2[1] = a_vals2[0]
                             a_gt2[1] = a_gt2[0]
+                        if f_vals8[0] is np.nan:
+                            f_vals8[0] = f_vals8[1]
+                            f_gt8[0] = f_gt8[1]
+                        elif f_vals8[1] is np.nan:
+                            f_vals8[1] = f_vals8[0]
+                            f_gt8[1] = f_gt8[0]
+                        if f_vals2[0] is np.nan:
+                            f_vals2[0] = f_vals2[1]
+                            f_gt2[0] = f_gt2[1]
+                        elif f_vals2[1] is np.nan:
+                            f_vals2[1] = f_vals2[0]
+                            f_gt2[1] = f_gt2[0]
+                        if r_vals8[0] is np.nan:
+                            r_vals8[0] = r_vals8[1]
+                            r_gt8[0] = r_gt8[1]
+                        elif r_vals8[1] is np.nan:
+                            r_vals8[1] = r_vals8[0]
+                            r_gt8[1] = r_gt8[0]
+                        if r_vals2[0] is np.nan:
+                            r_vals2[0] = r_vals2[1]
+                            r_gt2[0] = r_gt2[1]
+                        elif r_vals2[1] is np.nan:
+                            r_vals2[1] = r_vals2[0]
+                            r_gt2[1] = r_gt2[0]
+                        if ri_vals8[0] is np.nan:
+                            ri_vals8[0] = ri_vals8[1]
+                            ri_gt8[0] = ri_gt8[1]
+                        elif ri_vals8[1] is np.nan:
+                            ri_vals8[1] = ri_vals8[0]
+                            ri_gt8[1] = ri_gt8[0]
+                        if ri_vals2[0] is np.nan:
+                            ri_vals2[0] = ri_vals2[1]
+                            ri_gt2[0] = ri_gt2[1]
+                        elif ri_vals2[1] is np.nan:
+                            ri_vals2[1] = ri_vals2[0]
+                            ri_gt2[1] = ri_gt2[0]
+
                         vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
                         vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
-                        vals2o[k][th] = np.round(np.interp([0.2],o_vals2,o_gt2,left=np.nan)[0],3)
+                        vals2f[k][th] = np.round(np.interp([0.2],f_vals2,f_gt2,left=np.nan)[0],3)
+                        vals2r[k][th] = np.round(np.interp([0.2],r_vals2,r_gt2,left=np.nan)[0],3)
+                        vals2ri[k][th] = np.round(np.interp([0.2],ri_vals2,ri_gt2,left=np.nan)[0],3)
                         vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
                         vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
-                        vals8o[k][th] = np.round(np.interp([0.8],o_vals8,o_gt8,right=np.nan)[0],3)
+                        vals8f[k][th] = np.round(np.interp([0.8],f_vals8,f_gt8,right=np.nan)[0],3)
+                        vals8r[k][th] = np.round(np.interp([0.8],r_vals8,r_gt8,right=np.nan)[0],3)
+                        vals8ri[k][th] = np.round(np.interp([0.8],ri_vals8,ri_gt8,right=np.nan)[0],3)
                         tvalsp[k][th] = p_valst
                         tvalsa[k][th] = a_valst
-                        tvalso[k][th] = o_valst
+                        tvalsf[k][th] = f_valst
+                        tvalsr[k][th] = r_valst
+                        tvalsri[k][th] = ri_valst
                     ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                     ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
-                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
-                    ax[row][k].plot(vals2o[k],color=scalarMap.to_rgba(typo[6]),lw=6,ls='--')
-                    ax[row][k].plot(vals8o[k],color=scalarMap.to_rgba(typo[6]),lw=6,ls='-')
+                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
+                    ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
+                    ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
+                    ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
                     tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[3]),lw=6)
-                    tax[row][k].plot(tvalso[k],color=scalarMap.to_rgba(typo[6]),lw=6)
+                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
+                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
+                    tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
+                    tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
@@ -1160,8 +1300,8 @@ class Data:
         tfig.tight_layout()
         fig_path = path+_type+"_activation.pdf"
         tfig_path = path+t_type+"_time.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
-        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=3,loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
+        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
