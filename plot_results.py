@@ -51,8 +51,8 @@ def main():
                             tot_recovery = [data]
                         else:
                             tot_recovery = np.append(tot_recovery,[data],axis=0)
-            csv_res.plot_recovery(tot_recovery)
-            csv_res.plot_active(tot_st,tot_times)
+            if len(tot_recovery) > 0: csv_res.plot_recovery(csv_res.fit_recovery_raw_data(tot_recovery))
+            if len(tot_st) > 0: csv_res.plot_active(tot_st,tot_times)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:
