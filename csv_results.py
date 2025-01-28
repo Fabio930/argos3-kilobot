@@ -126,7 +126,7 @@ class Data:
             else:
                 if int(k[2])==0:
                     dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
-                elif int(k[2])==1:
+                elif int(k[2])==2:
                     dict_fifo.update({(k[0],k[3],k[4]):data.get(k)})
                 else:
                     if int(k[5]) == 1:
@@ -231,11 +231,15 @@ class Data:
                                 if '[' in split_val[k]:
                                     tval = ''
                                     for c in split_val[k]:
-                                        if c != '[':
+                                        if c != '[' and c != ']':
                                             tval+=c
                                     if change==0:
+                                        if ']' in split_val[k]:
+                                            change = 1
                                         buffer_start_dim.append(int(tval))
                                     elif change == 1:
+                                        if ']' in split_val[k]:
+                                            change = 2
                                         durations.append(int(tval))
                                     else:
                                         event_observed.append(int(tval))
@@ -567,17 +571,17 @@ class Data:
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
-                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
-                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
-                if k0[9]not in jolly: jolly.append(k0[9])
                 if k0[0]not in algo: algo.append(k0[0])
                 if k0[1]not in arena: arena.append(k0[1])
                 if k0[2]not in runs: runs.append(k0[2])
                 if k0[3]not in time: time.append(k0[3])
                 if k0[4]not in comm: comm.append(k0[4])
                 if k0[5]not in agents: agents.append(k0[5])
+                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
+                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
                 if k0[8]not in buf_dim: buf_dim.append(k0[8])
-                if k0[9]not in msg_hop: msg_hop.append(k0[9])
+                if k0[9]not in jolly: jolly.append(k0[9])
+                if k0[10]not in msg_hop: msg_hop.append(k0[10])
         for i in range(len(data_in)):
             a='P' if (i==2 or i==3) else 'O'
             for a_s in arena:
@@ -608,7 +612,9 @@ class Data:
                                                     vals            = np.append(vals,[tmp],axis=0)
                                                     times_median    = np.append(times_median,[tmp_tmed],axis=0)
                                             if a=='P' and int(c)==0 and m_t in p_k:
-                                                if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
+                                                if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or 
+                                                                                         (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or 
+                                                                                         (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
                                                     dict_park_avg.update({(a_s,n_a,m_t):vals})
                                                     dict_park_tmed.update({(a_s,n_a,m_t):times_median})
                                             if a=='O' and m_t in o_k:

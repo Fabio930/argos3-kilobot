@@ -13,12 +13,12 @@ def main():
             for file in sorted(os.listdir(base)):
                 n_runs=0
                 arena=''
-                if "images" not in file:
+                if "images" not in file and file.split('_')[0][0] != '.':
+                    file_path=os.path.join(base, file)
+                    no_ext_file = file.split('.')[0]
+                    sets = no_ext_file.split('_')
+                    algo = sets[0][0]
                     if "resume" in file:
-                        file_path=os.path.join(base, file)
-                        no_ext_file = file.split('.')[0]
-                        sets = no_ext_file.split('_')
-                        algo = sets[0][0]
                         for s in sets:
                             val = s.split('#')
                             if len(val)>1:
@@ -35,10 +35,6 @@ def main():
                             tot_st      = np.append(tot_st,[states],axis=0)
                             tot_times   = np.append(tot_times,[times],axis=0)
                     if "recovery" in file:
-                        file_path=os.path.join(base, file)
-                        no_ext_file = file.split('.')[0]
-                        sets = no_ext_file.split('_')
-                        algo = sets[0][0]
                         for s in sets:
                             val = s.split('#')
                             if len(val)>1:
