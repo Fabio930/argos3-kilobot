@@ -210,7 +210,18 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    switch (result){
+        case 0:
+            buffer_neglect += 1;
+            break;
+        case 1:
+            buffer_insertion += 1;
+            break;
+        case 2:
+            buffer_update +=1;
+            break;
+    }
     sort_q(&quorum_array);
 }
 
@@ -387,8 +398,13 @@ void loop(){
         if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }    
-    fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info);
+    fprintf(fp,"\t%ld\t%ld\t%ld\t%ld\t%ld\n",num_own_info,num_other_info,buffer_neglect,buffer_insertion,buffer_update);
     fclose(fp);
+    num_own_info = 0;
+    num_other_info = 0;
+    buffer_neglect = 0;
+    buffer_insertion = 0;
+    buffer_update = 0;
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
