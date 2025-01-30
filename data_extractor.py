@@ -96,16 +96,7 @@ class Results:
         return msgs_summation
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,data_type="all"):
-        max_buff_size = n_agents - 1
-        act_results = {}
-        num_runs = int(len(os.listdir(sub_path))/n_agents)
-        msgs_bigM_1 = [np.array([])] * n_agents
-        act_bigM_1 = [np.array([])] * n_agents
-        act_bigM_2 = [np.array([])] * n_agents
-        msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
-        act_M_1 = [np.array([],dtype=int)]*num_runs
-        act_M_2 = [np.array([],dtype=int)]*num_runs
+    def assign_states(self,n_agents,num_runs):
         # assign randomly the state to agents at each run
         states_by_gt = [np.array([])]*len(self.ground_truth)
         for gt in range(len(self.ground_truth)):
@@ -132,6 +123,24 @@ class Results:
                 states_by_gt = [runs_states]
             else:
                 states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
+        return states_by_gt
+    
+##########################################################################################################
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,data_type="all"):
+        max_buff_size = n_agents - 1
+        act_results = {}
+        num_runs = int(len(os.listdir(sub_path))/n_agents)
+        msgs_bigM_1 = [np.array([])] * n_agents
+        act_bigM_1 = [np.array([])] * n_agents
+        act_bigM_2 = [np.array([])] * n_agents
+        buff_neglects_bigM = [np.array([])] * n_agents
+        buff_insertin_bigM = [np.array([])] * n_agents
+        msgs_M_1 = [np.array([],dtype=int)]*num_runs # x num_samples
+        act_M_1 = [np.array([],dtype=int)]*num_runs
+        act_M_2 = [np.array([],dtype=int)]*num_runs
+        buff_neglects  = [np.array([],dtype=int)]*num_runs
+        buff_insertin  = [np.array([],dtype=int)]*num_runs
+        # states_by_gt = self.assign_states(n_agents,num_runs)
         #####################################################
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
