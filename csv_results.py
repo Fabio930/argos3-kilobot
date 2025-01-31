@@ -312,6 +312,7 @@ class Data:
 ##########################################################################################################
     def divide_data(self,data):
         states, times, messages_b, messages_r = {},{},{},{}
+        do_nothing_buff, insert_buff, update_buf = {},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = [],[],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
@@ -334,7 +335,13 @@ class Data:
                 messages_b.update({k[:-1]:data.get(k)})
             elif k[-1] == "rebroadcast_msg":
                 messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times, (messages_b, messages_r)
+            elif k[-1] == "do_nothing_buffer":
+                do_nothing_buff.update({k[:-1]:data.get(k)})
+            elif k[-1] == "insert_buffer":
+                insert_buff.update({k[:-1]:data.get(k)})
+            elif k[-1] == "update_buffer":
+                update_buf.update({k[:-1]:data.get(k)})
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times, (messages_b, messages_r), (do_nothing_buff, insert_buff, update_buf)
                 
 ##########################################################################################################
     def plot_recovery(self,data_in):
@@ -559,6 +566,62 @@ class Data:
         return
 
 ##########################################################################################################
+    def plot_buffer_opts(self,no_actions,insertions,updates):
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
+        dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd   = {},{},{}
+        dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr   = {},{},{}
+        jolly, msg_hop                      = [],[]
+        algo,arena,runs,time,comm,agents    = [],[],[],[],[],[]
+        for i in range(len(no_actions)):
+            da_K = no_actions[i].keys()
+            for k0 in da_K:
+                if k0[0]not in algo: algo.append(k0[0])
+                if k0[1]not in arena: arena.append(k0[1])
+                if k0[2]not in runs: runs.append(k0[2])
+                if k0[3]not in time: time.append(k0[3])
+                if k0[4]not in comm: comm.append(k0[4])
+                if k0[5]not in agents: agents.append(k0[5])
+                if k0[9]not in jolly: jolly.append(k0[9])
+                if k0[10]not in msg_hop: msg_hop.append(k0[10])
+        for i in range(len(no_actions)):
+            for a in ('O'):
+                for a_s in arena:
+                    for n_r in runs:
+                        for et in time:
+                            for c in comm:
+                                for n_a in agents:
+                                    for m_t in jolly:
+                                        for m_h in msg_hop:
+                                            n_data = no_actions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))
+                                            if n_data != None and int(c)==1 and int(m_h)==0:
+                                                n_data = n_data[0]
+                                                i_data = insertions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
+                                                u_data = updates[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
+                                                dict_rnd_inf_no_act.update({(a_s,n_a,m_t):n_data})
+                                                dict_rnd_inf_ins.update({(a_s,n_a,m_t):i_data})
+                                                dict_rnd_inf_upd.update({(a_s,n_a,m_t):u_data})
+                                                n_data_fr,i_data_fr,u_data_fr = [-1]*len(n_data),[-1]*len(n_data),[-1]*len(n_data)
+                                                for j in range(len(n_data)):
+                                                    if j==0:
+                                                        n_data_fr[j] = n_data[j]
+                                                        i_data_fr[j] = i_data[j]
+                                                        u_data_fr[j] = u_data[j]
+                                                    else:
+                                                        n_data_fr[j] = n_data[j] - n_data[j-1]
+                                                        i_data_fr[j] = i_data[j] - i_data[j-1]
+                                                        u_data_fr[j] = u_data[j] - u_data[j-1]
+                                                dict_rnd_inf_no_act_fr.update({(a_s,n_a,m_t):n_data_fr})
+                                                dict_rnd_inf_ins_fr.update({(a_s,n_a,m_t):i_data_fr})
+                                                dict_rnd_inf_upd_fr.update({(a_s,n_a,m_t):u_data_fr})
+
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts.pdf",500)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts.pdf",7.5)
+    
+        return
+
+##########################################################################################################
     def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
@@ -583,55 +646,55 @@ class Data:
                 if k0[9]not in jolly: jolly.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
         for i in range(len(data_in)):
-            a='P' if (i==2 or i==3) else 'O'
-            for a_s in arena:
-                for n_r in runs:
-                    for et in time:
-                        for c in comm:
-                            for n_a in agents:
-                                for m_b_d in buf_dim:
-                                    for m_t in jolly:
-                                        for m_h in msg_hop:
-                                            vals            = []
-                                            times_median    = []
-                                            for gt in ground_T:
-                                                tmp         = []
-                                                tmp_tmed    = []
-                                                for thr in threshlds:
-                                                    s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
-                                                    t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
-                                                    if s_data != None:
-                                                        if ((i==2 or i==3) and m_t not in p_k) or ((i==0 or i==1) and m_t not in o_k):
-                                                            p_k.append(m_t) if (i==2 or i==3) else o_k.append(m_t)
-                                                        tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
-                                                        tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
-                                                if len(vals)==0:
-                                                    vals            = np.array([tmp])
-                                                    times_median    = np.array([tmp_tmed])
-                                                else:
-                                                    vals            = np.append(vals,[tmp],axis=0)
-                                                    times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                            if a=='P' and int(c)==0 and m_t in p_k:
-                                                if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or 
-                                                                                         (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or 
-                                                                                         (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
-                                                    dict_park_avg.update({(a_s,n_a,m_t):vals})
-                                                    dict_park_tmed.update({(a_s,n_a,m_t):times_median})
-                                            if a=='O' and m_t in o_k:
-                                                if len(vals[0])>0:
-                                                    if int(c)==0:
-                                                        dict_adms_avg.update({(a_s,n_a,m_t):vals})
-                                                        dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
-                                                    elif int(c)==2:
-                                                        dict_fifo_avg.update({(a_s,n_a,m_t):vals})
-                                                        dict_fifo_tmed.update({(a_s,n_a,m_t):times_median})
+            for a in algo:
+                for a_s in arena:
+                    for n_r in runs:
+                        for et in time:
+                            for c in comm:
+                                for n_a in agents:
+                                    for m_b_d in buf_dim:
+                                        for m_t in jolly:
+                                            for m_h in msg_hop:
+                                                vals            = []
+                                                times_median    = []
+                                                for gt in ground_T:
+                                                    tmp         = []
+                                                    tmp_tmed    = []
+                                                    for thr in threshlds:
+                                                        s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
+                                                        t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
+                                                        if s_data != None:
+                                                            if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
+                                                                p_k.append(m_t) if (a=='P') else o_k.append(m_t)
+                                                            tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
+                                                            tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
+                                                    if len(vals)==0:
+                                                        vals            = np.array([tmp])
+                                                        times_median    = np.array([tmp_tmed])
                                                     else:
-                                                        if int(m_h)==1:
-                                                            dict_rnd_avg.update({(a_s,n_a,m_t):vals})
-                                                            dict_rnd_tmed.update({(a_s,n_a,m_t):times_median})
+                                                        vals            = np.append(vals,[tmp],axis=0)
+                                                        times_median    = np.append(times_median,[tmp_tmed],axis=0)
+                                                if a=='P' and int(c)==0 and m_t in p_k:
+                                                    if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or 
+                                                                                            (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or 
+                                                                                            (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
+                                                        dict_park_avg.update({(a_s,n_a,m_t):vals})
+                                                        dict_park_tmed.update({(a_s,n_a,m_t):times_median})
+                                                if a=='O' and m_t in o_k:
+                                                    if len(vals[0])>0:
+                                                        if int(c)==0:
+                                                            dict_adms_avg.update({(a_s,n_a,m_t):vals})
+                                                            dict_adms_tmed.update({(a_s,n_a,m_t):times_median})
+                                                        elif int(c)==2:
+                                                            dict_fifo_avg.update({(a_s,n_a,m_t):vals})
+                                                            dict_fifo_tmed.update({(a_s,n_a,m_t):times_median})
                                                         else:
-                                                            dict_rnd_inf_avg.update({(a_s,n_a,m_t):vals})
-                                                            dict_rnd_inf_tmed.update({(a_s,n_a,m_t):times_median})
+                                                            if int(m_h)==1:
+                                                                dict_rnd_avg.update({(a_s,n_a,m_t):vals})
+                                                                dict_rnd_tmed.update({(a_s,n_a,m_t):times_median})
+                                                            else:
+                                                                dict_rnd_inf_avg.update({(a_s,n_a,m_t):vals})
+                                                                dict_rnd_inf_tmed.update({(a_s,n_a,m_t):times_median})
         self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed],[p_k,o_k],[arena,agents])
         
 ##########################################################################################################
@@ -741,160 +804,80 @@ class Data:
             col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
         for k in dict_fifo.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
             ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
         for k in dict_rnd_inf.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '60':
-                    col = 0
-                elif k[2] == '120':
-                    col = 1
-                elif k[2] == '180':
-                    col = 2
-                elif k[2] == '300':
-                    col = 3
-                elif k[2] == '600':
-                    col = 4
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
             ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
         for x in range(2):
             for y in range(5):
@@ -956,6 +939,112 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+
+##########################################################################################################
+    def print_buff_opts(self,path,data_in,fig_name,y_lim):
+        plt.rcParams.update({"font.size":36})
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        dict_no_act, dict_ins, dict_upd = data_in[0], data_in[1], data_in[2]
+        no_action   = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='no_action')
+        insertion   = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='insertion')
+        update      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='update')
+        real_x_ticks = []
+        void_x_ticks = []
+        svoid_x_ticks = []
+        
+        handles_r   = [no_action,insertion,update]
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
+        for k in dict_no_act.keys():
+            row = 0
+            col = 0
+            if k[0]=='bigA' and k[1]=='25':
+                row = 0
+            elif k[0]=='bigA' and k[1]=='100':
+                row = 2
+            elif k[0]=='smallA':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_no_act.get(k),color=scalarMap.to_rgba(typo[0]),lw=3)
+            ax[row][col].plot(dict_ins.get(k),color=scalarMap.to_rgba(typo[1]),lw=3)
+            ax[row][col].plot(dict_upd.get(k),color=scalarMap.to_rgba(typo[2]),lw=3)
+        for x in range(2):
+            for y in range(5):
+                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        for x in range(3):
+            for y in range(1,5):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(5):
+            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        axt3=ax[0][3].twiny()
+        axt4=ax[0][4].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt3.set_xticklabels(empty_string_labels)
+        axt4.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 120\, s$")
+        axt2.set_xlabel(r"$T_m = 180\, s$")
+        axt3.set_xlabel(r"$T_m = 300\, s$")
+        axt4.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][4].twinx()
+        ayt1=ax[1][4].twinx()
+        ayt2=ax[2][4].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel("#")
+        ax[1][0].set_ylabel("#")
+        ax[2][0].set_ylabel("#")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        ax[2][3].set_xlabel(r"$T\, (s)$")
+        ax[2][4].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(5):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_ylim(0,y_lim)
+        fig.tight_layout()
+        fig_path = path+fig_name
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
