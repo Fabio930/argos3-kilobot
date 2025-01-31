@@ -400,11 +400,6 @@ void loop(){
     }    
     fprintf(fp,"\t%ld\t%ld\t%ld\t%ld\t%ld\n",num_own_info,num_other_info,buffer_neglect,buffer_insertion,buffer_update);
     fclose(fp);
-    num_own_info = 0;
-    num_other_info = 0;
-    buffer_neglect = 0;
-    buffer_insertion = 0;
-    buffer_update = 0;
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
