@@ -14,8 +14,8 @@ FILE *fp;
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 5,
-    ARENA_Y = 5
+    ARENA_X = 10,
+    ARENA_Y = 10
 }arena_size;
 
 /* Enum for messages type */
@@ -109,6 +109,9 @@ arena_a *the_arena = NULL;
 
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
+uint64_t buffer_insertion=0;
+uint64_t buffer_update=0;
+uint64_t buffer_neglect=0;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;

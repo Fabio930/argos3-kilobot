@@ -9,6 +9,9 @@ def main():
         if base.split('/')[-1] == "proc_data":
             tot_st      = []
             tot_times   = []
+            tot_buf_not     = []
+            tot_buf_ins     = []
+            tot_buf_upd     = []
             for file in sorted(os.listdir(base)):
                 n_runs = 0
                 arena = ""
@@ -25,14 +28,21 @@ def main():
                             elif val[0] == 'a':
                                 arena = val[1]
                     data = csv_res.read_csv(file_path,algo,n_runs,arena)
-                    keys, states, times, messages_counts = csv_res.divide_data(data)     
+                    keys, states, times, messages_counts, buffer_opts = csv_res.divide_data(data)     
                     if len(tot_st) == 0:
                         tot_st      = [states]
                         tot_times   = [times]
+                        tot_buf_not = [buffer_opts[0]]
+                        tot_buf_ins = [buffer_opts[1]]
+                        tot_buf_upd = [buffer_opts[2]]
                     else:
                         tot_st      = np.append(tot_st,[states],axis=0)
                         tot_times   = np.append(tot_times,[times],axis=0)
+                        tot_buf_not   = np.append(tot_buf_not,[buffer_opts[0]],axis=0)
+                        tot_buf_ins   = np.append(tot_buf_ins,[buffer_opts[1]],axis=0)
+                        tot_buf_upd   = np.append(tot_buf_upd,[buffer_opts[2]],axis=0)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
+            csv_res.plot_buffer_opts(tot_buf_not,tot_buf_ins,tot_buf_upd)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:

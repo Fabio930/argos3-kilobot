@@ -5,7 +5,7 @@ import logging
 import gc
 import time
 import psutil
-from multiprocessing import Process, Manager, Queue
+from multiprocessing import Process, Manager
 
 # Setup logging
 def setup_logging():

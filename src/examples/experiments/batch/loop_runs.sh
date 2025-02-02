@@ -27,12 +27,12 @@ fi
 experiment_length="1200"
 variation_time="600"
 RUNS=100
-msg_hops="_"
-rebroadcast="0 1 2"
+msg_hops="0"
+rebroadcast="1"
 msg_expiring_sec="60 300 600"
-numrobots="25"
+numrobots="25 100"
 threshold="0.8"
-delta="0.68;0.92 0.92;0.68"
+delta="0.68;0.92 0.92;0.40 0.92;0.12"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -65,11 +65,11 @@ for exp_len_par in $experiment_length; do
                     if [[ ! -e $comm_dir ]]; then
                         mkdir $comm_dir
                     fi
-                    if [[ $comm_par == "1" ]]; then
-                        msg_hops="0 1"
-                    else
-                        msg_hops="0"
-                    fi
+                    # if [[ $comm_par == "1" ]]; then
+                    #     msg_hops="0 1"
+                    # else
+                    #     msg_hops="0"
+                    # fi
                     for msgh in $msg_hops; do
                         agents_dir=$comm_dir/"Robots#"$agents_par
                         if [[ ! -e $agents_dir ]]; then
@@ -98,11 +98,10 @@ for exp_len_par in $experiment_length; do
                                 sed -i "s|__THRESHOLD__|$thr_par|g" $config
                                 sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
                                 sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
-                                dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                                kilo_file="${dt}__run#${i}.tsv"
                                 sed -i "s|__KILOLOG__|$kilo_file|g" $config
                                 echo "Running next configuration -- $config"
                                 argos3 -c './'$config
+                                kilo_file="run#${i}.tsv"
                                 for j in $(seq 0 $last_id); do
                                     rename="quorum_log_agent#$j"__"$kilo_file"
                                     mv "quorum_log_agent#$j.tsv" $rename

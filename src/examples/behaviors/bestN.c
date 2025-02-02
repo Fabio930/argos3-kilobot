@@ -212,8 +212,19 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
     sort_q(&quorum_array);
+    switch (result){
+        case 0:
+            buffer_neglect += 1;
+            break;
+        case 1:
+            buffer_insertion += 1;
+            break;
+        case 2:
+            buffer_update +=1;
+            break;
+    }
 }
 
 void check_quorum(quorum_a **Array[]){
@@ -397,7 +408,7 @@ void loop(){
     check_quorum(&quorum_array);
     if(init_received_C) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info);
+    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\t%ld\t%ld\t%ld\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info,buffer_neglect,buffer_insertion,buffer_update);
     fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
