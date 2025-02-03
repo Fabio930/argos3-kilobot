@@ -23,13 +23,10 @@ class Data:
                     dict_park.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                 else:
                     if int(k[4])==0:
-                        print("a")
                         dict_adam.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                     elif int(k[4])==2:
-                        print("b")
                         dict_fifo.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                     else:
-                        print("c")
                         if int(k[5])==0:
                             dict_rnd_inf.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                         else:
@@ -177,8 +174,8 @@ class Data:
         path = self.base+"/proc_data/images/"
         dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd   = {},{},{}
         dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr   = {},{},{}
-        jolly, msg_hop                      = [],[]
-        algo,arena,runs,time,comm,agents    = [],[],[],[],[],[]
+        msg_hop, msg_exp                           = [],[]
+        algo,arena,runs,time,thresholds,gts,agents,com    = [],[],[],[],[],[],[],[]
         for i in range(len(no_actions)):
             da_K = no_actions[i].keys()
             for k0 in da_K:
@@ -186,43 +183,55 @@ class Data:
                 if k0[1]not in arena: arena.append(k0[1])
                 if k0[2]not in runs: runs.append(k0[2])
                 if k0[3]not in time: time.append(k0[3])
-                if k0[4]not in comm: comm.append(k0[4])
-                if k0[5]not in agents: agents.append(k0[5])
-                if k0[9]not in jolly: jolly.append(k0[9])
+                if k0[4]not in thresholds: thresholds.append(k0[4])
+                if k0[5]not in gts: gts.append(k0[5])
+                if k0[6]not in com: com.append(k0[6])
+                if k0[7]not in agents: agents.append(k0[7])
+                if k0[9]not in msg_exp: msg_exp.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
+
         for i in range(len(no_actions)):
             for a in ('O'):
                 for a_s in arena:
                     for n_r in runs:
                         for et in time:
-                            for c in comm:
-                                for n_a in agents:
-                                    for m_t in jolly:
-                                        for m_h in msg_hop:
-                                            n_data = no_actions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))
-                                            if n_data != None and int(c)==1 and int(m_h)==0:
-                                                n_data = n_data[0]
-                                                i_data = insertions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
-                                                u_data = updates[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
-                                                dict_rnd_inf_no_act.update({(a_s,n_a,m_t):n_data})
-                                                dict_rnd_inf_ins.update({(a_s,n_a,m_t):i_data})
-                                                dict_rnd_inf_upd.update({(a_s,n_a,m_t):u_data})
-                                                n_data_fr,i_data_fr,u_data_fr = [-1]*len(n_data),[-1]*len(n_data),[-1]*len(n_data)
-                                                for j in range(len(n_data)):
-                                                    if j==0:
-                                                        n_data_fr[j] = n_data[j]
-                                                        i_data_fr[j] = i_data[j]
-                                                        u_data_fr[j] = u_data[j]
-                                                    else:
-                                                        n_data_fr[j] = n_data[j] - n_data[j-1]
-                                                        i_data_fr[j] = i_data[j] - i_data[j-1]
-                                                        u_data_fr[j] = u_data[j] - u_data[j-1]
-                                                dict_rnd_inf_no_act_fr.update({(a_s,n_a,m_t):n_data_fr})
-                                                dict_rnd_inf_ins_fr.update({(a_s,n_a,m_t):i_data_fr})
-                                                dict_rnd_inf_upd_fr.update({(a_s,n_a,m_t):u_data_fr})
+                            for thr in thresholds:
+                                for gt in gts:
+                                    for c in com:
+                                        for n_a in agents:
+                                            for m_t in msg_exp:
+                                                for m_h in msg_hop:
+                                                    n_data = no_actions[i].get((a,a_s,n_r,et,thr,gt,c,n_a,'-',m_t,m_h))
+                                                    if n_data != None and int(c)==1 and int(m_h)==0:
+                                                        n_data = n_data[0]
+                                                        i_data = insertions[i].get((a,a_s,n_r,et,thr,gt,c,n_a,'-',m_t,m_h))[0]
+                                                        u_data = updates[i].get((a,a_s,n_r,et,thr,gt,c,n_a,'-',m_t,m_h))[0]
+                                                        dict_rnd_inf_no_act.update({(a_s,n_a,m_t):n_data})
+                                                        dict_rnd_inf_ins.update({(a_s,n_a,m_t):i_data})
+                                                        dict_rnd_inf_upd.update({(a_s,n_a,m_t):u_data})
+                                                        n_data_fr,i_data_fr,u_data_fr = [-1]*len(n_data),[-1]*len(n_data),[-1]*len(n_data)
+                                                        for j in range(len(n_data)):
+                                                            if j==0:
+                                                                n_data_fr[j] = n_data[j]
+                                                                i_data_fr[j] = i_data[j]
+                                                                u_data_fr[j] = u_data[j]
+                                                            else:
+                                                                n_data_fr[j] = n_data[j] - n_data[j-1]
+                                                                i_data_fr[j] = i_data[j] - i_data[j-1]
+                                                                u_data_fr[j] = u_data[j] - u_data[j-1]
+                                                        dict_rnd_inf_no_act_fr.update({(a_s,n_a,m_t):n_data_fr})
+                                                        dict_rnd_inf_ins_fr.update({(a_s,n_a,m_t):i_data_fr})
+                                                        dict_rnd_inf_upd_fr.update({(a_s,n_a,m_t):u_data_fr})
 
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts.pdf",500)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts.pdf",7.5)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_150.pdf",500,0,150)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_150.pdf",150,0,150)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_740.pdf",500,590,740)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_740.pdf",150,590,740)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_1200.pdf",500,0,1200)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_1200.pdf",150,0,1200)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_150.pdf",7.5,0,150)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_740.pdf",7.5,590,740)
+        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_1200.pdf",7.5,0,1200)
     
         return
 
@@ -611,7 +620,7 @@ class Data:
         plt.close(fig)
 
 ##########################################################################################################
-    def print_buff_opts(self,path,data_in,fig_name,y_lim):
+    def print_buff_opts(self,path,data_in,fig_name,y_lim,_XLIM,XLIM_):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
@@ -628,7 +637,7 @@ class Data:
         handles_r   = [no_action,insertion,update]
         fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(28,18))
         if len(real_x_ticks)==0:
-            for x in range(0,901,50):
+            for x in range(0,1201,50):
                 if x%300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
@@ -655,16 +664,16 @@ class Data:
             ax[row][col].plot(dict_upd.get(k),color=scalarMap.to_rgba(typo[2]),lw=3)
         for x in range(2):
             for y in range(3):
-                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+                ax[x][y].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
         for x in range(3):
             for y in range(1,3):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
-        for y in range(5):
-            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
-            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        for y in range(3):
+            ax[2][y].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
         axt0=ax[0][0].twiny()
         axt1=ax[0][1].twiny()
         axt2=ax[0][2].twiny()
@@ -696,7 +705,7 @@ class Data:
         for x in range(3):
             for y in range(3):
                 ax[x][y].grid(True)
-                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_xlim(_XLIM,XLIM_)
                 ax[x][y].set_ylim(0,y_lim)
         fig.tight_layout()
         fig_path = path+fig_name
