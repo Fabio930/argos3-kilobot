@@ -190,13 +190,13 @@ class Data:
                 if k0[9]not in msg_exp: msg_exp.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
 
-        for i in range(len(no_actions)):
-            for a in ('O'):
-                for a_s in arena:
-                    for n_r in runs:
-                        for et in time:
-                            for thr in thresholds:
-                                for gt in gts:
+        for a in ('O'):
+            for a_s in arena:
+                for n_r in runs:
+                    for et in time:
+                        for thr in thresholds:
+                            for gt in gts:
+                                for i in range(len(no_actions)):
                                     for c in com:
                                         for n_a in agents:
                                             for m_t in msg_exp:
@@ -223,15 +223,15 @@ class Data:
                                                         dict_rnd_inf_ins_fr.update({(a_s,n_a,m_t):i_data_fr})
                                                         dict_rnd_inf_upd_fr.update({(a_s,n_a,m_t):u_data_fr})
 
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_150.pdf",500,0,150)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_150.pdf",150,0,150)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_740.pdf",500,590,740)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_740.pdf",150,590,740)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_500_1200.pdf",500,0,1200)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],"buff_sum_opts_150_1200.pdf",150,0,1200)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_150.pdf",7.5,0,150)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_740.pdf",7.5,590,740)
-        self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],"buff_step_opts_1200.pdf",7.5,0,1200)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_500_150.pdf",500,0,150)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_150_150.pdf",150,0,150)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_500_740.pdf",500,590,740)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_150_740.pdf",150,590,740)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_500_1200.pdf",500,0,1200)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act,dict_rnd_inf_ins,dict_rnd_inf_upd],str(gt)+"_buff_sum_opts_150_1200.pdf",150,0,1200)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],str(gt)+"_buff_step_opts_150.pdf",7.5,0,150)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],str(gt)+"_buff_step_opts_740.pdf",7.5,590,740)
+                                self.print_buff_opts(path,[dict_rnd_inf_no_act_fr,dict_rnd_inf_ins_fr,dict_rnd_inf_upd_fr],str(gt)+"_buff_step_opts_1200.pdf",7.5,0,1200)
     
         return
 
@@ -336,10 +336,14 @@ class Data:
                             row = 2
                             p_k = [str(41),str(76),str(85)]
                         for k in range(len(o_k)):
-                            # ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
-                            # ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
-                            # ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
-                            # ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            if dict_park.get((a,ag,p_k[k],gt,thr)) != None:
+                                ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
                             if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
                                 ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
                             ax[row][k].set_xlim(0,1201)
