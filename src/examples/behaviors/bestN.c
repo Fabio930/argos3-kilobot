@@ -42,6 +42,7 @@ void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
         float p;
+        uint8_t msg_n_hops_rnd;
         switch(broadcasting_flag){
             case 0:
                 broadcast();
@@ -60,7 +61,11 @@ void talk(){
                         }
                         break;
                     default:
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops > 0) rebroadcast();
+                        msg_n_hops_rnd = msg_n_hops;
+                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
+                            quorum_array[selected_msg_indx]->msg_n_hops += 1;
+                            rebroadcast();
+                        }
                         else broadcast();
                         break;
                 }
@@ -82,7 +87,9 @@ void broadcast(){
     // frequency log
     num_own_info += 1;
     // message
-    sa_type = msg_n_hops;
+    sa_type = 0;
+    uint8_t msg_n_hops_fifo = msg_n_hops;
+    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops_fifo;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -95,14 +102,8 @@ void rebroadcast(){
     // frequency log
     num_other_info +=1;
     // message
-    switch (msg_n_hops){
-        case 0:
-            sa_type = 0;
-            break;
-        default:
-            sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
-            break;
-    }
+    sa_type = 0;
+    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
