@@ -80,9 +80,10 @@ class Results:
                                     msgs            = int(val[2])
                                     broadcast_c     = int(val[3])
                                     re_broadcast_c  = int(val[4])
-                                    buf_neglect     = int(val[5])
-                                    buf_insert      = int(val[6])
-                                    buf_update      = int(val[7])
+                                    if len(val)>5:
+                                        buf_neglect     = int(val[5])
+                                        buf_insert      = int(val[6])
+                                        buf_update      = int(val[7])
                                 if data_type in ("all","quorum"):
                                     states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
                                     quorum_M_1[seed-1] = np.append(quorum_M_1[seed-1],quorum)
