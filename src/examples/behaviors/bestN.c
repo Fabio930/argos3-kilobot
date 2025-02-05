@@ -399,7 +399,7 @@ void loop(){
         if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }    
-    fprintf(fp,"\t%ld\t%ld\t%ld\t%ld\t%ld\n",num_own_info,num_other_info,buffer_neglect,buffer_insertion,buffer_update);
+    fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info/*,buffer_neglect,buffer_insertion,buffer_update*/);
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
     erase_expired_items(&quorum_array,&quorum_list);

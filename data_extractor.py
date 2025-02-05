@@ -141,13 +141,14 @@ class Results:
         buff_neglects  = [np.array([],dtype=int)]*num_runs
         buff_insertin  = [np.array([],dtype=int)]*num_runs
         buff_updates  = [np.array([],dtype=int)]*num_runs
-        
+        agents_count = [0]*n_agents
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem=elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                    seed = int(selem[0].split('#')[-1])
-                    agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                    agent_id = int(selem[0].split('_')[2].split('#')[-1])
+                    seed = int(selem[0].split('_')[3].split('#')[-1])
+                    agents_count[agent_id] += 1
                     with open(os.path.join(sub_path, elem), newline='') as f:
                         reader = csv.reader(f)
                         log_count = 0
@@ -166,9 +167,10 @@ class Results:
                                             val = val.split('\t')
                                             broadcast_c = int(val[1])
                                             re_broadcast_c = int(val[2])
-                                            buf_neglect = int(val[3])
-                                            buf_insert = int(val[4])
-                                            buf_update = int(val[5])
+                                            if len(val)>3:
+                                                buf_neglect = int(val[3])
+                                                buf_insert = int(val[4])
+                                                buf_update = int(val[5])
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
                                     buff_neglects[seed-1] = np.append(buff_neglects[seed-1],buf_neglect)
@@ -191,7 +193,7 @@ class Results:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
                     elif data_type in ("freq") and len(act_M_1[seed-1])!=max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(act_M_1[seed-1]))
-                    if seed == num_runs:
+                    if agents_count[agent_id]==num_runs:
                         if data_type in ("all","freq"):
                             act_bigM_1[agent_id] = act_M_1
                             act_bigM_2[agent_id] = act_M_2
