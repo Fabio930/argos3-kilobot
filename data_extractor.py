@@ -70,12 +70,14 @@ class Results:
         act_M_1         = [np.array([],dtype=int)] * num_runs
         act_M_2         = [np.array([],dtype=int)] * num_runs
         positions_M     = [np.array([])] * num_runs
+        agents_count = [0]*n_agents
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem = elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                     seed = int(selem[0].split('#')[-1])
                     agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                    agents_count[agent_id] += 1
                     with open(os.path.join(sub_path, elem), newline='') as f:
                         reader = csv.reader(f)
                         log_count = 0
@@ -100,28 +102,28 @@ class Results:
                                         val_y       = float(val[6])
                                     except:
                                         print("positional values not found")
-                                positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
-                                states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
-                                quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
-                                msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
+                                if data_type in ("all","quorum"):
+                                    states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
+                                    quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
+                                    msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
+                                    positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
                                 if data_type in ("all","freq"):
                                     act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
                                     act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
-                    if len(msgs_M_1[seed-1])!=max_steps: print(sub_path,'\n',"run:",seed,"agent:",agent_id,"num lines:",len(msgs_M_1[seed-1]))
-                    sem = 1
-                    for i in range(num_runs):
-                        if len(states_M_1[i])==0:
-                            sem = 0
-                            break
-                    if sem == 1:
-                        msgs_bigM_1[agent_id]       = msgs_M_1
-                        states_bigM_1[agent_id]     = states_M_1
-                        quorum_bigM_1[agent_id]     = quorum_M_1
-                        positions_bigM[agent_id]    = positions_M
-                        msgs_M_1                    = [np.array([],dtype=int)]*num_runs
-                        states_M_1                  = [np.array([],dtype=int)]*num_runs
-                        quorum_M_1                  = [np.array([],dtype=int)]*num_runs
-                        positions_M                 = [np.array([])] * num_runs
+                    if data_type in ("all","quorum") and len(msgs_M_1[seed-1])!=max_steps:
+                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
+                    elif data_type in ("freq") and len(act_M_1[seed-1])!=max_steps:
+                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(act_M_1[seed-1]))
+                    if agents_count[agent_id]==num_runs:
+                        if data_type in ("all","quorum"):
+                            msgs_bigM_1[agent_id]       = msgs_M_1
+                            states_bigM_1[agent_id]     = states_M_1
+                            quorum_bigM_1[agent_id]     = quorum_M_1
+                            positions_bigM[agent_id]    = positions_M
+                            msgs_M_1                    = [np.array([],dtype=int)]*num_runs
+                            states_M_1                  = [np.array([],dtype=int)]*num_runs
+                            quorum_M_1                  = [np.array([],dtype=int)]*num_runs
+                            positions_M                 = [np.array([])] * num_runs
                         if data_type in ("all","freq"):
                             act_bigM_1[agent_id]    = act_M_1
                             act_bigM_2[agent_id]    = act_M_2
