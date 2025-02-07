@@ -9,7 +9,6 @@ def main():
         if base.split('/')[-1] == "proc_data":
             tot_st          = []
             tot_times       = []
-            tot_recovery    = []
             tot_buf_not     = []
             tot_buf_ins     = []
             tot_buf_upd     = []
@@ -43,20 +42,6 @@ def main():
                             tot_buf_not   = np.append(tot_buf_not,[buffer_opts[0]],axis=0)
                             tot_buf_ins   = np.append(tot_buf_ins,[buffer_opts[1]],axis=0)
                             tot_buf_upd   = np.append(tot_buf_upd,[buffer_opts[2]],axis=0)
-                    if "recovery" in file:
-                        for s in sets:
-                            val = s.split('#')
-                            if len(val)>1:
-                                if val[0]=='r':
-                                    n_runs=val[1]
-                                elif val[0]=='a':
-                                    arena=val[1]
-                        data = csv_res.read_recovery_csv(file_path,algo,arena)
-                        if len(tot_recovery)==0:
-                            tot_recovery = [data]
-                        else:
-                            tot_recovery = np.append(tot_recovery,[data],axis=0)
-            if len(tot_recovery) > 0: csv_res.plot_recovery(csv_res.fit_recovery_raw_data(tot_recovery))
             if len(tot_st) > 0: csv_res.plot_active(tot_st,tot_times)
             if len(tot_buf_not) > 0: csv_res.plot_buffer_opts(tot_buf_not,tot_buf_ins,tot_buf_upd)
         elif base.split('/')[-1] == "msgs_data":
