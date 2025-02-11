@@ -55,7 +55,7 @@ typedef enum{
 
 /* struct for the robot position */
 typedef struct position{
-    float position_x,position_y;
+    float_t position_x,position_y;
 }position_t;
 
 /* current motion type */
@@ -68,12 +68,12 @@ uint32_t reaching_goal_ticks;
 uint32_t expiring_dist;
 uint8_t avoid_tmmts;
 
-float goal_ticks_sec = TICKS_PER_SEC * 1.3;
+float_t goal_ticks_sec = TICKS_PER_SEC * 1.3;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
-float gps_angle;
-float RotSpeed = 45.0;
+float_t gps_angle;
+float_t RotSpeed = 45.0;
 
 /* current state */
 state_t my_state;
@@ -107,6 +107,9 @@ uint8_t received_committed;
 /* map of the environment */
 arena_a *the_arena = NULL;
 
+float_t buff_ticks_sec = TICKS_PER_SEC * 10;
+float_t buff_ticks = 0;
+uint8_t msg_n_hops_rnd=0;
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
 uint64_t buffer_insertion=0;
@@ -142,6 +145,7 @@ void broadcast();
 
 void rebroadcast();
 
+void compute_msg_hops();
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */
 /*-------------------------------------------------------------------*/
@@ -152,12 +156,11 @@ void check_quorum(quorum_a **Array[]);
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-// void prepare_quorum_variables();
 
-float random_in_range(float min, float max);
+float_t random_in_range(float_t min, float_t max);
 
 /*-----------------------------------------------------------------------------------*/
-/* Function implementing the uncorrelated random walk with the random waypoint model */
+/*              Function implementing the random waypoint model                      */
 /*-----------------------------------------------------------------------------------*/
 void select_new_point(bool force);
 
@@ -186,9 +189,9 @@ void message_rx(message_t *msg, distance_measurement_t *d);
 /*-------------------------------------------------------------------*/
 /*                      Compute angle to Goal                        */
 /*-------------------------------------------------------------------*/
-void NormalizeAngle(float* angle);
+void NormalizeAngle(float_t* angle);
 
-float AngleToGoal();
+float_t AngleToGoal();
 
 /*-------------------------------------------------------------------*/
 /*                      Random way point model                       */

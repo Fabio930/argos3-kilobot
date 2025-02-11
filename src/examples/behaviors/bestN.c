@@ -41,8 +41,7 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        float p;
-        uint8_t msg_n_hops_rnd;
+        float_t p;
         switch(broadcasting_flag){
             case 0:
                 broadcast();
@@ -61,7 +60,7 @@ void talk(){
                         }
                         break;
                     default:
-                        msg_n_hops_rnd = msg_n_hops;
+                        compute_msg_hops();
                         if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
                             quorum_array[selected_msg_indx]->msg_n_hops += 1;
                             rebroadcast();
@@ -81,6 +80,20 @@ void talk(){
         selected_msg_indx = 0b1111111111111111;
         sending_msg = true;
     }
+}
+
+void compute_msg_hops(){
+    if(kilo_ticks > buff_ticks_sec + buff_ticks){
+        buff_ticks = kilo_ticks;
+        if(buffer_update>0) msg_n_hops_rnd = 0;
+        else if(buffer_insertion>0) msg_n_hops_rnd -= 2;
+        else msg_n_hops_rnd += 1;
+        buffer_update = 0;
+        buffer_insertion = 0;
+    }
+    if(msg_n_hops_rnd<0) msg_n_hops_rnd=0;
+    else if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
+    printf("HOPS: %d \n",msg_n_hops_rnd);
 }
 
 void broadcast(){
@@ -113,8 +126,8 @@ void rebroadcast(){
     my_message.data[2] = sa_payload;
 }
 
-float random_in_range(float min, float max){
-    float r = (float)rand_hard() / 255.0;
+float_t random_in_range(float_t min, float_t max){
+    float_t r = (float_t)rand_hard() / 255.0;
     return min + (r*(max-min));
 }
 
@@ -136,8 +149,8 @@ void select_new_point(bool force){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
-                float angleToGoal = AngleToGoal();
-                float p = rand_hard()/255.0;
+                float_t angleToGoal = AngleToGoal();
+                float_t p = rand_hard()/255.0;
                 if(p < .33){
                     last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
@@ -193,6 +206,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
                 uint8_t state = (uint8_t)sa_payload & 0b00000001;
                 msg_n_hops = (uint8_t)sa_payload >> 1;
+                msg_n_hops_rnd = msg_n_hops;
                 switch (state){
                     case 0:
                         led = RGB(0,0,0);
@@ -322,7 +336,7 @@ void message_rx(message_t *msg, distance_measurement_t *d){
     }
 }
 
-void NormalizeAngle(float* angle){
+void NormalizeAngle(float_t* angle){
     while(*angle > 180){
         *angle = *angle-360;
     }
@@ -331,8 +345,8 @@ void NormalizeAngle(float* angle){
     }
 }
 
-float AngleToGoal(){
-    float angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
+float_t AngleToGoal(){
+    float_t angletogoal = (atan2(gps_position.position_y-goal_position.position_y,gps_position.position_x-goal_position.position_x)/PI)*180 - (gps_angle - 180);
     NormalizeAngle(&angletogoal);
     return angletogoal;
 }
@@ -341,7 +355,7 @@ void random_way_point_model(){
     if(init_received_C){
         select_new_point(false);
         if(avoid_tmmts == 0){
-            float angleToGoal = AngleToGoal();
+            float_t angleToGoal = AngleToGoal();
             if(fabs(angleToGoal) <= 36){
                 last_motion_ticks = kilo_ticks;
                 set_motion(FORWARD);
@@ -391,7 +405,6 @@ void setup(){
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
     init_array_qrm(&quorum_array);
-
     /* Init random seed */
     uint8_t seed = rand_hard();
     rand_seed(seed);
