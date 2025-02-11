@@ -113,6 +113,7 @@ uint8_t msg_n_hops_rnd=0;
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
 uint64_t buffer_insertion=0;
+uint64_t buffer_erase=0;
 uint64_t buffer_update=0;
 uint64_t buffer_update_rng=0;
 uint64_t buffer_neglect=0;

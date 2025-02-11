@@ -86,11 +86,13 @@ void compute_msg_hops(){
     if(kilo_ticks > buff_ticks_sec + buff_ticks){
         buff_ticks = kilo_ticks;
         if(buffer_update_rng>0) msg_n_hops_rnd = 0;
+        else if(buffer_erase>0) msg_n_hops_rnd -= 6;// -1 on erase for 60 sec. timeout
         else msg_n_hops_rnd += 1;
-        // -1 on erase for 60 sec. timeout
         buffer_update_rng = 0;
+        buffer_erase = 0;
     }
     if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
+    printf("HOPS: %d\n",msg_n_hops_rnd);
 }
 
 void broadcast(){
@@ -415,7 +417,7 @@ void setup(){
 
 void loop(){
     decrement_quorum_counter(&quorum_array);
-    erase_expired_items(&quorum_array,&quorum_list);
+    erase_expired_items(&quorum_array,&quorum_list,&buffer_erase);
     random_way_point_model();
     check_quorum(&quorum_array);
     if(init_received_C) talk();
