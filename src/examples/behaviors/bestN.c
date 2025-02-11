@@ -89,8 +89,7 @@ void compute_msg_hops(){
         else msg_n_hops_rnd += 1;
         buffer_update_rng = 0;
     }
-    if(msg_n_hops_rnd<0) msg_n_hops_rnd=0;
-    else if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
+    if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
 }
 
 void broadcast(){
