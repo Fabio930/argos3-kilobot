@@ -91,7 +91,6 @@ void compute_msg_hops(){
     }
     if(msg_n_hops_rnd<0) msg_n_hops_rnd=0;
     else if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
-    printf("HOPS: %d \n",msg_n_hops_rnd);
 }
 
 void broadcast(){
