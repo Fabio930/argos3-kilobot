@@ -107,13 +107,14 @@ uint8_t received_committed;
 /* map of the environment */
 arena_a *the_arena = NULL;
 
-float_t buff_ticks_sec = TICKS_PER_SEC * 10;
-float_t buff_ticks = 0;
+uint32_t buff_ticks_sec = TICKS_PER_SEC * .2;
+uint32_t buff_ticks = 0;
 uint8_t msg_n_hops_rnd=0;
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
 uint64_t buffer_insertion=0;
 uint64_t buffer_update=0;
+uint64_t buffer_update_rng=0;
 uint64_t buffer_neglect=0;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;

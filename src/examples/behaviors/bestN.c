@@ -85,11 +85,9 @@ void talk(){
 void compute_msg_hops(){
     if(kilo_ticks > buff_ticks_sec + buff_ticks){
         buff_ticks = kilo_ticks;
-        if(buffer_update>0) msg_n_hops_rnd = 0;
-        else if(buffer_insertion>0) msg_n_hops_rnd -= 2;
+        if(buffer_update_rng>0) msg_n_hops_rnd = 0;
         else msg_n_hops_rnd += 1;
-        buffer_update = 0;
-        buffer_insertion = 0;
+        buffer_update_rng = 0;
     }
     if(msg_n_hops_rnd<0) msg_n_hops_rnd=0;
     else if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
@@ -237,7 +235,8 @@ void update_messages(const uint8_t Msg_n_hops){
             buffer_insertion += 1;
             break;
         case 2:
-            buffer_update +=1;
+        buffer_update_rng += 1;
+        buffer_update +=1;
             break;
     }
 }
