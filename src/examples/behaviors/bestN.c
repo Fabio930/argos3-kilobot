@@ -87,6 +87,7 @@ void compute_msg_hops(){
         buff_ticks = kilo_ticks;
         if(buffer_update_rng>0) msg_n_hops_rnd = 0;
         else msg_n_hops_rnd += 1;
+        // -1 on erase for 60 sec. timeout
         buffer_update_rng = 0;
     }
     if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
@@ -233,8 +234,8 @@ void update_messages(const uint8_t Msg_n_hops){
             buffer_insertion += 1;
             break;
         case 2:
-        buffer_update_rng += 1;
-        buffer_update +=1;
+            buffer_update_rng += 1;
+            buffer_update +=1;
             break;
     }
 }

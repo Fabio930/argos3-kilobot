@@ -54,9 +54,9 @@
             msgs_n_hops = "31"
             expiring_quorum_sec = "60"
             quorum_threshold = "0.8"
-            committed_percentage = "0.76"
+            committed_percentage = "0.92"
             commitment_variation_time = "600"
-            next_committed_percentage = "0.92"
+            next_committed_percentage = "0.76"
         >
         </hierarchicStruct>
 
