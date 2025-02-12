@@ -31,7 +31,7 @@ void increment_quorum_counter(quorum_a **Array[]);
 
 void decrement_quorum_counter(quorum_a **Array[]);
 
-void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum,uint64_t *buffer_erase);
+void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
 

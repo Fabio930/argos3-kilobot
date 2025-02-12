@@ -40,7 +40,7 @@ void decrement_quorum_counter(quorum_a **Array[]){
     for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter-1;
 }
 
-void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum,uint64_t *buffer_erase){
+void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
     for(int8_t i=num_quorum_items-1;i>=0;i--){
         if((*Array)[i]->counter<=0){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
@@ -66,7 +66,6 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum,uint64_t *buffer
                 (*Array)[i]=NULL;
             }
             num_quorum_items--;
-            (*buffer_erase) += 1;
         }
         else break;
     }
