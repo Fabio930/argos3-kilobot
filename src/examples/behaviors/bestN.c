@@ -50,7 +50,7 @@ void talk(){
             case 1:
                 selected_msg_indx = select_a_random_message();
                 p = random_in_range(0,1);
-                if(p<=0.5){
+                if(p<0.5){
                     switch(msg_n_hops){
                         case 0:
                             if(selected_msg_indx != 0b1111111111111111) rebroadcast();
