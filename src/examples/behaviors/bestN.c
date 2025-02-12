@@ -47,17 +47,13 @@ void talk(){
                 broadcast();
                 break;
             case 1:
-                selected_msg_indx = select_a_random_message();
+            selected_msg_indx = select_a_random_message();
+            p = random_in_range(0,1);
+            if(p<0.5){
                 switch(msg_n_hops){
                     case 0:
-                        p = random_in_range(0,1);
-                        if(p<=0.5){
-                            if(selected_msg_indx != 0b1111111111111111) rebroadcast();
-                            else broadcast();
-                        }
-                        else{
-                            broadcast();
-                        }
+                        if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                        else broadcast();
                         break;
                     default:
                         compute_msg_hops();
@@ -68,7 +64,9 @@ void talk(){
                         else broadcast();
                         break;
                 }
-                break;
+            }
+            else broadcast();
+            break;
             case 2:
                 selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
                 if(selected_msg_indx != 0b1111111111111111) rebroadcast();
