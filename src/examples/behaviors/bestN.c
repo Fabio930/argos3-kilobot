@@ -48,26 +48,24 @@ void talk(){
                 break;
             case 1:
                 selected_msg_indx = select_a_random_message();
-                switch(msg_n_hops){
-                    case 0:
-                        p = random_in_range(0,1);
-                        if(p<=0.5){
+                p = random_in_range(0,1);
+                if(p<0.5){
+                    switch(msg_n_hops){
+                        case 0:
                             if(selected_msg_indx != 0b1111111111111111) rebroadcast();
                             else broadcast();
-                        }
-                        else{
-                            broadcast();
-                        }
-                        break;
-                    default:
-                        compute_msg_hops();
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
-                            quorum_array[selected_msg_indx]->msg_n_hops += 1;
-                            rebroadcast();
-                        }
-                        else broadcast();
-                        break;
+                            break;
+                        default:
+                            compute_msg_hops();
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
+                                quorum_array[selected_msg_indx]->msg_n_hops += 1;
+                                rebroadcast();
+                            }
+                            else broadcast();
+                            break;
+                    }
                 }
+                else broadcast();
                 break;
             case 2:
                 selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
@@ -86,13 +84,10 @@ void compute_msg_hops(){
     if(kilo_ticks > buff_ticks_sec + buff_ticks){
         buff_ticks = kilo_ticks;
         if(buffer_update_rng>0) msg_n_hops_rnd = 0;
-        else if(buffer_erase>0) msg_n_hops_rnd -= 6;// -1 on erase for 60 sec. timeout
         else msg_n_hops_rnd += 1;
         buffer_update_rng = 0;
-        buffer_erase = 0;
     }
     if(msg_n_hops_rnd>msg_n_hops) msg_n_hops_rnd = msg_n_hops;
-    printf("HOPS: %d\n",msg_n_hops_rnd);
 }
 
 void broadcast(){

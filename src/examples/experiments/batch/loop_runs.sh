@@ -26,11 +26,11 @@ fi
 #######################################
 experiment_length="1200"
 variation_time="600"
-RUNS=100
-msg_hops="1"
+RUNS=50
+msg_hops="31"
 rebroadcast="1"
 msg_expiring_sec="60 300 600"
-numrobots="25 100"
+numrobots="25"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68" # 0.92;0.40 0.92;0.12"
 
