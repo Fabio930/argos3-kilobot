@@ -49,26 +49,24 @@ void talk(){
                 break;
             case 1:
                 selected_msg_indx = select_a_random_message();
-                switch(msg_n_hops){
-                    case 0:
-                        p = random_in_range(0,1);
-                        if(p<=0.5){
+                p = random_in_range(0,1);
+                if(p<=0.5){
+                    switch(msg_n_hops){
+                        case 0:
                             if(selected_msg_indx != 0b1111111111111111) rebroadcast();
                             else broadcast();
-                        }
-                        else{
-                            broadcast();
-                        }
-                        break;
-                    default:
-                        msg_n_hops_rnd = msg_n_hops;
-                        if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
-                            quorum_array[selected_msg_indx]->msg_n_hops += 1;
-                            rebroadcast();
-                        }
-                        else broadcast();
-                        break;
+                            break;
+                        default:
+                            msg_n_hops_rnd = msg_n_hops;
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
+                                quorum_array[selected_msg_indx]->msg_n_hops += 1;
+                                rebroadcast();
+                            }
+                            else broadcast();
+                            break;
+                    }
                 }
+                else broadcast();
                 break;
             case 2:
                 selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);

@@ -76,7 +76,7 @@ class Results:
                 selem = elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                     seed = int(selem[0].split('#')[-1])
-                    agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                    agent_id = int(selem[0].split('#')[-2].split('_')[0])
                     agents_count[agent_id] += 1
                     with open(os.path.join(sub_path, elem), newline='') as f:
                         reader = csv.reader(f)
