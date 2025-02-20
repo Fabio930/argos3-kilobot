@@ -42,7 +42,7 @@ def main():
                         tot_buf_ins   = np.append(tot_buf_ins,[buffer_opts[1]],axis=0)
                         tot_buf_upd   = np.append(tot_buf_upd,[buffer_opts[2]],axis=0)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
-            csv_res.plot_buffer_opts(tot_buf_not,tot_buf_ins,tot_buf_upd)
+            # csv_res.plot_buffer_opts(tot_buf_not,tot_buf_ins,tot_buf_upd)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:

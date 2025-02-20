@@ -190,7 +190,7 @@ class Data:
                 if k0[9]not in msg_exp: msg_exp.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
 
-        for a in ('O'):
+        for a in algo:
             for a_s in arena:
                 for n_r in runs:
                     for et in time:
@@ -260,7 +260,7 @@ class Data:
                 if k0[9]not in jolly: jolly.append(k0[9])
                 if k0[10]not in msg_hops: msg_hops.append(k0[10])
         for i in range(len(data_in)):
-            for a in ('O'):
+            for a in algo:
                 for a_s in arena:
                     for n_r in runs:
                         for et in time:
