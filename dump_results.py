@@ -111,7 +111,7 @@ def main():
                                                         sub_path = os.path.join(agents_path, pre_folder)
                                                         for folder in sorted(os.listdir(sub_path)):
                                                             if '.' not in folder:
-                                                                msg_hops = int(folder.split('#')[-1])
+                                                                msg_hops = folder.split('#')[-1]
                                                                 path = os.path.join(sub_path, folder)
                                                                 tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, path))
 
