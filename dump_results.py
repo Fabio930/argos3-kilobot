@@ -110,7 +110,7 @@ def main():
                                                         delta_str = Dgt_dir.split('#')[1].replace('_', '.')
                                                         for msg_hop_dir in sorted(os.listdir(Dgt_path)):
                                                             if '.' not in msg_hop_dir and '#' in msg_hop_dir:
-                                                                msg_hops = int(msg_hop_dir.split('#')[-1])
+                                                                msg_hops = msg_hop_dir.split('#')[-1]
                                                                 msg_hop_path = os.path.join(Dgt_path, msg_hop_dir)
                                                                 for msg_exp_dir in sorted(os.listdir(msg_hop_path)):
                                                                     if '.' not in msg_exp_dir and '#' in msg_exp_dir:
