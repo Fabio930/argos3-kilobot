@@ -209,10 +209,15 @@ class Results:
                             msgs_bigM_1[agent_id] = msgs_M_1
                             msgs_M_1 = [np.array([],dtype=int)]*num_runs
         info_vec    = sub_path.split('/')
-        algo        = info_vec[4].split('_')[0][0]
+        algo    = ""
+        arenaS  = ""
+        for iv in info_vec:
+            if "results_loop" in iv:
+                algo        = iv[0]
+                arenaS      = iv.split('_')[-1]
+                break
         if data_type in ("all","quorum"):
             states_by_gt = self.assign_states(n_agents,num_runs)
-            arenaS   = info_vec[4].split('_')[-1][:-1]
             BUFFERS = []
             if arenaS=='small':
                 BUFFERS = [19,22,23,23.01,24]
