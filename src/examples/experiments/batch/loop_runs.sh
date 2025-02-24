@@ -66,18 +66,18 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 1 2"
+rebroadcast="1"
 msg_expiring_sec="60 300 600"
-numrobots="25 100"
+numrobots="25"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-messages_hops="_"
+messages_hops="31"
 # small arena dimensions
-# arena_x_side="0.500 1.000"
-# arena_y_side="0.500 0.250"
+arena_x_side="0.500 1.000"
+arena_y_side="0.500 0.250"
 # big arena dimensions
-arena_x_side="1.000 2.000"
-arena_y_side="1.000 0.500"
+# arena_x_side="1.000 2.000"
+# arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)
@@ -106,11 +106,6 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $comm_dir ]]; then
                     mkdir $comm_dir
                 fi
-                if [[ $comm_par == "1" ]]; then
-                    messages_hops="0 1"
-                else
-                    messages_hops="0"
-                fi
                 agents_dir=$comm_dir/"Robots#"$agents_par
                 if [[ ! -e $agents_dir ]]; then
                     mkdir $agents_dir
@@ -131,7 +126,7 @@ for exp_len_par in $experiment_length; do
                             mkdir $committed_dir
                         fi
                         for msgs_hop_par in $messages_hops; do
-                            msgs_hop_dir=$committed_dir/"MsgHop#"$msgs_hop_par
+                            msgs_hop_dir=$committed_dir/"MsgHop#a"$msgs_hop_par
                             if [[ ! -e $msgs_hop_dir ]]; then
                                 mkdir $msgs_hop_dir
                             fi

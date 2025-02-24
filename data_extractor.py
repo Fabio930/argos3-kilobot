@@ -70,13 +70,13 @@ class Results:
         act_M_1         = [np.array([],dtype=int)] * num_runs
         act_M_2         = [np.array([],dtype=int)] * num_runs
         positions_M     = [np.array([])] * num_runs
-        agents_count = [0]*n_agents
+        agents_count    = [0]*n_agents
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem = elem.split('.')
                 if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
                     seed = int(selem[0].split('#')[-1])
-                    agent_id = int(selem[0].split('__')[0].split('#')[-1])
+                    agent_id = int(selem[0].split('_')[2].split('#')[-1])
                     agents_count[agent_id] += 1
                     with open(os.path.join(sub_path, elem), newline='') as f:
                         reader = csv.reader(f)
