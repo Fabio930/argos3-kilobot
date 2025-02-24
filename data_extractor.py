@@ -123,7 +123,7 @@ class Results:
         for iv in info_vec:
             if "results_loop" in iv:
                 algo        = iv[0]
-                arenaS      = iv.split('_')[-1]
+                arenaS      = iv.split('_')[-1][:-1]
                 break
         if data_type in ("all","quorum"):
             t_messages  = info_vec[-2].split('#')[-1]
