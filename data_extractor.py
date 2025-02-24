@@ -131,13 +131,13 @@ class Results:
                             act_M_2                 = [np.array([],dtype=int)]*num_runs
         algo    = ""
         arenaS  = ""
+        info_vec    = sub_path.split('/')
         for iv in info_vec:
             if "results_loop" in iv:
                 algo        = iv[0]
             elif "ArenaType" in iv:
                 arenaS      = iv.split('#')[-1]
         if data_type in ("all","quorum"):
-            info_vec    = sub_path.split('/')
             t_messages  = sub_path.split('#')[-1]
             positions   = self.rearrange_matrix(positions_bigM) if len(positions_bigM)>0 else []
             states      = self.rearrange_matrix(states_bigM_1)
