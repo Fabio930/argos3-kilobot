@@ -120,8 +120,13 @@ class Results:
         if data_type in ("all","quorum"):
             info_vec    = sub_path.split('/')
             t_messages  = info_vec[-2].split('#')[-1]
-            algo        = info_vec[4].split('_')[0][0]
-            arenaS      = info_vec[4].split('_')[-1][:-1]
+            algo    = ""
+            arenaS  = ""
+            for iv in info_vec:
+                if "results_loop" in iv:
+                    algo        = iv[0]
+                    arenaS      = iv.split('_')[-1]
+                    break
             messages    = self.compute_avg_msgs(msgs_bigM_1)
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
             del messages
