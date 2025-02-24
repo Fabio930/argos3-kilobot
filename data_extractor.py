@@ -117,16 +117,16 @@ class Results:
                             buff_neglects = [np.array([],dtype=int)]*num_runs
                             buff_insertin = [np.array([],dtype=int)]*num_runs
                             buff_updates = [np.array([],dtype=int)]*num_runs
+        algo    = ""
+        arenaS  = ""
+        info_vec    = sub_path.split('/')
+        for iv in info_vec:
+            if "results_loop" in iv:
+                algo        = iv[0]
+                arenaS      = iv.split('_')[-1]
+                break
         if data_type in ("all","quorum"):
-            info_vec    = sub_path.split('/')
             t_messages  = info_vec[-2].split('#')[-1]
-            algo    = ""
-            arenaS  = ""
-            for iv in info_vec:
-                if "results_loop" in iv:
-                    algo        = iv[0]
-                    arenaS      = iv.split('_')[-1]
-                    break
             messages    = self.compute_avg_msgs(msgs_bigM_1)
             self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
             del messages
