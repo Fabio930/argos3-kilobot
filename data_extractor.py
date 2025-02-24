@@ -132,8 +132,13 @@ class Results:
         if data_type in ("all","quorum"):
             info_vec    = sub_path.split('/')
             t_messages  = sub_path.split('#')[-1]
-            algo        = info_vec[4].split('_')[0][0]
-            arenaS      = info_vec[6].split('#')[-1]
+            algo    = ""
+            arenaS  = ""
+            for iv in info_vec:
+                if "results_loop" in iv:
+                    algo        = iv[0]
+                    arenaS      = iv.split('_')[-1]
+                    break
             positions   = self.rearrange_matrix(positions_bigM) if len(positions_bigM)>0 else []
             states      = self.rearrange_matrix(states_bigM_1)
             messages    = self.rearrange_matrix(msgs_bigM_1)
