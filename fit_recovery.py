@@ -7,6 +7,7 @@ import time
 import psutil
 from multiprocessing import Process, Manager
 
+memory_needed = 838861/ 1024  # in MB
 # Setup logging
 def setup_logging():
     logging.basicConfig(
@@ -24,7 +25,7 @@ def process_file(task):
         try:
             # Check available memory before processing
             available_memory = psutil.virtual_memory().available / (1024 * 1024)  # in MB
-            if available_memory < 1000:  # Adjust this threshold based on your needs
+            if available_memory < memory_needed:  # Adjust this threshold based on your needs
                 raise MemoryError("Not enough memory available to process the file")
 
             csv_res = CSVres.Data()
@@ -89,7 +90,7 @@ def main():
 
     active_processes = []
     total_memory = psutil.virtual_memory().available / (1024 * 1024)  # Available memory in MB
-    memory_per_process = 1000  # Adjust this value based on your memory usage per process
+    memory_per_process = memory_needed  # Adjust this value based on your memory usage per process
 
     while not queue.empty() or active_processes:
         # Calculate total memory used by active processes
