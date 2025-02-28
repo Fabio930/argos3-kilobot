@@ -8,7 +8,7 @@ import numpy as np
 def main():
     csv_res = CSVres.Data()
     for base in csv_res.bases:
-        if base.split('/')[-1] == "proc_data":
+        if base.split('/')[-1] == "rec_data":
             tot_recovery    = []
             for file in sorted(os.listdir(base)):
                 arena=''
@@ -25,10 +25,10 @@ def main():
                                     n_runs=val[1]
                                 elif val[0]=='a':
                                     arena=val[1]
-                        data = csv_res.read_recovery_csv(file_path,algo,arena)
+                        data = csv_res.read_fitted_recovery_csv(file_path,algo,arena) # read the fitted recovery data TODO
                         if len(tot_recovery)==0:
                             tot_recovery = [data]
                         else:
                             tot_recovery = np.append(tot_recovery,[data],axis=0)
-            if len(tot_recovery) > 0: csv_res.plot_recovery(csv_res.fit_recovery_raw_data(tot_recovery))
+            if len(tot_recovery) > 0: csv_res.plot_recovery(tot_recovery) # plot the recovery data
                             
