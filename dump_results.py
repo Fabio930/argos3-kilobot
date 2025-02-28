@@ -7,6 +7,7 @@ import time
 import psutil
 from multiprocessing import Process, Manager
 
+memory_per_process={"25": 838861/ 1024,"100": 8053063 / 1024} # Memory used by each process with 25 agents 2,5%
 # Setup logging
 def setup_logging():
     logging.basicConfig(
@@ -54,7 +55,10 @@ def process_folder(task):
     while retry_count > 0:
         try:
             # Memory usage logging
-            process = psutil.Process(os.getpid())
+            available_memory = psutil.virtual_memory().available / (1024 * 1024)  # in MB
+            if available_memory < memory_per_process.get(str(n_agents)):  # Adjust this threshold based on your needs
+                raise MemoryError("Not enough memory available to process the file")
+
             logging.info(f"Processing {sub_path} : START")
 
             results = dex.Results()
@@ -74,8 +78,13 @@ def process_folder(task):
             else:
                 logging.error(f"Failed {sub_path} due to MemoryError")
             gc.collect()
+        except KeyError as e:
+            logging.error(f"KeyError processing {sub_path}: {e}")
+            gc.collect()
+            break
         except Exception as e:
             logging.error(f"Error processing {sub_path}: {e}")
+            logging.debug(f"Exception details: {e}", exc_info=True)
             gc.collect()
             break
 
@@ -115,19 +124,17 @@ def main():
         queue.put(task)
 
     active_processes = []
-    total_memory = psutil.virtual_memory().total / (1024 * 1024)  # Total memory in MB
-    memory_per_process_25 = 838861/ 1024 # Memory used by each process with 25 agents 2,5%
-    memory_per_process_100 = 8053063 / 1024 # Memory used by each process with 100 agents 24%
+    total_memory = psutil.virtual_memory().available / (1024 * 1024)  # Total memory in MB
 
     while not queue.empty() or active_processes:
         # Calculate total memory used by active processes
-        total_memory_used = sum(memory_per_process_25 if n_agents == 25 else memory_per_process_100 for p, n_agents in active_processes)
+        total_memory_used = sum(memory_per_process.get(str(n_agents)) for p, n_agents in active_processes)
 
         # Launch new processes if there is room
-        while total_memory_used + min(memory_per_process_25, memory_per_process_100) <= total_memory and not queue.empty():
+        while total_memory_used + min(memory_per_process.get(str(n_agents)) for p, n_agents in active_processes) <= total_memory and not queue.empty():
             task = queue.get()
             n_agents = task[4]
-            required_memory = memory_per_process_25 if n_agents == 25 else memory_per_process_100
+            required_memory = memory_per_process.get(str(n_agents))
             if total_memory_used + required_memory <= total_memory:
                 p = Process(target=process_folder, args=(task,))
                 p.start()
@@ -143,10 +150,7 @@ def main():
             if not p.is_alive():
                 p.join()
                 active_processes.remove((p, n_agents))
-                if n_agents == 25:
-                    total_memory_used -= memory_per_process_25
-                elif n_agents == 100:
-                    total_memory_used -= memory_per_process_100
+                total_memory_used -= memory_per_process.get(str(n_agents))
 
         time.sleep(1)  # Avoid busy-waiting
 

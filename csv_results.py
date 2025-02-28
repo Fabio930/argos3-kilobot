@@ -177,7 +177,7 @@ class Data:
         keys = []
         data = {}
         lc = 0
-        with open(path,newline='') as f:
+        with open(path,newline='\n',) as f:
             reader = csv.reader(f)
             for row in reader:
                 change = 0
@@ -404,7 +404,44 @@ class Data:
                                                             dict_rnd.update({(a_s,n_a,m_b_d,gt,jl):tmp})
                                                         else:
                                                             dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,jl):tmp})
-        self.print_box_recovery_by_gt(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'recovery_box_gt',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_gt(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'recovery_box_gt.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+
+##########################################################################################################
+    def store_recovery(self,data_in):
+        if not os.path.exists(self.base+"/rec_data/"):
+            os.mkdir(self.base+"/rec_data/")
+        path = self.base+"/rec_data/"
+        ground_T, threshlds, msg_hops, jolly        = [],[],[],[]
+        algo, arena, time, comm, agents, buf_dim    = [],[],[],[],[],[]
+        da_K = data_in.keys()
+        for k0 in da_K:
+            if k0[0] not in algo: algo.append(k0[0])
+            if k0[1] not in arena: arena.append(k0[1])
+            if k0[2] not in time: time.append(k0[2])
+            if k0[3] not in comm: comm.append(k0[3])
+            if k0[4] not in agents: agents.append(k0[4])
+            if k0[5] not in buf_dim: buf_dim.append(k0[5])
+            if k0[6] not in msg_hops: msg_hops.append(k0[6])
+            if k0[7] not in ground_T: ground_T.append(k0[7])
+            if k0[8] not in threshlds: threshlds.append(k0[8])
+            if k0[9] not in jolly: jolly.append(k0[9])
+        for a in algo:
+            for a_s in arena:
+                for et in time:
+                    for c in comm:
+                        for m_h in msg_hops:
+                            for n_a in agents:
+                                for m_b_d in buf_dim:
+                                    for gt in ground_T:
+                                        for jl in jolly:
+                                            for thr in threshlds:
+                                                s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,m_h,gt,thr,jl))
+                                                if s_data != None:
+                                                    with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
+                                                        writer = csv.writer(file)
+                                                        if file.tell() == 0:
+                                                            writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim', 'Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std'])
+                                                        writer.writerow([a, a_s, et, c, n_a, m_b_d, m_h, gt, thr, jl, s_data[0], s_data[1]])
 
 ##########################################################################################################
     def print_box_recovery_by_gt(self,save_path,data,filename,gt_thr,buf_dims,aa):
@@ -559,7 +596,7 @@ class Data:
                 ax[i][j].set_xticklabels(gt_thr[0])
                 ax[i][j].set_ylim(0,901)
         fig.tight_layout()
-        fig_path = save_path+filename+".png"
+        fig_path = save_path+filename
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
