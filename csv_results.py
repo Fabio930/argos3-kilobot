@@ -60,24 +60,22 @@ class Data:
     
 ##########################################################################################################
     def divide_event_by_buffer(self,limit_buf,algo,n_agents,buffer,durations,event_observed):
-        max_dim = n_agents - 1
-        if algo=='P': max_dim = limit_buf
-        durations_by_buffer = {}
-        durations_by_buffer.update({"33":[[],[]]})
-        durations_by_buffer.update({"66":[[],[]]})
-        durations_by_buffer.update({"100":[[],[]]})
+        max_dim = float(n_agents) - 1
+        if algo=='P': max_dim = float(limit_buf)
+        durations_by_buffer = {"33": [[], []], "66": [[], []], "100": [[], []]}
         for i in range(len(buffer)):
-            if buffer[i]<=max_dim*0.33:
+            dimension = float(buffer[i])
+            if dimension<=max_dim*0.33:
                 tmp = durations_by_buffer.get("33")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
                 durations_by_buffer.update({"33":tmp})
-            elif buffer[i]>max_dim*0.33 and buffer[i]<=max_dim*0.66:
+            elif dimension>max_dim*0.33 and dimension<=max_dim*0.66:
                 tmp = durations_by_buffer.get("66")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
                 durations_by_buffer.update({"66":tmp})
-            elif buffer[i]>max_dim*0.66:
+            elif dimension>max_dim*0.66:
                 tmp = durations_by_buffer.get("100")
                 tmp[0].append(durations[i])
                 tmp[1].append(event_observed[i])
