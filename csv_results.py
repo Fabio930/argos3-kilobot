@@ -53,7 +53,7 @@ class Data:
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],int(k[4]),int(k[5]),data_in[i].get(k))
+                estimates = self.fit_recovery(k[0],k[4],k[5],data_in[i].get(k))
                 for z in estimates.keys():
                     fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],z):estimates.get(z)})
         return fitted_data
@@ -124,12 +124,12 @@ class Data:
             if k[1]=='P':
                 dict_park.update({(k[0],k[3],k[4]):data.get(k)})
             else:
-                if int(k[2])==0:
+                if k[2]=="0":
                     dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
-                elif int(k[2])==2:
+                elif k[2]=="2":
                     dict_fifo.update({(k[0],k[3],k[4]):data.get(k)})
                 else:
-                    if int(k[5]) == 1:
+                    if k[5] == "1":
                         dict_rnd.update({(k[0],k[3],k[4]):data.get(k)})
                     else:
                         dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)})
@@ -632,7 +632,7 @@ class Data:
                                     for m_t in jolly:
                                         for m_h in msg_hop:
                                             n_data = no_actions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))
-                                            if n_data != None and int(c)==1 and int(m_h)==0:
+                                            if n_data != None and c=="1" and m_h=="0":
                                                 n_data = n_data[0]
                                                 i_data = insertions[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
                                                 u_data = updates[i].get((a,a_s,n_r,et,c,n_a,'-','-','-',m_t,m_h))[0]
