@@ -122,7 +122,7 @@ def main():
             if not p.is_alive():
                 if active_processes.index(p) not in to_remove: to_remove.append(active_processes.index(p))
                 p.join()
-        for index in to_remove:
+        for index in sorted(to_remove, reverse=True):
             active_processes.pop(index)
             process_tasks.pop(index)
         gc.collect()
