@@ -7,7 +7,6 @@ import time
 import psutil
 from multiprocessing import Process, Manager
 
-memory_per_process={"25": 838861/ 1024,"100": 8053063 / 1024} # Memory used by each process with 25 agents 2,5%
 # Setup logging
 def setup_logging():
     logging.basicConfig(
@@ -50,49 +49,30 @@ def check_inputs():
 # Process folder with retries and memory management
 def process_folder(task):
     base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path, ticks_per_sec = task
-    retry_count = 50
+    results = dex.Results()
+    results.ticks_per_sec = ticks_per_sec
+    try:
+        logging.info(f"Processing {sub_path} : START")
+        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
+        logging.info(f"Processing {sub_path} : END")
 
-    while retry_count > 0:
-        try:
-            # Memory usage logging
-            available_memory = psutil.virtual_memory().available / (1024 * 1024)  # in MB
-            if available_memory < memory_per_process.get(str(n_agents)):  # Adjust this threshold based on your needs
-                raise MemoryError("Not enough memory available to process the file")
-
-            logging.info(f"Processing {sub_path} : START")
-
-            results = dex.Results()
-            results.ticks_per_sec = ticks_per_sec
-            results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
-            gc.collect()
-            # Memory usage logging
-            logging.info(f"Processing {sub_path} : END")
-
-            break
-        except MemoryError as e:
-            logging.error(f"MemoryError processing {sub_path}: {e}")
-            retry_count -= 1
-            if retry_count > 0:
-                logging.info(f"Retrying {sub_path} ({retry_count}) after MemoryError")
-                time.sleep(600)  # Delay before retrying
-            else:
-                logging.error(f"Failed {sub_path} due to MemoryError")
-            gc.collect()
-        except KeyError as e:
-            logging.error(f"KeyError processing {sub_path}: {e}")
-            gc.collect()
-            break
-        except Exception as e:
-            logging.error(f"Error processing {sub_path}: {e}")
-            logging.debug(f"Exception details: {e}", exc_info=True)
-            gc.collect()
-            break
+    except KeyError as e:
+        logging.error(f"KeyError processing {sub_path}: {e}")
+    except Exception as e:
+        logging.error(f"Error processing {sub_path}: {e}")
+        logging.debug(f"Exception details: {e}", exc_info=True)
+    finally:
+        del results, base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, msg_hops, sub_path, ticks_per_sec
+        gc.collect()
 
 def main():
     setup_logging()
     ticks_per_sec, data_type = check_inputs()
 
-    tasks = []
+    # Using a manager to handle the queue
+    manager = Manager()
+    queue = manager.Queue()
+
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
@@ -114,45 +94,59 @@ def main():
                                             if '.' not in folder:
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
-                                                tasks.append((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
-
-    # Using a manager to handle the queue
-    manager = Manager()
-    queue = manager.Queue()
-
-    for task in tasks:
-        queue.put(task)
+                                                queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
 
     active_processes = []
-    total_memory = psutil.virtual_memory().available / (1024 * 1024)  # Total memory in MB
+    process_tasks = []  # List to keep track of tasks associated with each active process
 
-    while not queue.empty() or active_processes:
-        # Calculate total memory used by active processes
-        total_memory_used = sum(memory_per_process.get(str(n_agents)) for p, n_agents in active_processes)
+    while not queue.empty() or len(active_processes) > 0:
 
-        # Launch new processes if there is room
-        while total_memory_used + min(memory_per_process.get(str(n_agents)) for p, n_agents in active_processes) <= total_memory and not queue.empty():
+        memory_used_by_processes = []
+        # Calculate the memory used by each process
+        to_remove = []
+        for p in active_processes:
+            try:
+                proc = psutil.Process(p.pid)
+                memory_used_by_processes.append(proc.memory_info().rss / (1024 * 1024))
+            except psutil.NoSuchProcess:
+                to_remove.append(active_processes.index(p))
+        for index in to_remove:
+            active_processes.pop(index)
+            process_tasks.pop(index)
+        
+        max_memory_used = max(memory_used_by_processes, default=0)
+        # Launch the next process only if the available memory is larger than the biggest memory occupied
+        available_memory = psutil.virtual_memory().available / (1024 * 1024)
+        cpu_usage = psutil.cpu_percent(percpu=True)
+        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
+
+        # Kill the last process and put it back in the queue
+        if available_memory < 30 and active_processes:
+            last_process = active_processes.pop()
+            last_task = process_tasks.pop()
+            last_process.terminate()
+            last_process.join()
+            logging.info(f"Terminated process {last_process.pid} due to low memory")
+            # Requeue the task
+            queue.put(last_task)
+
+        if available_memory > max_memory_used and len(active_processes) < idle_cpus:
             task = queue.get()
-            n_agents = task[4]
-            required_memory = memory_per_process.get(str(n_agents))
-            if total_memory_used + required_memory <= total_memory:
-                p = Process(target=process_folder, args=(task,))
-                p.start()
-                active_processes.append((p, n_agents))
-                total_memory_used += required_memory
-            else:
-                # Requeue the task if there's not enough memory
-                queue.put(task)
-                break
-
-        # Check for completed processes
-        for p, n_agents in active_processes:
+            p = Process(target=process_folder, args=(task,))
+            p.start()
+            active_processes.append(p)
+            process_tasks.append(task)  # Track the task associated with this process
+        to_remove = []
+        for p in active_processes:
             if not p.is_alive():
+                to_remove.append(active_processes.index(p))
                 p.join()
-                active_processes.remove((p, n_agents))
-                total_memory_used -= memory_per_process.get(str(n_agents))
-
-        time.sleep(1)  # Avoid busy-waiting
+        for index in to_remove:
+            active_processes.pop(index)
+            process_tasks.pop(index)
+        gc.collect()
+        logging.info(f"Active processes: {len(active_processes)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
+        time.sleep(.5)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
