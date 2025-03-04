@@ -63,7 +63,6 @@ def process_folder(task):
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
         del results, base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, msg_hops, sub_path, ticks_per_sec
-        gc.collect()
 
 def main():
     setup_logging()

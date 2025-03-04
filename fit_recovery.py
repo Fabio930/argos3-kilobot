@@ -81,7 +81,6 @@ def main():
                 if i not in processed_keys:
                     queue.put([{i:data.get(i)}])
     del csv_res,processed_keys,file_paths,rec_path
-    gc.collect()
             
     active_processes = []
     process_tasks = []  # List to keep track of tasks associated with each active process
@@ -131,6 +130,6 @@ def main():
         time.sleep(.5)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
-    
+
 if __name__ == "__main__":
     main()
