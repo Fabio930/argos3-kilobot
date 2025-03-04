@@ -109,11 +109,7 @@ def main():
                 proc = psutil.Process(p.pid)
                 memory_used_by_processes.append(proc.memory_info().rss / (1024 * 1024))
             except psutil.NoSuchProcess:
-                to_remove.append(active_processes.index(p))
-        for index in to_remove:
-            active_processes.pop(index)
-            process_tasks.pop(index)
-        
+                if active_processes.index(p) not in to_remove: to_remove.append(active_processes.index(p))
         max_memory_used = max(memory_used_by_processes, default=0)
         # Launch the next process only if the available memory is larger than the biggest memory occupied
         available_memory = psutil.virtual_memory().available / (1024 * 1024)
@@ -125,7 +121,7 @@ def main():
             last_process = active_processes.pop()
             last_task = process_tasks.pop()
             last_process.terminate()
-            last_process.join()
+            if active_processes.index(last_process) not in to_remove: to_remove.append(active_processes.index(last_process))
             logging.info(f"Terminated process {last_process.pid} due to low memory")
             # Requeue the task
             queue.put(last_task)
@@ -136,10 +132,9 @@ def main():
             p.start()
             active_processes.append(p)
             process_tasks.append(task)  # Track the task associated with this process
-        to_remove = []
         for p in active_processes:
             if not p.is_alive():
-                to_remove.append(active_processes.index(p))
+                if active_processes.index(p) not in to_remove: to_remove.append(active_processes.index(p))
                 p.join()
         for index in to_remove:
             active_processes.pop(index)
