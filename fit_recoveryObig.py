@@ -1,5 +1,5 @@
-import data_extractor as dex
-import os
+import csv_results as CSVres
+import os, csv
 import sys
 import logging
 import gc
@@ -15,86 +15,70 @@ def setup_logging():
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
-# Check command line inputs
-def check_inputs():
-    ticks = 10
-    data_type = "all"
-    if len(sys.argv) > 7:
-        logging.error("Too many arguments --EXIT--")
-        exit()
-    if len(sys.argv) > 1:
-        for i in range(len(sys.argv)):
-            if sys.argv[i] == '-d':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
-                data_type = str(sys.argv[i + 1])
-            elif sys.argv[i] == '-t':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
-                try:
-                    ticks = int(sys.argv[i + 1])
-                except:
-                    logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
-                    exit()
-    if data_type not in {"all", "quorum", "freq"}:
-        logging.error("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
-        exit()
-    if ticks <= 0:
-        logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
-        exit()
-    return ticks, data_type
-
-# Process folder with retries and memory management
-def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path, ticks_per_sec = task
-    results = dex.Results()
-    results.ticks_per_sec = ticks_per_sec
+# Process file with retries and memory management
+def process_file(task):
+    csv_res = CSVres.Data()
+    tot_recovery = task
     try:
-        logging.info(f"Processing {sub_path} : START")
-        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
-        logging.info(f"Processing {sub_path} : END")
-
+        csv_res.store_recovery(csv_res.fit_recovery_raw_data(tot_recovery))
     except KeyError as e:
-        logging.error(f"KeyError processing {sub_path}: {e}")
+        logging.error(f"KeyError processing {tuple(tot_recovery[0].keys())[0]}:{e}")
     except Exception as e:
-        logging.error(f"Error processing {sub_path}: {e}")
+        logging.error(f"Error processing {tuple(tot_recovery[0].keys())[0]}:{e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, msg_hops, sub_path, ticks_per_sec
+        del csv_res,tot_recovery
 
 def main():
     setup_logging()
-    ticks_per_sec, data_type = check_inputs()
-
+    csv_res = CSVres.Data()
+    processed_keys = []
+    file_paths = []
+    rec_path = []
+    for base in csv_res.bases:
+        if base.split('/')[-1] == "proc_data":
+            files = [os.path.join(base, file) for file in sorted(os.listdir(base))]
+            file_paths.extend(files)
+        elif base.split('/')[-1] == "rec_data":
+            files = [os.path.join(base, file) for file in sorted(os.listdir(base))]
+            rec_path.extend(files)
     # Using a manager to handle the queue
     manager = Manager()
     queue = manager.Queue()
 
-    for base in dex.Results().bases:
-        for adir in sorted(os.listdir(base)):
-            if '.' not in adir and '#' in adir:
-                pre_apath = os.path.join(base, adir)
-                exp_length = int(adir.split('#')[1])
-                for dir in sorted(os.listdir(pre_apath)):
-                    if '.' not in dir and '#' in dir:
-                        communication = int(dir.split('#')[1])
-                        pre_path = os.path.join(pre_apath, dir)
-                        for zdir in sorted(os.listdir(pre_path)):
-                            if '.' not in zdir and '#' in zdir:
-                                n_agents = int(zdir.split('#')[1])
-                                dtemp = os.path.join(pre_path, zdir)
-                                for pre_folder in sorted(os.listdir(dtemp)):
-                                    if '.' not in pre_folder:
-                                        msg_exp_time = int(pre_folder.split('#')[-1])
-                                        sub_path = os.path.join(dtemp,pre_folder)
-                                        for folder in sorted(os.listdir(sub_path)):
-                                            if '.' not in folder:
-                                                msg_hops = int(folder.split('#')[-1])
-                                                path = os.path.join(sub_path,folder)
-                                                queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
-
+    for file_path in rec_path:
+        logging.info(f"Reading {file_path} : START")
+        with open(file_path, 'r') as file:
+            read = csv.reader(file)
+            data = {tuple(rows[:9]): rows[9:] for rows in read}
+        logging.info(f"Reading {file_path} : END")
+        for i in data.keys():
+            if i not in processed_keys:
+                processed_keys.append(i)
+    for file_path in file_paths:
+        file = os.path.basename(file_path)
+        if "Orecovery_data_raw_r#100_a#bigA" in file:
+            arena = ''
+            file = os.path.basename(file_path)
+            no_ext_file = file.split('.')[0]
+            sets = no_ext_file.split('_')
+            algo = sets[0][0]
+            for s in sets:
+                val = s.split('#')
+                if len(val) > 1:
+                    if val[0] == 'r':
+                        n_runs = val[1]
+                    elif val[0] == 'a':
+                        arena = val[1]
+            logging.info(f"Reading {file_path} : START")
+            data = csv_res.read_recovery_csv(file_path, algo, arena)
+            logging.info(f"Reading {file_path} : END")
+            for i in data.keys():
+                # if i not in processed_keys:
+                if i == ('O', 'bigA', '900', '1', '100', '60', '0', '0.88', '0.88'):
+                    queue.put([{i:data.get(i)}])
+            break
+    del csv_res,processed_keys,file_paths,rec_path
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
 
@@ -154,7 +138,7 @@ def main():
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > max_memory_used:
             try:
                 task = queue.get(block=False)
-                p = Process(target=process_folder, args=(task,))
+                p = Process(target=process_file, args=(task,))
                 p.start()
                 active_processes.update({p.pid:(p,task)})
                 logging.info(f"Started process {p.pid} for task {list(task[0].keys())[0]}")
