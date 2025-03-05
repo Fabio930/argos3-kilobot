@@ -356,9 +356,9 @@ class Data:
 
 ##########################################################################################################
     def plot_recovery(self,data_in):
-        if not os.path.exists(self.base+"/proc_data/images/"):
-            os.mkdir(self.base+"/proc_data/images/")
-        path = self.base+"/proc_data/images/"
+        if not os.path.exists(self.base+"/rec_data/images/"):
+            os.mkdir(self.base+"/rec_data/images/")
+        path = self.base+"/rec_data/images/"
         dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = {},{},{},{},{}
         ground_T, threshlds, msg_hops, jolly                    = [],[],[],[]
         algo, arena, time, comm, agents, buf_dim                = [],[],[],[],[],[]
