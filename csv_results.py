@@ -342,6 +342,19 @@ class Data:
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times, (messages_b, messages_r), (do_nothing_buff, insert_buff, update_buf)
                 
 ##########################################################################################################
+    def read_fitted_recovery_csv(self,file_path:str) -> dict:
+        data = {}
+        with open(file_path, newline='') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip the header row
+            for row in reader:
+                key = tuple(row[:10])
+                value = tuple(row[10:])
+                data[key] = value
+        return data
+
+
+##########################################################################################################
     def plot_recovery(self,data_in):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
@@ -525,19 +538,19 @@ class Data:
                                         col = 4
                             if park_data.any() != None:
                                 for i in range(len(park_data)):
-                                    park_plotting[row][col][gt][i + np.argwhere(park_plotting[row][col][gt]==-1)[0]] =  park_data[i]
+                                    park_plotting[row][col][gt][i] =  park_data[i]
                             if adams_data.any() != None:
                                 for i in range(len(adams_data)):
-                                    adam_plotting[row][col][gt][i + np.argwhere(adam_plotting[row][col][gt]==-1)[0]] =  adams_data[i]
+                                    adam_plotting[row][col][gt][i] =  adams_data[i]
                             if fifo_data.any() != None:
                                 for i in range(len(fifo_data)):
-                                    fifo_plotting[row][col][gt][i + np.argwhere(fifo_plotting[row][col][gt]==-1)[0]] =  fifo_data[i]
+                                    fifo_plotting[row][col][gt][i] =  fifo_data[i]
                             if rnd_data.any() != None:
                                 for i in range(len(rnd_data)):
-                                    rnd_plotting[row][col][gt][i + np.argwhere(rnd_plotting[row][col][gt]==-1)[0]] =  rnd_data[i]
+                                    rnd_plotting[row][col][gt][i] =  rnd_data[i]
                             if rnd_inf_data.any() != None:
                                 for i in range(len(rnd_inf_data)):
-                                    rnd_inf_plotting[row][col][gt][i + np.argwhere(rnd_inf_plotting[row][col][gt]==-1)[0]] =  rnd_inf_data[i]
+                                    rnd_inf_plotting[row][col][gt][i] =  rnd_inf_data[i]
         fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(88,76))
         positions = range(1,len(gt_thr[0])*4,4)
         for i in range(3):
