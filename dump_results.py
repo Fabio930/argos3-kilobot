@@ -52,10 +52,7 @@ def process_folder(task):
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        logging.info(f"Processing {sub_path} : START")
         results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
-        logging.info(f"Processing {sub_path} : END")
-
     except KeyError as e:
         logging.error(f"KeyError processing {sub_path}: {e}")
     except Exception as e:
@@ -118,7 +115,7 @@ def main():
                 memory_info = proc.memory_info().rss / (1024 * 1024)
                 memory_used_by_processes.append(memory_info)
                 logging.info(f"Process {key}, status: {proc.status()}")
-                if proc.status() != psutil.STATUS_RUNNING:
+                if proc.status() != psutil.STATUS_RUNNING and proc.status() != psutil.STATUS_DISK_SLEEP:
                     process = active_processes.get(key)
                     process[0].terminate()
                     process[0].join()
@@ -128,7 +125,7 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} not found")
+                logging.info(f"Process {key} for task {process[1][-2]} not found")
         max_memory_used = max(memory_used_by_processes, default=0)
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
@@ -140,24 +137,24 @@ def main():
                     last_process = active_processes.get(last_pid)
                     last_process[0].terminate()
                     last_process[0].join()
-                    if process[0].is_alive():
+                    if last_process[0].is_alive():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {list(last_process[1][0].keys())[0]} terminated due to low memory")
+                        logging.info(f"Process {last_pid} for task {last_process[1][-2]} terminated due to low memory")
                         # Requeue the task
                         queue.put(last_process[1])
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} joined and removed from active processes")
+            logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > max_memory_used:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
                 p.start()
                 active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {list(task[0].keys())[0]}")
+                logging.info(f"Started process {p.pid} for task {task[-2]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)

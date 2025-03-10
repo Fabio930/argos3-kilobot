@@ -126,7 +126,7 @@ def main():
                     last_process = active_processes.get(last_pid)
                     last_process[0].terminate()
                     last_process[0].join()
-                    if process[0].is_alive():
+                    if last_process[0].is_alive():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
