@@ -1348,11 +1348,11 @@ class Data:
                             if pval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and p_valst is np.nan:
                                     p_valst = np.log10(tpval)
-                                if p_vals8[1] is np.nan or pval<p_vals8[1]:
+                                if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
                             elif pval<=0.2:
-                                if p_vals2[0] is np.nan or pval>=p_vals2[0]:
+                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
                                     p_vals2[0]  = pval
                                     p_gt2[0]    = ground_T[pt]
                             else:
@@ -1365,11 +1365,11 @@ class Data:
                             if aval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and a_valst is np.nan:
                                     a_valst = np.log10(taval)
-                                if a_vals8[1] is np.nan or aval<a_vals8[1]:
+                                if ground_T[pt]-threshlds[th] >=0 and (a_vals8[1] is np.nan or aval<a_vals8[1]):
                                     a_vals8[1]  = aval
                                     a_gt8[1]    = ground_T[pt]
                             elif aval<=0.2:
-                                if a_vals2[0] is np.nan or aval>=a_vals2[0]:
+                                if ground_T[pt]-threshlds[th] <=0 and (a_vals2[0] is np.nan or aval>=a_vals2[0]):
                                     a_vals2[0]  = aval
                                     a_gt2[0]    = ground_T[pt]
                             else:
@@ -1382,11 +1382,11 @@ class Data:
                             # if fval>=0.8:
                             #     if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and f_valst is np.nan:
                             #         f_valst = np.log10(tfval)
-                            #     if f_vals8[1] is np.nan or fval<f_vals8[1]:
+                            #     if ground_T[pt]-threshlds[th] >=0 and (f_vals8[1] is np.nan or fval<f_vals8[1]):
                             #         f_vals8[1]  = fval
                             #         f_gt8[1]    = ground_T[pt]
                             # elif fval<=0.2:
-                            #     if f_vals2[0] is np.nan or fval>=f_vals2[0]:
+                            #     if ground_T[pt]-threshlds[th] <=0 and (f_vals2[0] is np.nan or fval>=f_vals2[0]):
                             #         f_vals2[0]  = fval
                             #         f_gt2[0]    = ground_T[pt]
                             # else:
@@ -1399,11 +1399,11 @@ class Data:
                             if rval>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and r_valst is np.nan:
                                     r_valst = np.log10(trval)
-                                if r_vals8[1] is np.nan or rval<r_vals8[1]:
+                                if ground_T[pt]-threshlds[th] >=0 and (r_vals8[1] is np.nan or rval<r_vals8[1]):
                                     r_vals8[1]  = rval
                                     r_gt8[1]    = ground_T[pt]
                             elif rval<=0.2:
-                                if r_vals2[0] is np.nan or rval>=r_vals2[0]:
+                                if ground_T[pt]-threshlds[th] <=0 and (r_vals2[0] is np.nan or rval>=r_vals2[0]):
                                     r_vals2[0]  = rval
                                     r_gt2[0]    = ground_T[pt]
                             else:
@@ -1416,11 +1416,11 @@ class Data:
                             if rival>=0.8:
                                 if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and ri_valst is np.nan:
                                     ri_valst = np.log10(trival)
-                                if ri_vals8[1] is np.nan or rival<ri_vals8[1]:
+                                if ground_T[pt]-threshlds[th] >=0 and (ri_vals8[1] is np.nan or rival<ri_vals8[1]):
                                     ri_vals8[1]  = rival
                                     ri_gt8[1]    = ground_T[pt]
                             elif rival<=0.2:
-                                if ri_vals2[0] is np.nan or rival>=ri_vals2[0]:
+                                if ground_T[pt]-threshlds[th] <=0 and (ri_vals2[0] is np.nan or rival>=ri_vals2[0]):
                                     ri_vals2[0]  = rival
                                     ri_gt2[0]    = ground_T[pt]
                             else:
