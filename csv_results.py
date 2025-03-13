@@ -465,8 +465,8 @@ class Data:
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         handles_r           = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         # handles_r           = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
@@ -626,8 +626,8 @@ class Data:
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         handles_r           = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         # handles_r           = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
@@ -920,8 +920,8 @@ class Data:
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
@@ -1299,8 +1299,8 @@ class Data:
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R fifo')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+R rnd inf')
+        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
 
         handles_c   = [high_bound,low_bound]
         handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
