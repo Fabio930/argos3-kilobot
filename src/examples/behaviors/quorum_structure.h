@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-uint32_t expiring_ticks_quorum = 200;
+uint32_t expiring_ticks_quorum = 10;
 uint8_t min_quorum_length = 5;
 float quorum_threshold;
 uint8_t true_quorum_items;
