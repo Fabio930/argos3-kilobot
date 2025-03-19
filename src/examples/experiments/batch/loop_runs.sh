@@ -25,10 +25,10 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="600"
-RUNS=3
+experiment_length="900"
+RUNS=100
 rebroadcast="0"
-numrobots="25"
+numrobots="25 100"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
