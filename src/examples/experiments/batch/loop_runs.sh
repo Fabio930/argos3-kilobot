@@ -103,7 +103,7 @@ for exp_len_par in $experiment_length; do
                                 argos3 -c './'$config
                                 kilo_file="run#${i}.tsv"
                                 for j in $(seq 0 $last_id); do
-                                    rename="quorum_log_agent#$j"__"$kilo_file"
+                                    rename="quorum_log_agent#$j"_"$kilo_file"
                                     mv "quorum_log_agent#$j.tsv" $rename
                                     mv $rename $msgs_dir
                                 done
