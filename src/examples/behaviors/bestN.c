@@ -414,6 +414,7 @@ void setup(){
 }
 
 void loop(){
+    decrement_quorum_counter(&quorum_array);
     random_way_point_model();
     check_quorum(&quorum_array);
     if(init_received_D) talk();
