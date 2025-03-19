@@ -26,11 +26,11 @@ fi
 #######################################
 experiment_length="1200"
 variation_time="600"
-RUNS=25
+RUNS=100
 rebroadcast="0"
 numrobots="25"
 threshold="0.8"
-delta="0.68;0.92" # 0.92;0.68"
+delta="0.68;0.92 0.92;0.68"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -67,8 +67,8 @@ for exp_len_par in $experiment_length; do
                     fi
                     last_id=`expr $agents_par - 1`
                     if [ $agents_par -eq 25 ]; then
-                        buffer_dim="19 23 24" # small arena
-                        # buffer_dim="11 19 22" # big arena
+                        # buffer_dim="19 23 24" # small arena
+                        buffer_dim="11 19 22" # big arena
                     elif [ $agents_par -eq 100 ]; then
                         buffer_dim="41 76 85"
                     fi
