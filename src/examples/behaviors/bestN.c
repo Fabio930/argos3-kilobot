@@ -349,6 +349,7 @@ void setup(){
 }
 
 void loop(){
+    decrement_quorum_counter(&quorum_array);
     fp = fopen(log_title,"a");
     switch (num_quorum_items){
         case 0:
