@@ -26,11 +26,11 @@ fi
 #######################################
 experiment_length="1200"
 variation_time="600"
-RUNS=100
+RUNS=25
 rebroadcast="0"
 numrobots="25"
 threshold="0.8"
-delta="0.68;0.92 0.92;0.68"
+delta="0.68;0.92" # 0.92;0.68"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par

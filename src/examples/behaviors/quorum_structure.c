@@ -57,7 +57,7 @@ void increment_quorum_counter(quorum_a **Array[]){
 }
 
 void decrement_quorum_counter(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter-1;
+    for (uint8_t i = 0; i < num_quorum_items; i++) if((*Array)[i]->counter > 0) (*Array)[i]->counter = (*Array)[i]->counter-1;
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){

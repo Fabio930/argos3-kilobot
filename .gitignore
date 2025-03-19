@@ -9,5 +9,6 @@ build
 **/*cache*
 Experiments.txt
 *proc_data*
+*_DATA_*
 *msgs_data*
 *.tar.xz
