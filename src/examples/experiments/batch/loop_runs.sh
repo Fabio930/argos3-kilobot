@@ -209,8 +209,6 @@ for exp_len_par in $experiment_length; do
                                     cp $base_config $config
                                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                     sed -i "s|__SEED__|$i|g" $config
-                                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                                    kilo_file="${dt}__run#${i}.tsv"
                                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
                                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                                     sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
@@ -231,8 +229,9 @@ for exp_len_par in $experiment_length; do
                                     sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                                     echo "Running next configuration -- $config"
                                     argos3 -c './'$config
+                                    kilo_file="run#${i}.tsv"
                                     for j in $(seq 0 $last_id); do
-                                        rename="quorum_log_agent#$j"__"$kilo_file"
+                                        rename="quorum_log_agent#$j"_"$kilo_file"
                                         mv "quorum_log_agent#$j.tsv" $rename
                                         mv $rename $buff_dir
                                     done
