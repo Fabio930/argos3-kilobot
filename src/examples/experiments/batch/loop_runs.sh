@@ -68,13 +68,12 @@ for exp_len_par in $experiment_length; do
                     sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
                     sed -i "s|__SEED__|$i|g" $config
                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_dir|g" $config
-                    dt=$(date '+%d-%m-%Y_%H-%M-%S')
-                    kilo_file="${dt}__run#${i}.tsv"
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                    kilo_file="run#${i}.tsv"
                     echo "Running next configuration -- $config"
                     argos3 -c './'$config
                     for j in $(seq 0 $last_id); do
-                        rename="quorum_log_agent#$j"__"$kilo_file"
+                        rename="quorum_log_agent#$j"_"$kilo_file"
                         mv "quorum_log_agent#$j.tsv" $rename
                         mv $rename $hops_dir
                     done
