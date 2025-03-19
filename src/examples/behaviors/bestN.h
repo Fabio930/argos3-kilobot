@@ -14,8 +14,8 @@ FILE *fp;
 
 /* divided by 10 */
 typedef enum{
-    ARENA_X = 10,
-    ARENA_Y = 10
+    ARENA_X = 5,
+    ARENA_Y = 5
 }arena_size;
 
 /* Enum for messages type */
@@ -91,7 +91,7 @@ bool init_received_B = false;
 bool init_received_C = false;
 
 /* counters for broadcast a message */
-const uint16_t broadcasting_ticks = 16;
+const uint16_t broadcasting_ticks = TICKS_PER_SEC*.5;
 uint32_t last_broadcast_ticks = 0;
 uint8_t broadcasting_flag = 0;
 

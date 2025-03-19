@@ -26,9 +26,9 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="900"
-RUNS=100
+RUNS=20
 rebroadcast="0"
-numrobots="25 100"
+numrobots="25"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -67,7 +67,7 @@ for exp_len_par in $experiment_length; do
                     sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                     sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
                     sed -i "s|__SEED__|$i|g" $config
-                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_dir|g" $config
+                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
                     kilo_file="run#${i}.tsv"
                     echo "Running next configuration -- $config"
