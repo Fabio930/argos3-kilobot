@@ -211,8 +211,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(const uint8_t Msg_n_hops){
-    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,0);
 }
 
 void check_quorum(quorum_a **Array[]){
@@ -414,7 +413,6 @@ void setup(){
 }
 
 void loop(){
-    decrement_quorum_counter(&quorum_array);
     random_way_point_model();
     check_quorum(&quorum_array);
     if(init_received_D) talk();
