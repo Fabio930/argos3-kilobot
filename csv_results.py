@@ -31,12 +31,12 @@ class Data:
                     else:
                         dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                 elif int(k[4])==1:
-                    if mh=="1":
+                    if k[6]=="1":
                         if k[0].split(';')[0] == k[0].split(';')[1]:
                             dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
                             dict_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    elif mh=="a31":
+                    elif k[6]=="a31":
                         if k[0].split(';')[0] == k[0].split(';')[1]:
                             dict_adp_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
                         else:
