@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
-from lifelines import WeibullFitter
+from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 class Data:
 
@@ -34,17 +34,27 @@ class Data:
         buff_starts     = data_in[0]
         durations       = data_in[1]
         event_observed  = data_in[2]
+        if not os.path.exists(self.base+"/weib_images/"):
+            os.mkdir(self.base+"/weib_images/")
+        path = self.base+"/weib_images/"
 
         durations_by_buffer = self.divide_event_by_buffer(buf_dim,algo,n_agents,buff_starts,durations,event_observed)
         durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
         adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
         wf = WeibullFitter()
+        kmf = KaplanMeierFitter()
         estimates = {}
         for k in adapted_durations.keys():
             a_data = adapted_durations.get(k)[0]
             a_censoring = adapted_durations.get(k)[1]
             if len(a_data)>10:
                 wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
+                kmf.fit(a_data, event_observed=a_censoring,label="kmf "+k)
+                fig, ax = plt.subplots(figsize=(10,8))
+                ax.plot(wf.cumulative_density_)
+                ax.plot(kmf.cumulative_density_)
+                plt.tight_layout()
+                plt.savefig(path+'/'+k+'.png')
                 estimates.update({k:self.wb_get_mean_and_std(wf)})
         return estimates
 
