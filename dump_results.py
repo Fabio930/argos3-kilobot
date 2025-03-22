@@ -59,7 +59,7 @@ def process_folder(task):
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, msg_hops, sub_path, ticks_per_sec
+        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, sub_path
 
 def main():
     setup_logging()
@@ -137,7 +137,7 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-2]} not found")
+                logging.info(f"Process {key} for task {process[1][-1]} not found")
         max_memory_used = max(memory_used_by_processes, default=0)
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
@@ -153,20 +153,20 @@ def main():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1][-2]} terminated due to low memory")
+                        logging.info(f"Process {last_pid} for task {last_process[1][-1]} terminated due to low memory")
                         # Requeue the task
                         queue.put(last_process[1])
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
+            logging.info(f"Process {key} for task {process[1][-1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > max_memory_used:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
                 p.start()
                 active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {task[-2]}")
+                logging.info(f"Started process {p.pid} for task {task[-1]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
