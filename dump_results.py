@@ -160,7 +160,7 @@ def main():
                 logging.debug(f"Exception details: {e}", exc_info=True)
         if iteration % 30 == 0 or len(to_remove) > 0:
             gc.collect()
-        time.sleep(5)  # Avoid busy-waiting
+        time.sleep(10)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
