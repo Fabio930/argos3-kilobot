@@ -30,7 +30,7 @@ class Data:
         return [mean, std]
     
 ##########################################################################################################
-    def fit_recovery(self,algo,n_agents,buf_dim,data_in):
+    def fit_recovery(self,algo,arena,n_agents,buf_dim,gt,thr,data_in):
         buff_starts     = data_in[0]
         durations       = data_in[1]
         event_observed  = data_in[2]
@@ -54,7 +54,7 @@ class Data:
                 ax.plot(wf.cumulative_density_)
                 ax.plot(kmf.cumulative_density_)
                 fig.tight_layout()
-                fig.savefig(path+k+'.png')
+                fig.savefig(path+algo+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
                 estimates.update({k:self.wb_get_mean_and_std(wf)})
         return estimates
 
@@ -63,7 +63,7 @@ class Data:
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],k[4],k[5],data_in[i].get(k))
+                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[7],k[8],data_in[i].get(k))
                 for z in estimates.keys():
                     fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],z):estimates.get(z)})
         return fitted_data

@@ -102,19 +102,13 @@ def main():
     while len(active_processes) > 0 or queue.qsize() > 0:
         iteration += 1
 
-        memory_used_by_processes = []
         to_remove = []
         # Calculate the memory used by each process
         active_keys = active_processes.keys()
         available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        print()
-        logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
         for key in active_keys:
             try:
                 proc = psutil.Process(key)
-                memory_info = proc.memory_info().rss / (1024 * 1024)
-                memory_used_by_processes.append(memory_info)
-                logging.info(f"Process {key}, status: {proc.status()}")
                 if proc.status() != psutil.STATUS_RUNNING and proc.status() != psutil.STATUS_DISK_SLEEP:
                     process = active_processes.get(key)
                     process[0].terminate()
@@ -126,11 +120,10 @@ def main():
             except psutil.NoSuchProcess:
                 to_remove.append(key)
                 logging.info(f"Process {key} for task {process[1][-2]} not found")
-        max_memory_used = max(memory_used_by_processes, default=0)
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 1024 and len(active_processes) > 0:
+        if available_memory <= 512 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -148,7 +141,7 @@ def main():
         for key in to_remove:
             process = active_processes.pop(key)
             logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > max_memory_used:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 1024:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
@@ -158,9 +151,10 @@ def main():
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 30 == 0 or len(to_remove) > 0:
+        if iteration % 100 == 0 or len(to_remove) > 0:
+            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
             gc.collect()
-        time.sleep(10)  # Avoid busy-waiting
+        time.sleep(1)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
