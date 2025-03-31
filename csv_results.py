@@ -1215,13 +1215,14 @@ class Data:
                             trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th]
                             trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and p_valst is np.nan:
-                                    p_valst = np.log(tpval)
+                                temp_tval = np.log(tpval)
+                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and (p_valst is np.nan or temp_tval<p_valst):
+                                    p_valst = temp_tval
                                 if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
                             elif pval<=0.2:
-                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
+                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>p_vals2[0]):
                                     p_vals2[0]  = pval
                                     p_gt2[0]    = ground_T[pt]
                             else:
