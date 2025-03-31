@@ -736,7 +736,7 @@ class Data:
                 plt.close(ufig)
 
 ##########################################################################################################
-    def print_evolutions(self,path,ground_T,threshlds,data_in_sq,times_in_sq,data_in_rt,times_in_rt,keys,more_k,msg_hop,arena_type):
+    def print_evolutions(self,path,ground_T,threshlds,data_in_sq,times_in_sq,data_in_rt,times_in_rt,keys,more_k,msg_hop):
         plt.rcParams.update({"font.size":36})
         cm                                                  = plt.get_cmap('viridis') 
         typo                                                = [0,1,2,3,4,5]
