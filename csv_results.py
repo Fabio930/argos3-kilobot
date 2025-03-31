@@ -300,6 +300,7 @@ class Data:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
         self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
+        self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
         # self.print_adaptive_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
 
 ##########################################################################################################
@@ -320,12 +321,11 @@ class Data:
         fifo    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         svoid_x_ticks   = []
         void_x_ticks    = []
         void_y_ticks    = []
         real_x_ticks    = []
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         for gt in ground_T:
             for thr in threshlds:
                 fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
@@ -417,7 +417,124 @@ class Data:
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
                 fig_path = path+thr+"_"+gt+"_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.savefig(fig_path, bbox_inches='tight')
+                plt.close(fig)
+
+##########################################################################################################
+    def print_compare_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
+        plt.rcParams.update({"font.size":36})
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        p_k, o_k = keys[0],keys[1]
+        for x in range(len(o_k)):
+            o_k[x] = int(o_k[x])
+        o_k     = np.sort(o_k)
+        arena   = more_k[0]
+        adam    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        rnd     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        rnd_inf = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        rnd_adp = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
+        svoid_x_ticks   = []
+        void_x_ticks    = []
+        void_y_ticks    = []
+        real_x_ticks    = []
+        handles_r       = [adam,rnd,rnd_inf,rnd_adp]
+        for gt in ground_T:
+            for thr in threshlds:
+                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                for a in arena:
+                    if a=="smallA":
+                        row = 1
+                        p_k = [str(19),str(23),str(24)]
+                        agents = ["25"]
+                    else:
+                        row = 0
+                        p_k = [str(11),str(19),str(22)]
+                        agents = more_k[1]
+                    for ag in agents:
+                        if int(ag)==100:
+                            row = 2
+                            p_k = [str(41),str(76),str(85)]
+                        for k in range(len(o_k)):
+                            # if dict_park.get((a,ag,p_k[k],gt,thr)) != None:
+                            #     ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            # if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
+                            if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
+                            ax[row][k].set_xlim(0,1201)
+                            ax[row][k].set_ylim(0,1)
+                            if len(real_x_ticks)==0:
+                                for x in range(0,1201,50):
+                                    if x%300 == 0:
+                                        svoid_x_ticks.append('')
+                                        void_x_ticks.append('')
+                                        real_x_ticks.append(str(int(np.round(x,0))))
+                                    else:
+                                        void_x_ticks.append('')
+                                for y in range(0,11,1):
+                                    void_y_ticks.append('')
+                            if row == 0:
+                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
+                                axt = ax[row][k].twiny()
+                                labels = [item.get_text() for item in axt.get_xticklabels()]
+                                empty_string_labels = ['']*len(labels)
+                                axt.set_xticklabels(empty_string_labels)
+                                if k==0:
+                                    axt.set_xlabel(r"$T_m = 60\, s$")
+                                elif k==1:
+                                    axt.set_xlabel(r"$T_m = 300\, s$")
+                                elif k==2:
+                                    axt.set_xlabel(r"$T_m = 600\, s$")
+                            elif row==2:
+                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
+                                if k==0:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==1:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                elif k==2:
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                            else:
+                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
+                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
+                            if k==0:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1))
+                                if row==0:
+                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                elif row==1:
+                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                elif row==2:
+                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                            elif k==2:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
+                                axt = ax[row][k].twinx()
+                                labels = [item.get_text() for item in axt.get_yticklabels()]
+                                empty_string_labels = ['']*len(labels)
+                                axt.set_yticklabels(empty_string_labels)
+                                if row==0:
+                                    axt.set_ylabel("LD25")
+                                elif row==1:
+                                    axt.set_ylabel("HD25")
+                                elif row==2:
+                                    axt.set_ylabel("HD100")
+                            else:
+                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
+                            ax[row][k].grid(which='major')
+                fig.tight_layout()
+                fig_path = path+thr+"_"+gt+"compare_activation.pdf"
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -425,6 +542,7 @@ class Data:
     def print_adaptive_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5]
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
@@ -533,20 +651,18 @@ class Data:
                 plt.close(fig)
 
 ##########################################################################################################
-    def print_messages(self,data_in):
+    def print_compare_messages(self,data_in):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adpt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
-        park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [adam,rnd,rnd_inf,rnd_adp]
         svoid_x_ticks   = []
         void_x_ticks    = []
         real_x_ticks    = []
@@ -567,20 +683,6 @@ class Data:
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_adam.update({k:tmp})
-        for k in dict_park.keys():
-            tmp =[]
-            res = dict_park.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_park.update({k:tmp})
-        for k in dict_fifo.keys():
-            tmp =[]
-            res = dict_fifo.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_fifo.update({k:tmp})
         for k in dict_rnd.keys():
             tmp =[]
             res = dict_rnd.get(k)
@@ -602,34 +704,6 @@ class Data:
             for xi in res:
                 tmp.append(xi/norm)
             dict_rnd_adpt.update({k:tmp})
-        for k in dict_park.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-                if k[5] == '11':
-                    col = 0
-                elif k[5] == '19':
-                    col = 1
-                elif k[5] == '22':
-                    col = 2
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-                if k[5] == '41':
-                    col = 0
-                elif k[5] == '76':
-                    col = 1
-                elif k[5] == '85':
-                    col = 2
-            elif k[0]=='small' and k[4]=='25':
-                row = 1
-                if k[5] == '19':
-                    col = 0
-                elif k[5] == '23':
-                    col = 1
-                elif k[5] == '24':
-                    col = 2
-            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -646,22 +720,6 @@ class Data:
             elif k[5] == '600':
                 col = 2
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        for k in dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[5] == '60':
-                col = 0
-            elif k[5] == '300':
-                col = 1
-            elif k[5] == '600':
-                col = 2
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -762,8 +820,220 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
+        fig_path = self.base+"/msgs_data/images/compare_messages.pdf"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+
+##########################################################################################################
+    def print_messages(self,data_in):
+        plt.rcParams.update({"font.size":36})
+        cm = plt.get_cmap('viridis') 
+        typo = [0,1,2,3,4,5]
+        typo = [0,1,2,3,4,5]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adpt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
+        fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
+        svoid_x_ticks   = []
+        void_x_ticks    = []
+        real_x_ticks    = []
+
+        if len(real_x_ticks)==0:
+            for x in range(0,1201,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        for k in dict_adam.keys():
+            tmp =[]
+            res = dict_adam.get(k)
+            norm = int(k[4])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam.update({k:tmp})
+        for k in dict_park.keys():
+            tmp =[]
+            res = dict_park.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_park.update({k:tmp})
+        for k in dict_fifo.keys():
+            tmp =[]
+            res = dict_fifo.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_fifo.update({k:tmp})
+        for k in dict_rnd.keys():
+            tmp =[]
+            res = dict_rnd.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd.update({k:tmp})
+        for k in dict_rnd_inf.keys():
+            tmp =[]
+            res = dict_rnd_inf.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd_inf.update({k:tmp})
+        for k in dict_park.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+                if k[5] == '11':
+                    col = 0
+                elif k[5] == '19':
+                    col = 1
+                elif k[5] == '22':
+                    col = 2
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+                if k[5] == '41':
+                    col = 0
+                elif k[5] == '76':
+                    col = 1
+                elif k[5] == '85':
+                    col = 2
+            elif k[0]=='small' and k[4]=='25':
+                row = 1
+                if k[5] == '19':
+                    col = 0
+                elif k[5] == '23':
+                    col = 1
+                elif k[5] == '24':
+                    col = 2
+            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+        for k in dict_adam.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+        for k in dict_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_rnd.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+        for k in dict_rnd_inf.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+        for x in range(2):
+            for y in range(3):
+                ax[x][y].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
+        for x in range(3):
+            for y in range(1,3):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(3):
+            ax[2][y].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
+
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 300\, s$")
+        axt2.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][2].twinx()
+        ayt1=ax[1][2].twinx()
+        ayt2=ax[2][2].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(3):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,1201)
+                if x==0 or x==1:
+                    ax[x][y].set_ylim(0,1)
+                else:
+                    ax[x][y].set_ylim(0,1)
+        fig.tight_layout()
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
 
