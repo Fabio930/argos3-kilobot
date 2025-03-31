@@ -405,7 +405,7 @@ class Data:
                                                     if a=='P' and int(c)==0 and m_b_d in p_k:
                                                         if ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
                                                                                 (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                                (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='21' or m_b_d=='22' or m_b_d=='23' or m_b_d=='24')))):
+                                                                                (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23.01' or m_b_d=='23' or m_b_d=='24')))):
                                                             dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
                                                     if a=='O' and m_b_d in o_k:
                                                         if int(c)==0:
@@ -420,7 +420,7 @@ class Data:
                                                 else:
                                                     if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
                                                                     (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='21' or m_b_d=='22' or m_b_d=='23' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
+                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
                                                         if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
                                                             p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
                                                 
@@ -505,8 +505,8 @@ class Data:
                             rnd_inf_data    = np.array([])
                             for thr in range(len(gt_thr[1])):
                                 store = True
-                                if filename.split('_')[0] == "easy" and gt_thr[0][gt]-.05 <= gt_thr[1][thr] and gt_thr[0][gt]+.05 >= gt_thr[1][thr]: store=False
-                                elif filename.split('_')[0] == "hard" and (gt_thr[0][gt]-.05 > gt_thr[1][thr] or gt_thr[0][gt]+.05 < gt_thr[1][thr]): store=False
+                                if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
+                                elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
                                 if store:
                                     park_data       = np.append(park_data,dict_park.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
                                     adams_data      = np.append(adams_data,dict_adms.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
@@ -549,31 +549,31 @@ class Data:
                                 elif a_s=='smallA':
                                     if m_b_d == '19':
                                         col = 0
-                                    elif m_b_d == '21':
-                                        col = 1
                                     elif m_b_d == '22':
-                                        col = 2
+                                        col = 1
                                     elif m_b_d == '23':
+                                        col = 2
+                                    elif m_b_d == '23.01':
                                         col = 3
                                     elif m_b_d == '24':
                                         col = 4
                             if park_data.any() != None:
                                 for i in range(len(park_data)):
-                                    park_plotting[row][col][m_t][i] =  park_data[i]
+                                    if park_data[i]!= None: park_plotting[row][col][m_t][i] =  park_data[i]
                             if adams_data.any() != None:
                                 for i in range(len(adams_data)):
-                                    adam_plotting[row][col][m_t][i] =  adams_data[i]
+                                    if adams_data[i]!= None: adam_plotting[row][col][m_t][i] =  adams_data[i]
                             if fifo_data.any() != None:
                                 for i in range(len(fifo_data)):
-                                    fifo_plotting[row][col][m_t][i] =  fifo_data[i]
+                                    if fifo_data[i]!= None: fifo_plotting[row][col][m_t][i] =  fifo_data[i]
                             if rnd_data.any() != None:
                                 for i in range(len(rnd_data)):
-                                    rnd_plotting[row][col][m_t][i] =  rnd_data[i]
+                                    if rnd_data[i]!= None: rnd_plotting[row][col][m_t][i] =  rnd_data[i]
                             if rnd_inf_data.any() != None:
                                 for i in range(len(rnd_inf_data)):
-                                    rnd_inf_plotting[row][col][m_t][i] =  rnd_inf_data[i]
+                                    if rnd_inf_data[i]!= None: rnd_inf_plotting[row][col][m_t][i] =  rnd_inf_data[i]
         fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(28,18),sharex=True,sharey=True)
-        positions = range(1,len(buf_dims[1])*4,4)
+        positions = range(1,len(buf_dims[1])*5,5)
         for i in range(3):
             for j in range(5):
                 park = park_plotting[i][j]
@@ -598,7 +598,7 @@ class Data:
                     flag = []
                     for z in range(len(fifo[k])):
                         if fifo[k][z]!=-1:
-                            flag.append(fifo[k][z])
+                            flag.append(np.log(fifo[k][z]))
                     fifo_print[k] = flag
                 rnd = rnd_plotting[i][j]
                 rnd_print = [[-1]]*len(buf_dims[1])
@@ -619,14 +619,14 @@ class Data:
                 bpp     = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
                 bpa     = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
                 bpf     = ax[i][j].boxplot(fifo_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
-                bpr     = ax[i][j].boxplot(rnd_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
-                bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
+                bpr     = ax[i][j].boxplot(rnd_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
+                bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+4 for p in positions],widths=0.5,patch_artist=True)
                 for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
                     for patch in bplot['boxes']:
                         patch.set_facecolor(color)
-                ax[i][j].set_xticks([p + 1 for p in positions])
+                ax[i][j].set_xticks([p + 2 for p in positions])
                 ax[i][j].set_xticklabels(buf_dims[1])
-                ax[i][j].set_ylim(0,5)
+                ax[i][j].set_ylim(0,10)
         ax[0][0].set_title(r"$T_m = 60\, s$")
         ax[0][1].set_title(r"$T_m = 120\, s$")
         ax[0][2].set_title(r"$T_m = 180\, s$")
@@ -761,7 +761,7 @@ class Data:
                                                 if a=='P' and int(c)==0 and m_t in p_k:
                                                     if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or 
                                                                                             (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or 
-                                                                                            (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='21' or m_t=='22' or m_t=='23' or m_t=='24')))):
+                                                                                            (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
                                                         dict_park_avg.update({(a_s,n_a,m_t):vals})
                                                         dict_park_tmed.update({(a_s,n_a,m_t):times_median})
                                                 if a=='O' and m_t in o_k:
@@ -873,11 +873,11 @@ class Data:
                 row = 1
                 if k[2] == '19':
                     col = 0
-                elif k[2] == '21':
-                    col = 1
                 elif k[2] == '22':
-                    col = 2
+                    col = 1
                 elif k[2] == '23':
+                    col = 2
+                elif k[2] == '23.01':
                     col = 3
                 elif k[2] == '24':
                     col = 4
@@ -1022,7 +1022,7 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=4, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
 
@@ -1192,7 +1192,7 @@ class Data:
             for ag in agents:
                 row = 1  if a=="smallA" else 0
                 p_k = [str(11),str(15),str(17),str(19),str(21)]
-                if row ==1: p_k = [str(19),str(21),str(22),str(23),str(24)]
+                if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
                 if int(ag)==100:
                     p_k = [str(41),str(56),str(65),str(74),str(83)]
                     row = 2
@@ -1409,7 +1409,7 @@ class Data:
                                 void_str_threshlds_y.append('')
                         for x in range(5,11,1):
                             void_str_gt.append('')
-                        for x in range(0,31,5):
+                        for x in range(0,61,5):
                             void_str_tim.append('')
                     ax[row][k].set_xlim(0.5,1)
                     tax[row][k].set_xlim(0.5,0.9)
@@ -1468,9 +1468,9 @@ class Data:
                         tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
                     if k==0:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        tax[row][k].set_yticks(np.arange(0,3.1,.5))
+                        tax[row][k].set_yticks(np.arange(0,6.1,.5))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,6.1,.1),labels=['' for x in range(0,61,1)],minor=True)
                         if row==0:
                             ax[row][k].set_ylabel(r"$G$")
                             tax[row][k].set_ylabel(r"$log(T_c)$")
@@ -1482,9 +1482,9 @@ class Data:
                             tax[row][k].set_ylabel(r"$log(T_c)$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,3.1,.5),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,6.1,.5),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,6.1,.1),labels=['' for x in range(0,61,1)],minor=True)
                         axt = ax[row][k].twinx()
                         taxt = tax[row][k].twinx()
                         labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -1502,9 +1502,9 @@ class Data:
                             taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        tax[row][k].set_yticks(np.arange(0,3.1,.5),labels=void_str_tim)
+                        tax[row][k].set_yticks(np.arange(0,6.1,.5),labels=void_str_tim)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_yticks(np.arange(0,3.1,.1),labels=['' for x in range(0,31,1)],minor=True)
+                        tax[row][k].set_yticks(np.arange(0,6.1,.1),labels=['' for x in range(0,61,1)],minor=True)
                     ax[row][k].grid(which='major')
                     tax[row][k].grid(which='major')
 
