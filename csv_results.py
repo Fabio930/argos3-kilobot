@@ -306,7 +306,7 @@ class Data:
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
@@ -342,19 +342,19 @@ class Data:
                         if int(ag)==100:
                             row = 2
                             p_k = [str(41),str(76),str(85)]
-                        for k in range(len(p_k)):
+                        for k in range(len(o_k)):
                             if dict_park.get((a,ag,p_k[k],gt,thr)) != None:
                                 ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
-                            # if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
-                            # if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
-                            # if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
-                            # if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
-                            # if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
+                            if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
+                            if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
+                            if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                             ax[row][k].set_xlim(0,1201)
                             ax[row][k].set_ylim(0,1)
                             if len(real_x_ticks)==0:
@@ -425,7 +425,7 @@ class Data:
     def print_adaptive_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
@@ -536,7 +536,7 @@ class Data:
     def print_messages(self,data_in):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
-        typo = [0,1,2,3,4,5,6]
+        typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adpt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
