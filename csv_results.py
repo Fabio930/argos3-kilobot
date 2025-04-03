@@ -374,7 +374,7 @@ class Data:
         dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = {},{},{},{},{}
         ground_T, threshlds, msg_hops, jolly                    = [],[],[],[]
         algo, arena, time, comm, agents, buf_dim                = [],[],[],[],[],[]
-        p_k, o_k                                                = [],[]
+        o_k                                                     = []
         da_K = data_in.keys()
         for k0 in da_K:
             if k0[0] not in algo: algo.append(k0[0])
@@ -399,15 +399,11 @@ class Data:
                                             for thr in threshlds:
                                                 s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,m_h,gt,thr,jl))
                                                 if s_data != None:
-                                                    if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
-                                                        p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
+                                                    if m_b_d not in o_k: o_k.append(m_b_d)
                                                     value =round(float(s_data[0]),3)
-                                                    if a=='P' and int(c)==0 and m_b_d in p_k:
-                                                        if ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
-                                                                                (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                                (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23.01' or m_b_d=='23' or m_b_d=='24')))):
-                                                            dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                    if a=='O' and m_b_d in o_k:
+                                                    if a=='P' and int(c)==0:
+                                                        dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                    if a=='O':
                                                         if int(c)==0:
                                                             dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
                                                         elif int(c)==2:
@@ -416,14 +412,7 @@ class Data:
                                                             if int(m_h)==1:
                                                                 dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
                                                             else:
-                                                                dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                else:
-                                                    if (a=='P' and ((a_s=='bigA' and ((n_a=='25' and (m_b_d=='11' or m_b_d=='15' or m_b_d=='17' or m_b_d=='19' or m_b_d=='21')) or
-                                                                    (n_a=='100' and (m_b_d=='41' or m_b_d=='56' or m_b_d=='65' or m_b_d=='74' or m_b_d=='83')))) or
-                                                                    (a_s=='smallA' and (n_a=='25' and (m_b_d=='19' or m_b_d=='22' or m_b_d=='23' or m_b_d=='23.01' or m_b_d=='24'))))) or (a=='O' and m_b_d in ['60','120','180','300','600']):
-                                                        if (a=='P' and m_b_d not in p_k) or (a=='O' and m_b_d not in o_k):
-                                                            p_k.append(m_b_d) if a=='P' else o_k.append(m_b_d)
-                                                
+                                                                dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):value})                                                
         self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
         self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'easy_recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
         self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'hard_recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
@@ -523,40 +512,6 @@ class Data:
                                 col = 3
                             elif m_b_d == '600':
                                 col = 4
-                            else:
-                                if a_s=='bigA' and n_a=='25':
-                                    if m_b_d == '11':
-                                        col = 0
-                                    elif m_b_d == '15':
-                                        col = 1
-                                    elif m_b_d == '17':
-                                        col = 2
-                                    elif m_b_d == '19':
-                                        col = 3
-                                    elif m_b_d == '21':
-                                        col = 4
-                                elif a_s=='bigA' and n_a=='100':
-                                    if m_b_d == '41':
-                                        col = 0
-                                    elif m_b_d == '56':
-                                        col = 1
-                                    elif m_b_d == '65':
-                                        col = 2
-                                    elif m_b_d == '74':
-                                        col = 3
-                                    elif m_b_d == '83':
-                                        col = 4
-                                elif a_s=='smallA':
-                                    if m_b_d == '19':
-                                        col = 0
-                                    elif m_b_d == '22':
-                                        col = 1
-                                    elif m_b_d == '23':
-                                        col = 2
-                                    elif m_b_d == '23.01':
-                                        col = 3
-                                    elif m_b_d == '24':
-                                        col = 4
                             if park_data.any() != None:
                                 for i in range(len(park_data)):
                                     if park_data[i]!= None: park_plotting[row][col][m_t][i] =  park_data[i]
@@ -633,8 +588,11 @@ class Data:
         ax[0][3].set_title(r"$T_m = 300\, s$")
         ax[0][4].set_title(r"$T_m = 600\, s$")
         ayt0=ax[0][4].twinx()
+        ayt0.set_yticks([])
         ayt1=ax[1][4].twinx()
+        ayt1.set_yticks([])
         ayt2=ax[2][4].twinx()
+        ayt2.set_yticks([])
         ayt0.set_ylabel("LD25")
         ayt1.set_ylabel("HD25")
         ayt2.set_ylabel("HD100")
@@ -714,7 +672,7 @@ class Data:
         dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed    = {},{},{},{},{}
         ground_T, threshlds , jolly, msg_hop        = [],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
-        p_k,o_k                                     = [],[]
+        o_k                                         = []
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -748,8 +706,7 @@ class Data:
                                                         s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
                                                         t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h))
                                                         if s_data != None:
-                                                            if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
-                                                                p_k.append(m_t) if (a=='P') else o_k.append(m_t)
+                                                            if m_t not in o_k: o_k.append(m_t)
                                                             tmp.append(round(self.extract_median(s_data[0],len(s_data[0])),2))
                                                             tmp_tmed.append(round(self.extract_median(t_data[0],len(s_data[0])),2))
                                                     if len(vals)==0:
@@ -758,10 +715,8 @@ class Data:
                                                     else:
                                                         vals            = np.append(vals,[tmp],axis=0)
                                                         times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                                if a=='P' and int(c)==0 and m_t in p_k:
-                                                    if len(vals[0])>0 and ((a_s=='bigA' and ((n_a=='25' and (m_t=='11' or m_t=='15' or m_t=='17' or m_t=='19' or m_t=='21')) or 
-                                                                                            (n_a=='100' and (m_t=='41' or m_t=='56' or m_t=='65' or m_t=='74' or m_t=='83')))) or 
-                                                                                            (a_s=='smallA' and (n_a=='25' and (m_t=='19' or m_t=='22' or m_t=='23' or m_t=='23.01' or m_t=='24')))):
+                                                if a=='P' and int(c)==0 and m_t in o_k:
+                                                    if len(vals[0])>0:
                                                         dict_park_avg.update({(a_s,n_a,m_t):vals})
                                                         dict_park_tmed.update({(a_s,n_a,m_t):times_median})
                                                 if a=='O' and m_t in o_k:
@@ -779,7 +734,7 @@ class Data:
                                                             else:
                                                                 dict_rnd_inf_avg.update({(a_s,n_a,m_t):vals})
                                                                 dict_rnd_inf_tmed.update({(a_s,n_a,m_t):times_median})
-        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed],[p_k,o_k],[arena,agents])
+        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed],o_k,[arena,agents])
         
 ##########################################################################################################
     def print_messages(self,data_in):
@@ -847,40 +802,20 @@ class Data:
             col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
-                if k[2] == '11':
-                    col = 0
-                elif k[2] == '15':
-                    col = 1
-                elif k[2] == '17':
-                    col = 2
-                elif k[2] == '19':
-                    col = 3
-                elif k[2] == '21':
-                    col = 4
             elif k[0]=='big' and k[1]=='100':
                 row = 2
-                if k[2] == '41':
-                    col = 0
-                elif k[2] == '56':
-                    col = 1
-                elif k[2] == '65':
-                    col = 2
-                elif k[2] == '74':
-                    col = 3
-                elif k[2] == '83':
-                    col = 4
             elif k[0]=='small':
                 row = 1
-                if k[2] == '19':
-                    col = 0
-                elif k[2] == '22':
-                    col = 1
-                elif k[2] == '23':
-                    col = 2
-                elif k[2] == '23.01':
-                    col = 3
-                elif k[2] == '24':
-                    col = 4
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
@@ -1141,7 +1076,7 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
         tdict_park,tdict_adam,tdict_fifo,tdict_rnd,tdict_rnd_inf = times_in[0], times_in[1], times_in[2], times_in[3], times_in[4]
-        p_k, po_k = keys[0],keys[1]
+        po_k = keys
         o_k = []
         for x in range(len(po_k)):
             o_k.append(int(po_k[x]))
@@ -1191,11 +1126,7 @@ class Data:
                 agents = more_k[1]
             for ag in agents:
                 row = 1  if a=="smallA" else 0
-                p_k = [str(11),str(15),str(17),str(19),str(21)]
-                if row ==1: p_k = [str(19),str(22),str(23),str(23.01),str(24)]
-                if int(ag)==100:
-                    p_k = [str(41),str(56),str(65),str(74),str(83)]
-                    row = 2
+                if int(ag)==100: row = 2
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):
                         p_vals2,a_vals2,f_vals2,r_vals2,ri_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
@@ -1204,12 +1135,12 @@ class Data:
                         p_gt8,a_gt8,f_gt8,r_gt8,ri_gt8           = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
                         p_valst,a_valst,f_valst,r_valst,ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan
                         for pt in range(len(ground_T)):
-                            pval    = dict_park.get((a,ag,p_k[k]))[pt][th]
+                            pval    = dict_park.get((a,ag,str(o_k[k])))[pt][th]
                             aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
                             fval    = dict_fifo.get((a,ag,str(o_k[k])))[pt][th]
                             rval    = dict_rnd.get((a,ag,str(o_k[k])))[pt][th]
                             rival   = dict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
-                            tpval   = tdict_park.get((a,ag,p_k[k]))[pt][th]
+                            tpval   = tdict_park.get((a,ag,str(o_k[k])))[pt][th]
                             taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
                             tfval   = tdict_fifo.get((a,ag,str(o_k[k])))[pt][th]
                             trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th]
