@@ -52,7 +52,7 @@ for exp_len_par in $experiment_length; do
             elif [ $agents_par -eq 100 ]; then
                 buffer_dim="99"
             fi
-            for msgs_par in $msg_expiring_sec; do
+            for msgs_par in $msg_expiring_seconds; do
                 msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
                 if [[ ! -e $msgs_dir ]]; then
                     mkdir $msgs_dir
