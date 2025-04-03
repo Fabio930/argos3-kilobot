@@ -19,7 +19,7 @@ void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_lengt
 
 void sort_q(quorum_a **Array[]);
 
-void init_array_qrm(quorum_a **Array[], uint8_t N);
+void init_array_qrm(quorum_a **Array[], uint8_t N, uint16_t seconds);
 
 void print_q(quorum_a **Array[], uint8_t id);
 

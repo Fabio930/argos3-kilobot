@@ -53,6 +53,7 @@
         <hierarchicStruct
             rebroadcast = "__BROADCAST_POLICY__"
             queue_lenght = "__QUORUM_BUFFER_DIM__"
+            expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
             committed_percentage = "1"
         >
         </hierarchicStruct>

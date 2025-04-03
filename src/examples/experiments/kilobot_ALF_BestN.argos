@@ -51,8 +51,9 @@
 
         <hierarchicStruct
             rebroadcast = "0"
-            queue_lenght = "49"
-            committed_percentage = "0.6"
+            queue_lenght = "99"
+            expiring_quorum_sec = "60"
+            committed_percentage = "1"
         >
         </hierarchicStruct>
 

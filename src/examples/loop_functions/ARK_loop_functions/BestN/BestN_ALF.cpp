@@ -99,6 +99,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"queue_lenght",queue_lenght);
+    GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
 }
 
 /****************************************/
@@ -176,7 +177,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
     tKilobotMessage.m_sType = rebroadcast;
-    tKilobotMessage.m_sID = 0;
+    tKilobotMessage.m_sID = expiring_quorum_sec;
     tKilobotMessage.m_sData = queue_lenght;
     // Fill the kilobot message by the ARK-type messages
     tEmptyMessage.m_sID = 1023;
@@ -191,7 +192,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
             tMessage = tEmptyMessage;
         }
         m_tMessages[unKilobotID].data[i*3] = (UInt8)(tMessage.m_sID >> 7) << 1;
-        m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1 | tMessage.m_sData >> 6;
+        m_tMessages[unKilobotID].data[1+i*3] = tMessage.m_sID << 1 | tMessage.m_sData >> 6;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sData << 2 | tMessage.m_sType;
     }
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
