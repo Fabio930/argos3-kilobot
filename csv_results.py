@@ -231,7 +231,7 @@ class Data:
         dict_park_state_uncomm_rt,dict_adms_state_uncomm_rt,dict_fifo_state_uncomm_rt,dict_rnd_state_uncomm_rt,dict_inf_rnd_state_uncomm_rt,dict_adp_rnd_state_uncomm_rt     = {},{},{},{},{},{}
         ground_T, threshlds , msg_time                                                                                                          = [],[],[]
         algo,arena,runs,time,comm,agents,msg_hop                                                                                                = [],[],[],[],[],[],[]
-        p_k,o_k                                                                                                                                 = [],[]
+        o_k                                                                                                                                     = []
         for i in range(len(data_in)):
             da_K = data_in[i][0].keys()
             for k0 in da_K:
@@ -259,9 +259,8 @@ class Data:
                                                     comm_data = data_in[i][0].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
                                                     uncomm_data = data_in[i][1].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
                                                     if comm_data != None:
-                                                        if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
-                                                            p_k.append(m_t) if a=='P' else o_k.append(m_t)
-                                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                                        if m_t not in o_k: o_k.append(m_t)
+                                                        if a=='P' and int(c)==0 and m_t in o_k:
                                                             if a_s.split(';')[0] == a_s.split(';')[1]:
                                                                 dict_park_state_comm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
                                                                 dict_park_state_uncomm_sq.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
@@ -305,7 +304,7 @@ class Data:
                                                                 else:
                                                                     dict_fifo_state_comm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):comm_data[0]})
                                                                     dict_fifo_state_uncomm_rt.update({(a_s,n_a,m_t,m_h,gt,thr):uncomm_data[0]})
-        self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm_sq,dict_adms_state_comm_sq,dict_fifo_state_comm_sq,dict_rnd_state_comm_sq,dict_inf_rnd_state_comm_sq,dict_adp_rnd_state_comm_sq],[dict_park_state_uncomm_sq,dict_adms_state_uncomm_sq,dict_fifo_state_uncomm_sq,dict_rnd_state_uncomm_sq,dict_inf_rnd_state_uncomm_sq,dict_adp_rnd_state_uncomm_sq],[dict_park_state_comm_rt,dict_adms_state_comm_rt,dict_fifo_state_comm_rt,dict_rnd_state_comm_rt,dict_inf_rnd_state_comm_rt,dict_adp_rnd_state_comm_rt],[dict_park_state_uncomm_rt,dict_adms_state_uncomm_rt,dict_fifo_state_uncomm_rt,dict_rnd_state_uncomm_rt,dict_inf_rnd_state_uncomm_rt,dict_adp_rnd_state_uncomm_rt],[p_k,o_k],[["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"],agents],msg_hop)
+        self.print_evolutions_by_commit(path,ground_T,threshlds,[dict_park_state_comm_sq,dict_adms_state_comm_sq,dict_fifo_state_comm_sq,dict_rnd_state_comm_sq,dict_inf_rnd_state_comm_sq,dict_adp_rnd_state_comm_sq],[dict_park_state_uncomm_sq,dict_adms_state_uncomm_sq,dict_fifo_state_uncomm_sq,dict_rnd_state_uncomm_sq,dict_inf_rnd_state_uncomm_sq,dict_adp_rnd_state_uncomm_sq],[dict_park_state_comm_rt,dict_adms_state_comm_rt,dict_fifo_state_comm_rt,dict_rnd_state_comm_rt,dict_inf_rnd_state_comm_rt,dict_adp_rnd_state_comm_rt],[dict_park_state_uncomm_rt,dict_adms_state_uncomm_rt,dict_fifo_state_uncomm_rt,dict_rnd_state_uncomm_rt,dict_inf_rnd_state_uncomm_rt,dict_adp_rnd_state_uncomm_rt],o_k,[["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"],agents],msg_hop)
 
 ##########################################################################################################
     def plot_active_w_gt_thr(self,data_in,times):
@@ -318,7 +317,7 @@ class Data:
         dict_park_time_rt,dict_adms_time_rt,dict_fifo_time_rt,dict_rnd_time_rt,dict_inf_rnd_time_rt,dict_adp_rnd_time_rt         = {},{},{},{},{},{}
         ground_T, threshlds , msg_time                                                                      = [],[],[]
         algo,arena,runs,time,comm,agents,msg_hop                                                            = [],[],[],[],[],[],[]
-        p_k,o_k                                                                                             = [],[]
+        o_k                                                                                                 = []
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -346,10 +345,9 @@ class Data:
                                                     s_data = data_in[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
                                                     t_data = times[i].get((a,n_r,et,a_s,c,n_a,thr,gt,m_h,m_t))
                                                     if s_data != None:
-                                                        if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
-                                                            p_k.append(m_t) if a=='P' else o_k.append(m_t)
+                                                        if m_t not in o_k: o_k.append(m_t)
                                                         
-                                                        if a=='P' and int(c)==0 and m_t in p_k:
+                                                        if a=='P' and int(c)==0 and m_t in o_k:
                                                             if a_s.split(';')[0] == a_s.split(';')[1]:
                                                                 dict_park_state_sq.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
                                                                 dict_park_time_sq.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
@@ -394,7 +392,7 @@ class Data:
                                                                 else:
                                                                     dict_fifo_state_rt.update({(a_s,n_a,m_t,m_h,gt,thr):s_data[0]})
                                                                     dict_fifo_time_rt.update({(a_s,n_a,m_t,m_h,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state_sq,dict_adms_state_sq,dict_fifo_state_sq,dict_rnd_state_sq,dict_inf_rnd_state_sq,dict_adp_rnd_state_sq],[dict_park_time_sq,dict_adms_time_sq,dict_fifo_time_sq,dict_rnd_time_sq,dict_inf_rnd_time_sq,dict_adp_rnd_time_sq],[dict_park_state_rt,dict_adms_state_rt,dict_fifo_state_rt,dict_rnd_state_rt,dict_inf_rnd_state_rt,dict_adp_rnd_state_rt],[dict_park_time_rt,dict_adms_time_rt,dict_fifo_time_rt,dict_rnd_time_rt,dict_inf_rnd_time_rt,dict_adp_rnd_time_rt],[p_k,o_k],[["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"],agents],msg_hop)
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state_sq,dict_adms_state_sq,dict_fifo_state_sq,dict_rnd_state_sq,dict_inf_rnd_state_sq,dict_adp_rnd_state_sq],[dict_park_time_sq,dict_adms_time_sq,dict_fifo_time_sq,dict_rnd_time_sq,dict_inf_rnd_time_sq,dict_adp_rnd_time_sq],[dict_park_state_rt,dict_adms_state_rt,dict_fifo_state_rt,dict_rnd_state_rt,dict_inf_rnd_state_rt,dict_adp_rnd_state_rt],[dict_park_time_rt,dict_adms_time_rt,dict_fifo_time_rt,dict_rnd_time_rt,dict_inf_rnd_time_rt,dict_adp_rnd_time_rt],o_k,[["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"],agents],msg_hop)
 
 ##########################################################################################################
     def plot_messages(self,data):
@@ -527,7 +525,7 @@ class Data:
         dict_park_uncomm_sq,dict_adam_uncomm_sq,dict_fifo_uncomm_sq,dict_rnd_uncomm_sq,dict_inf_rnd_uncomm_sq,dict_adp_rnd_uncomm_sq  = data_uncomm_sq[0], data_uncomm_sq[1], data_uncomm_sq[2], data_uncomm_sq[3], data_uncomm_sq[4], data_uncomm_sq[5]
         dict_park_comm_rt,dict_adam_comm_rt,dict_fifo_comm_rt,dict_rnd_comm_rt,dict_inf_rnd_comm_rt,dict_adp_rnd_comm_rt            = data_comm_rt[0], data_comm_rt[1], data_comm_rt[2], data_comm_rt[3], data_comm_rt[4], data_comm_rt[5]
         dict_park_uncomm_rt,dict_adam_uncomm_rt,dict_fifo_uncomm_rt,dict_rnd_uncomm_rt,dict_inf_rnd_uncomm_rt,dict_adp_rnd_uncomm_rt  = data_uncomm_rt[0], data_uncomm_rt[1], data_uncomm_rt[2], data_uncomm_rt[3], data_uncomm_rt[4], data_uncomm_rt[5]
-        p_k, o_k                                                                                = keys[0],keys[1]
+        o_k                                                                                = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k             = np.sort(o_k)
@@ -557,39 +555,12 @@ class Data:
                             agents = more_k[1]
                         for ag in agents:
                             if ag=="25":
-                                if a=="0_500;0_500" or a=="1_000;0_250":
-                                    row = 1
-                                    if a=="0_500;0_500":
-                                        if gt=="0_68": p_k=["13","18","19"]
-                                        elif gt=="0_76": p_k=["14","19","20"]
-                                        elif gt=="0_84": p_k=["15","20","22"]
-                                    elif a=="1_000;0_250":
-                                        if gt=="0_68": p_k=["10","12","13"]
-                                        elif gt=="0_76": p_k=["11","14","15"]
-                                        elif gt=="0_84": p_k=["13","16","17"]
-                                else:
-                                    row = 0
-                                    if a=="1_000;1_000":
-                                        if gt=="0_68": p_k=["7","11","12"]
-                                        elif gt=="0_76": p_k=["7","12","13"]
-                                        elif gt=="0_84": p_k=["7","14","15"]
-                                    elif a=="2_000;0_500":
-                                        if gt=="0_68": p_k=["6","10","11"]
-                                        elif gt=="0_76": p_k=["6","11","12"]
-                                        elif gt=="0_84": p_k=["7","12","14"]
-                            else:
-                                row = 2
-                                if a=="1_000;1_000":
-                                    if gt=="0_68": p_k=["28","45","49"]
-                                    elif gt=="0_76": p_k=["29","48","53"]
-                                    elif gt=="0_84": p_k=["31","56","62"]
-                                elif a=="2_000;0_500":
-                                    if gt=="0_68": p_k=["27","42","45"]
-                                    elif gt=="0_76": p_k=["27","45","49"]
-                                    elif gt=="0_84": p_k=["28","51","56"]
+                                if a=="0_500;0_500" or a=="1_000;0_250": row = 1
+                                else: row = 0
+                            else: row = 2
                             for k in range(len(o_k)):
-                                if dict_park_comm_sq.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    cax[row][k].plot(dict_park_comm_sq.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                                 if dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -600,8 +571,8 @@ class Data:
                                     cax[row][k].plot(dict_inf_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 # if dict_adp_rnd_comm.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                 #     cax[row][k].plot(dict_adp_rnd_comm.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
-                                if dict_park_comm_rt.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    cax[row][k].plot(dict_park_comm_rt.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -614,8 +585,8 @@ class Data:
                                 #     cax[row][k].plot(dict_adp_rnd_comm.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                                 cax[row][k].set_xlim(0,901)
                                 cax[row][k].set_ylim(0,1)
-                                if dict_park_uncomm_sq.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    uax[row][k].plot(dict_park_uncomm_sq.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                                 if dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -626,8 +597,8 @@ class Data:
                                     uax[row][k].plot(dict_inf_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 # if dict_adp_rnd_uncomm.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                 #     uax[row][k].plot(dict_adp_rnd_uncomm.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
-                                if dict_park_uncomm_rt.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    uax[row][k].plot(dict_park_uncomm_rt.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -744,7 +715,7 @@ class Data:
         scalarMap                                           = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park_sq,dict_adam_sq,dict_fifo_sq,dict_rnd_sq,dict_inf_rnd_sq,dict_adp_rnd_sq = data_in_sq[0], data_in_sq[1], data_in_sq[2], data_in_sq[3], data_in_sq[4], data_in_sq[5]
         dict_park_rt,dict_adam_rt,dict_fifo_rt,dict_rnd_rt,dict_inf_rnd_rt,dict_adp_rnd_rt = data_in_rt[0], data_in_rt[1], data_in_rt[2], data_in_rt[3], data_in_rt[4], data_in_rt[5]
-        p_k, o_k                                            = keys[0],keys[1]
+        o_k                                            = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k             = np.sort(o_k)
@@ -773,39 +744,12 @@ class Data:
                             agents = more_k[1]
                         for ag in agents:
                             if ag=="25":
-                                if a=="0_500;0_500" or a=="1_000;0_250":
-                                    row = 1
-                                    if a=="0_500;0_500":
-                                        if gt=="0_68": p_k=["13","18","19"]
-                                        elif gt=="0_76": p_k=["14","19","20"]
-                                        elif gt=="0_84": p_k=["15","20","22"]
-                                    elif a=="1_000;0_250":
-                                        if gt=="0_68": p_k=["10","12","13"]
-                                        elif gt=="0_76": p_k=["11","14","15"]
-                                        elif gt=="0_84": p_k=["13","16","17"]
-                                else:
-                                    row = 0
-                                    if a=="1_000;1_000":
-                                        if gt=="0_68": p_k=["7","11","12"]
-                                        elif gt=="0_76": p_k=["7","12","13"]
-                                        elif gt=="0_84": p_k=["7","14","15"]
-                                    elif a=="2_000;0_500":
-                                        if gt=="0_68": p_k=["6","10","11"]
-                                        elif gt=="0_76": p_k=["6","11","12"]
-                                        elif gt=="0_84": p_k=["7","12","14"]
-                            else:
-                                row = 2
-                                if a=="1_000;1_000":
-                                    if gt=="0_68": p_k=["28","45","49"]
-                                    elif gt=="0_76": p_k=["29","48","53"]
-                                    elif gt=="0_84": p_k=["31","56","62"]
-                                elif a=="2_000;0_500":
-                                    if gt=="0_68": p_k=["27","42","45"]
-                                    elif gt=="0_76": p_k=["27","45","49"]
-                                    elif gt=="0_84": p_k=["28","51","56"]
+                                if a=="0_500;0_500" or a=="1_000;0_250": row = 1
+                                else: row = 0
+                            else: row = 2
                             for k in range(len(o_k)):
-                                if dict_park_sq.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    ax[row][k].plot(dict_park_sq.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                                 if dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -816,8 +760,8 @@ class Data:
                                     ax[row][k].plot(dict_inf_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 # if dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                 #     ax[row][k].plot(dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
-                                if dict_park_rt.get((a,ag,p_k[k],m_h,gt,thr)) != None:
-                                    ax[row][k].plot(dict_park_rt.get((a,ag,p_k[k],m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -1002,258 +946,103 @@ class Data:
                         for b in buffer:
                             if dict_park_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row = 1
-                                        if g=="0.68":
-                                            if b == "13": col=0
-                                            elif b == "18": col=1
-                                            elif b == "19": col=2
-                                        elif g=="0.76":
-                                            if b == "14": col=0
-                                            elif b == "19": col=1
-                                            elif b == "20": col=2
-                                        elif g=="0.84":
-                                            if b == "15": col=0
-                                            elif b == "20": col=1
-                                            elif b == "22": col=2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if g=="0.68":
-                                            if b == "7": col=0
-                                            elif b == "11": col=1
-                                            elif b == "12": col=2
-                                        elif g=="0.76":
-                                            if b == "7": col=0
-                                            elif b == "12": col=1
-                                            elif b == "13": col=2
-                                        elif g=="0.84":
-                                            if b == "7": col=0
-                                            elif b == "14": col=1
-                                            elif b == "15": col=2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row = 2
-                                        if g=="0.68":
-                                            if b == "28": col=0
-                                            elif b == "45": col=1
-                                            elif b == "49": col=2
-                                        elif g=="0.76":
-                                            if b == "29": col=0
-                                            elif b == "48": col=1
-                                            elif b == "53": col=2
-                                        elif g=="0.84":
-                                            if b == "31": col=0
-                                            elif b == "56": col=1
-                                            elif b == "62": col=2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if dict_park_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row = 1
-                                        if g=="0.68":
-                                            if b == "10": col=0
-                                            elif b == "12": col=1
-                                            elif b == "13": col=2
-                                        elif g=="0.76":
-                                            if b == "11": col=0
-                                            elif b == "14": col=1
-                                            elif b == "15": col=2
-                                        elif g=="0.84":
-                                            if b == "13": col=0
-                                            elif b == "16": col=1
-                                            elif b == "17": col=2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if g=="0.68":
-                                            if b == "6": col=0
-                                            elif b == "10": col=1
-                                            elif b == "11": col=2
-                                        elif g=="0.76":
-                                            if b == "6": col=0
-                                            elif b == "11": col=1
-                                            elif b == "12": col=2
-                                        elif g=="0.84":
-                                            if b == "7": col=0
-                                            elif b == "12": col=1
-                                            elif b == "14": col=2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row = 2
-                                        if g=="0.68":
-                                            if b == "27": col=0
-                                            elif b == "42": col=1
-                                            elif b == "45": col=2
-                                        elif g=="0.76":
-                                            if b == "27": col=0
-                                            elif b == "45": col=1
-                                            elif b == "49": col=2
-                                        elif g=="0.84":
-                                            if b == "28": col=0
-                                            elif b == "51": col=1
-                                            elif b == "56": col=2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if dict_adam_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if dict_adam_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_fifo_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if dict_fifo_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if dict_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if dict_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_inf_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                             if dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600':
-                                            col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                 for x in range(2):
                     for y in range(3):
@@ -1453,50 +1242,13 @@ class Data:
                         for b in buffer:
                             if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row = 1
-                                        if g=="0.68":
-                                            if b == "13": col=0
-                                            elif b == "18": col=1
-                                            elif b == "19": col=2
-                                        elif g=="0.76":
-                                            if b == "14": col=0
-                                            elif b == "19": col=1
-                                            elif b == "20": col=2
-                                        elif g=="0.84":
-                                            if b == "15": col=0
-                                            elif b == "20": col=1
-                                            elif b == "22": col=2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if g=="0.68":
-                                            if b == "7": col=0
-                                            elif b == "11": col=1
-                                            elif b == "12": col=2
-                                        elif g=="0.76":
-                                            if b == "7": col=0
-                                            elif b == "12": col=1
-                                            elif b == "13": col=2
-                                        elif g=="0.84":
-                                            if b == "7": col=0
-                                            elif b == "14": col=1
-                                            elif b == "15": col=2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row = 2
-                                        if g=="0.68":
-                                            if b == "28": col=0
-                                            elif b == "45": col=1
-                                            elif b == "49": col=2
-                                        elif g=="0.76":
-                                            if b == "29": col=0
-                                            elif b == "48": col=1
-                                            elif b == "53": col=2
-                                        elif g=="0.84":
-                                            if b == "31": col=0
-                                            elif b == "56": col=1
-                                            elif b == "62": col=2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
                                 flag = []
@@ -1505,50 +1257,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row = 1
-                                        if g=="0.68":
-                                            if b == "10": col=0
-                                            elif b == "12": col=1
-                                            elif b == "13": col=2
-                                        elif g=="0.76":
-                                            if b == "11": col=0
-                                            elif b == "14": col=1
-                                            elif b == "15": col=2
-                                        elif g=="0.84":
-                                            if b == "13": col=0
-                                            elif b == "16": col=1
-                                            elif b == "17": col=2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if g=="0.68":
-                                            if b == "6": col=0
-                                            elif b == "10": col=1
-                                            elif b == "11": col=2
-                                        elif g=="0.76":
-                                            if b == "6": col=0
-                                            elif b == "11": col=1
-                                            elif b == "12": col=2
-                                        elif g=="0.84":
-                                            if b == "7": col=0
-                                            elif b == "12": col=1
-                                            elif b == "14": col=2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row = 2
-                                        if g=="0.68":
-                                            if b == "27": col=0
-                                            elif b == "42": col=1
-                                            elif b == "45": col=2
-                                        elif g=="0.76":
-                                            if b == "27": col=0
-                                            elif b == "45": col=1
-                                            elif b == "49": col=2
-                                        elif g=="0.84":
-                                            if b == "28": col=0
-                                            elif b == "51": col=1
-                                            elif b == "56": col=2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
                                 flag = []
@@ -1557,23 +1272,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
                                 flag = []
@@ -1582,23 +1287,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
                                 flag = []
@@ -1607,23 +1302,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_fifo_sq.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_fifo_sq.get((a,t,g,ag,b))
                                 flag = []
@@ -1632,23 +1317,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_fifo_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_fifo_rt.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
                                 flag = []
@@ -1657,23 +1332,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_rnd_sq.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_rnd_sq.get((a,t,g,ag,b))
                                 flag = []
@@ -1682,23 +1347,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_rnd_rt.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
                                 flag = []
@@ -1707,23 +1362,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "0_500;0_500":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="1_000;1_000":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                elif ag=="100":
-                                    if a=="1_000;1_000":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_inf_rnd_sq.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_inf_rnd_sq.get((a,t,g,ag,b))
                                 flag = []
@@ -1732,24 +1377,13 @@ class Data:
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
                                 if ag == "25":
-                                    if a == "1_000;0_250":
-                                        row=1
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
-                                    elif a=="2_000;0_500":
-                                        row=0
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600':
-                                            col = 2
-                                elif ag=="100":
-                                    if a=="2_000;0_500":
-                                        row=2
-                                        if b == '60': col = 0
-                                        elif b == '300': col = 1
-                                        elif b == '600': col = 2
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
                                 comm_flag   = comm_dict_inf_rnd_rt.get((a,t,g,ag,b))
                                 uncomm_flag = uncomm_dict_inf_rnd_rt.get((a,t,g,ag,b))
                                 flag = []
@@ -1842,379 +1476,103 @@ class Data:
         for k in square_dict_park.keys():
             row = 0
             col = 0
-            if k[3]=="25":
-                if k[0]=="0_500;0_500":
-                    row=1
-                    if k[2]=="0.68":
-                        if k[4] == "13": col=0
-                        elif k[4] == "18": col=1
-                        elif k[4] == "19": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "14": col=0
-                        elif k[4] == "19": col=1
-                        elif k[4] == "20": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "15": col=0
-                        elif k[4] == "20": col=1
-                        elif k[4] == "22": col=2
-                elif k[0]=="1_000;1_000":
-                    row=0
-                    if k[2]=="0.68":
-                        if k[4] == "7": col=0
-                        elif k[4] == "11": col=1
-                        elif k[4] == "12": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "7": col=0
-                        elif k[4] == "12": col=1
-                        elif k[4] == "13": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "7": col=0
-                        elif k[4] == "14": col=1
-                        elif k[4] == "15": col=2
-            elif k[3]=="100":
-                if k[0]=="1_000;1_000":
-                    row = 2
-                    if k[2]=="0.68":
-                        if k[4] == "28": col=0
-                        elif k[4] == "45": col=1
-                        elif k[4] == "49": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "29": col=0
-                        elif k[4] == "48": col=1
-                        elif k[4] == "53": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "31": col=0
-                        elif k[4] == "56": col=1
-                        elif k[4] == "62": col=2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             elif k[2]=="0.84": ax[row][col].plot(square_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-")
         for k in rect_dict_park.keys():
             row = 0
             col = 0
-            if k[3]=="25":
-                if k[0]=="1_000;0_250":
-                    row=1
-                    if k[2]=="0.68":
-                        if k[4] == "10": col=0
-                        elif k[4] == "12": col=1
-                        elif k[4] == "13": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "11": col=0
-                        elif k[4] == "14": col=1
-                        elif k[4] == "15": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "13": col=0
-                        elif k[4] == "16": col=1
-                        elif k[4] == "17": col=2
-                elif k[0]=="2_000;0_500":
-                    row=0
-                    if k[2]=="0.68":
-                        if k[4] == "6": col=0
-                        elif k[4] == "10": col=1
-                        elif k[4] == "11": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "6": col=0
-                        elif k[4] == "11": col=1
-                        elif k[4] == "12": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "7": col=0
-                        elif k[4] == "12": col=1
-                        elif k[4] == "14": col=2
-            elif k[3]=="100":
-                if k[0]=="2_000;0_500":
-                    row = 2
-                    if k[2]=="0.68":
-                        if k[4] == "27": col=0
-                        elif k[4] == "42": col=1
-                        elif k[4] == "45": col=2
-                    elif k[2]=="0.76":
-                        if k[4] == "27": col=0
-                        elif k[4] == "45": col=1
-                        elif k[4] == "49": col=2
-                    elif k[2]=="0.84":
-                        if k[4] == "28": col=0
-                        elif k[4] == "51": col=1
-                        elif k[4] == "56": col=2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             elif k[2]=="0.84": ax[row][col].plot(rect_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
         for k in square_dict_adam.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(square_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-") if k[1] == "25" else ax[row][col].plot(square_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="-")
         for k in rect_dict_adam.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(rect_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="--")
         for k in square_dict_fifo.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(square_dict_fifo.get(k)[3:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_fifo.get(k)[10:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="-")
         for k in rect_dict_fifo.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(rect_dict_fifo.get(k)[3:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_fifo.get(k)[10:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="--")
         for k in square_dict_rnd.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(square_dict_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-")
         for k in rect_dict_rnd.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(rect_dict_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
         for k in square_dict_inf_rnd.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(square_dict_inf_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_inf_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="-")
         for k in rect_dict_inf_rnd.keys():
             row = 0
             col = 0
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-                row = 0
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-                row = 2
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-                row = 1
-                if k[4] == '60':
-                    col = 0
-                elif k[4] == '300':
-                    col = 1
-                elif k[4] == '600':
-                    col = 2
+            if k[4] == '60': col = 0
+            elif k[4] == '300': col = 1
+            elif k[4] == '600': col = 2
+            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
+            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
+            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
             if k[2]=="0.84": ax[row][col].plot(rect_dict_inf_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_inf_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="--")
-        # for k in square_dict_adp_rnd.keys():
-        #     row = 0
-        #     col = 0
-        #     if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-        #         row = 0
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-        #         row = 2
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-        #         row = 1
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     if k[2]=="0.84": ax[row][col].plot(square_dict_adp_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[5]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_adp_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[5]),lw=6,ls="-")
-        # for k in rect_dict_adp_rnd.keys():
-        #     row = 0
-        #     col = 0
-        #     if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25':
-        #         row = 0
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100':
-        #         row = 2
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"):
-        #         row = 1
-        #         if k[4] == '60':
-        #             col = 0
-        #         elif k[4] == '300':
-        #             col = 1
-        #         elif k[4] == '600':
-        #             col = 2
-        #     if k[2]=="0.84": ax[row][col].plot(rect_dict_adp_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[5]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_adp_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[5]),lw=6,ls="--")
         for x in range(2):
             for y in range(3):
                 ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
