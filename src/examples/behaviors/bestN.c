@@ -366,7 +366,6 @@ void loop(){
     }
     fclose(fp);
     decrement_quorum_counter(&quorum_array);
-    if(kilo_uid == 0) print_q(&quorum_array,kilo_uid);
     random_way_point_model();
     if(init_received_C) talk();
 }
