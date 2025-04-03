@@ -68,17 +68,17 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 buffer_dim=""
-numrobots="25"
+numrobots="25 100"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
 msg_expiring_seconds="60 300 600"
 messages_hops="0"
 # small arena dimensions
-arena_x_side="0.500 1.000"
-arena_y_side="0.500 0.250"
+# arena_x_side="0.500 1.000"
+# arena_y_side="0.500 0.250"
 # big arena dimensions
-# arena_x_side="1.000 2.000"
-# arena_y_side="1.000 0.500"
+arena_x_side="1.000 2.000"
+arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)
