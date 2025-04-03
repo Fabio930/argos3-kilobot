@@ -246,7 +246,7 @@ class Data:
         dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time        = {},{},{},{},{},{}
         ground_T, threshlds , jolly, msg_hops                                               = [],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim                                            = [],[],[],[],[],[],[]
-        p_k,o_k                                                                             = [],[]
+        o_k                                                                                 = []
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -276,13 +276,12 @@ class Data:
                                                         s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
                                                         t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
                                                         if s_data != None:
-                                                            if (a=='P' and m_t not in p_k) or (a=='O' and m_t not in o_k):
-                                                                p_k.append(m_t) if a=='P' else o_k.append(m_t)
+                                                            if m_t not in o_k: o_k.append(m_t)
                                                             
-                                                            if a=='P' and int(c)==0 and m_t in p_k:
+                                                            if a=='P' and int(c)==0:
                                                                 dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                 dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                            if a=='O' and m_t in o_k:
+                                                            if a=='O':
                                                                 if int(c)==0:
                                                                     dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                     dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
@@ -299,9 +298,9 @@ class Data:
                                                                     else:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
-        self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
-        # self.print_adaptive_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],[p_k,o_k],[arena,agents])
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],o_k,[arena,agents])
+        self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],o_k,[arena,agents])
+        # self.print_adaptive_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -311,7 +310,7 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
-        p_k, o_k = keys[0],keys[1]
+        o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k     = np.sort(o_k)
@@ -332,19 +331,15 @@ class Data:
                 for a in arena:
                     if a=="smallA":
                         row = 1
-                        p_k = [str(19),str(23),str(24)]
                         agents = ["25"]
                     else:
                         row = 0
-                        p_k = [str(11),str(19),str(22)]
                         agents = more_k[1]
                     for ag in agents:
-                        if int(ag)==100:
-                            row = 2
-                            p_k = [str(41),str(76),str(85)]
+                        if int(ag)==100: row = 2
                         for k in range(len(o_k)):
-                            if dict_park.get((a,ag,p_k[k],gt,thr)) != None:
-                                ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                             if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
                                 ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
                             if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
@@ -429,7 +424,7 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
-        p_k, o_k = keys[0],keys[1]
+        o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k     = np.sort(o_k)
@@ -449,19 +444,15 @@ class Data:
                 for a in arena:
                     if a=="smallA":
                         row = 1
-                        p_k = [str(19),str(23),str(24)]
                         agents = ["25"]
                     else:
                         row = 0
-                        p_k = [str(11),str(19),str(22)]
                         agents = more_k[1]
                     for ag in agents:
-                        if int(ag)==100:
-                            row = 2
-                            p_k = [str(41),str(76),str(85)]
+                        if int(ag)==100: row = 2
                         for k in range(len(o_k)):
-                            # if dict_park.get((a,ag,p_k[k],gt,thr)) != None:
-                            #     ax[row][k].plot(dict_park.get((a,ag,p_k[k],gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            # if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                             if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
                                 ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
                             # if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
@@ -547,7 +538,7 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
-        p_k, o_k = keys[0],keys[1]
+        o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k     = np.sort(o_k)
@@ -893,28 +884,16 @@ class Data:
             col = 0
             if k[0]=='big' and k[4]=='25':
                 row = 0
-                if k[5] == '11':
-                    col = 0
-                elif k[5] == '19':
-                    col = 1
-                elif k[5] == '22':
-                    col = 2
             elif k[0]=='big' and k[4]=='100':
                 row = 2
-                if k[5] == '41':
-                    col = 0
-                elif k[5] == '76':
-                    col = 1
-                elif k[5] == '85':
-                    col = 2
-            elif k[0]=='small' and k[4]=='25':
+            elif k[0]=='small':
                 row = 1
-                if k[5] == '19':
-                    col = 0
-                elif k[5] == '23':
-                    col = 1
-                elif k[5] == '24':
-                    col = 2
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         for k in dict_adam.keys():
             row = 0
