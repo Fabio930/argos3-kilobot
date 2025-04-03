@@ -39,8 +39,9 @@ void sort_q(quorum_a **Array[]){
     for (size_t i = 0; i < num_quorum_items; i++) if(IDS[i]!=111) true_quorum_items++;
 }
 
-void init_array_qrm(quorum_a **Array[], uint8_t N){
+void init_array_qrm(quorum_a **Array[], uint8_t N, uint16_t expiring_ticks){
     buffer_lenght = N;
+    expiring_ticks_quorum = expiring_ticks;
     *Array = (quorum_a**)malloc(N*sizeof(quorum_a*));
     for(uint8_t i=0;i<N;i++) (*Array)[i] = NULL;
 }

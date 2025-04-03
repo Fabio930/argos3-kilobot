@@ -67,6 +67,7 @@ private:
     float                   next_committed_percentage;
 
     UInt8                   queue_lenght;
+    UInt16                  expiring_quorum_seconds;
     float                   quorum_threshold;
     UInt8                   rebroadcast;
 

@@ -52,6 +52,7 @@
         <hierarchicStruct
             rebroadcast = "0"
             queue_lenght = "24"
+            msg_expiring_seconds = "60"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
             commitment_variation_time = "600"

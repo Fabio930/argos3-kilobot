@@ -5,6 +5,7 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
+
 wdir=`pwd`
 base_config=$1$2
 if [ ! -e $base_config ]; then
@@ -29,6 +30,7 @@ variation_time="600"
 RUNS=100
 rebroadcast="0"
 numrobots="25"
+msg_expiring_seconds="60 300 600"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
 
@@ -67,26 +69,30 @@ for exp_len_par in $experiment_length; do
                     fi
                     last_id=`expr $agents_par - 1`
                     if [ $agents_par -eq 25 ]; then
-                        # buffer_dim="19 23 24" # small arena
-                        buffer_dim="11 19 22" # big arena
+                        buffer_dim="19 23 24" # small arena 25
+                        # buffer_dim="11 19 22" # big arena 25
                     elif [ $agents_par -eq 100 ]; then
                         buffer_dim="41 76 85"
                     fi
-                    for buff_par in $buffer_dim; do
-                        buff_dir=$agents_dir/"BufferDim#"$buff_par
-                        if [[ ! -e $buff_dir ]]; then
-                            mkdir $buff_dir
-                        fi
-                        msgs_dir=$buff_dir/"MsgHops#0"
+                    buffer_dim_array=($buffer_dim)
+                    dim_b_idx=0
+                    for msgs_par in $msg_expiring_seconds; do
+                        msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
                         if [[ ! -e $msgs_dir ]]; then
                             mkdir $msgs_dir
                         fi
+                        buff_par=${buffer_dim_array[dim_b_idx]}
+                        hops_dir=$msgs_dir/"MsgHops#0"
+                        if [[ ! -e $hops_dir ]]; then
+                            mkdir $hops_dir
+                        fi
                         for i in $(seq 1 $RUNS); do
-                            config=`printf 'config_nrobots%s_rebroad%s_buffDim%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $buff_par $thr_par $dlt_par $i`
+                            config=`printf 'config_nrobots%s_rebroad%d_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
                             cp $base_config $config
                             sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                             sed -i "s|__NUMROBOTS__|$agents_par|g" $config
                             sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                            sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                             sed -i "s|__SEED__|$i|g" $config
                             sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                             sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
@@ -100,10 +106,11 @@ for exp_len_par in $experiment_length; do
                             for j in $(seq 0 $last_id); do
                                 rename="quorum_log_agent#$j"_"$kilo_file"
                                 mv "quorum_log_agent#$j.tsv" $rename
-                                mv $rename $msgs_dir
+                                mv $rename $hops_dir
                             done
                             rm *.argos
                         done
+                        dim_b_idx=$((dim_b_idx + 1))
                     done
                 done
             done

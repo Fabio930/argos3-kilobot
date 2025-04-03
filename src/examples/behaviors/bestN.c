@@ -188,7 +188,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(){
-    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,0);
+    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
 }
 
 void check_quorum(quorum_a **Array[]){
@@ -226,7 +227,9 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
                 broadcasting_flag = data[2] & 0b00000011;
                 uint8_t queue_lenght = (data[1]& 0b00000001) << 6 | (data[2] & 0b11111100) >> 2;
-                init_array_qrm(&quorum_array,queue_lenght);
+                uint16_t msg_expiring_ticks = (data[0]& 0b00001110) >> 1;
+                msg_expiring_ticks = msg_expiring_ticks << 7 | data[1] >> 1;
+                init_array_qrm(&quorum_array,queue_lenght,msg_expiring_ticks*TICKS_PER_SEC);
                 init_received_A = true;
             }
             break;
@@ -358,6 +361,7 @@ void setup(){
 
 void loop(){
     random_way_point_model();
+    decrement_quorum_counter(&quorum_array);
     check_quorum(&quorum_array);
     if(init_received_C) talk();
     fp = fopen(log_title,"a");
