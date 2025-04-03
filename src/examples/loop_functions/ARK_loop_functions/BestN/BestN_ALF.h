@@ -67,6 +67,7 @@ private:
     float                   committed_percentage;
     double                  middle_x_area;
     UInt8                   queue_lenght;
+    UInt16                  expiring_quorum_seconds;
     float                   quorum_threshold;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;

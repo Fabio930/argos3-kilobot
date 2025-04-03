@@ -53,6 +53,7 @@
             rebroadcast = "0"
             msgs_n_hops = "0"
             queue_lenght = "19"
+            expiring_quorum_sec = "60"
             quorum_threshold = "0.8"
             committed_percentage = "__COMMITTED_PERC__"
             middle_x_area="__MIDDLE_X_AREA__"

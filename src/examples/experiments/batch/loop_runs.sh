@@ -67,9 +67,11 @@ fi
 experiment_length="900"
 RUNS=100
 rebroadcast="0"
+buffer_dim=""
 numrobots="25 100"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
+msg_expiring_seconds="60 300 600"
 messages_hops="0"
 # small arena dimensions
 # arena_x_side="0.500 1.000"
@@ -182,11 +184,14 @@ for exp_len_par in $experiment_length; do
                                     fi
                                 fi
                             fi
-                            for buff_par in $buffer_dim; do
-                                buff_dir=$msgs_hop_dir/"BufferDim#"$buff_par
-                                if [[ ! -e $buff_dir ]]; then
-                                    mkdir $buff_dir
+                            buffer_dim_array=($buffer_dim)
+                            dim_b_idx=0
+                            for msgs_par in $msg_expiring_seconds; do
+                                msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
+                                if [[ ! -e $msgs_dir ]]; then
+                                    mkdir $msgs_dir
                                 fi
+                                buff_par=${buffer_dim_array[dim_b_idx]}
                                 read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
                                 read width1 height1 x_min1 x_max1 < <(calculate_dimensions_and_coordinates $area1 $arena_x_par $arena_y_par)
                                 read width0 height0 x_min0 x_max0 < <(calculate_dimensions_and_coordinates $area0 $arena_x_par $arena_y_par)
@@ -205,7 +210,7 @@ for exp_len_par in $experiment_length; do
                                 midXbot=$(echo "$midXbot - $Wr" | bc)
                                 midYbot=$(echo "$midYbot - $Hr" | bc)
                                 for i in $(seq 1 $RUNS); do
-                                    config=`printf 'config_arenaX%s_Y%s_nrobots%s_rebroad%s_BuffDim%s_Thr%s_GT%s_run%s.argos' $arena_x_par $arena_y_par $agents_par $comm_par $buff_par $thr_par $committed_par $i`
+                                    config=`printf 'config_arenaX%s_Y%s_nrobots%s_rebroad%d_MsgExpTime%s_Thr%s_GT%s_run%s.argos' $arena_x_par $arena_y_par $agents_par $comm_par $msgs_par $thr_par $committed_par $i`
                                     cp $base_config $config
                                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                     sed -i "s|__SEED__|$i|g" $config
@@ -213,6 +218,7 @@ for exp_len_par in $experiment_length; do
                                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                                     sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
                                     sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                                    sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                                     sed -i "s|__THRESHOLD__|$thr_par|g" $config
                                     sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
                                     sed -i "s|__MIDDLE_X_AREA__|$x_max1|g" $config
@@ -233,11 +239,12 @@ for exp_len_par in $experiment_length; do
                                     for j in $(seq 0 $last_id); do
                                         rename="quorum_log_agent#$j"_"$kilo_file"
                                         mv "quorum_log_agent#$j.tsv" $rename
-                                        mv $rename $buff_dir
+                                        mv $rename $msgs_dir
                                     done
                                     rm *.argos
                                 done
                             done
+                            dim_b_idx=$((dim_b_idx + 1))
                         done
                     done
                 done

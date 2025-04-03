@@ -39,8 +39,9 @@ void sort_q(quorum_a **Array[]){
     for (size_t i = 0; i < num_quorum_items; i++) if(IDS[i]!=111) true_quorum_items++;
 }
 
-void init_array_qrm(quorum_a **Array[], uint8_t N){
+void init_array_qrm(quorum_a **Array[], uint8_t N, uint16_t expiring_ticks){
     buffer_lenght = N;
+    expiring_ticks_quorum = expiring_ticks;
     *Array = (quorum_a**)malloc(N*sizeof(quorum_a*));
     for(uint8_t i=0;i<N;i++) (*Array)[i] = NULL;
 }
@@ -58,11 +59,11 @@ void increment_quorum_counter(quorum_a **Array[]){
 }
 
 void decrement_quorum_counter(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter-1;
+    for (uint8_t i = 0; i < num_quorum_items; i++) if((*Array)[i]->counter > 0) (*Array)[i]->counter = (*Array)[i]->counter-1;
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
-    for(int8_t i=num_quorum_items-1;i>=0;i--){
+    for(int8_t i=0;i<num_quorum_items;i++){
         if((*Array)[i]->counter<=0){
             if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
                 free((*Array)[i]);
@@ -93,7 +94,7 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
 }
 
 void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
-    for(uint8_t i=0;i<128;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
+    for(uint8_t i=0;i<buffer_lenght;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
     free(*Array);
     num_quorum_items = 0;
     while(1){

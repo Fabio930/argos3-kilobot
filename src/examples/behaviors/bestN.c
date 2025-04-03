@@ -211,7 +211,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(const uint8_t Msg_n_hops){
-    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,0);
+    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+    update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
 }
 
 void check_quorum(quorum_a **Array[]){
@@ -286,11 +287,12 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
             }
             break;
         case MSG_B:
-            sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
             if(init_received_B && !init_received_C){
-                uint8_t queue_lenght = sa_payload;
-                init_array_qrm(&quorum_array,queue_lenght);
-                broadcasting_flag = data[2];
+                uint8_t queue_lenght = data[0]>>1;
+                broadcasting_flag = data[2] & 0b00000011;
+                uint16_t msg_expiring_time = ((uint16_t)data[1] << 6) | data[2] >> 2;
+                printf("%d,%d\n",queue_lenght,msg_expiring_time);
+                init_array_qrm(&quorum_array,queue_lenght,msg_expiring_time);
                 init_received_C = true;
             }
             break;
@@ -414,13 +416,15 @@ void setup(){
 
 void loop(){
     random_way_point_model();
+    decrement_quorum_counter(&quorum_array);
     check_quorum(&quorum_array);
     if(init_received_D) talk();
+    if(kilo_uid==0) print_q(&quorum_array,kilo_uid);
     fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\t%f\t%f\n",my_state,quorum_reached,true_quorum_items,num_own_info,num_other_info,gps_position.position_x,gps_position.position_y);
+    fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
-    fclose(fp);
 }
 
 void deallocate_memory(){
