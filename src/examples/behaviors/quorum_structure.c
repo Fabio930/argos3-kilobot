@@ -18,7 +18,7 @@ void sort_q(quorum_a **Array[]){
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
             }
-            else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter < (*Array)[j]->counter){
+            else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter > (*Array)[j]->counter){
                 quorum_a *flag = (*Array)[i];
                 (*Array)[i] = (*Array)[j];
                 (*Array)[j] = flag;
@@ -135,6 +135,7 @@ uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev
         }
     }
     else{
+        sort_q(Array);
         free((*Array)[0]);
         (*Array)[0]=NULL;
         (*Array)[1]->prev = NULL;
