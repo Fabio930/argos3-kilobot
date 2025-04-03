@@ -134,7 +134,6 @@ uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev
         }
     }
     else{
-        sort_q(Array);
         free((*Array)[0]);
         (*Array)[0]=NULL;
         (*Array)[1]->prev = NULL;
