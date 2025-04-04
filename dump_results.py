@@ -98,10 +98,10 @@ def main():
     # Active processes dictionary
     active_processes = {}
     iteration = 0
+    h_counter = 0
 
     while len(active_processes) > 0 or queue.qsize() > 0:
         iteration += 1
-
         to_remove = []
         # Calculate the memory used by each process
         active_keys = active_processes.keys()
@@ -123,7 +123,7 @@ def main():
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 512 and len(active_processes) > 0:
+        if available_memory <= 1024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -140,18 +140,34 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
+            if process[1][-2].split('/')[-3].split('#')[-1] == '100':
+                h_counter -= 4
+            elif process[1][-2].split('/')[-3].split('#')[-1] == '25':
+                h_counter -= 1
             logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 1024:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
             try:
                 task = queue.get(block=False)
-                p = Process(target=process_folder, args=(task,))
-                p.start()
-                active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {task[-2]}")
+                start = True
+                if task[-2].split('/')[-3].split('#')[-1] == '100':
+                    if h_counter < 12 : h_counter += 4
+                    else:
+                        queue.put(task)
+                        start = False
+                elif task[-2].split('/')[-3].split('#')[-1] == '25':
+                    if h_counter < 15 : h_counter += 1
+                    else:
+                        queue.put(task)
+                        start = False
+                if start:
+                    p = Process(target=process_folder, args=(task,))
+                    p.start()
+                    active_processes.update({p.pid:(p,task)})
+                    logging.info(f"Started process {p.pid} for task {task[-2]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 100 == 0 or len(to_remove) > 0:
+        if iteration % 300 == 0 or len(to_remove) > 0:
             logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
             gc.collect()
         time.sleep(1)  # Avoid busy-waiting

@@ -30,7 +30,7 @@ class Data:
         return [mean, std]
     
 ##########################################################################################################
-    def fit_recovery(self,algo,arena,n_agents,buf_dim,gt,thr,data_in):
+    def fit_recovery(self,algo,arena,n_agents,buf_dim,gt,thr,comunication,msg_hops,data_in):
         buff_starts     = data_in[0]
         durations       = data_in[1]
         event_observed  = data_in[2]
@@ -54,8 +54,8 @@ class Data:
                 ax.plot(wf.cumulative_density_)
                 ax.plot(kmf.cumulative_density_)
                 fig.tight_layout()
-                fig.savefig(path+algo+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
-                estimates.update({k:self.wb_get_mean_and_std(wf)})
+                fig.savefig(path+algo+'_'+comunication+'_'+msg_hops+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
+                estimates.update({k:[self.wb_get_mean_and_std(wf),len(durations_by_buffer.get(k)[1])]})
         return estimates
 
 ##########################################################################################################
@@ -63,7 +63,8 @@ class Data:
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[7],k[8],data_in[i].get(k))
+                print(k)
+                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[7],k[8],0,0,data_in[i].get(k)) # find k for rebroadcast and hops
                 for z in estimates.keys():
                     fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],z):estimates.get(z)})
         return fitted_data
@@ -451,8 +452,8 @@ class Data:
                                                     with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
                                                         writer = csv.writer(file)
                                                         if file.tell() == 0:
-                                                            writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim', 'Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std'])
-                                                        writer.writerow([a, a_s, et, c, n_a, m_b_d, m_h, gt, thr, jl, s_data[0], s_data[1]])
+                                                            writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim', 'Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std', 'Events'])
+                                                        writer.writerow([a, a_s, et, c, n_a, m_b_d, m_h, gt, thr, jl, s_data[0][0], s_data[0][1], s_data[1]])
 
 ##########################################################################################################
     def print_box_recovery_by_bufferSize(self,save_path,data,filename,gt_thr,buf_dims,aa):
