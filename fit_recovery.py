@@ -110,7 +110,7 @@ def main():
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 562 and len(active_processes) > 0:
+        if available_memory <= 1024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -128,7 +128,7 @@ def main():
         for key in to_remove:
             process = active_processes.pop(key)
             logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 1024:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_file, args=(task,))
@@ -138,7 +138,7 @@ def main():
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 100 == 0 or len(to_remove) > 0:
+        if iteration % 300 == 0 or len(to_remove) > 0:
             logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB\n")
             gc.collect()
         time.sleep(1)  # Avoid busy-waiting

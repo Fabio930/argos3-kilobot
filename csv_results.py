@@ -365,13 +365,14 @@ class Data:
                 data[key] = value
         return data
 
-
 ##########################################################################################################
     def plot_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/images/"):
             os.mkdir(self.base+"/rec_data/images/")
         path = self.base+"/rec_data/images/"
-        dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = {},{},{},{},{}
+        means_dict_park, means_dict_adms, means_dict_fifo, means_dict_rnd, means_dict_rnd_inf = {},{},{},{},{}
+        stds_dict_park, stds_dict_adms, stds_dict_fifo, stds_dict_rnd, stds_dict_rnd_inf = {},{},{},{},{}
+        events_dict_park, events_dict_adms, events_dict_fifo, events_dict_rnd, events_dict_rnd_inf = {},{},{},{},{}
         ground_T, threshlds, msg_hops, jolly                    = [],[],[],[]
         algo, arena, time, comm, agents, buf_dim                = [],[],[],[],[],[]
         o_k                                                     = []
@@ -400,22 +401,40 @@ class Data:
                                                 s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,m_h,gt,thr,jl))
                                                 if s_data != None:
                                                     if m_b_d not in o_k: o_k.append(m_b_d)
-                                                    value =round(float(s_data[0]),3)
+                                                    value = np.round(float(s_data[0]),3)
+                                                    std = np.round(float(s_data[1]),3)
+                                                    episodes = int(s_data[2])
                                                     if a=='P' and int(c)==0:
-                                                        dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                        means_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                        stds_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
+                                                        events_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
                                                     if a=='O':
                                                         if int(c)==0:
-                                                            dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                            means_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                            stds_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
+                                                            events_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
                                                         elif int(c)==2:
-                                                            dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                            means_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                            stds_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
+                                                            events_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
                                                         else:
                                                             if int(m_h)==1:
-                                                                dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                                means_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
+                                                                stds_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
+                                                                events_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
                                                             else:
-                                                                dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):value})                                                
-        self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'easy_recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[dict_park,dict_adms,dict_fifo,dict_rnd,dict_rnd_inf],'hard_recovery_box_buffer_size.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+                                                                means_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):value})                                                
+                                                                stds_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):std})                                                
+                                                                events_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})                                                
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'easy_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'hard_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'easy_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'hard_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'easy_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'hard_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
 
 ##########################################################################################################
     def store_recovery(self,data_in):
