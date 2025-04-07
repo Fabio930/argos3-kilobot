@@ -292,7 +292,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t queue_lenght = data[0]>>1;
                 broadcasting_flag = data[2] & 0b00000011;
                 uint16_t msg_expiring_time = ((uint16_t)data[1] << 6) | data[2] >> 2;
-                printf("%d,%d\n",queue_lenght,msg_expiring_time);
                 init_array_qrm(&quorum_array,queue_lenght,msg_expiring_time);
                 init_received_C = true;
             }
@@ -420,7 +419,6 @@ void loop(){
     decrement_quorum_counter(&quorum_array);
     check_quorum(&quorum_array);
     if(init_received_D) talk();
-    if(kilo_uid==0) print_q(&quorum_array,kilo_uid);
     fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\t%f\t%f\n",my_state,quorum_reached,true_quorum_items,num_own_info,num_other_info,gps_position.position_x,gps_position.position_y);
     fclose(fp);
