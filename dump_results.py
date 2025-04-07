@@ -65,7 +65,9 @@ def main():
     setup_logging()
     ticks_per_sec, data_type = check_inputs()
 
-    tasks = []
+    manager = Manager()
+    queue = manager.Queue()
+
     for base in dex.Results().bases:
         for exp_l_dir in sorted(os.listdir(base)):
             if '.' not in exp_l_dir and '#' in exp_l_dir:
@@ -95,14 +97,9 @@ def main():
                                                             if '.' not in folder:
                                                                 msg_hops = folder.split('#')[-1]
                                                                 path = os.path.join(sub_path, folder)
-                                                                tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, path))
+                                                                queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, path))
 
     # Using a manager to handle the queue
-    manager = Manager()
-    queue = manager.Queue()
-
-    for task in tasks:
-        queue.put(task)
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -114,20 +111,14 @@ def main():
     while len(active_processes) > 0 or queue.qsize() > 0:
         iteration += 1
 
-        memory_used_by_processes = []
         to_remove = []
         # Calculate the memory used by each process
         active_keys = active_processes.keys()
         available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        print()
-        logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
         for key in active_keys:
             try:
                 proc = psutil.Process(key)
-                memory_info = proc.memory_info().rss / (1024 * 1024)
-                memory_used_by_processes.append(memory_info)
-                logging.info(f"Process {key}, status: {proc.status()}")
-                if proc.status() != psutil.STATUS_RUNNING and proc.status() != psutil.STATUS_DISK_SLEEP:
+                if proc.status() == psutil.STATUS_DEAD or proc.status() == psutil.STATUS_ZOMBIE:
                     process = active_processes.get(key)
                     process[0].terminate()
                     process[0].join()
@@ -138,7 +129,6 @@ def main():
             except psutil.NoSuchProcess:
                 to_remove.append(key)
                 logging.info(f"Process {key} for task {process[1][-1]} not found")
-        max_memory_used = max(memory_used_by_processes, default=0)
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
@@ -160,7 +150,7 @@ def main():
         for key in to_remove:
             process = active_processes.pop(key)
             logging.info(f"Process {key} for task {process[1][-1]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > max_memory_used:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
@@ -170,9 +160,10 @@ def main():
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 30 == 0 or len(to_remove) > 0:
+        if iteration % 300 == 0 or len(to_remove) > 0:
+            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
             gc.collect()
-        time.sleep(10)  # Avoid busy-waiting
+        time.sleep(1)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
