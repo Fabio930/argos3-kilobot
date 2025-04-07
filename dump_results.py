@@ -109,7 +109,7 @@ def main():
         for key in active_keys:
             try:
                 proc = psutil.Process(key)
-                if proc.status() != psutil.STATUS_RUNNING and proc.status() != psutil.STATUS_DISK_SLEEP:
+                if proc.status() == psutil.STATUS_DEAD or proc.status() == psutil.STATUS_ZOMBIE:
                     process = active_processes.get(key)
                     process[0].terminate()
                     process[0].join()
