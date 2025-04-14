@@ -70,14 +70,13 @@ class Results:
             for rn in range(len(data[ag])):
                 tmp = [0]*len(data[0][0])
                 for tk in range(len(data[ag][rn])):
+                    stripped_ones = np.delete(data[ag][rn][tk], np.where(data[ag][rn][tk] == -1))
+                    start = 0
                     flag = []
-                    for el in range(len(data[ag][rn][tk])):
-                        if algo == 'P' and el >= limit:
-                            print(data[ag][rn][tk],"\n\n")
-                            print(flag,"\n\n_____________________________________")
-                            break
-                        elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
-                            flag.append(data[ag][rn][tk][el])
+                    if algo == 'P' and len(stripped_ones) > limit: start = len(stripped_ones) - limit
+                    for el in range(start,len(stripped_ones)):
+                        if stripped_ones[el] not in flag:
+                            flag.append(stripped_ones[el])
                             tmp[tk] += 1
                 if len(runs) == 0:
                     runs = [tmp]
@@ -189,7 +188,7 @@ class Results:
                                         for i in range(max_buff_size-len(msgs)): msgs.append(-1)
                                     if len(msgs_M_1[seed-1]) == 0:
                                         msgs_M_1[seed-1] = [msgs]
-                                    else :
+                                    else:
                                         msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],[msgs],axis=0)
                     if data_type in ("all","quorum") and len(msgs_M_1[seed-1])!=max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
@@ -295,14 +294,13 @@ class Results:
                 sem = 0
                 for t in range(1,len(quorums[i][j])):
                     tmp = []
-                    st = 0
                     bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
                     if algo=='P':
+                        st = 0
                         if len(bf)>limit_buf:
                             st = len(bf)-limit_buf
                         for z in range(st,len(bf)):
-                            if bf[z] not in tmp:
-                                tmp.append(bf[z])
+                            tmp.append(bf[z])
                     else: tmp = bf
                     b = len(tmp)
                     if quorums[i][j][t] != quorums[i][j][t-1]:
