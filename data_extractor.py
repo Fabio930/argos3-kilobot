@@ -293,15 +293,15 @@ class Results:
             for j in range(len(quorums[i])):
                 sem = 0
                 for t in range(1,len(quorums[i][j])):
-                    tmp = []
                     bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                    tmp = bf
                     if algo=='P':
                         st = 0
                         if len(bf)>limit_buf:
+                            tmp = []
                             st = len(bf)-limit_buf
-                        for z in range(st,len(bf)):
-                            tmp.append(bf[z])
-                    else: tmp = bf
+                            for z in range(st,len(bf)):
+                                tmp.append(bf[z])
                     b = len(tmp)
                     if quorums[i][j][t] != quorums[i][j][t-1]:
                         if sem == 0 and b >= self.min_buff_dim and ((gt < thr and quorums[i][j][t] == 1) or (gt >= thr and quorums[i][j][t] == 0)):
