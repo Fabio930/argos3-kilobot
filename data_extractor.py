@@ -72,7 +72,9 @@ class Results:
                 for tk in range(len(data[ag][rn])):
                     flag = []
                     for el in range(len(data[ag][rn][tk])):
-                        if algo == 'P' and el >= limit: break
+                        if algo == 'P' and el >= limit:
+                            print()
+                            break
                         elif data[ag][rn][tk][el] not in flag and data[ag][rn][tk][el]!=-1:
                             flag.append(data[ag][rn][tk][el])
                             tmp[tk] += 1

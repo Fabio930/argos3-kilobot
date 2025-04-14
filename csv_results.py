@@ -555,7 +555,7 @@ class Data:
                 for k in range(len(park)):
                     flag = []
                     for z in range(len(park[k])):
-                        if park[k][z]!=-1:
+                        if park[k][z]>0:
                             flag.append(np.log(park[k][z]))
                     park_print[k] = flag                    
                 adam = adam_plotting[i][j]
@@ -563,7 +563,7 @@ class Data:
                 for k in range(len(adam)):
                     flag = []
                     for z in range(len(adam[k])):
-                        if adam[k][z]!=-1:
+                        if adam[k][z]>0:
                             flag.append(np.log(adam[k][z]))
                     adam_print[k] = flag
                 fifo = fifo_plotting[i][j]
@@ -571,7 +571,7 @@ class Data:
                 for k in range(len(fifo)):
                     flag = []
                     for z in range(len(fifo[k])):
-                        if fifo[k][z]!=-1:
+                        if fifo[k][z]>0:
                             flag.append(np.log(fifo[k][z]))
                     fifo_print[k] = flag
                 rnd = rnd_plotting[i][j]
@@ -579,7 +579,7 @@ class Data:
                 for k in range(len(rnd)):
                     flag = []
                     for z in range(len(rnd[k])):
-                        if rnd[k][z]!=-1:
+                        if rnd[k][z]>0:
                             flag.append(np.log(rnd[k][z]))
                     rnd_print[k] = flag
                 rnd_inf = rnd_inf_plotting[i][j]
@@ -587,7 +587,7 @@ class Data:
                 for k in range(len(rnd_inf)):
                     flag = []
                     for z in range(len(rnd_inf[k])):
-                        if rnd_inf[k][z]!=-1:
+                        if rnd_inf[k][z]>0:
                             flag.append(np.log(rnd_inf[k][z]))
                     rnd_inf_print[k] = flag
                 bpp     = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
@@ -600,7 +600,7 @@ class Data:
                         patch.set_facecolor(color)
                 ax[i][j].set_xticks([p + 2 for p in positions])
                 ax[i][j].set_xticklabels(buf_dims[1])
-                ax[i][j].set_ylim(0,10)
+                # ax[i][j].set_ylim(0,10)
         ax[0][0].set_title(r"$T_m = 60\, s$")
         ax[0][1].set_title(r"$T_m = 120\, s$")
         ax[0][2].set_title(r"$T_m = 180\, s$")
