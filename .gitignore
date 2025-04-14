@@ -8,9 +8,8 @@ build
 **/*results_*
 **/*cache*
 Experiments.txt
-*proc_data*
-*msgs_data*
-*rec_data*
+*_data*
+*_data_*
 *_DATA_*
 *.tar.xz
-*images*
+*_images*
