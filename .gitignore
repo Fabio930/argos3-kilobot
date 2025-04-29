@@ -1,3 +1,4 @@
+doc
 build
 **/*.sh
 **/*vscode
@@ -7,9 +8,7 @@ build
 **/*res_*
 **/*results_*
 **/*cache*
-Experiments.txt
-*_data*
-*_data_*
 *_DATA_*
+*_data/*
 *.tar.xz
 *_images*
