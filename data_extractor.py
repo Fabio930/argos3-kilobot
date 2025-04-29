@@ -246,6 +246,7 @@ class Results:
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1,msg_exp_time)
                         del quorums
                     del results
+                del messages
             else:
                 messages = self.compute_meaningful_msgs(msgs_bigM_1,msg_exp_time,algo)
                 self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
@@ -258,7 +259,8 @@ class Results:
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,n_agents-1,msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1,msg_exp_time)
                         del quorums
                     del results
-            del msgs_M_1,msgs_bigM_1#,messages
+                del messages
+            del msgs_M_1,msgs_bigM_1
         if data_type in ("all","freq"):
             act_results = (act_bigM_1,act_bigM_2)
             self.dump_sumof(algo,1,act_results,len(act_M_1),base,path_temp,msg_exp_time,msg_hops)
