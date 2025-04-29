@@ -38,7 +38,7 @@ class Data:
             os.mkdir(self.base+"/weib_images/")
         path = self.base+"/weib_images/"
 
-        durations_by_buffer = self.divide_event_by_buffer(buf_dim,algo,n_agents,buff_starts,durations,event_observed)
+        durations_by_buffer = self.divide_event_by_buffer(buf_dim,buff_starts,durations,event_observed)
         durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
         adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
         wf = WeibullFitter()
@@ -63,16 +63,15 @@ class Data:
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[7],k[8],k[3],k[6],data_in[i].get(k)) # find k for rebroadcast and hops
+                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[8],k[9],k[3],k[7],data_in[i].get(k)) # fix buff_dim and msg_exp_time
                 for z in estimates.keys():
-                    fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],z):estimates.get(z)})
+                    fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],k[9],z):estimates.get(z)})
         return fitted_data
     
 ##########################################################################################################
-    def divide_event_by_buffer(self,limit_buf,algo,n_agents,buffer,durations,event_observed):
+    def divide_event_by_buffer(self,limit_buf,buffer,durations,event_observed):
         min_dim = 5
-        max_dim = float(n_agents) - 1
-        if algo=='P': max_dim = float(limit_buf)
+        max_dim = float(limit_buf)
         diff = max_dim - min_dim
         durations_by_buffer = {"33": [[], []], "66": [[], []], "100": [[], []]}
         for i in range(len(buffer)):
@@ -217,7 +216,7 @@ class Data:
                                 data_val.update({keys[-3]:buffer_start_dim})
                                 data_val.update({keys[-2]:durations})
                                 data_val.update({keys[-1]:event_observed})
-                                data.update({(algo,arena,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6])):(data_val.get(keys[7]),data_val.get(keys[8]),data_val.get(keys[9]))})
+                                data.update({(algo,arena,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]),data_val.get(keys[10]))})
                         elif len(split_val)==2:
                             lval = ""
                             rval = ""
@@ -360,8 +359,8 @@ class Data:
             reader = csv.reader(f)
             next(reader)  # Skip the header row
             for row in reader:
-                key = tuple(row[:10])
-                value = tuple(row[10:])
+                key = tuple(row[:11])
+                value = tuple(row[11:])
                 data[key] = value
         return data
 
@@ -374,7 +373,7 @@ class Data:
         stds_dict_park, stds_dict_adms, stds_dict_fifo, stds_dict_rnd, stds_dict_rnd_inf = {},{},{},{},{}
         events_dict_park, events_dict_adms, events_dict_fifo, events_dict_rnd, events_dict_rnd_inf = {},{},{},{},{}
         ground_T, threshlds, msg_hops, jolly                    = [],[],[],[]
-        algo, arena, time, comm, agents, buf_dim                = [],[],[],[],[],[]
+        algo, arena, time, comm, agents, buf_dim, msg_time      = [],[],[],[],[],[],[]
         o_k                                                     = []
         da_K = data_in.keys()
         for k0 in da_K:
@@ -384,10 +383,11 @@ class Data:
             if k0[3] not in comm: comm.append(k0[3])
             if k0[4] not in agents: agents.append(k0[4])
             if k0[5] not in buf_dim: buf_dim.append(k0[5])
-            if k0[6] not in msg_hops: msg_hops.append(k0[6])
-            if k0[7] not in ground_T: ground_T.append(k0[7])
-            if k0[8] not in threshlds: threshlds.append(k0[8])
-            if k0[9] not in jolly: jolly.append(k0[9])
+            if k0[6] not in msg_time: msg_time.append(k0[6])
+            if k0[7] not in msg_hops: msg_hops.append(k0[7])
+            if k0[8] not in ground_T: ground_T.append(k0[8])
+            if k0[9] not in threshlds: threshlds.append(k0[9])
+            if k0[10] not in jolly: jolly.append(k0[10])
         for a in algo:
             for a_s in arena:
                 for et in time:
@@ -395,46 +395,47 @@ class Data:
                         for m_h in msg_hops:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
-                                    for gt in ground_T:
-                                        for jl in jolly:
-                                            for thr in threshlds:
-                                                s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,m_h,gt,thr,jl))
-                                                if s_data != None:
-                                                    if m_b_d not in o_k: o_k.append(m_b_d)
-                                                    value = np.round(float(s_data[0]),3)
-                                                    std = np.round(float(s_data[1]),3)
-                                                    episodes = int(s_data[2])
-                                                    if a=='P' and int(c)==0:
-                                                        means_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                        stds_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
-                                                        events_dict_park.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
-                                                    if a=='O':
-                                                        if int(c)==0:
-                                                            means_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                            stds_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
-                                                            events_dict_adms.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
-                                                        elif int(c)==2:
-                                                            means_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                            stds_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
-                                                            events_dict_fifo.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
-                                                        else:
-                                                            if int(m_h)==1:
-                                                                means_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):value})
-                                                                stds_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):std})
-                                                                events_dict_rnd.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})
+                                    for mt in msg_time:
+                                        for gt in ground_T:
+                                            for jl in jolly:
+                                                for thr in threshlds:
+                                                    s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,mt,m_h,gt,thr,jl))
+                                                    if s_data != None:
+                                                        if m_b_d not in o_k: o_k.append(m_b_d)
+                                                        value = np.round(float(s_data[0]),3)
+                                                        std = np.round(float(s_data[1]),3)
+                                                        episodes = int(s_data[2])
+                                                        if a=='P' and int(c)==0:
+                                                            means_dict_park.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):value})
+                                                            stds_dict_park.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):std})
+                                                            events_dict_park.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):episodes})
+                                                        if a=='O':
+                                                            if int(c)==0:
+                                                                means_dict_adms.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):value})
+                                                                stds_dict_adms.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):std})
+                                                                events_dict_adms.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):episodes})
+                                                            elif int(c)==2:
+                                                                means_dict_fifo.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):value})
+                                                                stds_dict_fifo.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):std})
+                                                                events_dict_fifo.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):episodes})
                                                             else:
-                                                                means_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):value})                                                
-                                                                stds_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):std})                                                
-                                                                events_dict_rnd_inf.update({(a_s,n_a,m_b_d,gt,thr,jl):episodes})                                                
-        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'easy_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'hard_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'easy_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'hard_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'easy_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
-        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'hard_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly],[arena,agents])
+                                                                if int(m_h)==1:
+                                                                    means_dict_rnd.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):value})
+                                                                    stds_dict_rnd.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):std})
+                                                                    events_dict_rnd.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):episodes})
+                                                                else:
+                                                                    means_dict_rnd_inf.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):value})                                                
+                                                                    stds_dict_rnd_inf.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):std})                                                
+                                                                    events_dict_rnd_inf.update({(a_s,n_a,m_b_d,mt,gt,thr,jl):episodes})                                                
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'easy_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[means_dict_park,means_dict_adms,means_dict_fifo,means_dict_rnd,means_dict_rnd_inf],'hard_recovery_box_buffer_size_means.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'easy_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[stds_dict_park,stds_dict_adms,stds_dict_fifo,stds_dict_rnd,stds_dict_rnd_inf],'hard_recovery_box_buffer_size_stds.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'easy_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
+        self.print_box_recovery_by_bufferSize(path,[events_dict_park,events_dict_adms,events_dict_fifo,events_dict_rnd,events_dict_rnd_inf],'hard_recovery_box_buffer_size_events.pdf',[ground_T,threshlds],[buf_dim,jolly,msg_time],[arena,agents])
 
 ##########################################################################################################
     def store_recovery(self,data_in):
@@ -442,7 +443,7 @@ class Data:
             os.mkdir(self.base+"/rec_data/")
         path = self.base+"/rec_data/"
         ground_T, threshlds, msg_hops, jolly        = [],[],[],[]
-        algo, arena, time, comm, agents, buf_dim    = [],[],[],[],[],[]
+        algo, arena, time, comm, agents, buf_dim ,msgs_time   = [],[],[],[],[],[],[]
         da_K = data_in.keys()
         for k0 in da_K:
             if k0[0] not in algo: algo.append(k0[0])
@@ -451,10 +452,11 @@ class Data:
             if k0[3] not in comm: comm.append(k0[3])
             if k0[4] not in agents: agents.append(k0[4])
             if k0[5] not in buf_dim: buf_dim.append(k0[5])
-            if k0[6] not in msg_hops: msg_hops.append(k0[6])
-            if k0[7] not in ground_T: ground_T.append(k0[7])
-            if k0[8] not in threshlds: threshlds.append(k0[8])
-            if k0[9] not in jolly: jolly.append(k0[9])
+            if k0[6] not in msgs_time: msgs_time.append(k0[6])
+            if k0[7] not in msg_hops: msg_hops.append(k0[7])
+            if k0[8] not in ground_T: ground_T.append(k0[8])
+            if k0[9] not in threshlds: threshlds.append(k0[9])
+            if k0[10] not in jolly: jolly.append(k0[10])
         for a in algo:
             for a_s in arena:
                 for et in time:
@@ -462,16 +464,17 @@ class Data:
                         for m_h in msg_hops:
                             for n_a in agents:
                                 for m_b_d in buf_dim:
-                                    for gt in ground_T:
-                                        for jl in jolly:
-                                            for thr in threshlds:
-                                                s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,m_h,gt,thr,jl))
-                                                if s_data != None:
-                                                    with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
-                                                        writer = csv.writer(file)
-                                                        if file.tell() == 0:
-                                                            writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim', 'Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std', 'Events'])
-                                                        writer.writerow([a, a_s, et, c, n_a, m_b_d, m_h, gt, thr, jl, s_data[0][0], s_data[0][1], s_data[1]])
+                                    for met in msgs_time:
+                                        for gt in ground_T:
+                                            for jl in jolly:
+                                                for thr in threshlds:
+                                                    s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,met,m_h,gt,thr,jl))
+                                                    if s_data != None:
+                                                        with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
+                                                            writer = csv.writer(file)
+                                                            if file.tell() == 0:
+                                                                writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std', 'Events'])
+                                                            writer.writerow([a, a_s, et, c, n_a, m_b_d,met, m_h, gt, thr, jl, s_data[0][0], s_data[0][1], s_data[1]])
 
 ##########################################################################################################
     def print_box_recovery_by_bufferSize(self,save_path,data,filename,gt_thr,buf_dims,aa):
@@ -494,7 +497,7 @@ class Data:
         rnd_plotting        = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         rnd_inf_plotting    = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         for gt in range(len(gt_thr[0])):
-            for m_t in range(len(buf_dims[1])):
+            for buff_perc in range(len(buf_dims[1])):
                 for a_s in aa[0]:
                     row,col = 0,0
                     for n_a in aa[1]:
@@ -505,47 +508,48 @@ class Data:
                                 row = 0
                             else:
                                 row = 2
-                        for m_b_d in buf_dims[0]:
+                        for mt in buf_dims[2]:
                             park_data       = np.array([])
                             adams_data      = np.array([])
                             fifo_data       = np.array([])
                             rnd_data        = np.array([])
                             rnd_inf_data    = np.array([])
-                            for thr in range(len(gt_thr[1])):
-                                store = True
-                                if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
-                                elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
-                                if store:
-                                    park_data       = np.append(park_data,dict_park.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
-                                    adams_data      = np.append(adams_data,dict_adms.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
-                                    fifo_data       = np.append(fifo_data,dict_fifo.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
-                                    rnd_data        = np.append(rnd_data,dict_rnd.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
-                                    rnd_inf_data    = np.append(rnd_inf_data,dict_rnd_inf.get((a_s,n_a,m_b_d,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][m_t])))
-                            if m_b_d == '60':
+                            for m_b_d in buf_dims[0]:
+                                for thr in range(len(gt_thr[1])):
+                                    store = True
+                                    if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
+                                    elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
+                                    if store:
+                                        entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: park_data = np.append(park_data,entry)
+                                        entry = dict_adms.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: adams_data = np.append(adams_data,entry)
+                                        entry = dict_fifo.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: fifo_data = np.append(fifo_data,entry)
+                                        entry = dict_rnd.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: rnd_data = np.append(rnd_data,entry)
+                                        entry = dict_rnd_inf.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: rnd_inf_data = np.append(rnd_inf_data,entry)
+                            if mt == '60':
                                 col = 0
-                            elif m_b_d == '120':
+                            elif mt == '120':
                                 col = 1
-                            elif m_b_d == '180':
+                            elif mt == '180':
                                 col = 2
-                            elif m_b_d == '300':
+                            elif mt == '300':
                                 col = 3
-                            elif m_b_d == '600':
+                            elif mt == '600':
                                 col = 4
                             if park_data.any() != None:
-                                for i in range(len(park_data)):
-                                    if park_data[i]!= None: park_plotting[row][col][m_t][i] =  park_data[i]
+                                for i in range(len(park_data)): park_plotting[row][col][buff_perc][i] = park_data[i]
                             if adams_data.any() != None:
-                                for i in range(len(adams_data)):
-                                    if adams_data[i]!= None: adam_plotting[row][col][m_t][i] =  adams_data[i]
+                                for i in range(len(adams_data)): adam_plotting[row][col][buff_perc][i] = adams_data[i]
                             if fifo_data.any() != None:
-                                for i in range(len(fifo_data)):
-                                    if fifo_data[i]!= None: fifo_plotting[row][col][m_t][i] =  fifo_data[i]
+                                for i in range(len(fifo_data)): fifo_plotting[row][col][buff_perc][i] = fifo_data[i]
                             if rnd_data.any() != None:
-                                for i in range(len(rnd_data)):
-                                    if rnd_data[i]!= None: rnd_plotting[row][col][m_t][i] =  rnd_data[i]
+                                for i in range(len(rnd_data)): rnd_plotting[row][col][buff_perc][i] = rnd_data[i]
                             if rnd_inf_data.any() != None:
-                                for i in range(len(rnd_inf_data)):
-                                    if rnd_inf_data[i]!= None: rnd_inf_plotting[row][col][m_t][i] =  rnd_inf_data[i]
+                                for i in range(len(rnd_inf_data)): rnd_inf_plotting[row][col][buff_perc][i] = rnd_inf_data[i]
         fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(28,18),sharex=True,sharey=True)
         positions = range(1,len(buf_dims[1])*5,5)
         for i in range(3):

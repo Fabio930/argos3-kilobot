@@ -138,10 +138,10 @@ def main():
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 300 == 0 or len(to_remove) > 0:
+        if iteration % 3000 == 0 or len(to_remove) > 0:
             logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB\n")
             gc.collect()
-        time.sleep(1)  # Avoid busy-waiting
+        time.sleep(.1)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
 
