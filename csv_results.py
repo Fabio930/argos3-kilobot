@@ -1,3 +1,4 @@
+from tsmoothie.smoother import *
 import numpy as np
 import os, csv, math
 from matplotlib import pyplot as plt
@@ -483,15 +484,16 @@ class Data:
         typo                = [0,1,2,3,4,5]
         cNorm               = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap           = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        # anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
         id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        handles_r           = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
-        colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
+        handles_r           = [id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        # colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
+        colors_box          = [scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
         dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = data[0], data[1], data[2], data[3], data[4]
-        park_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
+        # park_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         adam_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         fifo_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         rnd_plotting        = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
@@ -520,8 +522,8 @@ class Data:
                                     if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
                                     elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
                                     if store:
-                                        entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
-                                        if entry != None: park_data = np.append(park_data,entry)
+                                        # entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        # if entry != None: park_data = np.append(park_data,entry)
                                         entry = dict_adms.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
                                         if entry != None: adams_data = np.append(adams_data,entry)
                                         entry = dict_fifo.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
@@ -540,8 +542,8 @@ class Data:
                                 col = 3
                             elif mt == '600':
                                 col = 4
-                            if park_data.any() != None:
-                                for i in range(len(park_data)): park_plotting[row][col][buff_perc][i] = park_data[i]
+                            # if park_data.any() != None:
+                            #     for i in range(len(park_data)): park_plotting[row][col][buff_perc][i] = park_data[i]
                             if adams_data.any() != None:
                                 for i in range(len(adams_data)): adam_plotting[row][col][buff_perc][i] = adams_data[i]
                             if fifo_data.any() != None:
@@ -551,60 +553,66 @@ class Data:
                             if rnd_inf_data.any() != None:
                                 for i in range(len(rnd_inf_data)): rnd_inf_plotting[row][col][buff_perc][i] = rnd_inf_data[i]
         fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(28,18),sharex=True,sharey=True)
-        positions = range(1,len(buf_dims[1])*5,5)
+        positions = np.arange(0,len(buf_dims[1])*4,4)
         for i in range(3):
             for j in range(5):
-                park = park_plotting[i][j]
-                park_print = [[-1]]*len(buf_dims[1])
-                for k in range(len(park)):
-                    flag = []
-                    for z in range(len(park[k])):
-                        if park[k][z]>0:
-                            flag.append(np.log(park[k][z]))
-                    park_print[k] = flag                    
+                # park = park_plotting[i][j]
+                # park_print = [np.array([])]*len(buf_dims[1])
+                # for k in range(len(park)):
+                #     flag = []
+                #     for z in range(len(park[k])):
+                #         if park[k][z]>0:
+                #             flag.append(np.log(park[k][z])) if "events" not in filename else flag.append((park[k][z]*.01)/25) if i!=2 else flag.append((park[k][z]*.01)/100)
+                #     for e in flag:
+                #         park_print[k] = np.append(park_print[k],e)
                 adam = adam_plotting[i][j]
-                adam_print = [[-1]]*len(buf_dims[1])
+                adam_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(adam)):
                     flag = []
                     for z in range(len(adam[k])):
                         if adam[k][z]>0:
-                            flag.append(np.log(adam[k][z]))
-                    adam_print[k] = flag
+                            flag.append(np.log(adam[k][z])) if "events" not in filename else flag.append((adam[k][z]*.01)/25) if i!=2 else flag.append((adam[k][z]*.01)/100)
+                    for e in flag:
+                        adam_print[k] = np.append(adam_print[k],e)
                 fifo = fifo_plotting[i][j]
-                fifo_print = [[-1]]*len(buf_dims[1])
+                fifo_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(fifo)):
                     flag = []
                     for z in range(len(fifo[k])):
                         if fifo[k][z]>0:
-                            flag.append(np.log(fifo[k][z]))
-                    fifo_print[k] = flag
+                            flag.append(np.log(fifo[k][z])) if "events" not in filename else flag.append((fifo[k][z]*.01)/25) if i!=2 else flag.append((fifo[k][z]*.01)/100)
+                    for e in flag:
+                        fifo_print[k] = np.append(fifo_print[k],e)
                 rnd = rnd_plotting[i][j]
-                rnd_print = [[-1]]*len(buf_dims[1])
+                rnd_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(rnd)):
                     flag = []
                     for z in range(len(rnd[k])):
                         if rnd[k][z]>0:
-                            flag.append(np.log(rnd[k][z]))
-                    rnd_print[k] = flag
+                            flag.append(np.log(rnd[k][z])) if "events" not in filename else flag.append((rnd[k][z]*.01)/25) if i!=2 else flag.append((rnd[k][z]*.01)/100)
+                    for e in flag:
+                        rnd_print[k] = np.append(rnd_print[k],e)
                 rnd_inf = rnd_inf_plotting[i][j]
-                rnd_inf_print = [[-1]]*len(buf_dims[1])
+                rnd_inf_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(rnd_inf)):
                     flag = []
                     for z in range(len(rnd_inf[k])):
                         if rnd_inf[k][z]>0:
-                            flag.append(np.log(rnd_inf[k][z]))
-                    rnd_inf_print[k] = flag
-                bpp     = ax[i][j].boxplot(park_print,positions=positions,widths=0.5,patch_artist=True)
-                bpa     = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
-                bpf     = ax[i][j].boxplot(fifo_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
-                bpr     = ax[i][j].boxplot(rnd_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
-                bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+4 for p in positions],widths=0.5,patch_artist=True)
-                for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
+                            flag.append(np.log(rnd_inf[k][z])) if "events" not in filename else flag.append((rnd_inf[k][z]*.01)/25) if i!=2 else flag.append((rnd_inf[k][z]*.01)/100)
+                    for e in flag:
+                        rnd_inf_print[k] = np.append(rnd_inf_print[k],e)
+                # bpp     = ax[i][j].boxplot(park_print,positions=[p for p in positions],widths=0.5,patch_artist=True)
+                bpa     = ax[i][j].boxplot(adam_print,positions=[p for p in positions],widths=0.5,patch_artist=True)
+                bpf     = ax[i][j].boxplot(fifo_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
+                bpr     = ax[i][j].boxplot(rnd_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
+                bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
+                ax[i][j].set_ylim(0,8) if "events" not in filename else ax[i][j].set_ylim(0,5)
+                # for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
+                for bplot, color in zip((bpa,bpf, bpr, bpri), colors_box):
                     for patch in bplot['boxes']:
                         patch.set_facecolor(color)
                 ax[i][j].set_xticks([p + 2 for p in positions])
                 ax[i][j].set_xticklabels(buf_dims[1])
-                # ax[i][j].set_ylim(0,10)
         ax[0][0].set_title(r"$T_m = 60\, s$")
         ax[0][1].set_title(r"$T_m = 120\, s$")
         ax[0][2].set_title(r"$T_m = 180\, s$")
@@ -619,9 +627,9 @@ class Data:
         ayt0.set_ylabel("LD25")
         ayt1.set_ylabel("HD25")
         ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$log(T_r)$")
-        ax[1][0].set_ylabel(r"$log(T_r)$")
-        ax[2][0].set_ylabel(r"$log(T_r)$")
+        ax[0][0].set_ylabel(r"$log(T_r)$") if "events" not in filename else ax[0][0].set_ylabel("#")
+        ax[1][0].set_ylabel(r"$log(T_r)$") if "events" not in filename else ax[1][0].set_ylabel("#")
+        ax[2][0].set_ylabel(r"$log(T_r)$") if "events" not in filename else ax[2][0].set_ylabel("#")
 
         fig.tight_layout()
         fig_path = save_path+filename
@@ -769,13 +777,13 @@ class Data:
         dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -785,13 +793,6 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in dict_adam.keys():
-            tmp =[]
-            res = dict_adam.get(k)
-            norm = int(k[1])-1
-            for xi in range(len(res)):
-                tmp.append(res[xi]/norm)
-            dict_adam.update({k:tmp})
         for k in dict_park.keys():
             tmp =[]
             res = dict_park.get(k)
@@ -799,13 +800,20 @@ class Data:
             for xi in res:
                 tmp.append(xi/norm)
             dict_park.update({k:tmp})
-        for k in dict_fifo.keys():
+        for k in dict_adam.keys():
             tmp =[]
-            res = dict_fifo.get(k)
+            res = dict_adam.get(k)
             norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_fifo.update({k:tmp})
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam.update({k:tmp})
+        # for k in dict_fifo.keys():
+        #     tmp =[]
+        #     res = dict_fifo.get(k)
+        #     norm = int(k[1])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_fifo.update({k:tmp})
         for k in dict_rnd.keys():
             tmp =[]
             res = dict_rnd.get(k)
@@ -860,26 +868,26 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        for k in dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        # for k in dict_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -1126,12 +1134,12 @@ class Data:
         high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
 
         handles_c   = [high_bound,low_bound]
-        handles_r   = [anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
@@ -1157,6 +1165,7 @@ class Data:
                         p_gt2,a_gt2,f_gt2,r_gt2,ri_gt2           = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
                         p_gt8,a_gt8,f_gt8,r_gt8,ri_gt8           = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
                         p_valst,a_valst,f_valst,r_valst,ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan
+                        lim_p_valst,lim_a_valst,lim_f_valst,lim_r_valst,lim_ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan
                         for pt in range(len(ground_T)):
                             pval    = dict_park.get((a,ag,str(o_k[k])))[pt][th]
                             aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
@@ -1170,8 +1179,9 @@ class Data:
                             trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
                             if pval>=0.8:
                                 temp_tval = np.log(tpval)
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and (p_valst is np.nan or temp_tval<p_valst):
+                                if ground_T[pt]-threshlds[th] >=0 and (p_valst is np.nan or ground_T[pt]-threshlds[th]<lim_p_valst):
                                     p_valst = temp_tval
+                                    lim_p_valst = ground_T[pt]-threshlds[th]
                                 if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
@@ -1187,8 +1197,10 @@ class Data:
                                     p_vals2[1]  = pval
                                     p_gt2[1]    = ground_T[pt]
                             if aval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and a_valst is np.nan:
-                                    a_valst = np.log(taval)
+                                temp_aval = np.log(taval)
+                                if ground_T[pt]-threshlds[th] >=0 and (a_valst is np.nan or ground_T[pt]-threshlds[th]<lim_a_valst):
+                                    a_valst = temp_aval
+                                    lim_a_valst = ground_T[pt]-threshlds[th]
                                 if ground_T[pt]-threshlds[th] >=0 and (a_vals8[1] is np.nan or aval<a_vals8[1]):
                                     a_vals8[1]  = aval
                                     a_gt8[1]    = ground_T[pt]
@@ -1204,8 +1216,10 @@ class Data:
                                     a_vals2[1]  = aval
                                     a_gt2[1]    = ground_T[pt]
                             if fval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and f_valst is np.nan:
-                                    f_valst = np.log(tfval)
+                                temp_fval = np.log(tfval)
+                                if ground_T[pt]-threshlds[th] >=0 and (f_valst is np.nan or ground_T[pt]-threshlds[th]<lim_f_valst):
+                                    f_valst = temp_fval
+                                    lim_f_valst = ground_T[pt]-threshlds[th]
                                 if ground_T[pt]-threshlds[th] >=0 and (f_vals8[1] is np.nan or fval<f_vals8[1]):
                                     f_vals8[1]  = fval
                                     f_gt8[1]    = ground_T[pt]
@@ -1221,8 +1235,10 @@ class Data:
                                     f_vals2[1]  = fval
                                     f_gt2[1]    = ground_T[pt]
                             if rval>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and r_valst is np.nan:
-                                    r_valst = np.log(trval)
+                                temp_rval = np.log(trval)
+                                if ground_T[pt]-threshlds[th] >=0 and (r_valst is np.nan or ground_T[pt]-threshlds[th]<lim_r_valst):
+                                    r_valst = temp_rval
+                                    lim_r_valst = ground_T[pt]-threshlds[th]
                                 if ground_T[pt]-threshlds[th] >=0 and (r_vals8[1] is np.nan or rval<r_vals8[1]):
                                     r_vals8[1]  = rval
                                     r_gt8[1]    = ground_T[pt]
@@ -1238,8 +1254,10 @@ class Data:
                                     r_vals2[1]  = rval
                                     r_gt2[1]    = ground_T[pt]
                             if rival>=0.8:
-                                if ground_T[pt]-threshlds[th] >=0.1 and ground_T[pt]-threshlds[th] <=0.2 and ri_valst is np.nan:
-                                    ri_valst = np.log(trival)
+                                temp_rival = np.log(trival)
+                                if ground_T[pt]-threshlds[th] >=0 and (ri_valst is np.nan or ground_T[pt]-threshlds[th]<lim_ri_valst):
+                                    ri_valst = temp_rival
+                                    lim_ri_valst = ground_T[pt]-threshlds[th]
                                 if ground_T[pt]-threshlds[th] >=0 and (ri_vals8[1] is np.nan or rival<ri_vals8[1]):
                                     ri_vals8[1]  = rival
                                     ri_gt8[1]    = ground_T[pt]
@@ -1334,18 +1352,28 @@ class Data:
                     ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                     ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                     ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    # ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    # ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                     ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                     ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                     ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
                     ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
-                    tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
-                    tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
+                    smoother_p = ConvolutionSmoother(window_len=10, window_type='ones')
+                    smoother_p.smooth(tvalsp[k])
+                    smoother_a = ConvolutionSmoother(window_len=10, window_type='ones')
+                    smoother_a.smooth(tvalsa[k])
+                    smoother_f = ConvolutionSmoother(window_len=10, window_type='ones')
+                    smoother_f.smooth(tvalsf[k])
+                    smoother_r = ConvolutionSmoother(window_len=10, window_type='ones')
+                    smoother_r.smooth(tvalsr[k])
+                    smoother_ri = ConvolutionSmoother(window_len=10, window_type='ones')
+                    smoother_ri.smooth(tvalsri[k])
+                    tax[row][k].plot(smoother_p.smooth_data[0],color=scalarMap.to_rgba(typo[0]),lw=6)
+                    tax[row][k].plot(smoother_a.smooth_data[0],color=scalarMap.to_rgba(typo[1]),lw=6)
+                    # tax[row][k].plot(smoother_f.smooth_data[0],color=scalarMap.to_rgba(typo[2]),lw=6)
+                    tax[row][k].plot(smoother_r.smooth_data[0],color=scalarMap.to_rgba(typo[3]),lw=6)
+                    tax[row][k].plot(smoother_ri.smooth_data[0],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
