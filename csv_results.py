@@ -484,18 +484,18 @@ class Data:
         typo                = [0,1,2,3,4,5]
         cNorm               = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap           = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        # anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
+        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='Anonymous')
         id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label='ID+B')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        # id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        handles_r           = [id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r           = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         # colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
-        colors_box          = [scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[2]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
+        colors_box          = [scalarMap.to_rgba(typo[0]),scalarMap.to_rgba(typo[1]),scalarMap.to_rgba(typo[3]),scalarMap.to_rgba(typo[4])]
         dict_park, dict_adms, dict_fifo, dict_rnd, dict_rnd_inf = data[0], data[1], data[2], data[3], data[4]
-        # park_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
+        park_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         adam_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
-        fifo_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
+        # fifo_plotting       = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         rnd_plotting        = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         rnd_inf_plotting    = np.array([[[[-1]*len(gt_thr[0])*len(gt_thr[1])]*len(buf_dims[1])]*5]*3)
         for gt in range(len(gt_thr[0])):
@@ -522,12 +522,12 @@ class Data:
                                     if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
                                     elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
                                     if store:
-                                        # entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
-                                        # if entry != None: park_data = np.append(park_data,entry)
+                                        entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        if entry != None: park_data = np.append(park_data,entry)
                                         entry = dict_adms.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
                                         if entry != None: adams_data = np.append(adams_data,entry)
-                                        entry = dict_fifo.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
-                                        if entry != None: fifo_data = np.append(fifo_data,entry)
+                                        # entry = dict_fifo.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
+                                        # if entry != None: fifo_data = np.append(fifo_data,entry)
                                         entry = dict_rnd.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
                                         if entry != None: rnd_data = np.append(rnd_data,entry)
                                         entry = dict_rnd_inf.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
@@ -542,12 +542,12 @@ class Data:
                                 col = 3
                             elif mt == '600':
                                 col = 4
-                            # if park_data.any() != None:
-                            #     for i in range(len(park_data)): park_plotting[row][col][buff_perc][i] = park_data[i]
+                            if park_data.any() != None:
+                                for i in range(len(park_data)): park_plotting[row][col][buff_perc][i] = park_data[i]
                             if adams_data.any() != None:
                                 for i in range(len(adams_data)): adam_plotting[row][col][buff_perc][i] = adams_data[i]
-                            if fifo_data.any() != None:
-                                for i in range(len(fifo_data)): fifo_plotting[row][col][buff_perc][i] = fifo_data[i]
+                            # if fifo_data.any() != None:
+                            #     for i in range(len(fifo_data)): fifo_plotting[row][col][buff_perc][i] = fifo_data[i]
                             if rnd_data.any() != None:
                                 for i in range(len(rnd_data)): rnd_plotting[row][col][buff_perc][i] = rnd_data[i]
                             if rnd_inf_data.any() != None:
@@ -556,15 +556,15 @@ class Data:
         positions = np.arange(0,len(buf_dims[1])*4,4)
         for i in range(3):
             for j in range(5):
-                # park = park_plotting[i][j]
-                # park_print = [np.array([])]*len(buf_dims[1])
-                # for k in range(len(park)):
-                #     flag = []
-                #     for z in range(len(park[k])):
-                #         if park[k][z]>0:
-                #             flag.append(np.log(park[k][z])) if "events" not in filename else flag.append((park[k][z]*.01)/25) if i!=2 else flag.append((park[k][z]*.01)/100)
-                #     for e in flag:
-                #         park_print[k] = np.append(park_print[k],e)
+                park = park_plotting[i][j]
+                park_print = [np.array([])]*len(buf_dims[1])
+                for k in range(len(park)):
+                    flag = []
+                    for z in range(len(park[k])):
+                        if park[k][z]>0:
+                            flag.append(np.log(park[k][z])) if "events" not in filename else flag.append((park[k][z]*.01)/25) if i!=2 else flag.append((park[k][z]*.01)/100)
+                    for e in flag:
+                        park_print[k] = np.append(park_print[k],e)
                 adam = adam_plotting[i][j]
                 adam_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(adam)):
@@ -574,15 +574,15 @@ class Data:
                             flag.append(np.log(adam[k][z])) if "events" not in filename else flag.append((adam[k][z]*.01)/25) if i!=2 else flag.append((adam[k][z]*.01)/100)
                     for e in flag:
                         adam_print[k] = np.append(adam_print[k],e)
-                fifo = fifo_plotting[i][j]
-                fifo_print = [np.array([])]*len(buf_dims[1])
-                for k in range(len(fifo)):
-                    flag = []
-                    for z in range(len(fifo[k])):
-                        if fifo[k][z]>0:
-                            flag.append(np.log(fifo[k][z])) if "events" not in filename else flag.append((fifo[k][z]*.01)/25) if i!=2 else flag.append((fifo[k][z]*.01)/100)
-                    for e in flag:
-                        fifo_print[k] = np.append(fifo_print[k],e)
+                # fifo = fifo_plotting[i][j]
+                # fifo_print = [np.array([])]*len(buf_dims[1])
+                # for k in range(len(fifo)):
+                #     flag = []
+                #     for z in range(len(fifo[k])):
+                #         if fifo[k][z]>0:
+                #             flag.append(np.log(fifo[k][z])) if "events" not in filename else flag.append((fifo[k][z]*.01)/25) if i!=2 else flag.append((fifo[k][z]*.01)/100)
+                #     for e in flag:
+                #         fifo_print[k] = np.append(fifo_print[k],e)
                 rnd = rnd_plotting[i][j]
                 rnd_print = [np.array([])]*len(buf_dims[1])
                 for k in range(len(rnd)):
@@ -601,14 +601,14 @@ class Data:
                             flag.append(np.log(rnd_inf[k][z])) if "events" not in filename else flag.append((rnd_inf[k][z]*.01)/25) if i!=2 else flag.append((rnd_inf[k][z]*.01)/100)
                     for e in flag:
                         rnd_inf_print[k] = np.append(rnd_inf_print[k],e)
-                # bpp     = ax[i][j].boxplot(park_print,positions=[p for p in positions],widths=0.5,patch_artist=True)
-                bpa     = ax[i][j].boxplot(adam_print,positions=[p for p in positions],widths=0.5,patch_artist=True)
-                bpf     = ax[i][j].boxplot(fifo_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
+                bpp     = ax[i][j].boxplot(park_print,positions=[p for p in positions],widths=0.5,patch_artist=True)
+                bpa     = ax[i][j].boxplot(adam_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
+                # bpf     = ax[i][j].boxplot(fifo_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
                 bpr     = ax[i][j].boxplot(rnd_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
                 bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
-                ax[i][j].set_ylim(0,8) if "events" not in filename else ax[i][j].set_ylim(0,5)
+                ax[i][j].set_ylim(0,8) if "events" not in filename else ax[i][j].set_ylim(0,10)
                 # for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
-                for bplot, color in zip((bpa,bpf, bpr, bpri), colors_box):
+                for bplot, color in zip((bpp, bpa, bpr, bpri), colors_box):
                     for patch in bplot['boxes']:
                         patch.set_facecolor(color)
                 ax[i][j].set_xticks([p + 2 for p in positions])
