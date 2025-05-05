@@ -183,7 +183,7 @@ class Data:
         return data
 
 ##########################################################################################################
-    def read_recovery_csv(self,path,algo,arena): # fix similar to read csv but with 3 arrays as last values
+    def read_recovery_csv(self,path,algo,arena):
         keys = []
         data = {}
         lc = 0
@@ -519,8 +519,8 @@ class Data:
                             for m_b_d in buf_dims[0]:
                                 for thr in range(len(gt_thr[1])):
                                     store = True
-                                    if filename.split('_')[0] == "easy" and float(gt_thr[0][gt])-.05 <= float(gt_thr[1][thr]) and float(gt_thr[0][gt])+.05 >= float(gt_thr[1][thr]): store=False
-                                    elif filename.split('_')[0] == "hard" and (float(gt_thr[0][gt])-.05 > float(gt_thr[1][thr]) or float(gt_thr[0][gt])+.05 < float(gt_thr[1][thr])): store=False
+                                    if filename.split('_')[0] == "easy" and abs(float(gt_thr[0][gt]) - float(gt_thr[0][thr])) <= 0.1 : store=False
+                                    elif filename.split('_')[0] == "hard" and abs(float(gt_thr[0][gt]) - float(gt_thr[0][thr])) > 0.1 : store=False
                                     if store:
                                         entry = dict_park.get((a_s,n_a,m_b_d,mt,gt_thr[0][gt],gt_thr[1][thr],buf_dims[1][buff_perc]))
                                         if entry != None: park_data = np.append(park_data,entry)

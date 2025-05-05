@@ -1,10 +1,5 @@
+import os, csv, sys, logging, gc, time, psutil
 import csv_results as CSVres
-import os, csv
-import sys
-import logging
-import gc
-import time
-import psutil
 from multiprocessing import Process, Manager
 
 # Setup logging
@@ -110,7 +105,7 @@ def main():
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 1024 and len(active_processes) > 0:
+        if available_memory < 1024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
