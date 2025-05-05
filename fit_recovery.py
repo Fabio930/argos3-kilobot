@@ -103,7 +103,7 @@ def main():
                 to_remove.append(key)
                 logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} not found")
         cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for usage in cpu_usage if usage < .5)  # Consider CPU idle if usage is less than 50%
+        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
         if available_memory < 1024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
