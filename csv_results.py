@@ -183,7 +183,7 @@ class Data:
         return data
 
 ##########################################################################################################
-    def read_recovery_csv(self,path,algo,arena): # fix similar to read csv but with 3 arrays as last values
+    def read_recovery_csv(self,path,algo,arena):
         keys = []
         data = {}
         lc = 0
