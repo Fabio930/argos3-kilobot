@@ -606,7 +606,7 @@ class Data:
                 # bpf     = ax[i][j].boxplot(fifo_print,positions=[p+1 for p in positions],widths=0.5,patch_artist=True)
                 bpr     = ax[i][j].boxplot(rnd_print,positions=[p+2 for p in positions],widths=0.5,patch_artist=True)
                 bpri    = ax[i][j].boxplot(rnd_inf_print,positions=[p+3 for p in positions],widths=0.5,patch_artist=True)
-                ax[i][j].set_ylim(0,8) if "events" not in filename else ax[i][j].set_ylim(0,10)
+                ax[i][j].set_ylim(0,8) if "events" not in filename else ax[i][j].set_ylim(0,5) if "easy" in filename else ax[i][j].set_ylim(0,10)
                 # for bplot, color in zip((bpp, bpa, bpf, bpr, bpri), colors_box):
                 for bplot, color in zip((bpp, bpa, bpr, bpri), colors_box):
                     for patch in bplot['boxes']:
