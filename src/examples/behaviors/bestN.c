@@ -42,7 +42,7 @@ void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
         float p;
-        uint8_t msg_n_hops_rnd;
+        uint8_t ;
         switch(broadcasting_flag){
             case 0:
                 broadcast();
@@ -57,8 +57,7 @@ void talk(){
                             else broadcast();
                             break;
                         default:
-                            msg_n_hops_rnd = msg_n_hops;
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops_rnd){
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops){
                                 quorum_array[selected_msg_indx]->msg_n_hops += 1;
                                 rebroadcast();
                             }
