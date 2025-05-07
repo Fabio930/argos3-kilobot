@@ -95,8 +95,7 @@ void broadcast(){
     num_own_info += 1;
     // message
     sa_type = 0;
-    uint8_t msg_n_hops_fifo = msg_n_hops;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops_fifo;
+    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
