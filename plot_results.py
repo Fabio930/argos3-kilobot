@@ -1,7 +1,8 @@
+import os, logging
 import csv_results as CSVres
-import os
 import numpy as np
 
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 ##################################################################################
 def main():
     csv_res = CSVres.Data()
