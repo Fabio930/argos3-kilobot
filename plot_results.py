@@ -38,18 +38,18 @@ def main():
                         tot_times   = np.append(tot_times,[times],axis=0)
             csv_res.plot_active_w_gt_thr(tot_st,tot_times)
             csv_res.plot_by_commit_w_gt_thr(tot_stbc)
-        elif folder == "msgs_data":
+        if folder == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:
                     file_path = os.path.join(base, file)
                     data = csv_res.read_msgs_csv(file_path)
                     csv_res.plot_messages(data)
-        elif folder == "pos_data":
-            for file in sorted(os.listdir(base)):
-                if "images" not in file:
-                    file_path = os.path.join(base, file)
-                    data = csv_res.read_pos_csv(file_path)
-                    csv_res.plot_pos(data)
+        # if folder == "pos_data":
+        #     for file in sorted(os.listdir(base)):
+        #         if "images" not in file:
+        #             file_path = os.path.join(base, file)
+        #             data = csv_res.read_pos_csv(file_path)
+        #             csv_res.plot_pos(data)
 
 
 ##################################################################################
