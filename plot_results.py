@@ -19,7 +19,7 @@ def main():
                     file_path=os.path.join(base, file)
                     no_ext_file = file.split('.')[0]
                     sets = no_ext_file.split('_')
-                    algo = sets[0][0]
+                    algo = sets[0][0] if sets[0][1] == "a" or sets[0][1] == "r" else sets[0][0:2]
                     if "resume" in file:
                         for s in sets:
                             val = s.split('#')
@@ -43,7 +43,6 @@ def main():
                             tot_buf_ins   = np.append(tot_buf_ins,[buffer_opts[1]],axis=0)
                             tot_buf_upd   = np.append(tot_buf_upd,[buffer_opts[2]],axis=0)
             if len(tot_st) > 0: csv_res.plot_active(tot_st,tot_times)
-            # if len(tot_buf_not) > 0: csv_res.plot_buffer_opts(tot_buf_not,tot_buf_ins,tot_buf_upd)
         elif base.split('/')[-1] == "msgs_data":
             for file in sorted(os.listdir(base)):
                 if "images" not in file:
