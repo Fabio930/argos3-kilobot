@@ -16,11 +16,13 @@ class Data:
 
 ##########################################################################################################
     def plot_messages(self,data):
-        dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt = {},{},{},{},{},{}
+        dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt = {},{},{},{},{},{},{}
         for k in data.keys():
             if(k[3]=="0.68;0.92"):
                 if k[1]=='P':
                     dict_park.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+                elif k[1]=='Pf':
+                    dict_park_real.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                 else:
                     if int(k[4])==0:
                         dict_adam.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
@@ -34,7 +36,7 @@ class Data:
                         else:
                             dict_rnd.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
 
-        self.print_messages([dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_rnd_adpt])
+        self.print_messages([dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_rnd_adpt,dict_park_real])
 
 ##########################################################################################################
     def read_msgs_csv(self,path):
@@ -243,8 +245,8 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state  = {},{},{},{},{},{}
-        dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time        = {},{},{},{},{},{}
+        dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state, dict_park_state_real  = {},{},{},{},{},{},{}
+        dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time, dict_park_time_real        = {},{},{},{},{},{},{}
         ground_T, threshlds , jolly, msg_hops                                               = [],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim                                            = [],[],[],[],[],[],[]
         o_k                                                                                 = []
@@ -282,7 +284,10 @@ class Data:
                                                             if a=='P' and int(c)==0:
                                                                 dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                 dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                            if a=='O':
+                                                            elif a=='Pf' and int(c)==0:
+                                                                dict_park_state_real.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
+                                                                dict_park_time_real.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                            elif a=='O':
                                                                 if int(c)==0:
                                                                     dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                     dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
@@ -299,8 +304,8 @@ class Data:
                                                                     else:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],o_k,[arena,agents])
-        self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time],o_k,[arena,agents])
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+        # self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -309,23 +314,24 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5],data_in[6]
         o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k     = np.sort(o_k)
         arena   = more_k[0]
-        park    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
-        adam    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
-        fifo    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        rnd     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        rnd_inf = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
+        park_real   = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
+        park        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
+        adam        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
+        fifo        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        rnd         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        rnd_inf     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        rnd_adp     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         svoid_x_ticks   = []
         void_x_ticks    = []
         void_y_ticks    = []
         real_x_ticks    = []
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park_real,park]
         for gt in ground_T:
             for thr in threshlds:
                 fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
@@ -339,18 +345,20 @@ class Data:
                     for ag in agents:
                         if int(ag)==100: row = 2
                         for k in range(len(o_k)):
-                            # if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                            #     ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
+                            if dict_park_real.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_park_real.get((a,ag,str(o_k[k]),gt,thr)),color="red",lw=6)
+                            if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                                ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                             # if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
                             #     ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
-                            if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
-                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
-                            if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
-                            if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
+                            # if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            # if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            # if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
+                            # if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                             ax[row][k].set_xlim(0,1201)
                             ax[row][k].set_ylim(0,1)
                             if len(real_x_ticks)==0:
@@ -424,17 +432,19 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
         o_k     = np.sort(o_k)
         arena   = more_k[0]
-        adam    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
-        fifo    = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        rnd     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        rnd_inf = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
+        park_real   = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
+        park        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
+        adam        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
+        fifo        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
+        rnd         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
+        rnd_inf     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        rnd_adp     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         svoid_x_ticks   = []
         void_x_ticks    = []
         void_y_ticks    = []
@@ -453,18 +463,20 @@ class Data:
                     for ag in agents:
                         if int(ag)==100: row = 2
                         for k in range(len(o_k)):
+                            # if dict_park_real.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_park_real.get((a,ag,str(o_k[k]),gt,thr)),color="red",lw=6)
                             # if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
                             #     ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
                             # if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
                             #     ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
-                            if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
-                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
-                            if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
-                            if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
+                            # if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
+                            # if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
+                            # if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
+                            # if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
+                            #     ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                             ax[row][k].set_xlim(0,1201)
                             ax[row][k].set_ylim(0,1)
                             if len(real_x_ticks)==0:
@@ -538,14 +550,15 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adpt = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adpt,dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
+        park_real       = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
         park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
         adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
+        handles_r       = [park_real,park]
         svoid_x_ticks   = []
         void_x_ticks    = []
         real_x_ticks    = []
@@ -559,13 +572,20 @@ class Data:
                 else:
                     void_x_ticks.append('')
         fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
-        # for k in dict_park.keys():
-        #     tmp =[]
-        #     res = dict_park.get(k)
-        #     norm = int(k[4])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_park.update({k:tmp})
+        for k in dict_park_real.keys():
+            tmp =[]
+            res = dict_park_real.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_park_real.update({k:tmp})
+        for k in dict_park.keys():
+            tmp =[]
+            res = dict_park.get(k)
+            norm = int(k[4])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_park.update({k:tmp})
         # for k in dict_adam.keys():
         #     tmp =[]
         #     res = dict_adam.get(k)
@@ -573,50 +593,66 @@ class Data:
         #     for xi in range(len(res)):
         #         tmp.append(res[xi]/norm)
         #     dict_adam.update({k:tmp})
-        for k in dict_fifo.keys():
-            tmp =[]
-            res = dict_fifo.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_fifo.update({k:tmp})
-        for k in dict_rnd.keys():
-            tmp =[]
-            res = dict_rnd.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_rnd.update({k:tmp})
-        for k in dict_rnd_inf.keys():
-            tmp =[]
-            res = dict_rnd_inf.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_rnd_inf.update({k:tmp})
-        for k in dict_rnd_adpt.keys():
-            tmp =[]
-            res = dict_rnd_adpt.get(k)
-            norm = int(k[4])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_rnd_adpt.update({k:tmp})
-        # for k in dict_park.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[4]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[4]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[5] == '60':
-        #         col = 0
-        #     elif k[5] == '300':
-        #         col = 1
-        #     elif k[5] == '600':
-        #         col = 2
-        #     ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+        # for k in dict_fifo.keys():
+        #     tmp =[]
+        #     res = dict_fifo.get(k)
+        #     norm = int(k[4])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_fifo.update({k:tmp})
+        # for k in dict_rnd.keys():
+        #     tmp =[]
+        #     res = dict_rnd.get(k)
+        #     norm = int(k[4])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_rnd.update({k:tmp})
+        # for k in dict_rnd_inf.keys():
+        #     tmp =[]
+        #     res = dict_rnd_inf.get(k)
+        #     norm = int(k[4])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_rnd_inf.update({k:tmp})
+        # for k in dict_rnd_adpt.keys():
+        #     tmp =[]
+        #     res = dict_rnd_adpt.get(k)
+        #     norm = int(k[4])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_rnd_adpt.update({k:tmp})
+        for k in dict_park_real.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_park_real.get(k),color="red",lw=6)
+        for k in dict_park.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[4]=='25':
+                row = 0
+            elif k[0]=='big' and k[4]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[5] == '60':
+                col = 0
+            elif k[5] == '300':
+                col = 1
+            elif k[5] == '600':
+                col = 2
+            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
         # for k in dict_adam.keys():
         #     row = 0
         #     col = 0
@@ -633,70 +669,70 @@ class Data:
         #     elif k[5] == '600':
         #         col = 2
         #     ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        for k in dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[5] == '60':
-                col = 0
-            elif k[5] == '300':
-                col = 1
-            elif k[5] == '600':
-                col = 2
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
-        for k in dict_rnd.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[5] == '60':
-                col = 0
-            elif k[5] == '300':
-                col = 1
-            elif k[5] == '600':
-                col = 2
-            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-        for k in dict_rnd_inf.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[5] == '60':
-                col = 0
-            elif k[5] == '300':
-                col = 1
-            elif k[5] == '600':
-                col = 2
-            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
-        for k in dict_rnd_adpt.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[4]=='25':
-                row = 0
-            elif k[0]=='big' and k[4]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[5] == '60':
-                col = 0
-            elif k[5] == '300':
-                col = 1
-            elif k[5] == '600':
-                col = 2
-            ax[row][col].plot(dict_rnd_adpt.get(k),color=scalarMap.to_rgba(typo[5]),lw=6)
+        # for k in dict_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[4]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[4]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[5] == '60':
+        #         col = 0
+        #     elif k[5] == '300':
+        #         col = 1
+        #     elif k[5] == '600':
+        #         col = 2
+        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        # for k in dict_rnd.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[4]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[4]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[5] == '60':
+        #         col = 0
+        #     elif k[5] == '300':
+        #         col = 1
+        #     elif k[5] == '600':
+        #         col = 2
+        #     ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+        # for k in dict_rnd_inf.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[4]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[4]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[5] == '60':
+        #         col = 0
+        #     elif k[5] == '300':
+        #         col = 1
+        #     elif k[5] == '600':
+        #         col = 2
+        #     ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+        # for k in dict_rnd_adpt.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[4]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[4]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[5] == '60':
+        #         col = 0
+        #     elif k[5] == '300':
+        #         col = 1
+        #     elif k[5] == '600':
+        #         col = 2
+        #     ax[row][col].plot(dict_rnd_adpt.get(k),color=scalarMap.to_rgba(typo[5]),lw=6)
         for x in range(2):
             for y in range(3):
                 ax[x][y].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
