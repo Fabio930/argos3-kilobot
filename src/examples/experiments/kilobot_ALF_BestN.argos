@@ -52,7 +52,7 @@
         <hierarchicStruct
             rebroadcast = "0"
             queue_lenght = "24"
-            expiring_quorum_sec = "60"
+            expiring_quorum_sec = "600"
             committed_percentage = "1"
         >
         </hierarchicStruct>
