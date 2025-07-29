@@ -1,5 +1,6 @@
 from tsmoothie.smoother import *
 import numpy as np
+import pandas as pd
 import os, csv, math
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
@@ -39,7 +40,8 @@ class Data:
             os.mkdir(self.base+"/weib_images/")
         path = self.base+"/weib_images/"
 
-        durations_by_buffer = self.divide_event_by_buffer(buf_dim,buff_starts,durations,event_observed)
+        durations_by_buffer = self.dull_division(buff_starts,durations,event_observed)
+        # durations_by_buffer = self.divide_event_by_buffer(buf_dim,buff_starts,durations,event_observed)
         durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
         adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
         wf = WeibullFitter()
@@ -48,7 +50,7 @@ class Data:
         for k in adapted_durations.keys():
             a_data = adapted_durations.get(k)[0]
             a_censoring = adapted_durations.get(k)[1]
-            if len(a_data)>10:
+            if len(a_data)>100:
                 wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                 kmf.fit(a_data, event_observed=a_censoring,label="kmf "+k)
                 fig, ax = plt.subplots(figsize=(10,8))
@@ -64,12 +66,22 @@ class Data:
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[8],k[9],k[3],k[7],data_in[i].get(k)) # fix buff_dim and msg_exp_time
+                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[8],k[9],k[3],k[7],data_in[i].get(k))
                 for z in estimates.keys():
                     fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],k[9],z):estimates.get(z)})
         return fitted_data
     
 ##########################################################################################################
+    def dull_division(self,buffer,durations,event_observed):
+        durations_by_buffer = {"all": [[], []]}
+        for i in range(len(buffer)):
+            tmp = durations_by_buffer.get("all")
+            tmp[0].append(durations[i])
+            tmp[1].append(event_observed[i])
+            durations_by_buffer.update({"all":tmp})
+        return durations_by_buffer
+    
+##########################################################################
     def divide_event_by_buffer(self,limit_buf,buffer,durations,event_observed):
         min_dim = 5
         max_dim = float(limit_buf)
@@ -114,17 +126,17 @@ class Data:
         out = {}
         for k in data_to_sort.keys():
             durations = data_to_sort.get(k)[0]
-            event_obseerved = data_to_sort.get(k)[1]
+            event_observed = data_to_sort.get(k)[1]
             for i in range(len(durations)):
                 for j in range(len(durations)):
                     if durations[j]<durations[i] and i<j:
                         tmp = durations[i]
                         durations[i] = durations[j]
                         durations[j] = tmp
-                        tmp = event_obseerved[i]
-                        event_obseerved[i] = event_obseerved[j]
-                        event_obseerved[j] = tmp
-            out.update({k:[durations,event_obseerved]})
+                        tmp = event_observed[i]
+                        event_observed[i] = event_observed[j]
+                        event_observed[j] = tmp
+            out.update({k:[durations,event_observed]})
         return out
 
 ##########################################################################################################
@@ -362,13 +374,121 @@ class Data:
             reader = csv.reader(f)
             next(reader)  # Skip the header row
             for row in reader:
-                key = tuple(row[:11])
-                value = tuple(row[11:])
+                key = tuple(row[:10])
+                value = tuple(row[10:])
                 data[key] = value
         return data
+    
+##########################################################################################################
+    def plot_recovery(self, data_in):
+        # Impostazioni generali
+        plt.rcParams.update({"font.size": 32})
+        images_dir = os.path.join(self.base, "rec_data", "images")
+        os.makedirs(images_dir, exist_ok=True)
+
+        # Mappa varianti -> label e colore
+        cm = plt.get_cmap('viridis')
+        norm = colors.Normalize(vmin=0, vmax=4)
+        scalarMap = cmx.ScalarMappable(norm=norm, cmap=cm)
+        variant_map = {
+            'Pf': (r'$AN$', 'red'),
+            'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
+            'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
+            'O.2.0': (r'$ID+R_{f}$', scalarMap.to_rgba(2)),
+            'O.1.1': (r'$ID+R_{1}$', scalarMap.to_rgba(3)),
+            'O.1.0': (r'$ID+R_{\infty}$', scalarMap.to_rgba(4)),
+        }
+
+        # Ricostruzione DataFrame
+        rows = []
+        for key, (mean, std, events) in data_in.items():
+            # Assicura trattazione come stringhe e cast
+            k = [str(x) for x in key]
+            alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k
+            broadcast = int(float(broadcast)); hops = int(float(hops))
+            agents = int(float(agents)); msgs = int(float(msgs))
+            gt = float(gt); th = float(th)
+            variant_key = f"{alg}.{broadcast}.{hops}" if alg == 'O' else alg
+            label, color = variant_map.get(variant_key, ('UNK', 'black'))
+            rows.append({
+                'Arena': arena,
+                'Agents': agents,
+                'Msgs_exp_time': msgs,
+                'Error': abs(gt - th),
+                'Events': int(events)/(100*agents),
+                'Time': float(mean),
+                'VariantKey': variant_key,
+                'Label': label,
+                'Color': color
+            })
+        df = pd.DataFrame(rows)
+
+        # Griglia righe/colonne
+        grid = [("bigA",25), ("smallA",25), ("bigA",100)]
+        row_labels = ["LD25", "HD25", "HD100"]
+        msg_list = sorted(df['Msgs_exp_time'].unique())
+        col_labels = [f"$T_m$={m}" for m in msg_list]
+        labels = [v[0] for v in variant_map.values()]
+
+        def save_box(subset, suffix, entry):
+            fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharey=True)
+            for i, (arena, ag) in enumerate(grid):
+                for j, m in enumerate(msg_list):
+                    ax = axes[i,j]
+                    cell = subset[(subset['Arena']==arena)&(subset['Agents']==ag)&(subset['Msgs_exp_time']==m)]
+                    data = [cell[cell['Label']==lbl][entry].values for lbl in labels]
+                    # Plot only if non-empty
+                    if any(len(d)>0 for d in data):
+                        bp = ax.boxplot(data, labels=labels, patch_artist=True)
+                        for patch, lbl in zip(bp['boxes'], labels):
+                            c = dict(variant_map.values())[lbl]
+                            patch.set_facecolor(c)
+                    # Label colonna/riga
+                    if i == 0:
+                        ax.set_title(col_labels[j])
+                # Rilascia label riga a destra
+                axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=270)
+            # Legenda
+            handles = [mlines.Line2D([],[],color=color,marker='_',linestyle='None',markersize=18,label=label)
+                       for label, color in variant_map.values()]
+            fig.legend(handles=handles, ncol=len(handles), loc='lower center')
+            fig.tight_layout(rect=[0,0.05,1,0.95])
+            fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
+            plt.close(fig)
+
+        save_box(df, 'all_events','Events')
+        save_box(df, 'all_time','Time')
+        save_box(df[df['Error']<=0.05], 'le05_events','Events')
+        save_box(df[df['Error']<=0.05], 'le05_time','Time')
+        save_box(df[df['Error']>0.05], 'gt05_events','Events')
+        save_box(df[df['Error']>0.05], 'gt05_time','Time')
+
+        # Istogrammi 2D per variante
+        xbins = np.linspace(0, df['Error'].max(), 20)
+        ybins = [0,5,10,15,20,25,30,35,40]
+        for key_var, (label, color) in variant_map.items():
+            fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
+            h = None
+            for i, (arena, ag) in enumerate(grid):
+                for j, m in enumerate(msg_list):
+                    ax = axes[i,j]
+                    cell = df[(df['VariantKey']==key_var)&(df['Arena']==arena)&(df['Agents']==ag)&(df['Msgs_exp_time']==m)]
+                    if not cell.empty:
+                        h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins,ybins], cmap='viridis')
+                    if i == 0:
+                        ax.set_title(col_labels[j])
+                axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=270)
+            # Add colorbar if any data
+            if h is not None:
+                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
+            # fig.tight_layout(rect=[0,0.05,1,0.95])
+            fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
+            plt.close(fig)
 
 ##########################################################################################################
-    def plot_recovery(self,data_in):
+    def plot_recovery_old(self,data_in):
         if not os.path.exists(self.base+"/rec_data/images/"):
             os.mkdir(self.base+"/rec_data/images/")
         path = self.base+"/rec_data/images/"
@@ -473,15 +593,15 @@ class Data:
                                 for m_b_d in buf_dim:
                                     for met in msgs_time:
                                         for gt in ground_T:
-                                            for jl in jolly:
-                                                for thr in threshlds:
+                                            for thr in threshlds:
+                                                for jl in jolly:
                                                     s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,met,m_h,gt,thr,jl))
                                                     if s_data != None:
                                                         with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
                                                             writer = csv.writer(file)
                                                             if file.tell() == 0:
-                                                                writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Buffer_Perc', 'Mean', 'Std', 'Events'])
-                                                            writer.writerow([a, a_s, et, c, n_a, m_b_d,met, m_h, gt, thr, jl, s_data[0][0], s_data[0][1], s_data[1]])
+                                                                writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean', 'Std', 'Events'])
+                                                            writer.writerow([a, a_s, et, c, n_a, m_b_d,met, m_h, gt, thr, s_data[0][0], s_data[0][1], s_data[1]])
 
 ##########################################################################################################
     def print_box_recovery_by_bufferSize(self,save_path,data,filename,gt_thr,buf_dims,aa):
