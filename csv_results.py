@@ -382,7 +382,7 @@ class Data:
 ##########################################################################################################
     def plot_recovery(self, data_in):
         # Impostazioni generali
-        plt.rcParams.update({"font.size": 32})
+        plt.rcParams.update({"font.size": 18})
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
 
@@ -391,7 +391,7 @@ class Data:
         norm = colors.Normalize(vmin=0, vmax=4)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=cm)
         variant_map = {
-            'Pf': (r'$AN$', 'red'),
+            # 'Pf': (r'$AN$', 'red'),
             'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
             'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
             'O.2.0': (r'$ID+R_{f}$', scalarMap.to_rgba(2)),
@@ -416,7 +416,7 @@ class Data:
                 'Msgs_exp_time': msgs,
                 'Error': abs(gt - th),
                 'Events': int(events)/(100*agents),
-                'Time': float(mean),
+                'Time': float(mean)/10,
                 'VariantKey': variant_key,
                 'Label': label,
                 'Color': color
@@ -431,7 +431,7 @@ class Data:
         labels = [v[0] for v in variant_map.values()]
 
         def save_box(subset, suffix, entry):
-            fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharey=True)
+            fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharey=True,sharex=True)
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
                     ax = axes[i,j]
@@ -446,17 +446,21 @@ class Data:
                     # Label colonna/riga
                     if i == 0:
                         ax.set_title(col_labels[j])
+                    if entry=="Time":
+                        ax.set_ylim(0,100)
+                    else:
+                        ax.set_ylim(0,40)
                 # Rilascia label riga a destra
                 axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
                                      ha='left', va='center', rotation=270)
             # Legenda
-            handles = [mlines.Line2D([],[],color=color,marker='_',linestyle='None',markersize=18,label=label)
+            handles = [mlines.Line2D([],[],color=color,marker='.',linestyle='None',markersize=24,label=label)
                        for label, color in variant_map.values()]
+                
             fig.legend(handles=handles, ncol=len(handles), loc='lower center')
             fig.tight_layout(rect=[0,0.05,1,0.95])
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
             plt.close(fig)
-
         save_box(df, 'all_events','Events')
         save_box(df, 'all_time','Time')
         save_box(df[df['Error']<=0.05], 'le05_events','Events')
@@ -485,6 +489,28 @@ class Data:
                 fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
             # fig.tight_layout(rect=[0,0.05,1,0.95])
             fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
+            plt.close(fig)
+        # Istogrammi 2D per variante
+        xbins = np.linspace(0, df['Error'].max(), 20)
+        ybins = [0,5,10,15,20,25,30,35,40,50,60,70,80,90,100]
+        for key_var, (label, color) in variant_map.items():
+            fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
+            h = None
+            for i, (arena, ag) in enumerate(grid):
+                for j, m in enumerate(msg_list):
+                    ax = axes[i,j]
+                    cell = df[(df['VariantKey']==key_var)&(df['Arena']==arena)&(df['Agents']==ag)&(df['Msgs_exp_time']==m)]
+                    if not cell.empty:
+                        h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins,ybins], cmap='viridis')
+                    if i == 0:
+                        ax.set_title(col_labels[j])
+                axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=270)
+            # Add colorbar if any data
+            if h is not None:
+                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
+            # fig.tight_layout(rect=[0,0.05,1,0.95])
+            fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
             plt.close(fig)
 
 ##########################################################################################################

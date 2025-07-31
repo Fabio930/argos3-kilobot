@@ -47,7 +47,7 @@ def main():
         logging.info(f"Reading {file_path} : START")
         with open(file_path, 'r') as file:
             read = csv.reader(file)
-            data = {tuple(rows[:9]): rows[9:] for rows in read}
+            data = {tuple(rows[:10]): rows[10:] for rows in read}
         logging.info(f"Reading {file_path} : END")
         for i in data.keys():
             if i not in processed_keys:
