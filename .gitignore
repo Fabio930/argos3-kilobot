@@ -10,6 +10,6 @@ build
 Experiments.txt
 *proc_data*
 *_DATA_*
-*_data_*
+*_data*
 *msgs_data*
 *.tar.xz
