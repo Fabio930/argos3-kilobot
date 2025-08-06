@@ -451,13 +451,15 @@ class Data:
                     else:
                         ax.set_ylim(0,40)
                 # Rilascia label riga a destra
-                axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                axes[i,-1].annotate(r"$E_{r}$", xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=90)
+                axes[i,0].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
                                      ha='left', va='center', rotation=270)
             # Legenda
             handles = [mlines.Line2D([],[],color=color,marker='.',linestyle='None',markersize=24,label=label)
                        for label, color in variant_map.values()]
                 
-            fig.legend(handles=handles, ncol=len(handles), loc='lower center')
+            # fig.legend(handles=handles, ncol=len(handles), loc='lower center')
             fig.tight_layout(rect=[0,0.05,1,0.95])
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
             plt.close(fig)
