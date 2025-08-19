@@ -388,12 +388,12 @@ class Data:
 
         # Mappa varianti -> label e colore
         cm = plt.get_cmap('viridis')
-        norm = colors.Normalize(vmin=0, vmax=4)
+        norm = colors.Normalize(vmin=0, vmax=5)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=cm)
         variant_map = {
             # 'Pf': (r'$AN$', 'red'),
-            'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
-            'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
+            # 'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
+            # 'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
             'O.2.0': (r'$ID+R_{f}$', scalarMap.to_rgba(2)),
             'O.1.1': (r'$ID+R_{1}$', scalarMap.to_rgba(3)),
             'O.1.0': (r'$ID+R_{\infty}$', scalarMap.to_rgba(4)),
@@ -449,12 +449,17 @@ class Data:
                     if entry=="Time":
                         ax.set_ylim(0,100)
                     else:
-                        ax.set_ylim(0,40)
+                        ax.set_ylim(0,50)
                 # Rilascia label riga a destra
-                axes[i,-1].annotate(r"$E_{r}$", xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                if entry=="Time":
+                    axes[i,0].annotate(r"$T_{r}$", xy=(-.2, 0.5), xycoords='axes fraction', fontsize=36,
                                      ha='left', va='center', rotation=90)
-                axes[i,0].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
-                                     ha='left', va='center', rotation=270)
+                else:
+                    axes[i,0].annotate(r"$E_{r}$", xy=(-.2, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=90)
+    
+                axes[i,-1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction', fontsize=36,
+                                     ha='left', va='center', rotation=90)
             # Legenda
             handles = [mlines.Line2D([],[],color=color,marker='.',linestyle='None',markersize=24,label=label)
                        for label, color in variant_map.values()]
