@@ -48,11 +48,11 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path,algo,arenaS,buf,ticks_per_sec = task
+    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path,ticks_per_sec = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data_fifo(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path,algo,arenaS,buf, data_type)
+        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
     except KeyError as e:
         logging.error(f"KeyError processing {sub_path}: {e}")
     except Exception as e:
@@ -84,33 +84,14 @@ def main():
                                 dtemp = os.path.join(pre_path, zdir)
                                 for pre_folder in sorted(os.listdir(dtemp)):
                                     if '.' not in pre_folder:
-                                        _msg_exp_time = int(pre_folder.split('#')[-1])
+                                        msg_exp_time = int(pre_folder.split('#')[-1])
                                         sub_path = os.path.join(dtemp,pre_folder)
                                         for folder in sorted(os.listdir(sub_path)):
                                             if '.' not in folder:
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
-                                                info_vec    = sub_path.split('/')
-                                                algo    = ""
-                                                arenaS  = ""
-                                                for iv in info_vec:
-                                                    if "results_loop" in iv:
-                                                        algo        = iv[0]
-                                                        arenaS      = iv.split('_')[-1][:-1]
-                                                        break
-                                                BUFFERS = [19,21,22,23,24]
-                                                msg_exp_time = 60
-                                                if arenaS=='big':
-                                                    if n_agents==25:
-                                                        BUFFERS=[11,15,17,19,21]
-                                                    elif n_agents==100:
-                                                        BUFFERS=[41,56,65,74,83]
-                                                for buf in range(len(BUFFERS)):
-                                                    if buf==1: msg_exp_time=120
-                                                    elif buf==2: msg_exp_time=180
-                                                    elif buf==3: msg_exp_time=300
-                                                    elif buf==4: msg_exp_time=600
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,algo,arenaS,BUFFERS[buf],ticks_per_sec))
+                                                if n_agents==100:
+                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
