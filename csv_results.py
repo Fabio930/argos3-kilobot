@@ -391,9 +391,9 @@ class Data:
         norm = colors.Normalize(vmin=0, vmax=5)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=cm)
         variant_map = {
-            # 'Pf': (r'$AN$', 'red'),
-            # 'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
-            # 'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
+            'Pf': (r'$AN$', 'red'),
+            'P': (r'$AN_{t}$', scalarMap.to_rgba(0)),
+            'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
             'O.2.0': (r'$ID+R_{f}$', scalarMap.to_rgba(2)),
             'O.1.1': (r'$ID+R_{1}$', scalarMap.to_rgba(3)),
             'O.1.0': (r'$ID+R_{\infty}$', scalarMap.to_rgba(4)),
@@ -1324,25 +1324,6 @@ class Data:
             o_k.append(int(po_k[x]))
         o_k = np.sort(o_k)
         arena = more_k[0]
-        vals8p  = [[0]*len(threshlds)]*len(o_k)
-        vals2p  = [[0]*len(threshlds)]*len(o_k)
-        vals8pr  = [[0]*len(threshlds)]*len(o_k)
-        vals2pr  = [[0]*len(threshlds)]*len(o_k)
-        vals8a  = [[0]*len(threshlds)]*len(o_k)
-        vals2a  = [[0]*len(threshlds)]*len(o_k)
-        vals8f  = [[0]*len(threshlds)]*len(o_k)
-        vals2f  = [[0]*len(threshlds)]*len(o_k)
-        vals8r  = [[0]*len(threshlds)]*len(o_k)
-        vals2r  = [[0]*len(threshlds)]*len(o_k)
-        vals8ri = [[0]*len(threshlds)]*len(o_k)
-        vals2ri = [[0]*len(threshlds)]*len(o_k)
-
-        tvalsp  = [[0]*len(threshlds)]*len(o_k)
-        tvalspr  = [[0]*len(threshlds)]*len(o_k)
-        tvalsa  = [[0]*len(threshlds)]*len(o_k)
-        tvalsf  = [[0]*len(threshlds)]*len(o_k)
-        tvalsr  = [[0]*len(threshlds)]*len(o_k)
-        tvalsri = [[0]*len(threshlds)]*len(o_k)
 
         low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
         high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
@@ -1354,7 +1335,7 @@ class Data:
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
 
         handles_c   = [high_bound,low_bound]
-        handles_r   = [id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         str_threshlds = []
@@ -1365,6 +1346,7 @@ class Data:
         svoid_str_threshlds_y = []
         void_str_gt = []
         void_str_tim = []
+        vals_dict = {}
         for a in arena:
             if a=="smallA":
                 agents = ["25"]
@@ -1373,6 +1355,37 @@ class Data:
             for ag in agents:
                 row = 1  if a=="smallA" else 0
                 if int(ag)==100: row = 2
+                vals8p  = [[0]*len(threshlds)]*len(o_k)
+                vals2p  = [[0]*len(threshlds)]*len(o_k)
+                vals8pr  = [[0]*len(threshlds)]*len(o_k)
+                vals2pr  = [[0]*len(threshlds)]*len(o_k)
+                vals8a  = [[0]*len(threshlds)]*len(o_k)
+                vals2a  = [[0]*len(threshlds)]*len(o_k)
+                vals8f  = [[0]*len(threshlds)]*len(o_k)
+                vals2f  = [[0]*len(threshlds)]*len(o_k)
+                vals8r  = [[0]*len(threshlds)]*len(o_k)
+                vals2r  = [[0]*len(threshlds)]*len(o_k)
+                vals8ri = [[0]*len(threshlds)]*len(o_k)
+                vals2ri = [[0]*len(threshlds)]*len(o_k)
+                flag_vals8p  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2p  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals8pr  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2pr  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals8a  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2a  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals8f  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2f  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals8r  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2r  = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals8ri = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+                flag_vals2ri = [[[0,0],[0,0]]*len(threshlds)]*len(o_k)
+
+                tvalsp  = [[0]*len(threshlds)]*len(o_k)
+                tvalspr  = [[0]*len(threshlds)]*len(o_k)
+                tvalsa  = [[0]*len(threshlds)]*len(o_k)
+                tvalsf  = [[0]*len(threshlds)]*len(o_k)
+                tvalsr  = [[0]*len(threshlds)]*len(o_k)
+                tvalsri = [[0]*len(threshlds)]*len(o_k)
                 for k in range(len(o_k)):
                     for th in range(len(threshlds)):
                         p_vals2,pr_vals2,a_vals2,f_vals2,r_vals2,ri_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
@@ -1403,7 +1416,7 @@ class Data:
                                     p_vals8[1]  = pval
                                     p_gt8[1]    = ground_T[pt]
                             elif pval<=0.2:
-                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>p_vals2[0]):
+                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
                                     p_vals2[0]  = pval
                                     p_gt2[0]    = ground_T[pt]
                             else:
@@ -1422,7 +1435,7 @@ class Data:
                                     pr_vals8[1]  = prval
                                     pr_gt8[1]    = ground_T[pt]
                             elif prval<=0.2:
-                                if ground_T[pt]-threshlds[th] <=0 and (pr_vals2[0] is np.nan or prval>pr_vals2[0]):
+                                if ground_T[pt]-threshlds[th] <=0 and (pr_vals2[0] is np.nan or prval>=pr_vals2[0]):
                                     pr_vals2[0]  = prval
                                     pr_gt2[0]    = ground_T[pt]
                             else:
@@ -1593,19 +1606,41 @@ class Data:
                         vals8f[k][th] = np.round(np.interp([0.8],f_vals8,f_gt8,right=np.nan)[0],3)
                         vals8r[k][th] = np.round(np.interp([0.8],r_vals8,r_gt8,right=np.nan)[0],3)
                         vals8ri[k][th] = np.round(np.interp([0.8],ri_vals8,ri_gt8,right=np.nan)[0],3)
+                        flag_vals2p[k][th] = [p_vals2,p_gt2]
+                        flag_vals2pr[k][th] = [pr_vals2,pr_gt2]
+                        flag_vals2a[k][th] = [a_vals2,a_gt2]
+                        flag_vals2f[k][th] = [f_vals2,f_gt2]
+                        flag_vals2r[k][th] = [r_vals2,r_gt2]
+                        flag_vals2ri[k][th] = [ri_vals2,ri_gt2]
+                        flag_vals8p[k][th] = [p_vals8,p_gt8]
+                        flag_vals8pr[k][th] = [pr_vals8,pr_gt8]
+                        flag_vals8a[k][th] = [a_vals8,a_gt8]
+                        flag_vals8f[k][th] = [f_vals8,f_gt8]
+                        flag_vals8r[k][th] = [r_vals8,r_gt8]
+                        flag_vals8ri[k][th] = [ri_vals8,ri_gt8]
                         tvalsp[k][th] = p_valst
                         tvalspr[k][th] = pr_valst
                         tvalsa[k][th] = a_valst
                         tvalsf[k][th] = f_valst
                         tvalsr[k][th] = r_valst
                         tvalsri[k][th] = ri_valst
+
+                        key= (a,ag)
+                        vals_dict[key] = {
+                            "vals2p": flag_vals2p, "vals8p": flag_vals8p,
+                            "vals2pr": flag_vals2pr, "vals8pr": flag_vals8pr,
+                            "vals2a": flag_vals2a, "vals8a": flag_vals8a,
+                            "vals2f": flag_vals2f, "vals8f": flag_vals8f,
+                            "vals2r": flag_vals2r, "vals8r": flag_vals8r,
+                            "vals2ri": flag_vals2ri, "vals8ri": flag_vals8ri,
+                        }
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    # ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
-                    # ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
-                    # ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                    ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
+                    ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
+                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                     ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
                     ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                     ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
@@ -1613,9 +1648,9 @@ class Data:
                     ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
                     ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
 
-                    # tax[row][k].plot(tvalspr[k],color="red",lw=6)
-                    # tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    # tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
+                    tax[row][k].plot(tvalspr[k],color="red",lw=6)
+                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
+                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
                     tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
                     tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
                     tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
@@ -1736,13 +1771,99 @@ class Data:
         tfig.tight_layout()
         fig_path = path+_type+"_activation.pdf"
         tfig_path = path+t_type+"_time.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
-        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5,loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
+        tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
 
+        self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
+
+##########################################################################################################
+    def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
+        """
+        Genera una tabella per ogni valore di o_k e protocollo.
+        mode: 'v2' mostra solo i valori v2 (rosso), 'v8' solo v8 (verde).
+        """
+        protocols = [
+            ("anonymous_real_fifo", "pr"),
+            ("anonymous", "p"),
+            ("id_broad", "a"),
+            ("id_rebroad_fifo", "f"),
+            ("id_rebroad_rnd", "r"),
+            ("id_rebroad_rnd_inf", "ri"),
+        ]
+
+        for (a, ag), proto_dict in vals_dict.items():
+            for idx, ok_val in enumerate(o_k):
+                fig2, axes2 = plt.subplots(len(protocols), 1, figsize=(28, 76))
+                fig8, axes8 = plt.subplots(len(protocols), 1, figsize=(28, 76))
+                if len(protocols) == 1:
+                    axes2 = [axes2]
+                    axes8 = [axes8]
+                for p_idx, (title, suffix) in enumerate(protocols):
+                    vals2 = proto_dict[f"vals2{suffix}"]
+                    vals8 = proto_dict[f"vals8{suffix}"]
+                    gt_unique = sorted(set(ground_T))[::-1]
+                    cell_text2 = [[] for _ in gt_unique]
+                    cell_text8 = [[] for _ in gt_unique]
+                    for j, thr in enumerate(threshlds):
+                        for gt_idx, gt in enumerate(gt_unique):
+                            v2_txt = ""
+                            v8_txt = ""
+                            if gt in vals2[idx][j][1]:
+                                pos = vals2[idx][j][1].index(gt)
+                                v2 = vals2[idx][j][0][pos]
+                                v2_txt = f"{v2:.2f}\n"
+                            if gt in vals8[idx][j][1]:
+                                pos = vals8[idx][j][1].index(gt)
+                                v8 = vals8[idx][j][0][pos]
+                                v8_txt = f"{v8:.2f}\n"
+                            cell_text2[gt_idx].append(v2_txt)
+                            cell_text8[gt_idx].append(v8_txt)
+                    table2 = axes2[p_idx].table(
+                        cellText=cell_text2,
+                        colLabels=[f"{t:.2f}" for t in threshlds],
+                        rowLabels=[f"{gt:.2f}" for gt in gt_unique],
+                        loc='center',
+                        cellLoc='center'
+                    )
+                    table8 = axes8[p_idx].table(
+                        cellText=cell_text8,
+                        colLabels=[f"{t:.2f}" for t in threshlds],
+                        rowLabels=[f"{gt:.2f}" for gt in gt_unique],
+                        loc='center',
+                        cellLoc='center'
+                    )
+                    axes2[p_idx].set_title(f"{title} ({a}, {ag})")
+                    axes2[p_idx].axis('off')
+                    axes8[p_idx].set_title(f"{title} ({a}, {ag})")
+                    axes8[p_idx].axis('off')
+                    table2.auto_set_font_size(False)
+                    table2.set_fontsize(18)
+                    table2.scale(2.5, 4.0)
+                    table8.auto_set_font_size(False)
+                    table8.set_fontsize(18)
+                    table8.scale(2.5, 4.0)
+                    for (i, j), cell in table2.get_celld().items():
+                        if i == 0 or j == -1:
+                            continue
+                        if i > 0 and j >= 0:
+                            if cell.get_text().get_text() != "":
+                                cell.set_facecolor('#ffcccc')
+                    for (i, j), cell in table8.get_celld().items():
+                        if i == 0 or j == -1:
+                            continue
+                        if i > 0 and j >= 0:
+                            if cell.get_text().get_text() != "":
+                                cell.set_facecolor('#ccffcc')
+                fig2.tight_layout()
+                fig2.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}_2.png", bbox_inches='tight')
+                plt.close(fig2)
+                fig8.tight_layout()
+                fig8.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}_8.png", bbox_inches='tight')
+                plt.close(fig8)
 ##########################################################################################################
     def extract_median(self,array,max_time):
         mt = int(max_time)
