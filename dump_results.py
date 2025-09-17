@@ -90,8 +90,7 @@ def main():
                                             if '.' not in folder:
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
-                                                if n_agents==100:
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
+                                                queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -124,7 +123,7 @@ def main():
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory < 1024 and len(active_processes) > 0:
+        if available_memory < 2048 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -141,20 +140,20 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][3] == 100: h_counter -= 4
-            elif process[1][3] == 25: h_counter -= 1
+            if process[1][3] == 100: h_counter -= 9
+            elif process[1][3] == 25: h_counter -= 3
             logging.info(f"Process {key} for task {process[1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 start = True
                 if task[3] == 100:
-                    if h_counter < 12 : h_counter += 4
+                    if h_counter < 9 : h_counter += 9
                     else:
                         queue.put(task)
                         start = False
                 elif task[3] == 25:
-                    if h_counter < 15 : h_counter += 1
+                    if h_counter < 15 : h_counter += 3
                     else:
                         queue.put(task)
                         start = False

@@ -63,6 +63,87 @@ class Results:
         return out
 
 ##########################################################################################################
+    def compute_messages_homogeneity(self, data, limit, algo):
+        FIXED_DIM = 100
+        data_partial = []
+        for ag in range(len(data)):
+            runs = []
+            for rn in range(len(data[ag])):
+                tmp = [ [-1]*FIXED_DIM for _ in range(len(data[0][0])) ]
+                for tk in range(len(data[ag][rn])):
+                    stripped_ones = np.delete(data[ag][rn][tk], np.where(data[ag][rn][tk] == -1))
+                    start = 0
+                    if algo == 'P' and len(stripped_ones) > limit:
+                        start = len(stripped_ones) - limit
+                    ids = stripped_ones[start:]
+                    if len(ids) > 0:
+                        _, counts = np.unique(ids, return_counts=True)
+                        padded_counts = list(counts) + [-1]*(FIXED_DIM - len(counts))
+                        tmp[tk] = padded_counts[:FIXED_DIM]
+                    else:
+                        tmp[tk] = [-1]*FIXED_DIM
+                runs.append(tmp)
+            data_partial.append(runs)
+
+        n_agents = len(data_partial)
+        n_runs = len(data_partial[0])
+        n_ticks = len(data_partial[0][0])
+
+        max_counts = [0] * n_ticks
+        min_counts = [0] * n_ticks
+        median_max_counts = [0.0] * n_ticks
+        median_min_counts = [0.0] * n_ticks
+        median_super_agents = [0.0] * n_ticks
+        median_agents_90 = [0.0] * n_ticks  # nuovo dato
+
+        for tk in range(n_ticks):
+            all_max = []
+            all_min = []
+            super_agents_per_run = []
+            agents_90_per_run = []
+            for ag in range(n_agents):
+                for rn in range(n_runs):
+                    counts = data_partial[ag][rn][tk]
+                    valid_counts = [c for c in counts if c != -1]
+                    if valid_counts:
+                        all_max.append(np.max(valid_counts))
+                        all_min.append(np.min(valid_counts))
+            if all_max:
+                max_counts[tk] = int(np.max(all_max))
+                min_counts[tk] = int(np.min(all_min))
+                median_max_counts[tk] = float(np.median(all_max))
+                median_min_counts[tk] = float(np.median(all_min))
+            else:
+                max_counts[tk] = 0
+                min_counts[tk] = 0
+                median_max_counts[tk] = 0.0
+                median_min_counts[tk] = 0.0
+
+            # Mediana agenti "super" (>= median_max_counts)
+            for rn in range(n_runs):
+                super_count = 0
+                agents_90_count = 0
+                for ag in range(n_agents):
+                    counts = data_partial[ag][rn][tk]
+                    valid_counts = [c for c in counts if c != -1]
+                    if any(c >= median_max_counts[tk] for c in valid_counts):
+                        super_count += 1
+                    if max_counts[tk] > 0 and any(c >= 0.9 * max_counts[tk] for c in valid_counts):
+                        agents_90_count += 1
+                super_agents_per_run.append(super_count)
+                agents_90_per_run.append(agents_90_count)
+            if super_agents_per_run:
+                median_super_agents[tk] = float(np.median(super_agents_per_run))
+            else:
+                median_super_agents[tk] = 0.0
+            if agents_90_per_run:
+                median_agents_90[tk] = float(np.median(agents_90_per_run))
+            else:
+                median_agents_90[tk] = 0.0
+
+        return max_counts, min_counts, median_max_counts, median_min_counts, median_super_agents, median_agents_90
+ 
+##########################################################################################################
     def compute_meaningful_msgs(self,data,limit,algo):
         data_partial = np.array([])
         for ag in range(len(data)):
@@ -237,6 +318,8 @@ class Results:
                     buf = 4
                 messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo)
                 self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
+                max_homogeneity, min_homogeneity, median_max_homo, median_min_homo, median_agents, agents_90  = self.compute_messages_homogeneity(msgs_bigM_1,BUFFERS[buf],algo)
+                self.dump_msgs_homogeneity("messages_homogeneity.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,(max_homogeneity, min_homogeneity, median_max_homo, median_min_homo,median_agents,agents_90)])
                 for gt in range(len(self.ground_truth)):
                     results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                     for thr in self.thresholds.get(self.ground_truth[gt]):
@@ -246,7 +329,7 @@ class Results:
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1,msg_exp_time)
                         del quorums
                     del results
-                del messages
+                del max_homogeneity, min_homogeneity, median_max_homo, median_min_homo, median_agents,messages
             else:
                 messages = self.compute_meaningful_msgs(msgs_bigM_1,msg_exp_time,algo)
                 self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
@@ -453,6 +536,25 @@ class Results:
                 fwriter.writerow(header)
             fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['msg_exp_time'],external_data['msg_hops'],external_data['ground_truth'],external_data['threshold'],
                                 data[0],data[1],data[2]])
+
+##########################################################################################################
+    def dump_msgs_homogeneity(self, file_name, data):
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
+        
+        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
+        
+        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            base_data = list(data[:-1])
+            stats_tuple = data[-1]
+            types = ["max_count", "min_count", "median_max_count", "median_min_count", "agents_over_median", "90_agents"]
+            for t, stat in zip(types, stats_tuple):
+                row = base_data + [t, stat]
+                fwriter.writerow(row)
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
