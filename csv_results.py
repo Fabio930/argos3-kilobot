@@ -160,6 +160,66 @@ class Data:
         self.print_messages([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo])
 
 ##########################################################################################################
+    def plot_messages_homogeneity(self,data):
+        max_dict_park, max_dict_park_real_fifo, max_dict_adam, max_dict_fifo, max_dict_rnd, max_dict_rnd_inf = {},{},{},{},{},{}
+        min_dict_park, min_dict_park_real_fifo, min_dict_adam, min_dict_fifo, min_dict_rnd, min_dict_rnd_inf = {},{},{},{},{},{}
+        median_max_dict_park, median_max_dict_park_real_fifo, median_max_dict_adam, median_max_dict_fifo, median_max_dict_rnd, median_max_dict_rnd_inf = {},{},{},{},{},{}
+        median_min_dict_park, median_min_dict_park_real_fifo, median_min_dict_adam, median_min_dict_fifo, median_min_dict_rnd, median_min_dict_rnd_inf = {},{},{},{},{},{}
+        agents_dict_park, agents_dict_park_real_fifo, agents_dict_adam, agents_dict_fifo, agents_dict_rnd, agents_dict_rnd_inf = {},{},{},{},{},{}
+        agents_90_dict_park, agents_90_dict_park_real_fifo, agents_90_dict_adam, agents_90_dict_fifo, agents_90_dict_rnd, agents_90_dict_rnd_inf = {},{},{},{},{},{}
+        for k in data[0].keys():
+            if k[1]=='P':
+                max_dict_park.update({(k[0],k[3],k[4]):data[0].get(k)})
+                min_dict_park.update({(k[0],k[3],k[4]):data[1].get(k)})
+                median_max_dict_park.update({(k[0],k[3],k[4]):data[2].get(k)})
+                median_min_dict_park.update({(k[0],k[3],k[4]):data[3].get(k)})
+                agents_dict_park.update({(k[0],k[3],k[4]):data[4].get(k)})
+                agents_90_dict_park.update({(k[0],k[3],k[4]):data[5].get(k)})
+            elif k[1]=='Pf':
+                max_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[0].get(k)})
+                min_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[1].get(k)})
+                median_max_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[2].get(k)})
+                median_min_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[3].get(k)})
+                agents_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[4].get(k)})
+                agents_90_dict_park_real_fifo.update({(k[0],k[3],k[4]):data[5].get(k)})
+            else:
+                if k[2]=="0":
+                    max_dict_adam.update({(k[0],k[3],k[4]):data[0].get(k)})
+                    min_dict_adam.update({(k[0],k[3],k[4]):data[1].get(k)})
+                    median_max_dict_adam.update({(k[0],k[3],k[4]):data[2].get(k)})
+                    median_min_dict_adam.update({(k[0],k[3],k[4]):data[3].get(k)})
+                    agents_dict_adam.update({(k[0],k[3],k[4]):data[4].get(k)})
+                    agents_90_dict_adam.update({(k[0],k[3],k[4]):data[5].get(k)})
+                elif k[2]=="2":
+                    max_dict_fifo.update({(k[0],k[3],k[4]):data[0].get(k)})
+                    min_dict_fifo.update({(k[0],k[3],k[4]):data[1].get(k)})
+                    median_max_dict_fifo.update({(k[0],k[3],k[4]):data[2].get(k)})
+                    median_min_dict_fifo.update({(k[0],k[3],k[4]):data[3].get(k)})
+                    agents_dict_fifo.update({(k[0],k[3],k[4]):data[4].get(k)})
+                    agents_90_dict_fifo.update({(k[0],k[3],k[4]):data[5].get(k)})
+                else:
+                    if k[5] == "1":
+                        max_dict_rnd.update({(k[0],k[3],k[4]):data[0].get(k)})
+                        min_dict_rnd.update({(k[0],k[3],k[4]):data[1].get(k)})
+                        median_max_dict_rnd.update({(k[0],k[3],k[4]):data[2].get(k)})
+                        median_min_dict_rnd.update({(k[0],k[3],k[4]):data[3].get(k)})
+                        agents_dict_rnd.update({(k[0],k[3],k[4]):data[4].get(k)})
+                        agents_90_dict_rnd.update({(k[0],k[3],k[4]):data[5].get(k)})
+                    else:
+                        max_dict_rnd_inf.update({(k[0],k[3],k[4]):data[0].get(k)})
+                        min_dict_rnd_inf.update({(k[0],k[3],k[4]):data[1].get(k)})
+                        median_max_dict_rnd_inf.update({(k[0],k[3],k[4]):data[2].get(k)})
+                        median_min_dict_rnd_inf.update({(k[0],k[3],k[4]):data[3].get(k)})
+                        agents_dict_rnd_inf.update({(k[0],k[3],k[4]):data[4].get(k)})
+                        agents_90_dict_rnd_inf.update({(k[0],k[3],k[4]):data[5].get(k)})
+        self.print_messages_homogeneity([max_dict_park,max_dict_adam,max_dict_fifo,max_dict_rnd,max_dict_rnd_inf,max_dict_park_real_fifo],
+                                        [min_dict_park, min_dict_park_real_fifo, min_dict_adam, min_dict_fifo, min_dict_rnd, min_dict_rnd_inf],
+                                        [median_max_dict_park, median_max_dict_park_real_fifo, median_max_dict_adam, median_max_dict_fifo, median_max_dict_rnd, median_max_dict_rnd_inf],
+                                        [median_min_dict_park, median_min_dict_park_real_fifo, median_min_dict_adam, median_min_dict_fifo, median_min_dict_rnd, median_min_dict_rnd_inf],
+                                        [agents_dict_park, agents_dict_park_real_fifo, agents_dict_adam, agents_dict_fifo, agents_dict_rnd, agents_dict_rnd_inf],
+                                        [agents_90_dict_park, agents_90_dict_park_real_fifo, agents_90_dict_adam, agents_90_dict_fifo, agents_90_dict_rnd, agents_90_dict_rnd_inf])
+
+##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
         lc = 0
@@ -195,6 +255,59 @@ class Data:
                                 else:
                                     keys.append(tval)
         return data
+
+##########################################################################################################
+    def read_msgs_homogeneity_csv(self,path):
+        max_data, min_data, median_max_data, median_min_data, agents, agents_90 = {},{},{},{},{},{}
+        lc,data_type = 0,0
+        with open(path,newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if lc == 0: lc = 1
+                else:
+                    keys = []
+                    array_val=[]
+                    for val in row:
+                        split_val = val.split('\t')
+                        if len(split_val)==1:
+                            tval = val  
+                            if ']' in val:
+                                tval = ''
+                                for c in val:
+                                    if c != ']':
+                                        tval+=c
+                            array_val.append(float(tval))
+                            if ']' in val:
+                                if data_type == 0:
+                                    max_data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 1
+                                elif data_type == 1:
+                                    min_data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 2
+                                elif data_type == 2:
+                                    median_max_data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 3
+                                elif data_type == 3:
+                                    median_min_data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 4
+                                elif data_type == 4:
+                                    agents.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 5
+                                elif data_type == 5:
+                                    agents_90.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                                    data_type = 0
+                        else:
+                            for k in range(len(split_val)):
+                                tval = split_val[k]
+                                if '[' in split_val[k]:
+                                    tval = ''
+                                    for c in split_val[k]:
+                                        if c != '[':
+                                            tval+=c
+                                    array_val.append(float(tval))
+                                else:
+                                    keys.append(tval)
+        return max_data, min_data, median_max_data, median_min_data, agents, agents_90
 
 ##########################################################################################################
     def read_recovery_csv(self,path,algo,arena):
@@ -1204,6 +1317,241 @@ class Data:
         plt.close(fig)
 
 ##########################################################################################################
+    def print_messages_homogeneity(self,max_data_in,min_data_in,median_max_data,median_min_data,agents_data,agents_90_data):
+        plt.rcParams.update({"font.size":36})
+        max_dict_park, min_dict_park, median_max_dict_park, median_min_dict_park, agents, agents_90 = max_data_in[0], min_data_in[0] ,median_max_data[0] ,median_min_data[0], agents_data[0], agents_90_data[0]
+        max_rep         = mlines.Line2D([], [], color="red", marker="None", linestyle='-', linewidth=6, label="abs max")
+        median_max_rep  = mlines.Line2D([], [], color="red", marker="None", linestyle='--', linewidth=6, label="median max")
+        median_min_rep  = mlines.Line2D([], [], color="black", marker="None", linestyle='--', linewidth=6, label="median min")
+        agents_lab      = mlines.Line2D([], [], color="green", marker="None", linestyle='-', linewidth=6, label="agents")
+        real_x_ticks = []
+        void_x_ticks = []
+        svoid_x_ticks = []
+        handles_r   = [max_rep,median_max_rep,median_min_rep,agents_lab]
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
+        for k in agents.keys():
+            tmp =[]
+            res = agents.get(k)
+            norm = int(k[1])
+            for xi in res:
+                tmp.append(xi/norm)
+            agents.update({k:tmp})
+        for k in max_dict_park.keys():
+            tmp =[]
+            res = max_dict_park.get(k)
+            BUFFERS = [19,21,22,23,24]
+            buf = 0
+            if k[0]=='big':
+                if int(k[1])==25:
+                    BUFFERS=[11,15,17,19,21]
+                elif int(k[1])==100:
+                    BUFFERS=[41,56,65,74,83]
+            if int(k[2])==120:
+                buf = 1
+            elif int(k[2])==180:
+                buf = 2
+            elif int(k[2])==300:
+                buf = 3
+            elif int(k[2])==600:
+                buf = 4
+            norm = BUFFERS[buf]
+            for xi in res:
+                tmp.append(xi/norm)
+            max_dict_park.update({k:tmp})
+        for k in median_max_dict_park.keys():
+            tmp =[]
+            res = median_max_dict_park.get(k)
+            BUFFERS = [19,21,22,23,24]
+            buf = 0
+            if k[0]=='big':
+                if int(k[1])==25:
+                    BUFFERS=[11,15,17,19,21]
+                elif int(k[1])==100:
+                    BUFFERS=[41,56,65,74,83]
+            if int(k[2])==120:
+                buf = 1
+            elif int(k[2])==180:
+                buf = 2
+            elif int(k[2])==300:
+                buf = 3
+            elif int(k[2])==600:
+                buf = 4
+            norm = BUFFERS[buf]
+            for xi in res:
+                tmp.append(xi/norm)
+            median_max_dict_park.update({k:tmp})
+        for k in median_min_dict_park.keys():
+            tmp =[]
+            res = median_min_dict_park.get(k)
+            BUFFERS = [19,21,22,23,24]
+            buf = 0
+            if k[0]=='big':
+                if int(k[1])==25:
+                    BUFFERS=[11,15,17,19,21]
+                elif int(k[1])==100:
+                    BUFFERS=[41,56,65,74,83]
+            if int(k[2])==120:
+                buf = 1
+            elif int(k[2])==180:
+                buf = 2
+            elif int(k[2])==300:
+                buf = 3
+            elif int(k[2])==600:
+                buf = 4
+            norm = BUFFERS[buf]
+            for xi in res:
+                tmp.append(xi/norm)
+            median_min_dict_park.update({k:tmp})
+        for k in max_dict_park.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(max_dict_park.get(k),color="red",ls="-",lw=6)
+        for k in median_max_dict_park.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(median_max_dict_park.get(k),color="red",ls="--",lw=6)
+        for k in median_min_dict_park.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(median_min_dict_park.get(k),color="black",ls="--",lw=6)
+        for k in agents.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(agents.get(k),color="green",ls="-",lw=6)
+        for x in range(2):
+            for y in range(5):
+                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        for x in range(3):
+            for y in range(1,5):
+                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
+                empty_string_labels = ['']*len(labels)
+                ax[x][y].set_yticklabels(empty_string_labels)
+        for y in range(5):
+            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
+            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        axt0=ax[0][0].twiny()
+        axt1=ax[0][1].twiny()
+        axt2=ax[0][2].twiny()
+        axt3=ax[0][3].twiny()
+        axt4=ax[0][4].twiny()
+        labels = [item.get_text() for item in axt0.get_xticklabels()]
+        empty_string_labels = ['']*len(labels)
+        axt0.set_xticklabels(empty_string_labels)
+        axt1.set_xticklabels(empty_string_labels)
+        axt2.set_xticklabels(empty_string_labels)
+        axt3.set_xticklabels(empty_string_labels)
+        axt4.set_xticklabels(empty_string_labels)
+        axt0.set_xlabel(r"$T_m = 60\, s$")
+        axt1.set_xlabel(r"$T_m = 120\, s$")
+        axt2.set_xlabel(r"$T_m = 180\, s$")
+        axt3.set_xlabel(r"$T_m = 300\, s$")
+        axt4.set_xlabel(r"$T_m = 600\, s$")
+        ayt0=ax[0][4].twinx()
+        ayt1=ax[1][4].twinx()
+        ayt2=ax[2][4].twinx()
+        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        empty_string_labels = ['']*len(labels)
+        ayt0.set_yticklabels(empty_string_labels)
+        ayt1.set_yticklabels(empty_string_labels)
+        ayt2.set_yticklabels(empty_string_labels)
+        ayt0.set_ylabel("LD25")
+        ayt1.set_ylabel("HD25")
+        ayt2.set_ylabel("HD100")
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
+        ax[2][0].set_xlabel(r"$T\, (s)$")
+        ax[2][1].set_xlabel(r"$T\, (s)$")
+        ax[2][2].set_xlabel(r"$T\, (s)$")
+        ax[2][3].set_xlabel(r"$T\, (s)$")
+        ax[2][4].set_xlabel(r"$T\, (s)$")
+        for x in range(3):
+            for y in range(5):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_ylim(0,1)
+        fig.tight_layout()
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
+        fig_path = self.base+"/msgs_data/images/messages_homogeneity.pdf"
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+
+##########################################################################################################
     def print_buff_opts(self,path,data_in,fig_name,y_lim):
         plt.rcParams.update({"font.size":36})
         cm = plt.get_cmap('viridis') 
@@ -1783,8 +2131,7 @@ class Data:
 ##########################################################################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
         """
-        Genera una tabella per ogni valore di o_k e protocollo.
-        mode: 'v2' mostra solo i valori v2 (rosso), 'v8' solo v8 (verde).
+        Genera una tabella unica per ogni valore di o_k e protocollo, con valori v2 (rosso) e v8 (verde) nella stessa cella.
         """
         protocols = [
             ("anonymous_real_fifo", "pr"),
@@ -1797,73 +2144,71 @@ class Data:
 
         for (a, ag), proto_dict in vals_dict.items():
             for idx, ok_val in enumerate(o_k):
-                fig2, axes2 = plt.subplots(len(protocols), 1, figsize=(28, 76))
-                fig8, axes8 = plt.subplots(len(protocols), 1, figsize=(28, 76))
+                fig, axes = plt.subplots(len(protocols), 1, figsize=(28, 84))
                 if len(protocols) == 1:
-                    axes2 = [axes2]
-                    axes8 = [axes8]
+                    axes = [axes]
                 for p_idx, (title, suffix) in enumerate(protocols):
                     vals2 = proto_dict[f"vals2{suffix}"]
                     vals8 = proto_dict[f"vals8{suffix}"]
                     gt_unique = sorted(set(ground_T))[::-1]
-                    cell_text2 = [[] for _ in gt_unique]
-                    cell_text8 = [[] for _ in gt_unique]
+                    cell_text = [[] for _ in gt_unique]
                     for j, thr in enumerate(threshlds):
                         for gt_idx, gt in enumerate(gt_unique):
                             v2_txt = ""
                             v8_txt = ""
+                            # Cerca il valore v2
                             if gt in vals2[idx][j][1]:
                                 pos = vals2[idx][j][1].index(gt)
                                 v2 = vals2[idx][j][0][pos]
-                                v2_txt = f"{v2:.2f}\n"
+                                v2_txt = f"{v2:.2f}"
+                            # Cerca il valore v8
                             if gt in vals8[idx][j][1]:
                                 pos = vals8[idx][j][1].index(gt)
                                 v8 = vals8[idx][j][0][pos]
-                                v8_txt = f"{v8:.2f}\n"
-                            cell_text2[gt_idx].append(v2_txt)
-                            cell_text8[gt_idx].append(v8_txt)
-                    table2 = axes2[p_idx].table(
-                        cellText=cell_text2,
+                                v8_txt = f"{v8:.2f}"
+                            # Unisci i valori nella stessa cella
+                            if v2_txt and v8_txt:
+                                if float(v2_txt) != float(v8_txt):
+                                    cell_text[gt_idx].append("ERR")
+                                else:
+                                    cell_text[gt_idx].append(f"{v2_txt}_B")
+                            elif v2_txt:
+                                cell_text[gt_idx].append(f"{v2_txt}_L")
+                            elif v8_txt:
+                                cell_text[gt_idx].append(f"{v8_txt}_H")
+                            else:
+                                cell_text[gt_idx].append("")
+                    table = axes[p_idx].table(
+                        cellText=cell_text,
                         colLabels=[f"{t:.2f}" for t in threshlds],
                         rowLabels=[f"{gt:.2f}" for gt in gt_unique],
                         loc='center',
                         cellLoc='center'
                     )
-                    table8 = axes8[p_idx].table(
-                        cellText=cell_text8,
-                        colLabels=[f"{t:.2f}" for t in threshlds],
-                        rowLabels=[f"{gt:.2f}" for gt in gt_unique],
-                        loc='center',
-                        cellLoc='center'
-                    )
-                    axes2[p_idx].set_title(f"{title} ({a}, {ag})")
-                    axes2[p_idx].axis('off')
-                    axes8[p_idx].set_title(f"{title} ({a}, {ag})")
-                    axes8[p_idx].axis('off')
-                    table2.auto_set_font_size(False)
-                    table2.set_fontsize(18)
-                    table2.scale(2.5, 4.0)
-                    table8.auto_set_font_size(False)
-                    table8.set_fontsize(18)
-                    table8.scale(2.5, 4.0)
-                    for (i, j), cell in table2.get_celld().items():
+                    axes[p_idx].set_title(f"{title} ({a}, {ag})")
+                    axes[p_idx].axis('off')
+                    table.auto_set_font_size(False)
+                    table.set_fontsize(18)
+                    table.scale(2.5, 4.0)
+                    # Colora le celle: rosso se v2 presente, verde se v8 presente
+                    for (i, j), cell in table.get_celld().items():
                         if i == 0 or j == -1:
                             continue
                         if i > 0 and j >= 0:
-                            if cell.get_text().get_text() != "":
-                                cell.set_facecolor('#ffcccc')
-                    for (i, j), cell in table8.get_celld().items():
-                        if i == 0 or j == -1:
-                            continue
-                        if i > 0 and j >= 0:
-                            if cell.get_text().get_text() != "":
-                                cell.set_facecolor('#ccffcc')
-                fig2.tight_layout()
-                fig2.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}_2.png", bbox_inches='tight')
-                plt.close(fig2)
-                fig8.tight_layout()
-                fig8.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}_8.png", bbox_inches='tight')
-                plt.close(fig8)
+                            txt = cell.get_text().get_text()
+                            if "_" in txt:
+                                if txt.split('_')[-1] == "B":
+                                    cell.get_text().set_text(txt.split("_B")[0])
+                                    cell.set_facecolor("#ffae00")  # arancione
+                                elif txt.split('_')[-1] == "L":
+                                    cell.get_text().set_text(txt.split("_L")[0])
+                                    cell.set_facecolor('#ffcccc')  # rosso
+                                elif txt.split('_')[-1] == "H":
+                                    cell.get_text().set_text(txt.split("_H")[0])
+                                    cell.set_facecolor('#ccffcc')  # verde
+                fig.tight_layout()
+                fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.png", bbox_inches='tight')
+                plt.close(fig)
 ##########################################################################################################
     def extract_median(self,array,max_time):
         mt = int(max_time)
