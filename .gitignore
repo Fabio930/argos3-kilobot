@@ -10,5 +10,6 @@ build
 **/*cache*
 *_DATA_*
 *_data/*
+*diagnostics_*/*
 *.tar.xz
 *_images*

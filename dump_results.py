@@ -1,10 +1,5 @@
+import os, sys, logging, gc, time, psutil
 import data_extractor as dex
-import os
-import sys
-import logging
-import gc
-import time
-import psutil
 from multiprocessing import Process, Manager
 
 # Setup logging
@@ -90,7 +85,8 @@ def main():
                                             if '.' not in folder:
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
-                                                queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
+                                                if n_agents==25:
+                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -140,20 +136,20 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][3] == 100: h_counter -= 9
-            elif process[1][3] == 25: h_counter -= 3
+            if process[1][3] == 100: h_counter -= 4
+            elif process[1][3] == 25: h_counter -= 2
             logging.info(f"Process {key} for task {process[1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 start = True
                 if task[3] == 100:
-                    if h_counter < 9 : h_counter += 9
+                    if h_counter < 12 : h_counter += 4
                     else:
                         queue.put(task)
                         start = False
                 elif task[3] == 25:
-                    if h_counter < 15 : h_counter += 3
+                    if h_counter < 18 : h_counter += 2
                     else:
                         queue.put(task)
                         start = False

@@ -1,13 +1,14 @@
-from tsmoothie.smoother import *
+import os, csv, math, logging
 import numpy as np
 import pandas as pd
-import os, csv, math
-from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from matplotlib import pyplot as plt
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
+from tsmoothie.smoother import *
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 class Data:
 
 ##########################################################################################################
@@ -15,7 +16,7 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "msgs_data" or elem == "proc_data" or elem == "rec_data":
+            if elem == "msgs_data" or elem == "proc_data" or elem == "rec_data" or elem=="diagnostics_states_chunks":
                 self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
