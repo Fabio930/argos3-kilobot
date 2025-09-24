@@ -42,7 +42,6 @@ class Data:
         path = self.base+"/weib_images/"
 
         durations_by_buffer = self.dull_division(buff_starts,durations,event_observed)
-        # durations_by_buffer = self.divide_event_by_buffer(buf_dim,buff_starts,durations,event_observed)
         durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
         adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
         wf = WeibullFitter()
@@ -51,6 +50,7 @@ class Data:
         for k in adapted_durations.keys():
             a_data = adapted_durations.get(k)[0]
             a_censoring = adapted_durations.get(k)[1]
+            a_buffers = adapted_durations.get(k)[2]
             if len(a_data)>100:
                 wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                 kmf.fit(a_data, event_observed=a_censoring,label="kmf "+k)
@@ -59,7 +59,7 @@ class Data:
                 ax.plot(kmf.cumulative_density_)
                 fig.tight_layout()
                 fig.savefig(path+algo+'_'+comunication+'_'+msg_hops+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
-                estimates.update({k:[self.wb_get_mean_and_std(wf),len(durations_by_buffer.get(k)[1])]})
+                estimates.update({k:[self.wb_get_mean_and_std(wf),len(a_buffers)-1]})
         return estimates
 
 ##########################################################################################################
@@ -74,52 +74,30 @@ class Data:
     
 ##########################################################################################################
     def dull_division(self,buffer,durations,event_observed):
-        durations_by_buffer = {"all": [[], []]}
+        durations_by_buffer = {"all": [[], [], []]}
         for i in range(len(buffer)):
             tmp = durations_by_buffer.get("all")
             tmp[0].append(durations[i])
             tmp[1].append(event_observed[i])
+            tmp[2].append(buffer[i])
             durations_by_buffer.update({"all":tmp})
         return durations_by_buffer
     
-##########################################################################
-    def divide_event_by_buffer(self,limit_buf,buffer,durations,event_observed):
-        min_dim = 5
-        max_dim = float(limit_buf)
-        diff = max_dim - min_dim
-        durations_by_buffer = {"33": [[], []], "66": [[], []], "100": [[], []]}
-        for i in range(len(buffer)):
-            dimension = float(buffer[i])
-            if dimension<=diff*0.33 + min_dim:
-                tmp = durations_by_buffer.get("33")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"33":tmp})
-            elif dimension>diff*0.33 + min_dim and dimension<=diff*0.66 + min_dim:
-                tmp = durations_by_buffer.get("66")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"66":tmp})
-            elif dimension>diff*0.66 + min_dim:
-                tmp = durations_by_buffer.get("100")
-                tmp[0].append(durations[i])
-                tmp[1].append(event_observed[i])
-                durations_by_buffer.update({"100":tmp})
-        return durations_by_buffer
-
 ##########################################################################################################
     def adapt_dict_to_weibull_est(self,data):
         out = {}
         for k in data.keys():
             durations = data.get(k)[0]
             event_observed = data.get(k)[1]
+            buffers = data.get(k)[2]
             if len(durations)>0:
-                if durations[0] > 0: durations,event_observed = np.insert(durations,0,0),np.insert(event_observed,0,0)
+                if durations[0] > 0: durations,event_observed,buffers = np.insert(durations,0,0),np.insert(event_observed,0,0),np.insert(buffers,0,0)
                 durations = list(durations)
                 event_observed = list(event_observed)
+                buffers = list(buffers)
                 for i in range(len(durations)):
                     if durations[i] == 0: durations[i] = .00000001
-            out.update({k:[durations,event_observed]})
+            out.update({k:[durations,event_observed,buffers]})
         return out
     
 ##########################################################################################################
@@ -128,16 +106,20 @@ class Data:
         for k in data_to_sort.keys():
             durations = data_to_sort.get(k)[0]
             event_observed = data_to_sort.get(k)[1]
+            buffers = data_to_sort.get(k)[2]
             for i in range(len(durations)):
-                for j in range(len(durations)):
-                    if durations[j]<durations[i] and i<j:
+                for j in range(i+1,len(durations)):
+                    if durations[j]<durations[i]:
                         tmp = durations[i]
                         durations[i] = durations[j]
                         durations[j] = tmp
                         tmp = event_observed[i]
                         event_observed[i] = event_observed[j]
                         event_observed[j] = tmp
-            out.update({k:[durations,event_observed]})
+                        tmp = buffers[i]
+                        buffers[i] = buffers[j]
+                        buffers[j] = tmp
+            out.update({k:[durations,event_observed,buffers]})
         return out
 
 ##########################################################################################################
@@ -561,9 +543,9 @@ class Data:
                     if i == 0:
                         ax.set_title(col_labels[j])
                     if entry=="Time":
-                        ax.set_ylim(0,20)
+                        ax.set_ylim(0,200)
                     else:
-                        ax.set_ylim(-0.03,1.03)
+                        ax.set_ylim(0,30)
                 # Rilascia label riga a destra
                 if entry=="Time":
                     axes[i,0].annotate(r"$T_{r}$", xy=(-.2, 0.5), xycoords='axes fraction', fontsize=36,
@@ -591,7 +573,7 @@ class Data:
 
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = np.arange(0.00,1.1,0.05)
+        ybins = np.arange(0,31)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None
@@ -612,7 +594,7 @@ class Data:
             plt.close(fig)
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = np.arange(0,21,1)
+        ybins = np.arange(0,201)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None

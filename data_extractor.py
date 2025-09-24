@@ -1,9 +1,8 @@
-import os, csv, math, gc, logging, re
+import os, csv, math, gc, logging
 import numpy as np
-import pandas as pd
 class Results:
     thresholds      = {}
-    ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
+    ground_truth    = [.52] #,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
     min_buff_dim    = 5
     ticks_per_sec   = 10
     limit           = 0.8
@@ -39,7 +38,7 @@ class Results:
                 for t in range(len(m1[j][i])):
                     dim = 1
                     ones = states[i][j]
-                    tmp=np.delete(m1[j][i][t], np.where(m1[j][i][t] == -1))
+                    tmp=m1[j][i][t][m1[j][i][t] != -1]
                     start = 0
                     if algo=='P' and len(tmp) > buf_lim: start = len(tmp) - buf_lim
                     for z in range(start,len(tmp)):
@@ -70,7 +69,7 @@ class Results:
             for rn in range(len(data[ag])):
                 tmp = [0]*len(data[0][0])
                 for tk in range(len(data[ag][rn])):
-                    stripped_ones = np.delete(data[ag][rn][tk], np.where(data[ag][rn][tk] == -1))
+                    stripped_ones = data[ag][rn][tk][data[ag][rn][tk] != -1]
                     start = 0
                     flag = []
                     if algo == 'P' and len(stripped_ones) > limit: start = len(stripped_ones) - limit
@@ -236,14 +235,14 @@ class Results:
                     buf = 3
                 elif int(msg_exp_time)==600:
                     buf = 4
-                messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo)
-                self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
+                # messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo)
+                # self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
                 for gt in range(len(self.ground_truth)):
                     results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                     for thr in self.thresholds.get(self.ground_truth[gt]):
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                        self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
-                        self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                        # self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
+                        # self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1,msg_exp_time)
                         del quorums
                     del results
@@ -397,13 +396,14 @@ class Results:
             'threshold': thr
         }
         t_starts, t_ends, b_starts = [], [], []
-        starts_cens, ends_cens, = [], []
+        ends_cens = []
+        censored = 0
         limit_buf = int(buf_dim)
         for i in range(len(quorums)):
             for j in range(len(quorums[i])):
                 sem = 0
                 for t in range(1,len(quorums[i][j])):
-                    bf = np.delete(buffers[j][i][t], np.where(buffers[j][i][t] == -1))
+                    bf = buffers[j][i][t][buffers[j][i][t] != -1]
                     tmp = bf
                     if algo=='P':
                         st = 0
@@ -418,7 +418,6 @@ class Results:
                             sem = 1
                             t_starts.append(t+1)
                             b_starts.append(b)
-                            starts_cens.append(1)
                         elif sem == 1 and (b < self.min_buff_dim or (gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
                             sem = 0
                             t_ends.append(t+1)
@@ -428,22 +427,21 @@ class Results:
                             sem = 1
                             t_starts.append(t+1)
                             b_starts.append(b)
-                            starts_cens.append(1)
                         elif sem == 1 and (b < self.min_buff_dim or (gt < thr and quorums[i][j][t] == 0) or (gt >= thr and quorums[i][j][t] == 1)):
                             sem = 0
                             t_ends.append(t+1)
                             ends_cens.append(1)
                 if sem == 1:
-                    # t_ends.append(len(quorums[i][j])+1)
-                    # ends_cens.append(0)
-                    t_starts.pop()
-                    starts_cens.pop()
+                    t_ends.append(len(quorums[i][j])+1)
+                    ends_cens.append(0)
+                    censored += 1
+        print(f"{msg_exp_time},{gt},{thr} |\t events {len(ends_cens)} -- censored {censored}")
+                
         if len(t_starts) > 0:
-            durations,event_observed = [],[]
+            durations = []
             for i in range(len(t_starts)):
                 durations.append(t_ends[i]-t_starts[i])
-                event_observed.append(starts_cens[i]*ends_cens[i])
-            self.dump_recovery_raw(external_data,[b_starts,durations,event_observed])
+            self.dump_recovery_raw(external_data,[b_starts,durations,ends_cens])
 
 
 ##########################################################################################################
