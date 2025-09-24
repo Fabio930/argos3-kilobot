@@ -43,11 +43,11 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path,ticks_per_sec = task
+    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path,ticks_per_sec,states = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, data_type)
+        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, states,data_type)
     except KeyError as e:
         logging.error(f"KeyError processing {sub_path}: {e}")
     except Exception as e:
@@ -64,6 +64,7 @@ def main():
     manager = Manager()
     queue = manager.Queue()
 
+    states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(25,100)}
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
@@ -86,7 +87,7 @@ def main():
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
                                                 if n_agents==25:
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec))
+                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,ticks_per_sec,states_by_gt.get(n_agents)))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -115,7 +116,7 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1]} not found")
+                logging.info(f"Process {key} for task {process[1][1]} not found")
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
@@ -130,7 +131,7 @@ def main():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1]} terminated due to low memory")
+                        logging.info(f"Process {last_pid} for task {last_process[1][1]} terminated due to low memory")
                         # Requeue the task
                         queue.put(last_process[1])
                         break
@@ -138,7 +139,7 @@ def main():
             process = active_processes.pop(key)
             if process[1][3] == 100: h_counter -= 4
             elif process[1][3] == 25: h_counter -= 2
-            logging.info(f"Process {key} for task {process[1]} joined and removed from active processes")
+            logging.info(f"Process {key} for task {process[1][1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
@@ -157,7 +158,7 @@ def main():
                     p = Process(target=process_folder, args=(task,))
                     p.start()
                     active_processes.update({p.pid:(p,task)})
-                    logging.info(f"Started process {p.pid} for task {task}")
+                    logging.info(f"Started process {p.pid} for task {task[1]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)

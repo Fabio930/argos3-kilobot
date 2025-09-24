@@ -127,7 +127,7 @@ class Results:
         return states_by_gt
 
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,data_type="all"):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states,data_type="all"):
         max_buff_size = n_agents - 1
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM_1 = [np.array([])] * n_agents
@@ -220,7 +220,6 @@ class Results:
                             msgs_M_1 = [np.array([],dtype=int)]*num_runs
         
         if data_type in ("all","quorum"):
-            states_by_gt = self.assign_states(n_agents,num_runs)
             if algo=='P':
                 BUFFERS = [19,21,22,23,24]
                 buf = 0
@@ -237,25 +236,23 @@ class Results:
                     buf = 3
                 elif int(msg_exp_time)==600:
                     buf = 4
-                # messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo)
-                # self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
-                # self.compute_messages_homogeneity(msgs_bigM_1,BUFFERS[buf],arenaS,algo,n_agents,int(msg_exp_time),"raw_messages_homogeneity.csv")
-                # self.dump_msgs_homogeneity("messages_homogeneity.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,(max_homogeneity, min_homogeneity, median_max_homo, median_min_homo,median_agents,agents_90)])
+                messages = self.compute_meaningful_msgs(msgs_bigM_1,BUFFERS[buf],algo)
+                self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
                 for gt in range(len(self.ground_truth)):
-                    results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
+                    results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
                     for thr in self.thresholds.get(self.ground_truth[gt]):
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
-                        # self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
-                        # self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                        self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
+                        self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
                         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,msgs_bigM_1,msg_exp_time)
-                        # del quorums
+                        del quorums
                     del results
-                # del messages # max_homogeneity, min_homogeneity, median_max_homo, median_min_homo, median_agents,messages
+                # del messages
             else:
                 messages = self.compute_meaningful_msgs(msgs_bigM_1,msg_exp_time,algo)
                 self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
                 for gt in range(len(self.ground_truth)):
-                    results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states_by_gt[gt],0,gt+1,len(self.ground_truth))
+                    results = self.compute_quorum_vars_on_ground_truth(algo,msgs_bigM_1,states[gt],0,gt+1,len(self.ground_truth))
                     for thr in self.thresholds.get(self.ground_truth[gt]):
                         quorums = self.compute_quorum(results[0],results[1],self.min_buff_dim,thr)
                         self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,self.limit)
@@ -437,8 +434,10 @@ class Results:
                             t_ends.append(t+1)
                             ends_cens.append(1)
                 if sem == 1:
-                    t_ends.append(len(quorums[i][j])+1)
-                    ends_cens.append(0)
+                    # t_ends.append(len(quorums[i][j])+1)
+                    # ends_cens.append(0)
+                    t_starts.pop()
+                    starts_cens.pop()
         if len(t_starts) > 0:
             durations,event_observed = [],[]
             for i in range(len(t_starts)):

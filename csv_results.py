@@ -530,7 +530,7 @@ class Data:
                 'Msgs_exp_time': msgs,
                 'Error': abs(gt - th),
                 'Events': int(events)/(100*agents),
-                'Time': float(mean)/10,
+                'Time': float(mean),
                 'VariantKey': variant_key,
                 'Label': label,
                 'Color': color
@@ -561,9 +561,9 @@ class Data:
                     if i == 0:
                         ax.set_title(col_labels[j])
                     if entry=="Time":
-                        ax.set_ylim(0,100)
+                        ax.set_ylim(0,20)
                     else:
-                        ax.set_ylim(0,50)
+                        ax.set_ylim(-0.03,1.03)
                 # Rilascia label riga a destra
                 if entry=="Time":
                     axes[i,0].annotate(r"$T_{r}$", xy=(-.2, 0.5), xycoords='axes fraction', fontsize=36,
@@ -591,7 +591,7 @@ class Data:
 
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = [0,5,10,15,20,25,30,35,40]
+        ybins = np.arange(0.00,1.1,0.05)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None
@@ -608,12 +608,11 @@ class Data:
             # Add colorbar if any data
             if h is not None:
                 fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
-            # fig.tight_layout(rect=[0,0.05,1,0.95])
             fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
             plt.close(fig)
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = [0,5,10,15,20,25,30,35,40,50,60,70,80,90,100]
+        ybins = np.arange(0,21,1)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None
