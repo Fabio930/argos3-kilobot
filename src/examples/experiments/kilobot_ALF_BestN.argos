@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="0"
+        <experiment length="900"
         ticks_per_second="10"/>
     </framework>
     
@@ -52,7 +52,7 @@
         <hierarchicStruct
             rebroadcast = "0"
             queue_lenght = "24"
-            expiring_quorum_sec = "600"
+            expiring_quorum_sec = "300"
             committed_percentage = "1"
         >
         </hierarchicStruct>
@@ -137,7 +137,7 @@
     <!-- ****************** -->
     <!-- * Visualization  * -->
     <!-- ****************** -->
-    <visualization>
+    <!-- <visualization>
         <qt-opengl>
             <camera>
                 <placements>
@@ -146,6 +146,6 @@
                 </placements>
             </camera>
         </qt-opengl>
-    </visualization>
+    </visualization> -->
     
 </argos-configuration>

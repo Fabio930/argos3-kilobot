@@ -29,7 +29,7 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 numrobots="25"
-msg_expiring_seconds="600"
+msg_expiring_seconds="60 300 600"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
