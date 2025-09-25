@@ -18,18 +18,12 @@ def setup_logging():
 # Check command line inputs
 def check_inputs():
     ticks = 10
-    data_type = "all"
-    if len(sys.argv) > 7:
+    if len(sys.argv) > 3:
         logging.error("Too many arguments --EXIT--")
         exit()
     if len(sys.argv) > 1:
         for i in range(len(sys.argv)):
-            if sys.argv[i] == '-d':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
-                data_type = str(sys.argv[i + 1])
-            elif sys.argv[i] == '-t':
+            if sys.argv[i] == '-t':
                 if i + 1 >= len(sys.argv):
                     logging.error("BAD format input --EXIT--")
                     exit()
@@ -38,37 +32,38 @@ def check_inputs():
                 except:
                     logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
                     exit()
-    if data_type not in {"all", "quorum", "freq"}:
-        logging.error("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
-        exit()
+            else:
+                logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
+                exit()
     if ticks <= 0:
         logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
         exit()
-    return ticks, data_type
+    return ticks
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops, sub_path,algo,arenaS,buf,ticks_per_sec = task
+    base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops, sub_path,algo,arenaS,buf,ticks_per_sec,states = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data_fifo(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path,algo,arenaS,buf, data_type)
+        results.extract_k_data_fifo(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path,algo,arenaS,buf,states)
     except KeyError as e:
         logging.error(f"KeyError processing {sub_path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time, msg_hops, sub_path, ticks_per_sec
+        del results, base, dtemp, exp_length, n_agents, communication, msg_exp_time, msg_hops, sub_path, ticks_per_sec,states
 
 def main():
     setup_logging()
-    ticks_per_sec, data_type = check_inputs()
+    ticks_per_sec = check_inputs()
 
     # Using a manager to handle the queue
     manager = Manager()
     queue = manager.Queue()
 
+    states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(25,100)}
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
@@ -109,7 +104,7 @@ def main():
                                                     elif buf==2: msg_exp_time=180
                                                     elif buf==3: msg_exp_time=300
                                                     elif buf==4: msg_exp_time=600
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, data_type, msg_exp_time,msg_hops,path,algo,arenaS,BUFFERS[buf],ticks_per_sec))
+                                                    queue.put((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,path,algo,arenaS,BUFFERS[buf],ticks_per_sec,states_by_gt.get(n_agents)))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -138,7 +133,7 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1]} not found")
+                logging.info(f"Process {key} for task {process[1][-3]} not found")
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
@@ -153,7 +148,7 @@ def main():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1]} terminated due to low memory")
+                        logging.info(f"Process {last_pid} for task {last_process[1][-3]} terminated due to low memory")
                         # Requeue the task
                         queue.put(last_process[1])
                         break
@@ -161,7 +156,7 @@ def main():
             process = active_processes.pop(key)
             if process[1][3] == 100: h_counter -= 4
             elif process[1][3] == 25: h_counter -= 1
-            logging.info(f"Process {key} for task {process[1]} joined and removed from active processes")
+            logging.info(f"Process {key} for task {process[1][-3]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
@@ -180,7 +175,7 @@ def main():
                     p = Process(target=process_folder, args=(task,))
                     p.start()
                     active_processes.update({p.pid:(p,task)})
-                    logging.info(f"Started process {p.pid} for task {task}")
+                    logging.info(f"Started process {p.pid} for task {task[-3]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
