@@ -2,7 +2,7 @@ import os, csv, math, gc, logging
 import numpy as np
 class Results:
     thresholds      = {}
-    ground_truth    = [.52] #,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
+    ground_truth    = [.52,.56,.60,.64,.68,.72,.76,.8,.84,.88,.92,.96,1.0]
     min_buff_dim    = 5
     ticks_per_sec   = 10
     limit           = 0.8
