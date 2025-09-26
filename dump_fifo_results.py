@@ -63,7 +63,7 @@ def main():
     manager = Manager()
     queue = manager.Queue()
 
-    states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(25,100)}
+    states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(100,100)}
     for base in dex.Results().bases:
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
