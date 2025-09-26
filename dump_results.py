@@ -80,8 +80,7 @@ def main():
                                             if '.' not in folder:
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
-                                                if n_agents==25:
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,path,ticks_per_sec,states_by_gt.get(n_agents)))
+                                                queue.put((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,path,ticks_per_sec,states_by_gt.get(n_agents)))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
