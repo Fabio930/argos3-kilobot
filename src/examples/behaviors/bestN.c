@@ -221,7 +221,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t queue_lenght = (data[1]& 0b00000001) << 6 | (data[2] & 0b11111100) >> 2;
                 uint16_t msg_expiring_ticks = (data[0]& 0b00001110) >> 1;
                 msg_expiring_ticks = msg_expiring_ticks << 7 | data[1] >> 1;
-                init_array_qrm(&quorum_array,queue_lenght,msg_expiring_ticks*MY_TICKS);
+                init_array_qrm(&quorum_array,queue_lenght,msg_expiring_ticks*TICKS_PER_SEC);
                 init_received_A = true;
             }
             break;
