@@ -134,7 +134,7 @@ class Results:
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
-        max_buff_size = n_agents - 1
+        max_buff_size = 30 #n_agents - 1
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [np.array([],dtype=int)]*num_runs # x num_samples
@@ -178,12 +178,12 @@ class Results:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [np.array([],dtype=int)]*num_runs
         if algo=='P':
-            BUFFERS = [20,21,22,23,24]
+            BUFFERS = [10,15,20,25,30]
             buf = 0
             if arenaS=='big':
-                if n_agents==25:
-                    BUFFERS = [24,24,24,23,24]
-                elif n_agents==100:
+                # if n_agents==25:
+                #     BUFFERS = [24,24,24,23,24]
+                if n_agents==100:
                     BUFFERS = [99,99,99,99,99]
             if int(msg_exp_time)==120:
                 buf = 1
@@ -206,15 +206,15 @@ class Results:
                 del results
             del messages
         else:
-            messages = self.compute_meaningful_msgs(msgs_bigM,n_agents-1)
+            messages = self.compute_meaningful_msgs(msgs_bigM,max_buff_size)
             self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
             for gt in range(len(self.ground_truth)):
-                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],n_agents-1,gt+1,len(self.ground_truth))
+                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
                 for thr in self.thresholds.get(self.ground_truth[gt]):
                     quorums = self.compute_quorum(results[0],results[1],thr)
                     self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
                     self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,n_agents-1,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
+                    self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
                     del quorums
                 del results
             del messages
@@ -223,7 +223,7 @@ class Results:
                 
 ##########################################################################################################
     def extract_k_data_fifo(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,algo,arenaS,buf,states):
-        max_buff_size = n_agents - 1
+        max_buff_size = 30# n_agents - 1
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [np.array([],dtype=int)]*num_runs # x num_samples
@@ -270,7 +270,7 @@ class Results:
                     self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,buf,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
                     del quorums
                 del results
-            # del messages
+            del messages
         del msgs_M,msgs_bigM
         gc.collect()
 
