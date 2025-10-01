@@ -430,7 +430,7 @@ class Data:
                     if i == 0:
                         ax.set_title(col_labels[j])
                     if entry=="Time":
-                        ax.set_ylim(0,200)
+                        ax.set_ylim(0,500)
                     else:
                         ax.set_ylim(0,30)
                 # Rilascia label riga a destra
@@ -476,7 +476,7 @@ class Data:
             plt.close(fig)
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = np.arange(0,201)
+        ybins = np.arange(0,501)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None

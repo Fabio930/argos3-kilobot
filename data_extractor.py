@@ -134,7 +134,7 @@ class Results:
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
-        max_buff_size = 30 #n_agents - 1
+        max_buff_size = n_agents - 1
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [np.array([],dtype=int)]*num_runs # x num_samples
@@ -178,7 +178,8 @@ class Results:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [np.array([],dtype=int)]*num_runs
         if algo=='P':
-            BUFFERS = [10,15,20,25,30]
+            BUFFERS = [5,8,10,16,20]
+            # BUFFERS = [10,15,20,25,30]
             buf = 0
             if arenaS=='big':
                 # if n_agents==25:
@@ -223,7 +224,7 @@ class Results:
                 
 ##########################################################################################################
     def extract_k_data_fifo(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,algo,arenaS,buf,states):
-        max_buff_size = 30# n_agents - 1
+        max_buff_size = n_agents - 1
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [np.array([],dtype=int)]*num_runs # x num_samples
