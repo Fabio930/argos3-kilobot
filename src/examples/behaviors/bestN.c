@@ -389,6 +389,8 @@ void setup(){
 }
 
 void loop(){
+    delta_elapsed = kilo_ticks - ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
     fp = fopen(log_title,"a");
     for (uint8_t i = 0; i < num_quorum_items; i++){
         if(i == num_quorum_items-1) fprintf(fp,"%d",quorum_array[i]->agent_id);
@@ -396,7 +398,7 @@ void loop(){
     }    
     fprintf(fp,"\t%ld\t%ld\n",num_own_info,num_other_info/*,buffer_neglect,buffer_insertion,buffer_update*/);
     fclose(fp);
-    decrement_quorum_counter(&quorum_array);
+    decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     if(init_received_C) talk();
