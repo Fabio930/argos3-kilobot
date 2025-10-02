@@ -129,7 +129,7 @@ class Results:
                     msgs_summation[tk] += data_partial[ag][rn][tk]
         run_ag = len(data_partial)*len(data_partial[0])
         for tk in range(len(msgs_summation)):
-            msgs_summation[tk] = np.around(msgs_summation[tk]/run_ag,decimals=3)
+            msgs_summation[tk] = float(np.around(msgs_summation[tk]/run_ag,decimals=3))
         return msgs_summation
 
 ##########################################################################################################
