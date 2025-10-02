@@ -1,9 +1,5 @@
 #include "quorum_structure.h"
 
-void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
-    expiring_ticks_quorum = Expiring_time;
-}
-
 void sort_q(quorum_a **Array[]){
     true_quorum_items = 0;
     uint8_t IDS[num_quorum_items];
@@ -53,8 +49,11 @@ void increment_quorum_counter(quorum_a **Array[]){
     for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
 }
 
-void decrement_quorum_counter(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items; i++) if((*Array)[i]->counter > 0) (*Array)[i]->counter = (*Array)[i]->counter-1;
+void decrement_quorum_counter(quorum_a **Array[],uint64_t ticks){
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if((*Array)[i]->counter > ticks) (*Array)[i]->counter = (*Array)[i]->counter-ticks;
+        else (*Array)[i]->counter = 0;
+    }
 }
 
 void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){

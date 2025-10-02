@@ -352,21 +352,15 @@ void setup(){
 }
 
 void loop(){
+    delta_elapsed = kilo_ticks - ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
     fp = fopen(log_title,"a");
-    switch (num_quorum_items){
-        case 0:
-            fprintf(fp,"-\n");
-            break;
-        
-        default:
-            for (uint8_t i = 0; i < num_quorum_items; i++){
-                if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
-                else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-            }    
-            break;
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
+        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }
     fclose(fp);
-    decrement_quorum_counter(&quorum_array);
+    decrement_quorum_counter(&quorum_array,delta_elapsed);
     random_way_point_model();
     if(init_received_C) talk();
 }
