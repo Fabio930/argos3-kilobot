@@ -177,50 +177,42 @@ class Results:
                     if agents_count[agent_id]==num_runs:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [np.array([],dtype=int)]*num_runs
-        if algo=='P':
-            BUFFERS = [5,8,10,16,20]
-            # BUFFERS = [10,15,20,25,30]
-            buf = 0
-            if arenaS=='big':
-                # if n_agents==25:
-                #     BUFFERS = [24,24,24,23,24]
-                if n_agents==100:
-                    BUFFERS = [99,99,99,99,99]
-            if int(msg_exp_time)==120:
-                buf = 1
-            elif int(msg_exp_time)==180:
-                buf = 2
-            elif int(msg_exp_time)==300:
-                buf = 3
-            elif int(msg_exp_time)==600:
-                buf = 4
-            messages = self.compute_meaningful_msgs(msgs_bigM,BUFFERS[buf])
-            self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
-            for gt in range(len(self.ground_truth)):
-                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
-                for thr in self.thresholds.get(self.ground_truth[gt]):
-                    quorums = self.compute_quorum(results[0],results[1],thr)
-                    self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
-                    del quorums
-                del results
-            del messages
-        else:
-            messages = self.compute_meaningful_msgs(msgs_bigM,max_buff_size)
-            self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
-            for gt in range(len(self.ground_truth)):
-                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
-                for thr in self.thresholds.get(self.ground_truth[gt]):
-                    quorums = self.compute_quorum(results[0],results[1],thr)
-                    self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
-                    del quorums
-                del results
-            del messages
-        del msgs_M,msgs_bigM
-        gc.collect()
+        # if algo=='P':
+        #     BUFFERS = [5,8,10,16,20]
+        #     # BUFFERS = [10,15,20,25,30]
+        #     buf = 0
+        #     if arenaS=='big':
+        #         # if n_agents==25:
+        #         #     BUFFERS = [24,24,24,23,24]
+        #         if n_agents==100:
+        #             BUFFERS = [99,99,99,99,99]
+        #     if int(msg_exp_time)==120:
+        #         buf = 1
+        #     elif int(msg_exp_time)==180:
+        #         buf = 2
+        #     elif int(msg_exp_time)==300:
+        #         buf = 3
+        #     elif int(msg_exp_time)==600:
+        #         buf = 4
+        #     messages = self.compute_meaningful_msgs(msgs_bigM,BUFFERS[buf])
+        #     self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
+        #     for gt in range(len(self.ground_truth)):
+        #         results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],BUFFERS[buf],gt+1,len(self.ground_truth))
+        #         for thr in self.thresholds.get(self.ground_truth[gt]):
+        #             quorums = self.compute_quorum(results[0],results[1],thr)
+        #             self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+        #             self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+        #             self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,BUFFERS[buf],msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
+        # else:
+        messages = self.compute_meaningful_msgs(msgs_bigM,max_buff_size)
+        self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
+        for gt in range(len(self.ground_truth)):
+            results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
+            for thr in self.thresholds.get(self.ground_truth[gt]):
+                quorums = self.compute_quorum(results[0],results[1],thr)
+                self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
                 
 ##########################################################################################################
     def extract_k_data_fifo(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,algo,arenaS,buf,states):
