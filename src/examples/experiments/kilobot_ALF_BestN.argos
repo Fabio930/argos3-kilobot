@@ -50,7 +50,7 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "2"
+            rebroadcast = "0"
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
             committed_percentage = "0.8"

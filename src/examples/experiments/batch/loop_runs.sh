@@ -26,10 +26,10 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="1"
+rebroadcast="0 1 2"
 msg_expiring_sec="60 120 180 300 600"
 numrobots="25 100"
-messages_hops="1"
+messages_hops="0"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
