@@ -69,19 +69,15 @@ for exp_len_par in $experiment_length; do
                     fi
                     last_id=`expr $agents_par - 1`
                     if [ $agents_par -eq 25 ]; then
-                        # buffer_dim="19 23 24" # small arena 25
-                        buffer_dim="11 19 22" # big arena 25
+                        buffer_dim="24"
                     elif [ $agents_par -eq 100 ]; then
-                        buffer_dim="41 76 85"
+                        buffer_dim="99"
                     fi
-                    buffer_dim_array=($buffer_dim)
-                    dim_b_idx=0
                     for msgs_par in $msg_expiring_seconds; do
                         msgs_dir=$agents_dir/"MsgExpTime#"$msgs_par
                         if [[ ! -e $msgs_dir ]]; then
                             mkdir $msgs_dir
                         fi
-                        buff_par=${buffer_dim_array[dim_b_idx]}
                         hops_dir=$msgs_dir/"MsgHops#0"
                         if [[ ! -e $hops_dir ]]; then
                             mkdir $hops_dir
@@ -91,7 +87,7 @@ for exp_len_par in $experiment_length; do
                             cp $base_config $config
                             sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                             sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                            sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                            sed -i "s|__QUORUM_BUFFER_DIM__|$buffer_dim|g" $config
                             sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                             sed -i "s|__SEED__|$i|g" $config
                             sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
@@ -110,7 +106,6 @@ for exp_len_par in $experiment_length; do
                             done
                             rm *.argos
                         done
-                        dim_b_idx=$((dim_b_idx + 1))
                     done
                 done
             done

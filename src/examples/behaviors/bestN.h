@@ -57,7 +57,8 @@ typedef enum{
 typedef struct position{
     float position_x,position_y;
 }position_t;
-
+uint64_t delta_elapsed=0;
+uint64_t ticks_elapsed=0;
 /* current motion type */
 motion_t current_motion_type = STOP;
 motion_t prev_motion_type = STOP;

@@ -361,8 +361,10 @@ void setup(){
 }
 
 void loop(){
+    delta_elapsed = kilo_ticks-ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
     random_way_point_model();
-    decrement_quorum_counter(&quorum_array);
+    decrement_quorum_counter(&quorum_array,delta_elapsed);
     check_quorum(&quorum_array);
     if(init_received_C) talk();
     fp = fopen(log_title,"a");
