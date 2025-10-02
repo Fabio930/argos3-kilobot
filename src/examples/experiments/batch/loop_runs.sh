@@ -29,7 +29,7 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 numrobots="25"
-msg_expiring_seconds="600"
+msg_expiring_seconds="60 120 180 300 600"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -48,7 +48,7 @@ for exp_len_par in $experiment_length; do
             fi
             last_id=`expr $agents_par - 1`
             if [ $agents_par -eq 25 ]; then
-                buffer_dim="30"
+                buffer_dim="24"
             elif [ $agents_par -eq 100 ]; then
                 buffer_dim="99"
             fi
