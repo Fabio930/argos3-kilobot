@@ -193,59 +193,6 @@ class Results:
                 self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
                 
 ##########################################################################################################
-    def extract_k_data_fifo(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,algo,arenaS,buf,states):
-        max_buff_size = n_agents - 1
-        num_runs = int(len(os.listdir(sub_path))/n_agents)
-        msgs_bigM = [np.array([])] * n_agents
-        msgs_M = [np.array([],dtype=int)]*num_runs # x num_samples
-        agents_count = [0]*n_agents
-        for elem in sorted(os.listdir(sub_path)):
-            if '.' in elem:
-                selem=elem.split('.')
-                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                    agent_id = int(selem[0].split('_')[2].split('#')[-1])
-                    seed = int(selem[0].split('_')[3].split('#')[-1])
-                    agents_count[agent_id] += 1
-                    with open(os.path.join(sub_path, elem), newline='') as f:
-                        reader = csv.reader(f)
-                        log_count = 0
-                        for row in reader:
-                            log_count += 1
-                            if log_count % self.ticks_per_sec == 0:
-                                msgs = []
-                                for val in row:
-                                    if val.count('\t')==0:
-                                        if val!='-' : msgs.append(int(val))
-                                    else:
-                                        val = val.split('\t')
-                                        if val[0] != '': msgs.append(int(val[0]))
-                                for _ in range(max_buff_size-len(msgs)): msgs.append(-1)
-                                if len(msgs_M[seed-1]) == 0:
-                                    msgs_M[seed-1] = [msgs]
-                                else:
-                                    msgs_M[seed-1] = np.append(msgs_M[seed-1],[msgs],axis=0)
-                    if len(msgs_M[seed-1])!=max_steps:
-                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M[seed-1]))
-                    if agents_count[agent_id]==num_runs:
-                        msgs_bigM[agent_id] = msgs_M
-                        msgs_M = [np.array([],dtype=int)]*num_runs
-        if algo=='P':
-            messages = self.compute_meaningful_msgs(msgs_bigM,BUFFERS[buf])
-            self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
-            for gt in range(len(self.ground_truth)):
-                results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],buf,gt+1,len(self.ground_truth))
-                for thr in self.thresholds.get(self.ground_truth[gt]):
-                    quorums = self.compute_quorum(results[0],results[1],thr)
-                    self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                    self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,buf,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
-                    del quorums
-                del results
-            del messages
-        del msgs_M,msgs_bigM
-        gc.collect()
-
-##########################################################################################################
     def dump_recovery_raw(self,external_data,data):
         header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_exp_time", "msg_hops", "ground_truth", "threshold", "buff_starts", "durations", "events"]
         filename = os.path.abspath("")+"/proc_data"
