@@ -629,7 +629,7 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r   = [id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -646,41 +646,41 @@ class Data:
         #     for xi in res:
         #         tmp.append(xi/norm)
         #     dict_park_real_fifo.update({k:tmp})
-        for k in dict_park.keys():
+        # for k in dict_park.keys():
+        #     tmp =[]
+        #     res = dict_park.get(k)
+        #     norm = int(k[1])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_park.update({k:tmp})
+        for k in dict_adam.keys():
             tmp =[]
-            res = dict_park.get(k)
+            res = dict_adam.get(k)
+            norm = int(k[1])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam.update({k:tmp})
+        for k in dict_fifo.keys():
+            tmp =[]
+            res = dict_fifo.get(k)
             norm = int(k[1])-1
             for xi in res:
                 tmp.append(xi/norm)
-            dict_park.update({k:tmp})
-        # for k in dict_adam.keys():
-        #     tmp =[]
-        #     res = dict_adam.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in range(len(res)):
-        #         tmp.append(res[xi]/norm)
-        #     dict_adam.update({k:tmp})
-        # for k in dict_fifo.keys():
-        #     tmp =[]
-        #     res = dict_fifo.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_fifo.update({k:tmp})
-        # for k in dict_rnd.keys():
-        #     tmp =[]
-        #     res = dict_rnd.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_rnd.update({k:tmp})
-        # for k in dict_rnd_inf.keys():
-        #     tmp =[]
-        #     res = dict_rnd_inf.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_rnd_inf.update({k:tmp})
+            dict_fifo.update({k:tmp})
+        for k in dict_rnd.keys():
+            tmp =[]
+            res = dict_rnd.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd.update({k:tmp})
+        for k in dict_rnd_inf.keys():
+            tmp =[]
+            res = dict_rnd_inf.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_rnd_inf.update({k:tmp})
         # for k in dict_park_real_fifo.keys():
         #     row = 0
         #     col = 0
@@ -701,7 +701,27 @@ class Data:
         #     elif k[2] == '600':
         #         col = 4
         #     ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
-        for k in dict_park.keys():
+        # for k in dict_park.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+        for k in dict_adam.keys():
             row = 0
             col = 0
             if k[0]=='big' and k[1]=='25':
@@ -720,87 +740,67 @@ class Data:
                 col = 3
             elif k[2] == '600':
                 col = 4
-            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
-        # for k in dict_adam.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        # for k in dict_fifo.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
-        # for k in dict_rnd.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-        # for k in dict_rnd_inf.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+        for k in dict_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_rnd.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+        for k in dict_rnd_inf.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
         for x in range(2):
             for y in range(5):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
@@ -951,37 +951,37 @@ class Data:
                         p_valst,pr_valst,a_valst,f_valst,r_valst,ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
                         lim_p_valst,lim_pr_valst,lim_a_valst,lim_f_valst,lim_r_valst,lim_ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
                         for pt in range(len(ground_T)):
-                            pval    = dict_park.get((a,ag,str(o_k[k])))[pt][th]
+                            # pval    = dict_park.get((a,ag,str(o_k[k])))[pt][th]
                             # prval   = dict_park_real_fifo.get((a,ag,str(o_k[k])))[pt][th]
-                            # aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
-                            # fval    = dict_fifo.get((a,ag,str(o_k[k])))[pt][th]
-                            # rval    = dict_rnd.get((a,ag,str(o_k[k])))[pt][th]
-                            # rival   = dict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
-                            tpval   = tdict_park.get((a,ag,str(o_k[k])))[pt][th]
+                            aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th]
+                            fval    = dict_fifo.get((a,ag,str(o_k[k])))[pt][th]
+                            rval    = dict_rnd.get((a,ag,str(o_k[k])))[pt][th]
+                            rival   = dict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
+                            # tpval   = tdict_park.get((a,ag,str(o_k[k])))[pt][th]
                             # trpval  = tdict_park_real_fifo.get((a,ag,str(o_k[k])))[pt][th]
-                            # taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
-                            # tfval   = tdict_fifo.get((a,ag,str(o_k[k])))[pt][th]
-                            # trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th]
-                            # trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
-                            if pval>=0.8:
-                                temp_tval = tpval
-                                if ground_T[pt]-threshlds[th] >= 0.09 and (p_valst is np.nan or ground_T[pt]-threshlds[th]<lim_p_valst):
-                                    p_valst = temp_tval
-                                    lim_p_valst = ground_T[pt]-threshlds[th]
-                                if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
-                                    p_vals8[1]  = pval
-                                    p_gt8[1]    = ground_T[pt]
-                            elif pval<=0.2:
-                                if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
-                                    p_vals2[0]  = pval
-                                    p_gt2[0]    = ground_T[pt]
-                            else:
-                                if p_vals8[0] is np.nan or pval>p_vals8[0]:
-                                    p_vals8[0]  = pval
-                                    p_gt8[0]    = ground_T[pt]
-                                if p_vals2[1] is np.nan or pval<p_vals2[1]:
-                                    p_vals2[1]  = pval
-                                    p_gt2[1]    = ground_T[pt]
+                            taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th]
+                            tfval   = tdict_fifo.get((a,ag,str(o_k[k])))[pt][th]
+                            trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th]
+                            trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th]
+                            # if pval>=0.8:
+                            #     temp_tval = tpval
+                            #     if ground_T[pt]-threshlds[th] >= 0.09 and (p_valst is np.nan or ground_T[pt]-threshlds[th]<lim_p_valst):
+                            #         p_valst = temp_tval
+                            #         lim_p_valst = ground_T[pt]-threshlds[th]
+                            #     if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
+                            #         p_vals8[1]  = pval
+                            #         p_gt8[1]    = ground_T[pt]
+                            # elif pval<=0.2:
+                            #     if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
+                            #         p_vals2[0]  = pval
+                            #         p_gt2[0]    = ground_T[pt]
+                            # else:
+                            #     if p_vals8[0] is np.nan or pval>p_vals8[0]:
+                            #         p_vals8[0]  = pval
+                            #         p_gt8[0]    = ground_T[pt]
+                            #     if p_vals2[1] is np.nan or pval<p_vals2[1]:
+                            #         p_vals2[1]  = pval
+                            #         p_gt2[1]    = ground_T[pt]
                             # if prval>=0.8:
                             #     temp_tval = trpval
                             #     if ground_T[pt]-threshlds[th] >= 0.09 and (pr_valst is np.nan or ground_T[pt]-threshlds[th]<lim_pr_valst):
@@ -1001,94 +1001,94 @@ class Data:
                             #     if pr_vals2[1] is np.nan or prval<pr_vals2[1]:
                             #         pr_vals2[1]  = prval
                             #         pr_gt2[1]    = ground_T[pt]
-                            # if aval>=0.8:
-                            #     temp_aval = taval
-                            #     if ground_T[pt]-threshlds[th] >= 0.09 and (a_valst is np.nan or ground_T[pt]-threshlds[th]<lim_a_valst):
-                            #         a_valst = temp_aval
-                            #         lim_a_valst = ground_T[pt]-threshlds[th]
-                            #     if ground_T[pt]-threshlds[th] >=0 and (a_vals8[1] is np.nan or aval<a_vals8[1]):
-                            #         a_vals8[1]  = aval
-                            #         a_gt8[1]    = ground_T[pt]
-                            # elif aval<=0.2:
-                            #     if ground_T[pt]-threshlds[th] <=0 and (a_vals2[0] is np.nan or aval>=a_vals2[0]):
-                            #         a_vals2[0]  = aval
-                            #         a_gt2[0]    = ground_T[pt]
-                            # else:
-                            #     if a_vals8[0] is np.nan or aval>a_vals8[0]:
-                            #         a_vals8[0]  = aval
-                            #         a_gt8[0]    = ground_T[pt]
-                            #     if a_vals2[1] is np.nan or aval<a_vals2[1]:
-                            #         a_vals2[1]  = aval
-                            #         a_gt2[1]    = ground_T[pt]
-                            # if fval>=0.8:
-                            #     temp_fval = tfval
-                            #     if ground_T[pt]-threshlds[th] >= 0.09 and (f_valst is np.nan or ground_T[pt]-threshlds[th]<lim_f_valst):
-                            #         f_valst = temp_fval
-                            #         lim_f_valst = ground_T[pt]-threshlds[th]
-                            #     if ground_T[pt]-threshlds[th] >=0 and (f_vals8[1] is np.nan or fval<f_vals8[1]):
-                            #         f_vals8[1]  = fval
-                            #         f_gt8[1]    = ground_T[pt]
-                            # elif fval<=0.2:
-                            #     if ground_T[pt]-threshlds[th] <=0 and (f_vals2[0] is np.nan or fval>=f_vals2[0]):
-                            #         f_vals2[0]  = fval
-                            #         f_gt2[0]    = ground_T[pt]
-                            # else:
-                            #     if f_vals8[0] is np.nan or fval>f_vals8[0]:
-                            #         f_vals8[0]  = fval
-                            #         f_gt8[0]    = ground_T[pt]
-                            #     if f_vals2[1] is np.nan or fval<f_vals2[1]:
-                            #         f_vals2[1]  = fval
-                            #         f_gt2[1]    = ground_T[pt]
-                            # if rval>=0.8:
-                            #     temp_rval = trval
-                            #     if ground_T[pt]-threshlds[th] >= 0.09 and (r_valst is np.nan or ground_T[pt]-threshlds[th]<lim_r_valst):
-                            #         r_valst = temp_rval
-                            #         lim_r_valst = ground_T[pt]-threshlds[th]
-                            #     if ground_T[pt]-threshlds[th] >=0 and (r_vals8[1] is np.nan or rval<r_vals8[1]):
-                            #         r_vals8[1]  = rval
-                            #         r_gt8[1]    = ground_T[pt]
-                            # elif rval<=0.2:
-                            #     if ground_T[pt]-threshlds[th] <=0 and (r_vals2[0] is np.nan or rval>=r_vals2[0]):
-                            #         r_vals2[0]  = rval
-                            #         r_gt2[0]    = ground_T[pt]
-                            # else:
-                            #     if r_vals8[0] is np.nan or rval>r_vals8[0]:
-                            #         r_vals8[0]  = rval
-                            #         r_gt8[0]    = ground_T[pt]
-                            #     if r_vals2[1] is np.nan or rval<r_vals2[1]:
-                            #         r_vals2[1]  = rval
-                            #         r_gt2[1]    = ground_T[pt]
-                            # if rival>=0.8:
-                            #     temp_rival = trival
-                            #     if ground_T[pt]-threshlds[th] >= 0.09 and (ri_valst is np.nan or ground_T[pt]-threshlds[th]<lim_ri_valst):
-                            #         ri_valst = temp_rival
-                            #         lim_ri_valst = ground_T[pt]-threshlds[th]
-                            #     if ground_T[pt]-threshlds[th] >=0 and (ri_vals8[1] is np.nan or rival<ri_vals8[1]):
-                            #         ri_vals8[1]  = rival
-                            #         ri_gt8[1]    = ground_T[pt]
-                            # elif rival<=0.2:
-                            #     if ground_T[pt]-threshlds[th] <=0 and (ri_vals2[0] is np.nan or rival>=ri_vals2[0]):
-                            #         ri_vals2[0]  = rival
-                            #         ri_gt2[0]    = ground_T[pt]
-                            # else:
-                            #     if ri_vals8[0] is np.nan or rival>ri_vals8[0]:
-                            #         ri_vals8[0]  = rival
-                            #         ri_gt8[0]    = ground_T[pt]
-                            #     if ri_vals2[1] is np.nan or rival<ri_vals2[1]:
-                            #         ri_vals2[1]  = rival
-                            #         ri_gt2[1]    = ground_T[pt]
-                        if p_vals8[0] is np.nan:
-                            p_vals8[0] = p_vals8[1]
-                            p_gt8[0] = p_gt8[1]
-                        elif p_vals8[1] is np.nan:
-                            p_vals8[1] = p_vals8[0]
-                            p_gt8[1] = p_gt8[0]
-                        if p_vals2[0] is np.nan:
-                            p_vals2[0] = p_vals2[1]
-                            p_gt2[0] = p_gt2[1]
-                        elif p_vals2[1] is np.nan:
-                            p_vals2[1] = p_vals2[0]
-                            p_gt2[1] = p_gt2[0]
+                            if aval>=0.8:
+                                temp_aval = taval
+                                if ground_T[pt]-threshlds[th] >= 0.09 and (a_valst is np.nan or ground_T[pt]-threshlds[th]<lim_a_valst):
+                                    a_valst = temp_aval
+                                    lim_a_valst = ground_T[pt]-threshlds[th]
+                                if ground_T[pt]-threshlds[th] >=0 and (a_vals8[1] is np.nan or aval<a_vals8[1]):
+                                    a_vals8[1]  = aval
+                                    a_gt8[1]    = ground_T[pt]
+                            elif aval<=0.2:
+                                if ground_T[pt]-threshlds[th] <=0 and (a_vals2[0] is np.nan or aval>=a_vals2[0]):
+                                    a_vals2[0]  = aval
+                                    a_gt2[0]    = ground_T[pt]
+                            else:
+                                if a_vals8[0] is np.nan or aval>a_vals8[0]:
+                                    a_vals8[0]  = aval
+                                    a_gt8[0]    = ground_T[pt]
+                                if a_vals2[1] is np.nan or aval<a_vals2[1]:
+                                    a_vals2[1]  = aval
+                                    a_gt2[1]    = ground_T[pt]
+                            if fval>=0.8:
+                                temp_fval = tfval
+                                if ground_T[pt]-threshlds[th] >= 0.09 and (f_valst is np.nan or ground_T[pt]-threshlds[th]<lim_f_valst):
+                                    f_valst = temp_fval
+                                    lim_f_valst = ground_T[pt]-threshlds[th]
+                                if ground_T[pt]-threshlds[th] >=0 and (f_vals8[1] is np.nan or fval<f_vals8[1]):
+                                    f_vals8[1]  = fval
+                                    f_gt8[1]    = ground_T[pt]
+                            elif fval<=0.2:
+                                if ground_T[pt]-threshlds[th] <=0 and (f_vals2[0] is np.nan or fval>=f_vals2[0]):
+                                    f_vals2[0]  = fval
+                                    f_gt2[0]    = ground_T[pt]
+                            else:
+                                if f_vals8[0] is np.nan or fval>f_vals8[0]:
+                                    f_vals8[0]  = fval
+                                    f_gt8[0]    = ground_T[pt]
+                                if f_vals2[1] is np.nan or fval<f_vals2[1]:
+                                    f_vals2[1]  = fval
+                                    f_gt2[1]    = ground_T[pt]
+                            if rval>=0.8:
+                                temp_rval = trval
+                                if ground_T[pt]-threshlds[th] >= 0.09 and (r_valst is np.nan or ground_T[pt]-threshlds[th]<lim_r_valst):
+                                    r_valst = temp_rval
+                                    lim_r_valst = ground_T[pt]-threshlds[th]
+                                if ground_T[pt]-threshlds[th] >=0 and (r_vals8[1] is np.nan or rval<r_vals8[1]):
+                                    r_vals8[1]  = rval
+                                    r_gt8[1]    = ground_T[pt]
+                            elif rval<=0.2:
+                                if ground_T[pt]-threshlds[th] <=0 and (r_vals2[0] is np.nan or rval>=r_vals2[0]):
+                                    r_vals2[0]  = rval
+                                    r_gt2[0]    = ground_T[pt]
+                            else:
+                                if r_vals8[0] is np.nan or rval>r_vals8[0]:
+                                    r_vals8[0]  = rval
+                                    r_gt8[0]    = ground_T[pt]
+                                if r_vals2[1] is np.nan or rval<r_vals2[1]:
+                                    r_vals2[1]  = rval
+                                    r_gt2[1]    = ground_T[pt]
+                            if rival>=0.8:
+                                temp_rival = trival
+                                if ground_T[pt]-threshlds[th] >= 0.09 and (ri_valst is np.nan or ground_T[pt]-threshlds[th]<lim_ri_valst):
+                                    ri_valst = temp_rival
+                                    lim_ri_valst = ground_T[pt]-threshlds[th]
+                                if ground_T[pt]-threshlds[th] >=0 and (ri_vals8[1] is np.nan or rival<ri_vals8[1]):
+                                    ri_vals8[1]  = rival
+                                    ri_gt8[1]    = ground_T[pt]
+                            elif rival<=0.2:
+                                if ground_T[pt]-threshlds[th] <=0 and (ri_vals2[0] is np.nan or rival>=ri_vals2[0]):
+                                    ri_vals2[0]  = rival
+                                    ri_gt2[0]    = ground_T[pt]
+                            else:
+                                if ri_vals8[0] is np.nan or rival>ri_vals8[0]:
+                                    ri_vals8[0]  = rival
+                                    ri_gt8[0]    = ground_T[pt]
+                                if ri_vals2[1] is np.nan or rival<ri_vals2[1]:
+                                    ri_vals2[1]  = rival
+                                    ri_gt2[1]    = ground_T[pt]
+                        # if p_vals8[0] is np.nan:
+                        #     p_vals8[0] = p_vals8[1]
+                        #     p_gt8[0] = p_gt8[1]
+                        # elif p_vals8[1] is np.nan:
+                        #     p_vals8[1] = p_vals8[0]
+                        #     p_gt8[1] = p_gt8[0]
+                        # if p_vals2[0] is np.nan:
+                        #     p_vals2[0] = p_vals2[1]
+                        #     p_gt2[0] = p_gt2[1]
+                        # elif p_vals2[1] is np.nan:
+                        #     p_vals2[1] = p_vals2[0]
+                        #     p_gt2[1] = p_gt2[0]
                         # if pr_vals8[0] is np.nan:
                         #     pr_vals8[0] = pr_vals8[1]
                         #     pr_gt8[0] = pr_gt8[1]
@@ -1101,85 +1101,85 @@ class Data:
                         # elif pr_vals2[1] is np.nan:
                         #     pr_vals2[1] = pr_vals2[0]
                         #     pr_gt2[1] = pr_gt2[0]
-                        # if a_vals8[0] is np.nan:
-                        #     a_vals8[0] = a_vals8[1]
-                        #     a_gt8[0] = a_gt8[1]
-                        # elif a_vals8[1] is np.nan:
-                        #     a_vals8[1] = a_vals8[0]
-                        #     a_gt8[1] = a_gt8[0]
-                        # if a_vals2[0] is np.nan:
-                        #     a_vals2[0] = a_vals2[1]
-                        #     a_gt2[0] = a_gt2[1]
-                        # elif a_vals2[1] is np.nan:
-                        #     a_vals2[1] = a_vals2[0]
-                        #     a_gt2[1] = a_gt2[0]
-                        # if f_vals8[0] is np.nan:
-                        #     f_vals8[0] = f_vals8[1]
-                        #     f_gt8[0] = f_gt8[1]
-                        # elif f_vals8[1] is np.nan:
-                        #     f_vals8[1] = f_vals8[0]
-                        #     f_gt8[1] = f_gt8[0]
-                        # if f_vals2[0] is np.nan:
-                        #     f_vals2[0] = f_vals2[1]
-                        #     f_gt2[0] = f_gt2[1]
-                        # elif f_vals2[1] is np.nan:
-                        #     f_vals2[1] = f_vals2[0]
-                        #     f_gt2[1] = f_gt2[0]
-                        # if r_vals8[0] is np.nan:
-                        #     r_vals8[0] = r_vals8[1]
-                        #     r_gt8[0] = r_gt8[1]
-                        # elif r_vals8[1] is np.nan:
-                        #     r_vals8[1] = r_vals8[0]
-                        #     r_gt8[1] = r_gt8[0]
-                        # if r_vals2[0] is np.nan:
-                        #     r_vals2[0] = r_vals2[1]
-                        #     r_gt2[0] = r_gt2[1]
-                        # elif r_vals2[1] is np.nan:
-                        #     r_vals2[1] = r_vals2[0]
-                        #     r_gt2[1] = r_gt2[0]
-                        # if ri_vals8[0] is np.nan:
-                        #     ri_vals8[0] = ri_vals8[1]
-                        #     ri_gt8[0] = ri_gt8[1]
-                        # elif ri_vals8[1] is np.nan:
-                        #     ri_vals8[1] = ri_vals8[0]
-                        #     ri_gt8[1] = ri_gt8[0]
-                        # if ri_vals2[0] is np.nan:
-                        #     ri_vals2[0] = ri_vals2[1]
-                        #     ri_gt2[0] = ri_gt2[1]
-                        # elif ri_vals2[1] is np.nan:
-                        #     ri_vals2[1] = ri_vals2[0]
-                        #     ri_gt2[1] = ri_gt2[0]
+                        if a_vals8[0] is np.nan:
+                            a_vals8[0] = a_vals8[1]
+                            a_gt8[0] = a_gt8[1]
+                        elif a_vals8[1] is np.nan:
+                            a_vals8[1] = a_vals8[0]
+                            a_gt8[1] = a_gt8[0]
+                        if a_vals2[0] is np.nan:
+                            a_vals2[0] = a_vals2[1]
+                            a_gt2[0] = a_gt2[1]
+                        elif a_vals2[1] is np.nan:
+                            a_vals2[1] = a_vals2[0]
+                            a_gt2[1] = a_gt2[0]
+                        if f_vals8[0] is np.nan:
+                            f_vals8[0] = f_vals8[1]
+                            f_gt8[0] = f_gt8[1]
+                        elif f_vals8[1] is np.nan:
+                            f_vals8[1] = f_vals8[0]
+                            f_gt8[1] = f_gt8[0]
+                        if f_vals2[0] is np.nan:
+                            f_vals2[0] = f_vals2[1]
+                            f_gt2[0] = f_gt2[1]
+                        elif f_vals2[1] is np.nan:
+                            f_vals2[1] = f_vals2[0]
+                            f_gt2[1] = f_gt2[0]
+                        if r_vals8[0] is np.nan:
+                            r_vals8[0] = r_vals8[1]
+                            r_gt8[0] = r_gt8[1]
+                        elif r_vals8[1] is np.nan:
+                            r_vals8[1] = r_vals8[0]
+                            r_gt8[1] = r_gt8[0]
+                        if r_vals2[0] is np.nan:
+                            r_vals2[0] = r_vals2[1]
+                            r_gt2[0] = r_gt2[1]
+                        elif r_vals2[1] is np.nan:
+                            r_vals2[1] = r_vals2[0]
+                            r_gt2[1] = r_gt2[0]
+                        if ri_vals8[0] is np.nan:
+                            ri_vals8[0] = ri_vals8[1]
+                            ri_gt8[0] = ri_gt8[1]
+                        elif ri_vals8[1] is np.nan:
+                            ri_vals8[1] = ri_vals8[0]
+                            ri_gt8[1] = ri_gt8[0]
+                        if ri_vals2[0] is np.nan:
+                            ri_vals2[0] = ri_vals2[1]
+                            ri_gt2[0] = ri_gt2[1]
+                        elif ri_vals2[1] is np.nan:
+                            ri_vals2[1] = ri_vals2[0]
+                            ri_gt2[1] = ri_gt2[0]
 
-                        vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
+                        # vals2p[k][th] = np.round(np.interp([0.2],p_vals2,p_gt2,left=np.nan)[0],3)
                         # vals2pr[k][th] = np.round(np.interp([0.2],pr_vals2,pr_gt2,left=np.nan)[0],3)
-                        # vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
-                        # vals2f[k][th] = np.round(np.interp([0.2],f_vals2,f_gt2,left=np.nan)[0],3)
-                        # vals2r[k][th] = np.round(np.interp([0.2],r_vals2,r_gt2,left=np.nan)[0],3)
-                        # vals2ri[k][th] = np.round(np.interp([0.2],ri_vals2,ri_gt2,left=np.nan)[0],3)
-                        vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
+                        vals2a[k][th] = np.round(np.interp([0.2],a_vals2,a_gt2,left=np.nan)[0],3)
+                        vals2f[k][th] = np.round(np.interp([0.2],f_vals2,f_gt2,left=np.nan)[0],3)
+                        vals2r[k][th] = np.round(np.interp([0.2],r_vals2,r_gt2,left=np.nan)[0],3)
+                        vals2ri[k][th] = np.round(np.interp([0.2],ri_vals2,ri_gt2,left=np.nan)[0],3)
+                        # vals8p[k][th] = np.round(np.interp([0.8],p_vals8,p_gt8,right=np.nan)[0],3)
                         # vals8pr[k][th] = np.round(np.interp([0.8],pr_vals8,pr_gt8,right=np.nan)[0],3)
-                        # vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
-                        # vals8f[k][th] = np.round(np.interp([0.8],f_vals8,f_gt8,right=np.nan)[0],3)
-                        # vals8r[k][th] = np.round(np.interp([0.8],r_vals8,r_gt8,right=np.nan)[0],3)
-                        # vals8ri[k][th] = np.round(np.interp([0.8],ri_vals8,ri_gt8,right=np.nan)[0],3)
-                        flag_vals2p[k][th] = [p_vals2,p_gt2]
+                        vals8a[k][th] = np.round(np.interp([0.8],a_vals8,a_gt8,right=np.nan)[0],3) 
+                        vals8f[k][th] = np.round(np.interp([0.8],f_vals8,f_gt8,right=np.nan)[0],3)
+                        vals8r[k][th] = np.round(np.interp([0.8],r_vals8,r_gt8,right=np.nan)[0],3)
+                        vals8ri[k][th] = np.round(np.interp([0.8],ri_vals8,ri_gt8,right=np.nan)[0],3)
+                        # flag_vals2p[k][th] = [p_vals2,p_gt2]
                         # flag_vals2pr[k][th] = [pr_vals2,pr_gt2]
-                        # flag_vals2a[k][th] = [a_vals2,a_gt2]
-                        # flag_vals2f[k][th] = [f_vals2,f_gt2]
-                        # flag_vals2r[k][th] = [r_vals2,r_gt2]
-                        # flag_vals2ri[k][th] = [ri_vals2,ri_gt2]
-                        flag_vals8p[k][th] = [p_vals8,p_gt8]
+                        flag_vals2a[k][th] = [a_vals2,a_gt2]
+                        flag_vals2f[k][th] = [f_vals2,f_gt2]
+                        flag_vals2r[k][th] = [r_vals2,r_gt2]
+                        flag_vals2ri[k][th] = [ri_vals2,ri_gt2]
+                        # flag_vals8p[k][th] = [p_vals8,p_gt8]
                         # flag_vals8pr[k][th] = [pr_vals8,pr_gt8]
-                        # flag_vals8a[k][th] = [a_vals8,a_gt8]
-                        # flag_vals8f[k][th] = [f_vals8,f_gt8]
-                        # flag_vals8r[k][th] = [r_vals8,r_gt8]
-                        # flag_vals8ri[k][th] = [ri_vals8,ri_gt8]
-                        tvalsp[k][th] = p_valst
+                        flag_vals8a[k][th] = [a_vals8,a_gt8]
+                        flag_vals8f[k][th] = [f_vals8,f_gt8]
+                        flag_vals8r[k][th] = [r_vals8,r_gt8]
+                        flag_vals8ri[k][th] = [ri_vals8,ri_gt8]
+                        # tvalsp[k][th] = p_valst
                         # tvalspr[k][th] = pr_valst
-                        # tvalsa[k][th] = a_valst
-                        # tvalsf[k][th] = f_valst
-                        # tvalsr[k][th] = r_valst
-                        # tvalsri[k][th] = ri_valst
+                        tvalsa[k][th] = a_valst
+                        tvalsf[k][th] = f_valst
+                        tvalsr[k][th] = r_valst
+                        tvalsri[k][th] = ri_valst
 
                         key= (a,ag)
                         vals_dict[key] = {
@@ -1193,23 +1193,23 @@ class Data:
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
                     # ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
                     # ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
-                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
+                    # ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                    # ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
+                    ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
+                    ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
+                    ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
 
                     # tax[row][k].plot(tvalspr[k],color="red",lw=6)
-                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    # tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    # tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
-                    # tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
-                    # tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
+                    # tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
+                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
+                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
+                    tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
+                    tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
