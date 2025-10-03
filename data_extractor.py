@@ -208,25 +208,6 @@ class Results:
                                 data[0],data[1],data[2]])
 
 ##########################################################################################################
-    def dump_msgs_homogeneity(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
-        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
-        
-        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
-            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
-        
-        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
-            fwriter = csv.writer(fw, delimiter='\t')
-            if write_header:
-                fwriter.writerow(header)
-            base_data = list(data[:-1])
-            stats_tuple = data[-1]
-            types = ["max_count", "min_count", "median_max_count", "median_min_count", "agents_over_median", "90_agents"]
-            for t, stat in zip(types, stats_tuple):
-                row = base_data + [t, stat]
-                fwriter.writerow(row)
-
-##########################################################################################################
     def dump_msgs(self, file_name, data):
         header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
