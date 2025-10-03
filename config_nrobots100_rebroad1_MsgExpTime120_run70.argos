@@ -6,9 +6,9 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="__TIME_EXPERIMENT__"
+        <experiment length="900"
         ticks_per_second="10"
-        random_seed="__SEED__" />
+        random_seed="70" />
     </framework>
     
     <!-- *************** -->
@@ -47,13 +47,13 @@
             dataacquisitionfrequency="10"  
             environmentplotupdatefrequency="10"
             timeforonemessage="0.05"
-            logfilename="__KILOLOG__">
+            logfilename="run#69.tsv">
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "__BROADCAST_POLICY__"
-            msgs_n_hops = "__MSGS_HOPS__"
-            expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
+            rebroadcast = "1"
+            msgs_n_hops = "0"
+            expiring_quorum_sec = "120"
             minimum_quorum_length = "0"
             quorum_scaling_factor = "0"
             committed_percentage = "1"
@@ -85,7 +85,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="__NUMROBOTS__" max_trials="200">
+            <entity quantity="100" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
@@ -111,7 +111,7 @@
         <distribute>
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="__NUMROBOTS__" max_trials="200">
+            <entity quantity="100" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
