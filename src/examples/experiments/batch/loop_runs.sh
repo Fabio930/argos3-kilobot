@@ -28,8 +28,8 @@ fi
 experiment_length="900"
 RUNS=100
 rebroadcast="0"
-numrobots="25"
-msg_expiring_seconds="60 120 180 300 600"
+numrobots="25 100"
+msg_expiring_seconds="0" #"60 120 180 300 600"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -81,6 +81,12 @@ for exp_len_par in $experiment_length; do
                     done
                     rm *.argos
                 done
+
+                external_base="/media/fabio/Volume1/argos3/results_loop_runs"
+                external_dir="$external_base/ExperimentLength#$exp_len_par/Rebroadcast#$comm_par/Robots#$agents_par/MsgExpTime#$msgs_par/MsgHops#0"
+
+                mkdir -p "$external_dir"
+                mv "$hops_dir/"* "$external_dir/"
             done
         done
     done
