@@ -399,7 +399,9 @@ void setup(){
 }
 
 void loop(){
-    decrement_quorum_counter(&quorum_array);
+    delta_elapsed = kilo_ticks-ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
+    decrement_quorum_counter(&quorum_array,delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
     check_quorum(&quorum_array);
