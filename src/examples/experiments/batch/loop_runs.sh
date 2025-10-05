@@ -57,7 +57,6 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $dlt_dir ]]; then
                     mkdir $dlt_dir
                 fi
-
                 gt_before=${gt_before//_/.}
                 gt_after=${gt_after//_/.}
                 for comm_par in $rebroadcast; do
@@ -109,6 +108,15 @@ for exp_len_par in $experiment_length; do
                                 done
                                 rm *.argos
                             done
+                            thr_par=${thr_par//./_}
+                            gt_before=${gt_before//./_}
+                            gt_after=${gt_after//./_}
+                            dest_dir="/media/fabio/Volume/dOresults_loop_runs_bigA/ExperimentLength#$exp_len_par/Threshold#$thr_par/GT#$gt_before;$gt_after/Rebroadcast#$comm_par/Robots#$agents_par/MsgExpTime#$msgs_par/MsgHops#$msgh/"
+                            thr_par=${thr_par//_/.}
+                            gt_before=${gt_before//_/.}
+                            gt_after=${gt_after//_/.}
+                            mkdir -p "$dest_dir"
+                            mv "$msgs_dir"/*.tsv "$dest_dir"
                         done
                     done
                 done
