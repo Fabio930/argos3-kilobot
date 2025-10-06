@@ -6,6 +6,7 @@ build
 **/*RES_*
 **/*res_*
 **/*results_*
+**/*_processed*
 **/*cache*
 *_DATA_*
 *_data/*

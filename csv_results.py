@@ -431,7 +431,7 @@ class Data:
                     if entry=="Time":
                         ax.set_ylim(0,100)
                     else:
-                        ax.set_ylim(0,30)
+                        ax.set_ylim(0,50)
                 # Rilascia label riga a destra
                 if entry=="Time":
                     axes[i,0].annotate(r"$T_{r}$", xy=(-.2, 0.5), xycoords='axes fraction', fontsize=36,
@@ -454,7 +454,7 @@ class Data:
 
         # Istogrammi 2D per variante
         xbins = np.linspace(0, df['Error'].max(), 20)
-        ybins = np.arange(0,31)
+        ybins = np.arange(0,51)
         for key_var, (label, color) in variant_map.items():
             fig, axes = plt.subplots(3, len(msg_list), figsize=(28,18), sharex=True, sharey=True)
             h = None
