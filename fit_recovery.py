@@ -44,14 +44,15 @@ def main():
     queue = manager.Queue()
 
     for file_path in rec_path:
-        logging.info(f"Reading {file_path} : START")
-        with open(file_path, 'r') as file:
-            read = csv.reader(file)
-            data = {tuple(rows[:10]): rows[10:] for rows in read}
-        logging.info(f"Reading {file_path} : END")
-        for i in data.keys():
-            if i not in processed_keys:
-                processed_keys.append(i)
+        if "images" not in file_path:
+            logging.info(f"Reading {file_path} : START")
+            with open(file_path, 'r') as file:
+                read = csv.reader(file)
+                data = {tuple(rows[:10]): rows[10:] for rows in read}
+            logging.info(f"Reading {file_path} : END")
+            for i in data.keys():
+                if i not in processed_keys:
+                    processed_keys.append(i)
     for file_path in file_paths:
         file = os.path.basename(file_path)
         if "recovery_data_raw" in file:
