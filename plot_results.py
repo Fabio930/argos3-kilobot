@@ -34,12 +34,12 @@ def main():
                             tot_st      = np.append(tot_st,[states],axis=0)
                             tot_times   = np.append(tot_times,[times],axis=0)
             if len(tot_st) > 0: csv_res.plot_active(tot_st,tot_times)
-        # elif base.split('/')[-1] == "msgs_data":
-        #     for file in sorted(os.listdir(base)):
-        #         if "images" not in file:
-        #             file_path=os.path.join(base, file)
-        #             data = csv_res.read_msgs_csv(file_path)
-        #             csv_res.plot_messages(data)
+        if base.split('/')[-1] == "msgs_data":
+            for file in sorted(os.listdir(base)):
+                if "images" not in file:
+                    file_path=os.path.join(base, file)
+                    data = csv_res.read_msgs_csv(file_path)
+                    csv_res.plot_messages(data)
 
 ##################################################################################
 if __name__ == "__main__":
