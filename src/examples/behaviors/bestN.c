@@ -420,13 +420,15 @@ void setup(){
 }
 
 void loop(){
-    decrement_quorum_counter(&quorum_array);
+    delta_elapsed = kilo_ticks - ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
+    decrement_quorum_counter(&quorum_array,delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
-    random_way_point_model();
     check_quorum(&quorum_array);
+    random_way_point_model();
     if(init_received_D) talk();
     fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t%d\t%d\t%ld\t%ld\t%f\t%f\n",my_state,quorum_reached,num_quorum_items,num_own_info,num_other_info,gps_position.position_x,gps_position.position_y);
+    fprintf(fp,"%d\t%d\t%d\t%f\t%f\n",my_state,quorum_reached,num_quorum_items,gps_position.position_x,gps_position.position_y);
     fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
