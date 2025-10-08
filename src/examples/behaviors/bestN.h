@@ -47,6 +47,9 @@ typedef enum{
     committed = 1,
 }state_t;
 
+uint64_t delta_elapsed = 0;
+uint64_t ticks_elapsed = 0;
+
 /* struct for the robot position */
 typedef struct position{
     float position_x,position_y;
