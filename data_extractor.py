@@ -101,36 +101,37 @@ class Results:
             self.dump_recovery_raw(external_data,[b_starts,durations,ends_cens])
 
 ##########################################################################################################
-    def compute_meaningful_msgs(self,data,buf_limit):
-        data_partial = np.array([])
-        for ag in range(len(data)):
-            runs = np.array([])
-            for rn in range(len(data[ag])):
-                tmp = [0]*len(data[0][0])
-                for tk in range(len(data[ag][rn])):
+    def compute_meaningfulMsgs_decidinAgents(self,data,buf_limit):
+        data_partial_m = np.array([])
+        data_partial_d = np.array([])
+        for rn in range(len(data[0])):
+            tmp_m = [0]*len(data[0][0])
+            tmp_d = [0]*len(data[0][0])
+            for tk in range(len(data[0][rn])):
+                for ag in range(len(data)):
                     stripped_ones = data[ag][rn][tk][data[ag][rn][tk] != -1]
+                    if len(stripped_ones)>=Results.min_buff_dim: tmp_d[tk] += 1
                     flag = []
                     for el in range(max(0,len(stripped_ones) - buf_limit),len(stripped_ones)):
                         if stripped_ones[el] not in flag:
                             flag.append(stripped_ones[el])
-                            tmp[tk] += 1
-                if len(runs) == 0:
-                    runs = [tmp]
-                else:
-                    runs = np.append(runs,[tmp],axis=0)
-            if len(data_partial) == 0:
-                data_partial = [runs]
+                            tmp_m[tk] += 1
+            if len(data_partial_m) == 0:
+                data_partial_m = [tmp_m]
+                data_partial_d = [tmp_d]
             else:
-                data_partial = np.append(data_partial,[runs],axis=0)
-        msgs_summation = [0]*len(data_partial[0][0])
-        for ag in range(len(data_partial)):
-            for rn in range(len(data_partial[ag])):
-                for tk in range(len(data_partial[ag][rn])):
-                    msgs_summation[tk] += data_partial[ag][rn][tk]
-        run_ag = len(data_partial)*len(data_partial[0])
+                data_partial_m = np.append(data_partial_m,[tmp_m],axis=0)
+                data_partial_d = np.append(data_partial_d,[tmp_d],axis=0)
+        msgs_summation = [0 for _ in range(len(data_partial_m[0]))]
+        decisions = [0 for _ in range(len(data_partial_d[0]))]
+        for rn in range(len(data_partial_m)):
+            for tk in range(len(data_partial_m[rn])):
+                msgs_summation[tk] += data_partial_m[rn][tk]
+        run_ag = len(data)*len(data[0])
         for tk in range(len(msgs_summation)):
             msgs_summation[tk] = float(np.around(msgs_summation[tk]/run_ag,decimals=3))
-        return msgs_summation
+            decisions[tk] = float(np.around(decisions[tk]/run_ag,decimals=3))
+        return msgs_summation,decisions
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
@@ -182,7 +183,8 @@ class Results:
                     if agents_count[agent_id]==num_runs:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [np.array([],dtype=int)]*num_runs
-        messages = self.compute_meaningful_msgs(msgs_bigM,max_buff_size)
+        messages,decisions = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM,max_buff_size)
+        self.dump_decisions("decisions_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,decisions])
         self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages])
         for gt in range(len(self.ground_truth)):
             results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
@@ -191,7 +193,7 @@ class Results:
                 self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
                 self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
                 self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
-                
+
 ##########################################################################################################
     def dump_recovery_raw(self,external_data,data):
         header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_exp_time", "msg_hops", "ground_truth", "threshold", "buff_starts", "durations", "events"]
@@ -206,6 +208,20 @@ class Results:
                 fwriter.writerow(header)
             fwriter.writerow([external_data['experiment_length'],external_data['rebroadcast'],external_data['n_agents'],external_data['buff_dim'],external_data['msg_exp_time'],external_data['msg_hops'],external_data['ground_truth'],external_data['threshold'],
                                 data[0],data[1],data[2]])
+
+##########################################################################################################
+    def dump_decisions(self, file_name, data):
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data"]
+        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "dec_data", file_name))
+        
+        if not os.path.exists(os.path.join(os.path.abspath(""), "dec_data")):
+            os.mkdir(os.path.join(os.path.abspath(""), "dec_data"))
+        
+        with open(os.path.join(os.path.abspath(""), "dec_data", file_name), mode='a', newline='\n') as fw:
+            fwriter = csv.writer(fw, delimiter='\t')
+            if write_header:
+                fwriter.writerow(header)
+            fwriter.writerow(data)
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):

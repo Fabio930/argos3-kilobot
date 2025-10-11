@@ -40,6 +40,12 @@ def main():
                     file_path=os.path.join(base, file)
                     data = csv_res.read_msgs_csv(file_path)
                     csv_res.plot_messages(data)
+        if base.split('/')[-1] == "dec_data":
+            for file in sorted(os.listdir(base)):
+                if "images" not in file:
+                    file_path=os.path.join(base, file)
+                    data = csv_res.read_msgs_csv(file_path)
+                    csv_res.plot_decisions(data)
 
 ##################################################################################
 if __name__ == "__main__":
