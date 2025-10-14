@@ -30,7 +30,7 @@ variation_time="600"
 RUNS=100
 rebroadcast="0"
 numrobots="25 100"
-msg_expiring_seconds="60 300 600"
+msg_expiring_seconds="0"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
 
