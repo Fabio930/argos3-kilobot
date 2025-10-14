@@ -1,5 +1,5 @@
+import os, csv, gc, sys
 import numpy as np
-import os, csv, math, gc
 
 class Results:
     min_buff_dim = 5
@@ -69,11 +69,11 @@ class Results:
                                 msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],msgs)
                     if len(msgs_M_1[seed-1])<max_steps:
                         missing = max_steps - len(msgs_M_1[seed-1])
-                        pad = np.full((missing, 3), 0, dtype=int)
-                        msgs_M_1[seed-1] = np.vstack((pad, msgs_M_1[seed-1]))
+                        pad = np.full(missing, 0, dtype=int)
+                        msgs_M_1[seed-1] = np.concatenate((pad, msgs_M_1[seed-1]))
                     elif len(msgs_M_1[seed-1])>max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
-                        exit(0)
+                        sys.exit(0)
                     if agents_count[agent_id]==num_runs:
                         msgs_bigM_1[agent_id] = msgs_M_1
                         states_bigM_1[agent_id] = states_M_1
