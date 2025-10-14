@@ -4,22 +4,166 @@ import pandas as pd
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+import matplotlib.scale as mscale
+import matplotlib.transforms as mtransforms
+import matplotlib.ticker as ticker
 from matplotlib import pyplot as plt
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-class Data:
+plt.rcParams.update({"font.size": 36})
 
 ##########################################################################################################
+import numpy as np
+import matplotlib.scale as mscale
+import matplotlib.transforms as mtransforms
+import matplotlib.ticker as ticker
+
+class LinLogScale(mscale.ScaleBase):
+    """
+    Scala ibrida: lineare [0..threshold] occupa fraction_linear della
+    lunghezza dell'asse; sopra threshold la scala è compressa in modo
+    logaritmico fino a data_max.
+    Parametri:
+      - threshold: valore (data units) fino al quale la scala è lineare
+      - fraction_linear: frazione (0..1) dell'asse destinata alla parte lineare
+      - data_max: massimo valore dei dati (deve essere > threshold quando serve la parte log)
+      - n_lin_ticks, n_log_ticks: numero suggerito di tick per parte
+    """
+    name = 'linlog'
+
+    def __init__(self, axis, threshold=200.0, fraction_linear=0.5, data_max=None,
+                 n_lin_ticks=5, n_log_ticks=5, **kwargs):
+        super().__init__(axis)
+        self.threshold = float(threshold)
+        self.fraction_linear = float(fraction_linear)
+        self.data_max = None if data_max is None else float(data_max)
+        self.n_lin_ticks = int(n_lin_ticks)
+        self.n_log_ticks = int(n_log_ticks)
+
+    def get_transform(self):
+        # data_max deve essere noto alla trasformazione
+        data_max = self.data_max if self.data_max is not None else max(self.threshold * 10.0, self.threshold + 1.0)
+        return self.LinLogTransform(self.threshold, self.fraction_linear, data_max)
+    
+    def set_default_locators_and_formatters(self, axis):
+        data_max = self.data_max if self.data_max is not None else max(self.threshold * 10.0, self.threshold + 1.0)
+
+        # Tick lineari da 0 a threshold (incluso)
+        if self.n_lin_ticks > 1:
+            lin_ticks = np.linspace(0.0, self.threshold, self.n_lin_ticks)
+        else:
+            lin_ticks = np.array([0.0, self.threshold])
+
+        # Tick logaritmici solo sopra threshold (escludendo threshold)
+        log_ticks = np.array([])
+        if data_max > self.threshold * 1.0001:
+            start = max(self.threshold * 1.0001, self.threshold + 1e-6)
+            log_ticks = np.geomspace(start, data_max, num=self.n_log_ticks)
+            log_ticks = log_ticks[log_ticks > self.threshold * 1.001]
+
+        ticks = np.concatenate([lin_ticks, log_ticks])
+        ticks = np.unique(np.round(ticks, 6))
+        axis.set_major_locator(ticker.FixedLocator(ticks))
+
+        # Funzione di formattazione
+        def _fmt(x, pos):
+            # Controlla se x è un tick logaritmico (maggiore del threshold)
+            if x > self.threshold and log_ticks.size > 0:
+                # Mostra solo primo e ultimo tick log
+                if x != log_ticks[0] and x != log_ticks[-1]:
+                    return ""  # rimuove label
+            # Formattazione normale per gli altri tick
+            if abs(x) >= 1000:
+                return f"{x:,.0f}"
+            if abs(x - round(x)) < 1e-6:
+                return f"{int(round(x))}"
+            if abs(x) >= 1:
+                return f"{x:.1f}"
+            return f"{x:.2f}"
+
+        axis.set_major_formatter(ticker.FuncFormatter(_fmt))
+        axis.set_minor_locator(ticker.NullLocator())
+        axis.set_minor_formatter(ticker.NullFormatter())
+
+
+    class LinLogTransform(mtransforms.Transform):
+        input_dims = output_dims = 1
+
+        def __init__(self, threshold, fraction_linear, data_max):
+            super().__init__()
+            self.threshold = float(threshold)
+            self.fraction_linear = float(fraction_linear)
+            self.data_max = float(data_max)
+            # salva log_max per normalizzare la parte log
+            if self.data_max > self.threshold:
+                self.log_max = np.log10(self.data_max - self.threshold + 1.0)
+            else:
+                self.log_max = 1.0
+
+        def transform_non_affine(self, a):
+            a = np.asarray(a, dtype=float)
+            out = np.empty_like(a, dtype=float)
+            # parti
+            below_mask = a <= self.threshold
+            above_mask = a > self.threshold
+
+            # parte lineare normalizzata su [0, fraction_linear]
+            if np.any(below_mask):
+                out[below_mask] = (a[below_mask] / self.threshold) * self.fraction_linear
+
+            # parte log normalizzata su [fraction_linear, 1.0]
+            if np.any(above_mask):
+                log_part = np.log10(a[above_mask] - self.threshold + 1.0)
+                out[above_mask] = self.fraction_linear + (log_part / self.log_max) * (1.0 - self.fraction_linear)
+
+            return out
+
+        def inverted(self):
+            return LinLogScale.InvertedLinLogTransform(self.threshold, self.fraction_linear, self.data_max)
+
+    class InvertedLinLogTransform(mtransforms.Transform):
+        input_dims = output_dims = 1
+
+        def __init__(self, threshold, fraction_linear, data_max):
+            super().__init__()
+            self.threshold = float(threshold)
+            self.fraction_linear = float(fraction_linear)
+            self.data_max = float(data_max)
+            if self.data_max > self.threshold:
+                self.log_max = np.log10(self.data_max - self.threshold + 1.0)
+            else:
+                self.log_max = 1.0
+
+        def transform_non_affine(self, a):
+            a = np.asarray(a, dtype=float)
+            out = np.empty_like(a, dtype=float)
+            below_mask = a <= self.fraction_linear
+            above_mask = a > self.fraction_linear
+
+            if np.any(below_mask):
+                out[below_mask] = (a[below_mask] / self.fraction_linear) * self.threshold
+
+            if np.any(above_mask):
+                norm = (a[above_mask] - self.fraction_linear) / (1.0 - self.fraction_linear)
+                out[above_mask] = self.threshold + (10.0 ** (norm * self.log_max) - 1.0)
+
+            return out
+
+# registra la scala (una sola volta)
+mscale.register_scale(LinLogScale)
+
+##########################################################################################################
+class Data:
+
     def __init__(self) -> None:
-        plt.rcParams.update({"font.size": 36})
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
             if elem == "msgs_data" or elem == "proc_data" or elem == "rec_data" or elem=="dec_data":
                 self.bases.append(os.path.join(self.base, elem))
 
-##########################################################################################################
+###################################################
     def wb_get_mean_and_std(self, wf:WeibullFitter):
         # get the Weibull shape and scale parameter 
         scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
@@ -32,7 +176,7 @@ class Data:
         
         return [mean, std]
     
-##########################################################################################################
+###################################################
     def fit_recovery(self,algo,arena,n_agents,buf_dim,gt,thr,comunication,msg_hops,data_in):
         buff_starts     = data_in[0]
         durations       = data_in[1]
@@ -62,7 +206,7 @@ class Data:
                 estimates.update({k:[self.wb_get_mean_and_std(wf),len(a_buffers)-1]})
         return estimates
 
-##########################################################################################################
+###################################################
     def fit_recovery_raw_data(self,data_in):
         fitted_data = {}
         for i in range(len(data_in)):
@@ -72,7 +216,7 @@ class Data:
                     fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],k[9],z):estimates.get(z)})
         return fitted_data
     
-##########################################################################################################
+###################################################
     def dull_division(self,buffer,durations,event_observed):
         durations_by_buffer = {"all": [[], [], []]}
         for i in range(len(buffer)):
@@ -83,7 +227,7 @@ class Data:
             durations_by_buffer.update({"all":tmp})
         return durations_by_buffer
     
-##########################################################################################################
+###################################################
     def adapt_dict_to_weibull_est(self,data):
         out = {}
         for k in data.keys():
@@ -100,7 +244,7 @@ class Data:
             out.update({k:[durations,event_observed,buffers]})
         return out
     
-##########################################################################################################
+###################################################
     def sort_arrays_in_dict(self,data_to_sort):
         out = {}
         for k in data_to_sort.keys():
@@ -122,7 +266,7 @@ class Data:
             out.update({k:[durations,event_observed,buffers]})
         return out
 
-##########################################################################################################
+###################################################
     def plot_messages(self,data):
         dict_park, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{}
         for k in data.keys():
@@ -143,7 +287,7 @@ class Data:
         self.print_messages([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo])
 
 
-##########################################################################################################
+###################################################
     def plot_decisions(self,data):
         dict_park, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{}
         for k in data.keys():
@@ -163,7 +307,7 @@ class Data:
                         dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)})
         self.print_decisions([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo])
 
-##########################################################################################################
+###################################################
     def read_msgs_csv(self,path):
         data = {}
         lc = 0
@@ -200,7 +344,7 @@ class Data:
                                     keys.append(tval)
         return data
 
-##########################################################################################################
+###################################################
     def read_recovery_csv(self,path,algo,arena):
         keys = []
         data = {}
@@ -275,7 +419,7 @@ class Data:
                                     data_val.update({keys[k]:tval})
         return data
 
-##########################################################################################################
+###################################################
     def read_csv(self,path,algo,n_runs,arena):
         lc = 0
         keys = []
@@ -337,7 +481,7 @@ class Data:
                                     data_val.update({keys[k]:tval})
         return data
 
-##########################################################################################################
+###################################################
     def divide_data(self,data):
         states, times = {},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = [],[],[],[],[],[],[],[],[],[],[]
@@ -360,7 +504,7 @@ class Data:
                 states.update({k[:-1]:data.get(k)})
         return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times
                 
-##########################################################################################################
+###################################################
     def read_fitted_recovery_csv(self,file_path:str) -> dict:
         data = {}
         with open(file_path, newline='') as f:
@@ -372,9 +516,8 @@ class Data:
                 data[key] = value
         return data
     
-##########################################################################################################
+###################################################
     def plot_recovery(self, data_in):
-
         # Impostazioni generali
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
@@ -439,6 +582,7 @@ class Data:
         def save_box(subset, suffix, entry):
             nrows = len(grid)
             ncols = len(msg_list)
+
             fig, axes = plt.subplots(nrows, ncols, figsize=(28, 18), sharey=True, sharex=False)
 
             # assicurati che axes sia array 2D
@@ -491,10 +635,22 @@ class Data:
 
                     # Asse y: scala e limiti
                     if entry == "Time":
-                        ax.set_ylim(1, 1001)
-                        ax.set_yscale("log")
+                        global_max = subset['Time'].max()  # oppure df['Time'].max() per tutto il dataset
+                        
+                        if global_max <= 100:  # caso in cui non serve la parte log
+                            ax.set_yscale('linear')
+                            ax.set_ylim(0, global_max+3)   # qui passi i limiti in unità realiax.set_yscale('linlog', threshold=200, fraction_linear=0.6)
+                        else:
+                            ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
+                            ax.set_ylim(0, 1001)   # qui passi i limiti in unità realiax.set_yscale('linlog', threshold=200, fraction_linear=0.6)
                     else:
-                        ax.set_ylim(-3, 73)
+                        global_max = subset['Events'].max()  # oppure df['Time'].max() per tutto il dataset
+                        
+                        if global_max <= 100:  # caso in cui non serve la parte log
+                            ax.set_yscale('linear')
+                        else:
+                            ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
+                        ax.set_ylim(-3, global_max+3) 
 
                     # nascondi xticks/label nelle righe non-bottom per evitare sovrapposizioni
                     if i != nrows - 1:
@@ -502,10 +658,10 @@ class Data:
 
                 # annotazioni riga
                 if entry == "Time":
-                    axes[i, 0].annotate(r"$T_{r}$", xy=(-.2, 0.5), xycoords='axes fraction',
+                    axes[i, 0].annotate(r"$T_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
                                         fontsize=36, ha='left', va='center', rotation=0)
                 else:
-                    axes[i, 0].annotate(r"$E_{r}$", xy=(-.2, 0.5), xycoords='axes fraction',
+                    axes[i, 0].annotate(r"$E_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
                                         fontsize=36, ha='left', va='center', rotation=0)
 
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
@@ -577,7 +733,7 @@ class Data:
             fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
             plt.close(fig)
 
-##########################################################################################################
+###################################################
     def store_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/"):
             os.mkdir(self.base+"/rec_data/")
@@ -616,7 +772,7 @@ class Data:
                                                                 writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean', 'Std', 'Events'])
                                                             writer.writerow([a, a_s, et, c, n_a, m_b_d,met, m_h, gt, thr, s_data[0][0], s_data[0][1], s_data[1]])
 
-##########################################################################################################
+###################################################
     def plot_active(self,data_in,times):
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
@@ -698,7 +854,7 @@ class Data:
         o_k=tmp
         self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg,dict_park_avg_real_fifo],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed,dict_park_tmed_real_fifo],o_k,[arena,agents])
         
-##########################################################################################################
+###################################################
     def print_messages(self,data_in):
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
@@ -956,7 +1112,7 @@ class Data:
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
-##########################################################################################################
+###################################################
     def print_decisions(self,data_in):
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
@@ -1171,7 +1327,7 @@ class Data:
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
-##########################################################################################################
+###################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
         cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
@@ -1647,7 +1803,7 @@ class Data:
         plt.close(tfig)
         self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
 
-##########################################################################################################
+###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
         """
         Genera una tabella unica per ogni valore di o_k e protocollo, con valori v2 (rosso) e v8 (verde) nella stessa cella.
