@@ -70,6 +70,8 @@ class Results:
                     if len(msgs_M_1[seed-1])<max_steps:
                         missing = max_steps - len(msgs_M_1[seed-1])
                         pad = np.full(missing, 0, dtype=int)
+                        states_M_1[seed-1] = np.concatenate((pad, states_M_1[seed-1]))
+                        quorum_M_1[seed-1] = np.concatenate((pad, quorum_M_1[seed-1]))
                         msgs_M_1[seed-1] = np.concatenate((pad, msgs_M_1[seed-1]))
                     elif len(msgs_M_1[seed-1])>max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
