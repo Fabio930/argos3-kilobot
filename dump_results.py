@@ -18,18 +18,12 @@ def setup_logging():
 # Check command line inputs
 def check_inputs():
     ticks = 10
-    data_type = "all"
-    if len(sys.argv) > 7:
+    if len(sys.argv) > 3:
         logging.error("Too many arguments --EXIT--")
         exit()
     if len(sys.argv) > 1:
         for i in range(len(sys.argv)):
-            if sys.argv[i] == '-d':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
-                data_type = str(sys.argv[i + 1])
-            elif sys.argv[i] == '-t':
+            if sys.argv[i] == '-t':
                 if i + 1 >= len(sys.argv):
                     logging.error("BAD format input --EXIT--")
                     exit()
@@ -38,32 +32,29 @@ def check_inputs():
                 except:
                     logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
                     exit()
-    if data_type not in {"all", "quorum", "freq"}:
-        logging.error("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
-        exit()
     if ticks <= 0:
         logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
         exit()
-    return ticks, data_type
+    return ticks
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, sub_path = task
+    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, sub_path = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, sub_path, data_type)
+        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, sub_path)
     except KeyError as e:
         logging.error(f"MemoryError processing {sub_path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, sub_path
+        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, sub_path
 
 def main():
     setup_logging()
-    ticks_per_sec, data_type = check_inputs()
+    ticks_per_sec = check_inputs()
 
     manager = Manager()
     queue = manager.Queue()
@@ -97,7 +88,7 @@ def main():
                                                             if '.' not in folder:
                                                                 msg_hops = folder.split('#')[-1]
                                                                 path = os.path.join(sub_path, folder)
-                                                                queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, data_type, ticks_per_sec, msg_exp_time, msg_hops, path))
+                                                                queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, path))
 
     # Using a manager to handle the queue
 
@@ -132,7 +123,7 @@ def main():
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 1024 and len(active_processes) > 0:
+        if available_memory <= 3024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -150,7 +141,7 @@ def main():
         for key in to_remove:
             process = active_processes.pop(key)
             logging.info(f"Process {key} for task {process[1][-1]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
