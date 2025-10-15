@@ -193,7 +193,7 @@ class Data:
 
 ##########################################################################################################
     def divide_data(self,data):
-        states, comm_states, uncomm_states, times, messages_b, messages_r                                   = {},{},{},{},{},{}
+        states, comm_states, uncomm_states, times = {},{},{},{}
         algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, msg_hops, msg_time    = [],[],[],[],[],[],[],[],[],[]
         for k in data.keys():
             for i in range(len(k)-1):
@@ -215,11 +215,7 @@ class Data:
                 comm_states.update({k[:-1]:data.get(k)})
             elif k[-1] == "uncommitted_state":
                 uncomm_states.update({k[:-1]:data.get(k)})
-            elif k[-1] == "broadcast_msg":
-                messages_b.update({k[:-1]:data.get(k)})
-            elif k[-1] == "rebroadcast_msg":
-                messages_r.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, msg_hops, msg_time), states, times, (messages_b, messages_r), (comm_states,uncomm_states)
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, msg_hops, msg_time), states, times, (comm_states,uncomm_states)
     
 ##########################################################################################################
     def plot_by_commit_w_gt_thr(self,data_in):
@@ -524,11 +520,9 @@ class Data:
 
 ##########################################################################################################
     def print_evolutions_by_commit(self,path,ground_T,threshlds,data_comm_sq,data_uncomm_sq,data_comm_rt,data_uncomm_rt,keys,more_k,msg_hop):
-        
-        cm          = plt.get_cmap('viridis') 
         typo        = [0,1,2,3,4,5]
         cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         o_k         = keys
         dict_park_comm_sq,dict_adam_comm_sq,dict_fifo_comm_sq,dict_rnd_comm_sq,dict_inf_rnd_comm_sq,dict_adp_rnd_comm_sq              = data_comm_sq[0], data_comm_sq[1], data_comm_sq[2], data_comm_sq[3], data_comm_sq[4], data_comm_sq[5]
         dict_park_uncomm_sq,dict_adam_uncomm_sq,dict_fifo_uncomm_sq,dict_rnd_uncomm_sq,dict_inf_rnd_uncomm_sq,dict_adp_rnd_uncomm_sq  = data_uncomm_sq[0], data_uncomm_sq[1], data_uncomm_sq[2], data_uncomm_sq[3], data_uncomm_sq[4], data_uncomm_sq[5]
@@ -717,11 +711,9 @@ class Data:
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in_sq,times_in_sq,data_in_rt,times_in_rt,keys,more_k,msg_hop):
-        
-        cm          = plt.get_cmap('viridis') 
         typo        = [0,1,2,3,4,5]
         cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         o_k         = keys
         dict_park_sq,dict_adam_sq,dict_fifo_sq,dict_rnd_sq,dict_inf_rnd_sq,dict_adp_rnd_sq = data_in_sq[0], data_in_sq[1], data_in_sq[2], data_in_sq[3], data_in_sq[4], data_in_sq[5]
         dict_park_rt,dict_adam_rt,dict_fifo_rt,dict_rnd_rt,dict_inf_rnd_rt,dict_adp_rnd_rt = data_in_rt[0], data_in_rt[1], data_in_rt[2], data_in_rt[3], data_in_rt[4], data_in_rt[5]
@@ -850,10 +842,9 @@ class Data:
 
 ##########################################################################################################
     def print_messages(self,c_type,data_in_sq,data_in_rt,keys):
-        cm          = plt.get_cmap('viridis') 
         typo        = [0,1,2,3,4,5]
         cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         arena,thr,gt,agents,buffer = keys
         dict_park_sq,dict_adam_sq,dict_fifo_sq,dict_rnd_sq,dict_inf_rnd_sq, dict_adpt_rnd_sq = data_in_sq[0], data_in_sq[1], data_in_sq[2], data_in_sq[3], data_in_sq[4], data_in_sq[5]
         dict_park_rt,dict_adam_rt,dict_fifo_rt,dict_rnd_rt,dict_inf_rnd_rt, dict_adpt_rnd_rt = data_in_rt[0], data_in_rt[1], data_in_rt[2], data_in_rt[3], data_in_rt[4], data_in_rt[5]
@@ -1146,11 +1137,9 @@ class Data:
 
 ##########################################################################################################
     def print_dif_messages(self,c_type,comm_data_in_sq,uncomm_data_in_sq,comm_data_in_rt,uncomm_data_in_rt,keys):
-        
-        cm          = plt.get_cmap('viridis') 
         typo        = [0,1,2,3,4,5]
         cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         arena,thr,gt,agents,buffer  = keys
         comm_dict_park_sq,comm_dict_adam_sq,comm_dict_fifo_sq,comm_dict_rnd_sq,comm_dict_inf_rnd_sq,comm_dict_adp_rnd_sq              = comm_data_in_sq[0], comm_data_in_sq[1], comm_data_in_sq[2], comm_data_in_sq[3], comm_data_in_sq[4], comm_data_in_sq[5]
         uncomm_dict_park_sq,uncomm_dict_adam_sq,uncomm_dict_fifo_sq,uncomm_dict_rnd_sq,uncomm_dict_inf_rnd_sq,uncomm_dict_adp_rnd_sq  = uncomm_data_in_sq[0], uncomm_data_in_sq[1], uncomm_data_in_sq[2], uncomm_data_in_sq[3], uncomm_data_in_sq[4], uncomm_data_in_sq[5]
@@ -1541,11 +1530,9 @@ class Data:
     
 ##########################################################################################################
     def print_pos(self,c_type,square_data_in,rect_data_in):
-        
-        cm          = plt.get_cmap('viridis') 
         typo        = [0,1,2,3,4,5]
         cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         square_dict_park,square_dict_adam,square_dict_fifo,square_dict_rnd,square_dict_inf_rnd,square_dict_adp_rnd  = square_data_in[0], square_data_in[1], square_data_in[2], square_data_in[3], square_data_in[4], square_data_in[5]
         rect_dict_park,rect_dict_adam,rect_dict_fifo,rect_dict_rnd,rect_dict_inf_rnd,rect_dict_adp_rnd            = rect_data_in[0], rect_data_in[1], rect_data_in[2], rect_data_in[3], rect_data_in[4], rect_data_in[5]
         park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")

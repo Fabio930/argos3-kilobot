@@ -1,5 +1,5 @@
+import os, csv, math, gc, sys
 import numpy as np
-import os, csv, math, gc
 
 class Results:
     min_buff_dim = 5
@@ -16,10 +16,6 @@ class Results:
                 selem=elem.split('_')
                 if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
-
-#########################################################################################################
-    def rearrange_matrix(self,data):
-        return np.transpose(data, (1,0,2))
 
 ##########################################################################################################
     def compute_avg_msgs(self,messages,states):
@@ -55,20 +51,15 @@ class Results:
         return tot_avg, comm_avg, uncomm_avg
     
 ##########################################################################################################
-    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,sub_path,data_type="all"):
-        act_results = {}
+    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,sub_path):
         num_runs        = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1   = [np.array([])] * n_agents
         quorum_bigM_1   = [np.array([])] * n_agents
         msgs_bigM_1     = [np.array([])] * n_agents
-        act_bigM_1      = [np.array([])] * n_agents
-        act_bigM_2      = [np.array([])] * n_agents
         positions_bigM  = [np.array([])] * n_agents
         msgs_M_1        = [np.array([],dtype=int)] * num_runs # x num_samples
         states_M_1      = [np.array([],dtype=int)] * num_runs
         quorum_M_1      = [np.array([],dtype=int)] * num_runs
-        act_M_1         = [np.array([],dtype=int)] * num_runs
-        act_M_2         = [np.array([],dtype=int)] * num_runs
         positions_M     = [np.array([])] * num_runs
         agents_count    = [0]*n_agents
         for elem in sorted(os.listdir(sub_path)):
@@ -86,8 +77,7 @@ class Results:
                             if log_count % self.ticks_per_sec == 0:
                                 state           = -1
                                 msgs            = -1
-                                broadcast_c     = -1
-                                re_broadcast_c  = -1
+                                quorum          = -1
                                 val_x           = -1
                                 val_y           = -1
                                 for val in row:
@@ -95,40 +85,35 @@ class Results:
                                     state           = int(val[0])
                                     quorum          = int(val[1])
                                     msgs            = int(val[2])
-                                    broadcast_c     = int(val[3])
-                                    re_broadcast_c  = int(val[4])
                                     try:
-                                        val_x       = float(val[5])
-                                        val_y       = float(val[6])
+                                        val_x       = float(val[3])
+                                        val_y       = float(val[4])
                                     except:
                                         print("positional values not found")
-                                if data_type in ("all","quorum"):
-                                    states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
-                                    quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
-                                    msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
-                                    positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
-                                if data_type in ("all","freq"):
-                                    act_M_1[seed-1] = np.append(act_M_1[seed-1],broadcast_c)
-                                    act_M_2[seed-1] = np.append(act_M_2[seed-1],re_broadcast_c)
-                    if data_type in ("all","quorum") and len(msgs_M_1[seed-1])!=max_steps:
+                                states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
+                                quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
+                                msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
+                                positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
+                    if len(msgs_M_1[seed-1])<max_steps:
+                        missing = max_steps - len(msgs_M_1[seed-1])
+                        pad = np.full(missing, 0, dtype=int)
+                        states_M_1[seed-1] = np.concatenate((pad, states_M_1[seed-1]))
+                        quorum_M_1[seed-1] = np.concatenate((pad, quorum_M_1[seed-1]))
+                        msgs_M_1[seed-1] = np.concatenate((pad, msgs_M_1[seed-1]))
+                        pad = np.full(missing, -1, dtype=int)
+                        positions_M[seed-1] = np.concatenate((pad, positions_M[seed-1]))                        
+                    elif len(msgs_M_1[seed-1])>max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
-                    elif data_type in ("freq") and len(act_M_1[seed-1])!=max_steps:
-                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(act_M_1[seed-1]))
+                        sys.exit()
                     if agents_count[agent_id]==num_runs:
-                        if data_type in ("all","quorum"):
-                            msgs_bigM_1[agent_id]       = msgs_M_1
-                            states_bigM_1[agent_id]     = states_M_1
-                            quorum_bigM_1[agent_id]     = quorum_M_1
-                            positions_bigM[agent_id]    = positions_M
-                            msgs_M_1                    = [np.array([],dtype=int)]*num_runs
-                            states_M_1                  = [np.array([],dtype=int)]*num_runs
-                            quorum_M_1                  = [np.array([],dtype=int)]*num_runs
-                            positions_M                 = [np.array([])] * num_runs
-                        if data_type in ("all","freq"):
-                            act_bigM_1[agent_id]    = act_M_1
-                            act_bigM_2[agent_id]    = act_M_2
-                            act_M_1                 = [np.array([],dtype=int)]*num_runs
-                            act_M_2                 = [np.array([],dtype=int)]*num_runs
+                        msgs_bigM_1[agent_id]       = msgs_M_1
+                        states_bigM_1[agent_id]     = states_M_1
+                        quorum_bigM_1[agent_id]     = quorum_M_1
+                        positions_bigM[agent_id]    = positions_M
+                        msgs_M_1                    = [np.array([],dtype=int)]*num_runs
+                        states_M_1                  = [np.array([],dtype=int)]*num_runs
+                        quorum_M_1                  = [np.array([],dtype=int)]*num_runs
+                        positions_M                 = [np.array([])] * num_runs
         algo    = ""
         arenaS  = ""
         info_vec    = sub_path.split('/')
@@ -137,30 +122,23 @@ class Results:
                 algo        = iv[0]
             elif "ArenaType" in iv:
                 arenaS      = iv.split('#')[-1]
-        if data_type in ("all","quorum"):
-            t_messages  = sub_path.split('#')[-1]
-            positions   = self.rearrange_matrix(positions_bigM) if len(positions_bigM)>0 else []
-            states      = self.rearrange_matrix(states_bigM_1)
-            messages    = self.rearrange_matrix(msgs_bigM_1)
-            statescpy   = [[0]*len(states[0])]*len(states)
-            for i in range(len(states)):
-                for j in range(len(states[i])):
-                    statescpy[i][j] = states[i][j][-1]
-            avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
-            self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
-            del avg_messages,commit_avg_msgs,uncommit_avg_msgs
-            quorums = self.rearrange_matrix(quorum_bigM_1)
-            self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
-            self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
-            avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
-            self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
-            del quorums, states, statescpy, positions
-        if data_type in ("all","freq"):
-            act_results[0] = (act_bigM_1,act_bigM_2)
-            self.dump_msg_freq(algo,3,act_results,len(act_M_1),base,sub_path,msg_exp_time,n_agents)
-            del act_results
-        del states_bigM_1,quorum_bigM_1,msgs_bigM_1,act_bigM_1,act_bigM_2,msgs_M_1,quorum_M_1,states_M_1,act_M_1,act_M_2,positions_M,positions_bigM
-        gc.collect()
+        t_messages  = sub_path.split('#')[-1]
+        positions   = np.transpose(positions_bigM, (1,0,2)) if len(positions_bigM)>0 else []
+        states      = np.transpose(states_bigM_1, (1,0,2))
+        messages    = np.transpose(msgs_bigM_1, (1,0,2))
+        statescpy   = [[0]*len(states[0])]*len(states)
+        for i in range(len(states)):
+            for j in range(len(states[i])):
+                statescpy[i][j] = states[i][j][-1]
+        avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
+        self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
+        del avg_messages,commit_avg_msgs,uncommit_avg_msgs
+        quorums = np.transpose(quorum_bigM_1, (1,0,2))
+        self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
+        self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
+        avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
+        self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
+        del quorums, states, statescpy, positions, states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,positions_M,positions_bigM
 
 ##########################################################################################################
     def compute_frontier_avg_distance(self,positions,arena_size,gt):
@@ -356,7 +334,7 @@ class Results:
             median_array = []
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
-            fstd3[z]=self.extract_median(median_array)
+            fstd3[z]=np.median(median_array)
         self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
         self.dump_resume_csv(algo,1,bias,np.round(comm_flag2,2).tolist(),"-",BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
         self.dump_resume_csv(algo,2,bias,np.round(uncomm_flag2,2).tolist(),"-",BASE,PATH,MINS,MSG_EXP_TIME,len(q_data))
@@ -374,13 +352,3 @@ class Results:
                     break
         times = sorted(times)
         self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,len(data_in))
-
-##########################################################################################################
-    def extract_median(self,array):
-        median = 0
-        sortd_arr = np.sort(array)
-        if len(sortd_arr)%2 == 0:
-            median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
-        else:
-            median = sortd_arr[math.floor(len(sortd_arr)/2)]
-        return median

@@ -13,7 +13,6 @@ def setup_logging():
 # Check command line inputs
 def check_inputs():
     ticks = 10
-    data_type = "all"
     if len(sys.argv) > 3:
         logging.error("Too many arguments --EXIT--")
         sys.exit()
@@ -31,25 +30,25 @@ def check_inputs():
     if ticks <= 0:
         logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
         sys.exit()
-    return ticks, data_type
+    return ticks
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type, ticks_per_sec = task
+    base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type)
+        results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path)
     except KeyError as e:
         logging.error(f"KeyError processing {msg_exp_path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {msg_exp_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results,base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type, ticks_per_sec
+        del results,base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec
 def main():
     setup_logging()
-    ticks_per_sec, data_type = check_inputs()
+    ticks_per_sec = check_inputs()
 
     manager = Manager()
     queue = manager.Queue()
@@ -86,7 +85,7 @@ def main():
                                                                     if '.' not in msg_exp_dir and '#' in msg_exp_dir:
                                                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
-                                                                        queue.put((base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, data_type, ticks_per_sec))
+                                                                        queue.put((base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -118,12 +117,12 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-3]} not found")
+                logging.info(f"Process {key} for task {process[1][-2]} not found")
         max_memory_used = max(memory_used_by_processes, default=0)
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
-        if available_memory <= 1024 and len(active_processes) > 0:
+        if available_memory <= 3024 and len(active_processes) > 0:
             for i in range(1, len(active_keys) + 1):
                 last_pid = list(active_keys)[-i]
                 if last_pid not in to_remove:
@@ -140,14 +139,14 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {process[1][-3]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
+            logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_folder, args=(task,))
                 p.start()
                 active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {task[-3]}")
+                logging.info(f"Started process {p.pid} for task {task[-2]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
