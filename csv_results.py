@@ -425,17 +425,23 @@ class Data:
                                                 if al=='P' and int(c)==0:
                                                     if a.split(';')[0] == a.split(';')[1]:
                                                         if gp == "commit_average":
+                                                            print("\nScom\t",(a,t,g,ag,b),'\t',s_data)
                                                             com_dict_park_square.update({(a,t,g,ag,b):s_data})
                                                         elif gp == "uncommit_average":
+                                                            print("\nSuncom\t",(a,t,g,ag,b),'\t',s_data)
                                                             uncom_dict_park_square.update({(a,t,g,ag,b):s_data})
                                                         else:
+                                                            print("\nStot\t",(a,t,g,ag,b),'\t',s_data)
                                                             dict_park_square.update({(a,t,g,ag,b):s_data})
                                                     else:
                                                         if gp == "commit_average":
+                                                            print("\nRcom\t",(a,t,g,ag,b),'\t',s_data)
                                                             com_dict_park_rect.update({(a,t,g,ag,b):s_data})
                                                         elif gp == "uncommit_average":
+                                                            print("\nRuncom\t",(a,t,g,ag,b),'\t',s_data)
                                                             uncom_dict_park_rect.update({(a,t,g,ag,b):s_data})
                                                         else:
+                                                            print("\nRtot\t",(a,t,g,ag,b),'\t',s_data)
                                                             dict_park_rect.update({(a,t,g,ag,b):s_data})
                                                             
                                                 if al=='O':
