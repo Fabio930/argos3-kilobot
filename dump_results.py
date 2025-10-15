@@ -1,10 +1,5 @@
+import os, sys, logging, gc, time, psutil
 import data_extractor as dex
-import os
-import sys
-import logging
-import gc
-import time
-import psutil
 from multiprocessing import Process, Manager
 
 # Setup logging
@@ -19,31 +14,23 @@ def setup_logging():
 def check_inputs():
     ticks = 10
     data_type = "all"
-    if len(sys.argv) > 7:
+    if len(sys.argv) > 3:
         logging.error("Too many arguments --EXIT--")
-        exit()
+        sys.exit()
     if len(sys.argv) > 1:
         for i in range(len(sys.argv)):
-            if sys.argv[i] == '-d':
+            if sys.argv[i] == '-t':
                 if i + 1 >= len(sys.argv):
                     logging.error("BAD format input --EXIT--")
-                    exit()
-                data_type = str(sys.argv[i + 1])
-            elif sys.argv[i] == '-t':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
+                    sys.exit()
                 try:
                     ticks = int(sys.argv[i + 1])
                 except:
                     logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
-                    exit()
-    if data_type not in {"all", "quorum", "freq"}:
-        logging.error("BAD format -d input type\nallowed entries are: all, quorum or freq --EXIT--")
-        exit()
+                    sys.exit()
     if ticks <= 0:
         logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
-        exit()
+        sys.exit()
     return ticks, data_type
 
 # Process folder with retries and memory management
