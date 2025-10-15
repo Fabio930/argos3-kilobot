@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 36})
+plt.rcParams.update({"font.size": 30})
 
 ##########################################################################################################
 import numpy as np
@@ -32,14 +32,14 @@ class LinLogScale(mscale.ScaleBase):
     """
     name = 'linlog'
 
-    def __init__(self, axis, threshold=200.0, fraction_linear=0.5, data_max=None,
-                 n_lin_ticks=5, n_log_ticks=5, **kwargs):
+    def __init__(self, axis, threshold:int=200, fraction_linear:float=0.5, data_max=None,
+                 n_lin_ticks:int=11, n_log_ticks:int=5, **kwargs):
         super().__init__(axis)
-        self.threshold = float(threshold)
-        self.fraction_linear = float(fraction_linear)
+        self.threshold = threshold
+        self.fraction_linear = fraction_linear
         self.data_max = None if data_max is None else float(data_max)
-        self.n_lin_ticks = int(n_lin_ticks)
-        self.n_log_ticks = int(n_log_ticks)
+        self.n_lin_ticks = n_lin_ticks
+        self.n_log_ticks = n_log_ticks
 
     def get_transform(self):
         # data_max deve essere noto alla trasformazione
@@ -51,19 +51,19 @@ class LinLogScale(mscale.ScaleBase):
 
         # Tick lineari da 0 a threshold (incluso)
         if self.n_lin_ticks > 1:
-            lin_ticks = np.linspace(0.0, self.threshold, self.n_lin_ticks)
+            lin_ticks = np.linspace(0, self.threshold, self.n_lin_ticks, dtype=int)
+            # lin_ticks = np.delete(lin_ticks,0)
+            # lin_ticks = np.concatenate([[0],lin_ticks])
         else:
-            lin_ticks = np.array([0.0, self.threshold])
-
+            lin_ticks = np.array([0, self.threshold],dtype=int)
         # Tick logaritmici solo sopra threshold (escludendo threshold)
         log_ticks = np.array([])
         if data_max > self.threshold * 1.0001:
             start = max(self.threshold * 1.0001, self.threshold + 1e-6)
             log_ticks = np.geomspace(start, data_max, num=self.n_log_ticks)
-            log_ticks = log_ticks[log_ticks > self.threshold * 1.001]
-
+            log_ticks = np.around(log_ticks[log_ticks > self.threshold * 1.001],0)
+        
         ticks = np.concatenate([lin_ticks, log_ticks])
-        ticks = np.unique(np.round(ticks, 6))
         axis.set_major_locator(ticker.FixedLocator(ticks))
 
         # Funzione di formattazione
@@ -523,9 +523,8 @@ class Data:
         os.makedirs(images_dir, exist_ok=True)
 
         # Mappa varianti -> label e colore
-        cm = plt.get_cmap('viridis')
         norm = colors.Normalize(vmin=0, vmax=5)
-        scalarMap = cmx.ScalarMappable(norm=norm, cmap=cm)
+        scalarMap = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
         variant_map = {
             'P.0': (r'$AN$', 'red'),
             'P.1': (r'$AN_{t}$', scalarMap.to_rgba(0)),
@@ -579,11 +578,11 @@ class Data:
         label_color_map = {label: color for label, color in variant_map.values()}
 
         # Funzione per salvare boxplot con gestione dei label/overlap
-        def save_box(subset, suffix, entry):
+        def save_box(subset, suffix, entry, global_max:int):
             nrows = len(grid)
             ncols = len(msg_list)
 
-            fig, axes = plt.subplots(nrows, ncols, figsize=(28, 18), sharey=True, sharex=False)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=True, sharex=False)
 
             # assicurati che axes sia array 2D
             if nrows == 1 and ncols == 1:
@@ -618,12 +617,12 @@ class Data:
 
                     # disegna solo se c'è almeno una serie non vuota
                     if len(data_nonempty) > 0:
-                        bp = ax.boxplot(data_nonempty, labels=labels_nonempty, patch_artist=True)
+                        bp = ax.boxplot(data_nonempty, labels=labels_nonempty, patch_artist=True,medianprops=dict(color='gray', linewidth=2))
                         for patch, lbl in zip(bp['boxes'], labels_nonempty):
                             patch.set_facecolor(label_color_map.get(lbl, 'black'))
                         # migliora visibilità degli xticks: li ruotiamo (ma li mostriamo solo nella riga in basso)
                         if i == nrows - 1:
-                            plt.setp(ax.get_xticklabels(), rotation=30, ha='right', fontsize=12)
+                            plt.setp(ax.get_xticklabels(), rotation=30, ha='center', fontsize=plt.rcParams.get("font.size")-5)
                     else:
                         # niente dati -> togli label asse x per evitare "vuoti" visuali
                         ax.set_xticks([])
@@ -634,56 +633,51 @@ class Data:
                         ax.set_title(col_labels[j])
 
                     # Asse y: scala e limiti
-                    if entry == "Time":
-                        global_max = subset['Time'].max()  # oppure df['Time'].max() per tutto il dataset
-                        
-                        if global_max <= 100:  # caso in cui non serve la parte log
-                            ax.set_yscale('linear')
-                            ax.set_ylim(0, global_max+3)   # qui passi i limiti in unità realiax.set_yscale('linlog', threshold=200, fraction_linear=0.6)
-                        else:
-                            ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
-                            ax.set_ylim(0, 1001)   # qui passi i limiti in unità realiax.set_yscale('linlog', threshold=200, fraction_linear=0.6)
+                    if global_max <= 100:  # caso in cui non serve la parte log
+                        ax.set_yscale('linear')
+                        ax.set_yticks(np.arange(0,global_max+5,5,dtype=int))
                     else:
-                        global_max = subset['Events'].max()  # oppure df['Time'].max() per tutto il dataset
-                        
-                        if global_max <= 100:  # caso in cui non serve la parte log
-                            ax.set_yscale('linear')
-                        else:
-                            ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
-                        ax.set_ylim(-3, global_max+3) 
+                        ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
+                    ax.set_ylim(-3, global_max+333)  if entry=="Time" else ax.set_ylim(-3, global_max+3)
+                    plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
 
                     # nascondi xticks/label nelle righe non-bottom per evitare sovrapposizioni
                     if i != nrows - 1:
                         ax.set_xticklabels([])
+                    
+
 
                 # annotazioni riga
                 if entry == "Time":
                     axes[i, 0].annotate(r"$T_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
-                                        fontsize=36, ha='left', va='center', rotation=0)
+                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=0)
                 else:
                     axes[i, 0].annotate(r"$E_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
-                                        fontsize=36, ha='left', va='center', rotation=0)
+                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=0)
 
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=36, ha='left', va='center', rotation=90)
+                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
 
             fig.tight_layout(rect=[0, 0.05, 1, 0.95])
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
             plt.close(fig)
 
         # Salva i boxplot
-        save_box(df, 'all_events', 'Events')
-        save_box(df, 'all_time', 'Time')
-        save_box(df[df['Error'] <= 0.05], 'le05_events', 'Events')
-        save_box(df[df['Error'] <= 0.05], 'le05_time', 'Time')
-        save_box(df[df['Error'] > 0.05], 'gt05_events', 'Events')
-        save_box(df[df['Error'] > 0.05], 'gt05_time', 'Time')
+        time_max = df["Time"].max()
+        event_max = df["Events"].max()
+
+        save_box(df, 'all_events', 'Events',event_max)
+        save_box(df, 'all_time', 'Time',time_max)
+        save_box(df[df['Error'] <= 0.05], 'le05_events', 'Events',event_max)
+        save_box(df[df['Error'] <= 0.05], 'le05_time', 'Time',time_max)
+        save_box(df[df['Error'] > 0.05], 'gt05_events', 'Events',event_max)
+        save_box(df[df['Error'] > 0.05], 'gt05_time', 'Time',time_max)
 
         # Istogrammi 2D per variante (Error vs Events)
-        xbins = np.linspace(0, df['Error'].max(), 20) if df['Error'].max() > 0 else np.linspace(0, 1, 20)
-        ybins = np.arange(0, 71, 5)
+        xbins = np.linspace(0, 0.5, 30)
+        ybins = np.arange(0, event_max+5, 2)
         for key_var, (label, color) in variant_map.items():
-            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(28, 18), sharex=True, sharey=True)
+            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(30, 18), sharex=True, sharey=True)
             h = None
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
@@ -698,20 +692,27 @@ class Data:
                         h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
                     if i == 0:
                         ax.set_title(col_labels[j])
+                    if i == 2:
+                        ax.set_xlabel(r"$|G-\tau|$")
+                        ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+                        ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
+                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                    if j == 0:
+                        ax.set_yticks(np.arange(0,event_max+5,10))
+                        ax.set_ylabel(r"$Events$")
+                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=36, ha='left', va='center', rotation=270)
-                axes[i, 0].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=36, ha='left', va='center', rotation=270)
+                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=270)
             if h is not None:
-                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
+                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='#')
             fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
             plt.close(fig)
 
         # Istogrammi 2D per variante (Error vs Time)
-        xbins = np.linspace(0, df['Error'].max(), 20) if df['Error'].max() > 0 else np.linspace(0, 1, 20)
-        ybins = np.arange(0, 201, 5)
+        xbins = np.linspace(0, 0.5, 30)
+        ybins = np.arange(0, 155, 5)
         for key_var, (label, color) in variant_map.items():
-            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(28, 18), sharex=True, sharey=True)
+            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(30, 18), sharex=True, sharey=True)
             h = None
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
@@ -726,10 +727,19 @@ class Data:
                         h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
                     if i == 0:
                         ax.set_title(col_labels[j])
+                    if i == 2:
+                        ax.set_xlabel(r"$|G-\tau|$")
+                        ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+                        ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
+                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                    if j == 0:
+                        ax.set_yticks(np.arange(0,155,20))
+                        ax.set_ylabel(r"$Time$")
+                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=36, ha='left', va='center', rotation=270)
+                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=270)
             if h is not None:
-                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='Count')
+                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='#')
             fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
             plt.close(fig)
 
@@ -856,10 +866,9 @@ class Data:
         
 ###################################################
     def print_messages(self,data_in):
-        cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
         anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
@@ -872,13 +881,13 @@ class Data:
         void_x_ticks = []
         svoid_x_ticks = []
         handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.round(x,0))))
+                    real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
         for k in dict_park_real_fifo.keys():
@@ -1088,9 +1097,9 @@ class Data:
         ayt0.set_ylabel("LD25")
         ayt1.set_ylabel("HD25")
         ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$M$",rotation=0)
-        ax[1][0].set_ylabel(r"$M$",rotation=0)
-        ax[2][0].set_ylabel(r"$M$",rotation=0)
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$M$")
+        ax[2][0].set_ylabel(r"$M$")
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
@@ -1114,10 +1123,9 @@ class Data:
     
 ###################################################
     def print_decisions(self,data_in):
-        cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
         anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
@@ -1130,13 +1138,13 @@ class Data:
         void_x_ticks = []
         svoid_x_ticks = []
         handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.round(x,0))))
+                    real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
         for k in dict_park_real_fifo.keys():
@@ -1303,9 +1311,9 @@ class Data:
         ayt0.set_ylabel("LD25")
         ayt1.set_ylabel("HD25")
         ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$D$",rotation=0)
-        ax[1][0].set_ylabel(r"$D$",rotation=0)
-        ax[2][0].set_ylabel(r"$D$",rotation=0)
+        ax[0][0].set_ylabel(r"$D$")
+        ax[1][0].set_ylabel(r"$D$")
+        ax[2][0].set_ylabel(r"$D$")
         ax[2][0].set_xlabel(r"$T\, (s)$")
         ax[2][1].set_xlabel(r"$T\, (s)$")
         ax[2][2].set_xlabel(r"$T\, (s)$")
@@ -1329,10 +1337,9 @@ class Data:
     
 ###################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        cm = plt.get_cmap('viridis') 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
         tdict_park,tdict_adam,tdict_fifo,tdict_rnd,tdict_rnd_inf,tdict_park_real_fifo = times_in[0], times_in[1], times_in[2], times_in[3], times_in[4], times_in[5]
         po_k = keys
@@ -1354,7 +1361,7 @@ class Data:
         handles_c   = [high_bound,low_bound]
         handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
-        tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(28,18))
+        tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -1672,7 +1679,7 @@ class Data:
                     tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
-                            if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
+                            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
                                 str_threshlds.append(str(x))
                                 void_str_threshlds.append('')
                                 svoid_str_threshlds.append('')
@@ -1680,7 +1687,7 @@ class Data:
                                 void_str_threshlds.append('')
                         for x in threshlds:
                             if x>.9: break
-                            if np.round(np.round(x,1)-np.round(x%10,2),2) == 0.0:
+                            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
                                 str_threshlds_y.append(str(x))
                                 void_str_threshlds_y.append('')
                                 svoid_str_threshlds_y.append('')
@@ -1750,14 +1757,14 @@ class Data:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
                         if row==0:
-                            ax[row][k].set_ylabel(r"$G$",rotation=0)
-                            tax[row][k].set_ylabel(r"$T_c$",rotation=0)
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c$")
                         elif row==1:
-                            ax[row][k].set_ylabel(r"$G$",rotation=0)
-                            tax[row][k].set_ylabel(r"$T_c$",rotation=0)
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c$")
                         elif row==2:
-                            ax[row][k].set_ylabel(r"$G$",rotation=0)
-                            tax[row][k].set_ylabel(r"$T_c$",rotation=0)
+                            ax[row][k].set_ylabel(r"$G$")
+                            tax[row][k].set_ylabel(r"$T_c$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
@@ -1801,7 +1808,7 @@ class Data:
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
-        self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
+        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
@@ -1862,7 +1869,7 @@ class Data:
                     axes[p_idx].set_title(f"{title} ({a}, {ag})")
                     axes[p_idx].axis('off')
                     table.auto_set_font_size(False)
-                    table.set_fontsize(18)
+                    table.set_fontsize(plt.rcParams.get("font.size"))
                     table.scale(2.5, 4.0)
                     # Colora le celle: rosso se v2 presente, verde se v8 presente
                     for (i, j), cell in table.get_celld().items():
