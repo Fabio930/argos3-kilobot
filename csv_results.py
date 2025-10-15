@@ -1,14 +1,15 @@
 import numpy as np
-import os, csv, math
+import os, csv, logging
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+plt.rcParams.update({"font.size": 30})
 class Data:
 
 ##########################################################################################################
     def __init__(self) -> None:
-        plt.rcParams.update({"font.size":36})
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
@@ -253,7 +254,7 @@ class Data:
         handles_r       = [park_real,park,adam,fifo,rnd,rnd_inf,rnd_adp]
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for a in arena:
                     if a=="smallA":
                         row = 1
@@ -369,7 +370,7 @@ class Data:
         handles_r       = [park_real,park,adam,fifo,rnd,rnd_inf,rnd_adp]
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for a in arena:
                     if a=="smallA":
                         row = 1
@@ -486,7 +487,7 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
         for k in dict_park_real.keys():
             tmp =[]
             res = dict_park_real.get(k)
