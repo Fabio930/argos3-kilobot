@@ -20,10 +20,10 @@ class Data:
         dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt = {},{},{},{},{},{},{}
         for k in data.keys():
             if(k[3]=="0.68;0.92"):
-                if k[1]=='P':
+                if k[1]=='P' and k[7]!="0":
                     dict_park.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                elif k[1]=='Pf':
-                    dict_park_real.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+                elif k[1]=='P' and k[7]=="0":
+                    dict_park_real.update({(k[0],k[2],k[3],k[5],k[6],"60"):data.get(k)})
                 else:
                     if int(k[4])==0:
                         dict_adam.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
@@ -32,7 +32,7 @@ class Data:
                     else:
                         if k[5]=="0":
                             dict_rnd_inf.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                        elif k[5]=="a31":
+                        elif k[5]=="31":
                             dict_rnd_adpt.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
                         else:
                             dict_rnd.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
@@ -200,14 +200,14 @@ class Data:
                                                         s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
                                                         t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
                                                         if s_data != None:
-                                                            if m_t not in o_k: o_k.append(m_t)
+                                                            if int(m_t) !=0 and m_t not in o_k: o_k.append(m_t)
                                                             
-                                                            if a=='P' and int(c)==0:
+                                                            if a=='P' and int(c)==0 and int(m_t)!=0:
                                                                 dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                 dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                            elif a=='Pf' and int(c)==0:
-                                                                dict_park_state_real.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                dict_park_time_real.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                            elif a=='P' and int(c)==0 and int(m_t)==0:
+                                                                dict_park_state_real.update({(a_s,n_a,"60",gt,thr):s_data[0]})
+                                                                dict_park_time_real.update({(a_s,n_a,"60",gt,thr):t_data[0]})
                                                             elif a=='O':
                                                                 if int(c)==0:
                                                                     dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
@@ -219,7 +219,7 @@ class Data:
                                                                     if m_h=="1":
                                                                         dict_rnd_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-                                                                    elif m_h=="a31":
+                                                                    elif m_h=="31":
                                                                         dict_rnd_adapt_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_adapt_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
                                                                     else:
@@ -340,7 +340,7 @@ class Data:
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
                 fig_path = path+thr+"_"+gt+"_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -456,7 +456,7 @@ class Data:
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
                 fig_path = path+thr+"_"+gt+"_adaptive_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -701,6 +701,6 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/adaptive_messages.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)

@@ -17,10 +17,6 @@ class Results:
                 if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
     
-#########################################################################################################
-    def rearrange_quorum(self,data):
-        return np.transpose(data, (1,0,2))
-
 ##########################################################################################################
     def compute_avg_msgs(self,data):
         print("--- Computing avg buffer dimension ---")
@@ -94,7 +90,7 @@ class Results:
         t_messages  = info_vec[-2].split('#')[-1]
         messages    = self.compute_avg_msgs(msgs_bigM_1)
         self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
-        states = self.rearrange_quorum(quorum_bigM_1)
+        states = np.transpose(quorum_bigM_1, (1,0,2))
         self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents,self.limit)
         self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents)
         del states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,messages,states
