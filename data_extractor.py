@@ -1,4 +1,4 @@
-import os, csv, math, gc, sys
+import os, csv, sys
 import numpy as np
 
 class Results:
@@ -21,12 +21,12 @@ class Results:
     def compute_avg_msgs(self,messages,states):
         print("--- Computing avg buffer dimension ---")
         committed_count = self.count_committed_agents(states)
-        tot_avg     = [0]*len(messages[0][0])
+        tot_avg     = [0 for _ in range(len(messages[0][0]))]
         comm_avg    = []
         uncomm_avg  = []
         for i in range(len(messages)):
-            com_flag    = [0]*len(messages[0][0])
-            uncom_flag  = [0]*len(messages[0][0])
+            com_flag    = [0 for _ in range(len(messages[0][0]))]
+            uncom_flag  = [0 for _ in range(len(messages[0][0]))]
             for j in range(len(messages[i])):
                 for t in range(len(messages[i][j])):
                     tot_avg[t]+=messages[i][j][t]
@@ -53,15 +53,15 @@ class Results:
 ##########################################################################################################
     def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,sub_path):
         num_runs        = int(len(os.listdir(sub_path))/n_agents)
-        states_bigM_1   = [np.array([])] * n_agents
-        quorum_bigM_1   = [np.array([])] * n_agents
-        msgs_bigM_1     = [np.array([])] * n_agents
-        positions_bigM  = [np.array([])] * n_agents
-        msgs_M_1        = [np.array([],dtype=int)] * num_runs # x num_samples
-        states_M_1      = [np.array([],dtype=int)] * num_runs
-        quorum_M_1      = [np.array([],dtype=int)] * num_runs
-        positions_M     = [np.array([])] * num_runs
-        agents_count    = [0]*n_agents
+        states_bigM_1   = [np.array([]) for _ in range(n_agents)]
+        quorum_bigM_1   = [np.array([]) for _ in range(n_agents)]
+        msgs_bigM_1     = [np.array([]) for _ in range(n_agents)]
+        positions_bigM  = [np.array([]) for _ in range(n_agents)]
+        msgs_M_1        = [np.array([],dtype=int) for _ in range(num_runs)]
+        states_M_1      = [np.array([],dtype=int) for _ in range(num_runs)]
+        quorum_M_1      = [np.array([],dtype=int) for _ in range(num_runs)]
+        positions_M     = [np.array([]) for _ in range(num_runs)]
+        agents_count    = [0 for _ in range(n_agents)]
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
                 selem = elem.split('.')
@@ -104,16 +104,16 @@ class Results:
                         positions_M[seed-1] = np.concatenate((pad, positions_M[seed-1]))                        
                     elif len(msgs_M_1[seed-1])>max_steps:
                         print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
-                        sys.exit()
+                        sys.exit(0)
                     if agents_count[agent_id]==num_runs:
                         msgs_bigM_1[agent_id]       = msgs_M_1
                         states_bigM_1[agent_id]     = states_M_1
                         quorum_bigM_1[agent_id]     = quorum_M_1
                         positions_bigM[agent_id]    = positions_M
-                        msgs_M_1                    = [np.array([],dtype=int)]*num_runs
-                        states_M_1                  = [np.array([],dtype=int)]*num_runs
-                        quorum_M_1                  = [np.array([],dtype=int)]*num_runs
-                        positions_M                 = [np.array([])] * num_runs
+                        msgs_M_1                    = [np.array([],dtype=int) for _ in range(num_runs)]
+                        states_M_1                  = [np.array([],dtype=int) for _ in range(num_runs)]
+                        quorum_M_1                  = [np.array([],dtype=int) for _ in range(num_runs)]
+                        positions_M                 = [np.array([]) for _ in range(num_runs)]
         algo    = ""
         arenaS  = ""
         info_vec    = sub_path.split('/')
@@ -126,23 +126,22 @@ class Results:
         positions   = np.transpose(positions_bigM, (1,0,2)) if len(positions_bigM)>0 else []
         states      = np.transpose(states_bigM_1, (1,0,2))
         messages    = np.transpose(msgs_bigM_1, (1,0,2))
-        statescpy   = [[0]*len(states[0])]*len(states)
+        statescpy   = [[0 for _ in range(len(states[0]))] for _ in range(len(states))]
         for i in range(len(states)):
             for j in range(len(states[i])):
                 statescpy[i][j] = states[i][j][-1]
         avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
         self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
-        del avg_messages,commit_avg_msgs,uncommit_avg_msgs
         quorums = np.transpose(quorum_bigM_1, (1,0,2))
         self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
         self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
         avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
         self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
-        del quorums, states, statescpy, positions, states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,positions_M,positions_bigM
+        del avg_messages,commit_avg_msgs,uncommit_avg_msgs, quorums, states, statescpy, positions, states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,positions_M,positions_bigM
 
 ##########################################################################################################
     def compute_frontier_avg_distance(self,positions,arena_size,gt):
-        out = [0]*len(positions[0][0])
+        out = [0 for _ in range(len(positions[0][0]))]
         distances = np.copy(positions)
         front = np.round(float(arena_size.split(';')[0].replace('_','.'))*float(gt),3)
         for x in range(len(positions)):
@@ -241,9 +240,9 @@ class Results:
         for l in range(len(data_in.get(0))):
             multi_run_data = data_in.get(0)[l]
             if multi_run_data is not None:
-                flag2 = [-1]*len(multi_run_data[0][0])
+                flag2 = [-1 for _ in range(len(multi_run_data[0][0]))]
                 for i in range(len([multi_run_data[0]])):
-                    flag1 = [-1]*len(multi_run_data[0][0])
+                    flag1 = [-1 for _ in range(len(multi_run_data[0][0]))]
                     for j in range(len(multi_run_data)):
                         for z in range(len(multi_run_data[j][i])):
                             if flag1[z]==-1:
@@ -276,14 +275,14 @@ class Results:
 
 ##########################################################################################################
     def dump_quorum(self,algo,bias,q_data,s_data,BASE,PATH,MINS,MSG_EXP_TIME):
-        flag2=[-1]*len(q_data[0][0])
+        flag2=[-1 for _ in range(len(q_data[0][0]))]
         committed_count = self.count_committed_agents(s_data)
-        comm_flag2=[-1]*len(q_data[0][0])
-        uncomm_flag2=[-1]*len(q_data[0][0])
+        comm_flag2=[-1 for _ in range(len(q_data[0][0]))]
+        uncomm_flag2=[-1 for _ in range(len(q_data[0][0]))]
         for i in range(len(q_data)):
-            flag1=[-1]*len(q_data[i][0])
-            comm_flag1=[-1]*len(q_data[i][0])
-            uncomm_flag1=[-1]*len(q_data[i][0])
+            flag1=[-1 for _ in range(len(q_data[i][0]))]
+            comm_flag1=[-1 for _ in range(len(q_data[i][0]))]
+            uncomm_flag1=[-1 for _ in range(len(q_data[i][0]))]
             for j in range(len(q_data[i])):
                 for z in range(len(q_data[i][j])):
                     if flag1[z]==-1:
@@ -320,10 +319,10 @@ class Results:
             flag2[i]        = flag2[i]/len(q_data)
             comm_flag2[i]   = comm_flag2[i]/len(q_data)
             uncomm_flag2[i] = uncomm_flag2[i]/len(q_data)
-        fstd2=[[-1]*len(q_data[0][0])]*len(q_data)
-        fstd3=[-1]*len(q_data[0][0])
+        fstd2=[[-1 for _ in range(len(q_data[0][0]))] for _ in range(len(q_data))]
+        fstd3=[-1 for _ in range(len(q_data[0][0]))]
         for i in range(len(q_data)):
-            fstd1=[-1]*len(q_data[i][0])
+            fstd1=[-1 for _ in range(len(q_data[i][0]))]
             for z in range(len(q_data[i][0])): # per ogni tick
                 std_tmp = []
                 for j in range(len(q_data[i])): # per ogni agente
@@ -341,7 +340,7 @@ class Results:
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,MINS,MSG_EXP_TIME,n_agents,limit):
-        times = [len(data_in[0][0])] * len(data_in)
+        times = [len(data_in[0][0]) for _ in range(len(data_in))]
         for i in range(len(data_in)): # per ogni run
             for z in range(len(data_in[i][0])): # per ogni tick
                 sum = 0

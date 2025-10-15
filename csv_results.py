@@ -1,14 +1,16 @@
+import os, csv, logging
 import numpy as np
-import os, csv, math
-from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from matplotlib import pyplot as plt
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+plt.rcParams.update({"font.size": 30})
+
 class Data:
 
 ##########################################################################################################
     def __init__(self) -> None:
-        plt.rcParams.update({"font.size":36})
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
@@ -425,25 +427,18 @@ class Data:
                                                 if al=='P' and int(c)==0:
                                                     if a.split(';')[0] == a.split(';')[1]:
                                                         if gp == "commit_average":
-                                                            print("\nScom\t",(a,t,g,ag,b),'\t',s_data)
                                                             com_dict_park_square.update({(a,t,g,ag,b):s_data})
                                                         elif gp == "uncommit_average":
-                                                            print("\nSuncom\t",(a,t,g,ag,b),'\t',s_data)
                                                             uncom_dict_park_square.update({(a,t,g,ag,b):s_data})
                                                         else:
-                                                            print("\nStot\t",(a,t,g,ag,b),'\t',s_data)
                                                             dict_park_square.update({(a,t,g,ag,b):s_data})
                                                     else:
                                                         if gp == "commit_average":
-                                                            print("\nRcom\t",(a,t,g,ag,b),'\t',s_data)
                                                             com_dict_park_rect.update({(a,t,g,ag,b):s_data})
                                                         elif gp == "uncommit_average":
-                                                            print("\nRuncom\t",(a,t,g,ag,b),'\t',s_data)
                                                             uncom_dict_park_rect.update({(a,t,g,ag,b):s_data})
                                                         else:
-                                                            print("\nRtot\t",(a,t,g,ag,b),'\t',s_data)
                                                             dict_park_rect.update({(a,t,g,ag,b):s_data})
-                                                            
                                                 if al=='O':
                                                     if int(c)==0:
                                                         if a.split(';')[0] == a.split(';')[1]:
@@ -546,7 +541,7 @@ class Data:
         rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
         handles_l       = [large_intrfc,small_intrfc]
         svoid_x_ticks   = []
         void_x_ticks    = []
@@ -554,8 +549,8 @@ class Data:
         real_x_ticks    = []
         for gt in ground_T:
             for thr in threshlds:
-                cfig, cax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
-                ufig, uax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                cfig, cax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                ufig, uax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
@@ -568,10 +563,10 @@ class Data:
                                 else: row = 0
                             else: row = 2
                             for k in range(len(o_k)):
-                                # if dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     cax[row][k].plot(dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                                # if dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     cax[row][k].plot(dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                                if dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_adam_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_fifo_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                                 if dict_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -580,10 +575,10 @@ class Data:
                                     cax[row][k].plot(dict_inf_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 if dict_adp_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_adp_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
-                                # if dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     cax[row][k].plot(dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                                # if dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     cax[row][k].plot(dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                                if dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    cax[row][k].plot(dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_fifo_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
                                 if dict_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -593,11 +588,11 @@ class Data:
                                 if dict_adp_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_adp_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 cax[row][k].set_xlim(0,901)
-                                cax[row][k].set_ylim(0,1)
-                                # if dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     uax[row][k].plot(dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                                # if dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     uax[row][k].plot(dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                                cax[row][k].set_ylim(-0.03,1.03)
+                                if dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_adam_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_fifo_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                                 if dict_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -606,10 +601,10 @@ class Data:
                                     uax[row][k].plot(dict_inf_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 if dict_adp_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_adp_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
-                                # if dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     uax[row][k].plot(dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                                # if dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     uax[row][k].plot(dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                                if dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    uax[row][k].plot(dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_fifo_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
                                 if dict_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -619,7 +614,7 @@ class Data:
                                 if dict_adp_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_adp_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 uax[row][k].set_xlim(0,901)
-                                uax[row][k].set_ylim(0,1)
+                                uax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
                                     for x in range(0,901,50):
                                         if x%150 == 0:
@@ -708,8 +703,8 @@ class Data:
                 ufig.tight_layout()
                 cfig_path = path+"T"+thr+"_G"+gt+"_activation_committed.pdf"
                 ufig_path = path+"T"+thr+"_G"+gt+"_activation_uncommitted.pdf"
-                cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
-                ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
+                cfig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8,loc='upper right',framealpha=0.7,borderaxespad=0)
+                ufig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8,loc='upper right',framealpha=0.7,borderaxespad=0)
                 cfig.savefig(cfig_path, bbox_inches='tight')
                 ufig.savefig(ufig_path, bbox_inches='tight')
                 plt.close(cfig)
@@ -735,7 +730,7 @@ class Data:
         rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
         handles_l       = [large_intrfc,small_intrfc]
         svoid_x_ticks   = []
         void_x_ticks    = []
@@ -743,7 +738,7 @@ class Data:
         real_x_ticks    = []
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
@@ -756,10 +751,10 @@ class Data:
                                 else: row = 0
                             else: row = 2
                             for k in range(len(o_k)):
-                                # if dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     ax[row][k].plot(dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                                # if dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     ax[row][k].plot(dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
+                                if dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
+                                if dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_adam_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
                                 if dict_fifo_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_fifo_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                                 if dict_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -768,10 +763,10 @@ class Data:
                                     ax[row][k].plot(dict_inf_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
                                 if dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
-                                # if dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     ax[row][k].plot(dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                                # if dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                #     ax[row][k].plot(dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
+                                if dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
+                                if dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
+                                    ax[row][k].plot(dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                                 if dict_fifo_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_fifo_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
                                 if dict_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -781,7 +776,7 @@ class Data:
                                 if dict_adp_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_adp_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 ax[row][k].set_xlim(0,901)
-                                ax[row][k].set_ylim(0,1)
+                                ax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
                                     for x in range(0,901,50):
                                         if x%150 == 0:
@@ -842,7 +837,7 @@ class Data:
                                 ax[row][k].grid(True,which='major')
                 fig.tight_layout()
                 fig_path = path+"T"+thr+"_G"+gt+"_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -865,7 +860,7 @@ class Data:
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
         handles_l       = [large_intrfc,small_intrfc]
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -875,20 +870,20 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        # for k in dict_adam_sq.keys():
-        #     tmp =[]
-        #     res = dict_adam_sq.get(k)
-        #     norm = int(k[3])-1
-        #     for xi in range(len(res)):
-        #         tmp.append(res[xi]/norm)
-        #     dict_adam_sq.update({k:tmp})
-        # for k in dict_park_sq.keys():
-        #     tmp =[]
-        #     res = dict_park_sq.get(k)
-        #     norm = int(k[3])-1
-        #     for xi in range(len(res)):
-        #         tmp.append(res[xi]/norm)
-        #     dict_park_sq.update({k:tmp})
+        for k in dict_adam_sq.keys():
+            tmp =[]
+            res = dict_adam_sq.get(k)
+            norm = int(k[3])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam_sq.update({k:tmp})
+        for k in dict_park_sq.keys():
+            tmp =[]
+            res = dict_park_sq.get(k)
+            norm = int(k[3])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_park_sq.update({k:tmp})
         for k in dict_fifo_sq.keys():
             tmp =[]
             res = dict_fifo_sq.get(k)
@@ -917,20 +912,20 @@ class Data:
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_adpt_rnd_sq.update({k:tmp})
-        # for k in dict_adam_rt.keys():
-        #     tmp =[]
-        #     res = dict_adam_rt.get(k)
-        #     norm = int(k[3])-1
-        #     for xi in range(len(res)):
-        #         tmp.append(res[xi]/norm)
-        #     dict_adam_rt.update({k:tmp})
-        # for k in dict_park_rt.keys():
-        #     tmp =[]
-        #     res = dict_park_rt.get(k)
-        #     norm = int(k[3])-1
-        #     for xi in range(len(res)):
-        #         tmp.append(res[xi]/norm)
-        #     dict_park_rt.update({k:tmp})
+        for k in dict_adam_rt.keys():
+            tmp =[]
+            res = dict_adam_rt.get(k)
+            norm = int(k[3])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_adam_rt.update({k:tmp})
+        for k in dict_park_rt.keys():
+            tmp =[]
+            res = dict_park_rt.get(k)
+            norm = int(k[3])-1
+            for xi in range(len(res)):
+                tmp.append(res[xi]/norm)
+            dict_park_rt.update({k:tmp})
         for k in dict_fifo_rt.keys():
             tmp =[]
             res = dict_fifo_rt.get(k)
@@ -961,50 +956,50 @@ class Data:
             dict_adpt_rnd_rt.update({k:tmp})
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for a in arena:
                     for ag in agents:
                         for b in buffer:
-                            # if dict_park_sq.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'-'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "0_500;0_500": row=1
-                            #         elif a=="1_000;1_000": row=0
-                            #     elif ag=="100": row=2
-                            #     ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            # if dict_park_rt.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'--'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "1_000;0_250": row=1
-                            #         elif a=="2_000;0_500": row=0
-                            #     elif ag=="100": row=2
-                            #     ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            # if dict_adam_sq.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'-'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "0_500;0_500": row=1
-                            #         elif a=="1_000;1_000": row=0
-                            #     elif ag=="100": row=2
-                            #     ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            # if dict_adam_rt.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'--'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "1_000;0_250": row=1
-                            #         elif a=="2_000;0_500": row=0
-                            #     elif ag=="100": row=2
-                            #     ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                            if dict_park_sq.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
+                                ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                            if dict_park_rt.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
+                                ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                            if dict_adam_sq.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
+                                ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                            if dict_adam_rt.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
+                                ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
                                 if b == '60': col = 0
@@ -1088,14 +1083,14 @@ class Data:
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
-                    ax[2][y].set_ylim(0,1)
+                    ax[2][y].set_ylim(-0.03,1.03)
                 for x in range(2):
                     for y in range(3):
                         ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
                         ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
-                        ax[x][y].set_ylim(0,1)
+                        ax[x][y].set_ylim(-0.03,1.03)
                 for x in range(3):
                     for y in range(1,3):
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
@@ -1137,7 +1132,7 @@ class Data:
                 if not os.path.exists(self.base+"/msgs_data/images/"):
                     os.mkdir(self.base+"/msgs_data/images/")
                 fig_path = self.base+"/msgs_data/images/"+str(g).replace(".","_")+"_"+c_type+"_messages.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -1162,9 +1157,9 @@ class Data:
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
-        handles_r       = [fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
         handles_l       = [large_intrfc,small_intrfc]
-        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%150 == 0:
@@ -1173,26 +1168,26 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        # for k in comm_dict_adam_sq.keys():
-        #     uncom_tmp,com_tmp = [],[]
-        #     norm = int(k[3])-1
-        #     com_res = comm_dict_adam_sq.get(k)
-        #     uncom_res = uncomm_dict_adam_sq.get(k)
-        #     for xi in range(len(com_res)):
-        #         uncom_tmp.append(uncom_res[xi]/norm)
-        #         com_tmp.append(com_res[xi]/norm)
-        #     comm_dict_adam_sq.update({k:com_tmp})
-        #     uncomm_dict_adam_sq.update({k:uncom_tmp})
-        # for k in comm_dict_park_sq.keys():
-        #     uncom_tmp,com_tmp = [],[]
-        #     norm = int(k[3])-1
-        #     com_res = comm_dict_park_sq.get(k)
-        #     uncom_res = uncomm_dict_park_sq.get(k)
-        #     for xi in range(len(com_res)):
-        #         uncom_tmp.append(uncom_res[xi]/norm)
-        #         com_tmp.append(com_res[xi]/norm)
-        #     comm_dict_park_sq.update({k:com_tmp})
-        #     uncomm_dict_park_sq.update({k:uncom_tmp})
+        for k in comm_dict_adam_sq.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_adam_sq.get(k)
+            uncom_res = uncomm_dict_adam_sq.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_adam_sq.update({k:com_tmp})
+            uncomm_dict_adam_sq.update({k:uncom_tmp})
+        for k in comm_dict_park_sq.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_park_sq.get(k)
+            uncom_res = uncomm_dict_park_sq.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_park_sq.update({k:com_tmp})
+            uncomm_dict_park_sq.update({k:uncom_tmp})
         for k in comm_dict_fifo_sq.keys():
             uncom_tmp,com_tmp = [],[]
             norm = int(k[3])-1
@@ -1233,26 +1228,26 @@ class Data:
                 com_tmp.append(com_res[xi]/norm)
             comm_dict_adp_rnd_sq.update({k:com_tmp})
             uncomm_dict_adp_rnd_sq.update({k:uncom_tmp})
-        # for k in comm_dict_adam_rt.keys():
-        #     uncom_tmp,com_tmp = [],[]
-        #     norm = int(k[3])-1
-        #     com_res = comm_dict_adam_rt.get(k)
-        #     uncom_res = uncomm_dict_adam_rt.get(k)
-        #     for xi in range(len(com_res)):
-        #         uncom_tmp.append(uncom_res[xi]/norm)
-        #         com_tmp.append(com_res[xi]/norm)
-        #     comm_dict_adam_rt.update({k:com_tmp})
-        #     uncomm_dict_adam_rt.update({k:uncom_tmp})
-        # for k in comm_dict_park_rt.keys():
-        #     uncom_tmp,com_tmp = [],[]
-        #     norm = int(k[3])-1
-        #     com_res = comm_dict_park_rt.get(k)
-        #     uncom_res = uncomm_dict_park_rt.get(k)
-        #     for xi in range(len(com_res)):
-        #         uncom_tmp.append(uncom_res[xi]/norm)
-        #         com_tmp.append(com_res[xi]/norm)
-        #     comm_dict_park_rt.update({k:com_tmp})
-        #     uncomm_dict_park_rt.update({k:uncom_tmp})
+        for k in comm_dict_adam_rt.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_adam_rt.get(k)
+            uncom_res = uncomm_dict_adam_rt.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_adam_rt.update({k:com_tmp})
+            uncomm_dict_adam_rt.update({k:uncom_tmp})
+        for k in comm_dict_park_rt.keys():
+            uncom_tmp,com_tmp = [],[]
+            norm = int(k[3])-1
+            com_res = comm_dict_park_rt.get(k)
+            uncom_res = uncomm_dict_park_rt.get(k)
+            for xi in range(len(com_res)):
+                uncom_tmp.append(uncom_res[xi]/norm)
+                com_tmp.append(com_res[xi]/norm)
+            comm_dict_park_rt.update({k:com_tmp})
+            uncomm_dict_park_rt.update({k:uncom_tmp})
         for k in comm_dict_fifo_rt.keys():
             uncom_tmp,com_tmp = [],[]
             norm = int(k[3])-1
@@ -1295,70 +1290,70 @@ class Data:
             uncomm_dict_adp_rnd_rt.update({k:uncom_tmp})
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
                 for a in arena:
                     for ag in agents:
                         for b in buffer:
-                            # if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'-'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "0_500;0_500": row=1
-                            #         elif a=="1_000;1_000": row=0
-                            #     elif ag=="100": row=2
-                            #     comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
-                            #     uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
-                            #     flag = []
-                            #     for i in range(len(comm_flag)):
-                            #         flag.append(comm_flag[i]-uncomm_flag[i])
-                            #     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            # if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'--'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "1_000;0_250": row=1
-                            #         elif a=="2_000;0_500": row=0
-                            #     elif ag=="100": row=2
-                            #     comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
-                            #     uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
-                            #     flag = []
-                            #     for i in range(len(comm_flag)):
-                            #         flag.append(comm_flag[i]-uncomm_flag[i])
-                            #     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            # if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'-'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "0_500;0_500": row=1
-                            #         elif a=="1_000;1_000": row=0
-                            #     elif ag=="100": row=2
-                            #     comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
-                            #     uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
-                            #     flag = []
-                            #     for i in range(len(comm_flag)):
-                            #         flag.append(comm_flag[i]-uncomm_flag[i])
-                            #     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            # if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
-                            #     col,row,ls = 0,0,'--'
-                            #     if b == '60': col = 0
-                            #     elif b == '300': col = 1
-                            #     elif b == '600': col = 2
-                            #     if ag == "25":
-                            #         if a == "1_000;0_250": row=1
-                            #         elif a=="2_000;0_500": row=0
-                            #     elif ag=="100": row=2
-                            #     comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
-                            #     uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
-                            #     flag = []
-                            #     for i in range(len(comm_flag)):
-                            #         flag.append(comm_flag[i]-uncomm_flag[i])
-                            #     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                            if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
+                                comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
+                                uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
+                                flag = []
+                                for i in range(len(comm_flag)):
+                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                            if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
+                                comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
+                                uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
+                                flag = []
+                                for i in range(len(comm_flag)):
+                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                            if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'-'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "0_500;0_500": row=1
+                                    elif a=="1_000;1_000": row=0
+                                elif ag=="100": row=2
+                                comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
+                                uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
+                                flag = []
+                                for i in range(len(comm_flag)):
+                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                            if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
+                                col,row,ls = 0,0,'--'
+                                if b == '60': col = 0
+                                elif b == '300': col = 1
+                                elif b == '600': col = 2
+                                if ag == "25":
+                                    if a == "1_000;0_250": row=1
+                                    elif a=="2_000;0_500": row=0
+                                elif ag=="100": row=2
+                                comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
+                                uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
+                                flag = []
+                                for i in range(len(comm_flag)):
+                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
                                 if b == '60': col = 0
@@ -1482,14 +1477,14 @@ class Data:
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
-                    ax[2][y].set_ylim(0,1)
+                    ax[2][y].set_ylim(-0.03,1.03)
                 for x in range(2):
                     for y in range(3):
                         ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
                         ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
-                        ax[x][y].set_ylim(0,1)
+                        ax[x][y].set_ylim(-0.03,1.03)
                 for x in range(3):
                     for y in range(1,3):
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
@@ -1530,7 +1525,7 @@ class Data:
                 if not os.path.exists(self.base+"/msgs_data/images/"):
                     os.mkdir(self.base+"/msgs_data/images/")
                 fig_path = self.base+"/msgs_data/images/"+str(g).replace(".","_")+"_"+c_type+"_messages.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
+                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
     
@@ -1553,7 +1548,7 @@ class Data:
         svoid_x_ticks   = []
         handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [solid,dashed]
-        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(36,20))
+        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%150 == 0:
@@ -1706,22 +1701,11 @@ class Data:
             for y in range(3):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
-                ax[x][y].set_ylim(0,1)
+                ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
         if not os.path.exists(self.base+"/pos_data/images/"):
             os.mkdir(self.base+"/pos_data/images/")
         fig_path = self.base+"/pos_data/images/"+c_type+".pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
+        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
-    
-##########################################################################################################
-    def extract_median(self,array,max_time):
-        mt = int(max_time)
-        median = max_time
-        sortd_arr = np.sort(array)
-        if len(sortd_arr)%2 == 0 and sortd_arr[(len(sortd_arr)//2)]!=mt:
-            median = (sortd_arr[(len(sortd_arr)//2) -1] + sortd_arr[(len(sortd_arr)//2)]) * .5
-        else:
-            if sortd_arr[math.ceil(len(sortd_arr)/2)]!=mt: median = sortd_arr[math.floor(len(sortd_arr)/2)]
-        return median

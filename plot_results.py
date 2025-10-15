@@ -1,6 +1,6 @@
-import csv_results as CSVres
 import os
 import numpy as np
+import csv_results as CSVres
 
 ##################################################################################
 def main():

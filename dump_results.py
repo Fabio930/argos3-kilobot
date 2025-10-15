@@ -1,4 +1,5 @@
 import os, sys, logging, gc, time, psutil
+import pandas as pd
 import data_extractor as dex
 from multiprocessing import Process, Manager
 
@@ -46,9 +47,26 @@ def process_folder(task):
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
         del results,base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec
+
 def main():
     setup_logging()
     ticks_per_sec = check_inputs()
+
+    # === 1. Carica chiavi già eseguite ===
+    resume_path = "./msgs_data/messages_resume.csv"
+    done_keys = set()
+    if os.path.exists(resume_path):
+        try:
+            df_done = pd.read_csv(resume_path, sep="\t" if "\t" in open(resume_path).readline() else ",")
+            key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops']
+            for _, row in df_done.iterrows():
+                key = tuple(row[col] for col in key_cols)
+                done_keys.add(key)
+            logging.info(f"Loaded {len(done_keys)} completed keys from {resume_path}")
+        except Exception as e:
+            logging.error(f"Failed to read {resume_path}: {e}")
+    else:
+        logging.warning(f"No messages_resume.csv found at {resume_path}")
 
     manager = Manager()
     queue = manager.Queue()
@@ -61,6 +79,7 @@ def main():
                 for arena_dir in sorted(os.listdir(exp_l_path)):
                     if '.' not in arena_dir and '#' in arena_dir:
                         arena_path = os.path.join(exp_l_path, arena_dir)
+                        arena_size = arena_dir.split('#')[1]
                         for comm_dir in sorted(os.listdir(arena_path)):
                             if '.' not in comm_dir and '#' in comm_dir:
                                 comm_path = os.path.join(arena_path, comm_dir)
@@ -79,13 +98,24 @@ def main():
                                                         delta_str = Dgt_dir.split('#')[1].replace('_', '.')
                                                         for msg_hop_dir in sorted(os.listdir(Dgt_path)):
                                                             if '.' not in msg_hop_dir and '#' in msg_hop_dir:
-                                                                msg_hops = msg_hop_dir.split('#')[-1]
+                                                                msg_hops = int(msg_hop_dir.split('#')[-1])
                                                                 msg_hop_path = os.path.join(Dgt_path, msg_hop_dir)
                                                                 for msg_exp_dir in sorted(os.listdir(msg_hop_path)):
                                                                     if '.' not in msg_exp_dir and '#' in msg_exp_dir:
                                                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
-                                                                        queue.put((base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec))
+                                                                        algo = "O" if "Ores" in base else "P"
+                                                                        # === Costruisci la chiave del task ===
+                                                                        key = (arena_size, algo, threshold, float(delta_str),
+                                                                               communication, n_agents, msg_exp_time, msg_hops)
+                                                                        # === Verifica se già completato ===
+                                                                        if key not in done_keys:
+                                                                            queue.put((base, exp_length, communication,
+                                                                                       n_agents, threshold, delta_str,
+                                                                                       msg_hops, msg_exp_time,
+                                                                                       msg_exp_path, ticks_per_sec))
+                                                                        else:
+                                                                            logging.debug(f"Skipping completed task {key}")
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
