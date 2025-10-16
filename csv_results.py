@@ -456,7 +456,7 @@ class Data:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                             ax[row][k].grid(which='major')
                 fig.tight_layout()
-                fig_path = path+thr+"_"+gt+"_adaptive_activation.pdf"
+                fig_path = path+thr+"_"+gt+"_activation.pdf"
                 fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
@@ -701,7 +701,7 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/adaptive_messages.pdf"
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
