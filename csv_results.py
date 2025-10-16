@@ -280,7 +280,7 @@ class Data:
                             if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
                                 ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                             ax[row][k].set_xlim(0,1201)
-                            ax[row][k].set_ylim(0,1)
+                            ax[row][k].set_ylim(-0.03,1.03)
                             if len(real_x_ticks)==0:
                                 for x in range(0,1201,50):
                                     if x%300 == 0:
@@ -396,7 +396,7 @@ class Data:
                             if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
                                 ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
                             ax[row][k].set_xlim(0,1201)
-                            ax[row][k].set_ylim(0,1)
+                            ax[row][k].set_ylim(-0.03,1.03)
                             if len(real_x_ticks)==0:
                                 for x in range(0,1201,50):
                                     if x%300 == 0:
@@ -695,9 +695,9 @@ class Data:
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,1201)
                 if x==0 or x==1:
-                    ax[x][y].set_ylim(0,1)
+                    ax[x][y].set_ylim(-0.03,1.03)
                 else:
-                    ax[x][y].set_ylim(0,1)
+                    ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
