@@ -198,11 +198,11 @@ class Data:
             if len(a_data)>100:
                 wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
                 kmf.fit(a_data, event_observed=a_censoring,label="kmf "+k)
-                fig, ax = plt.subplots(figsize=(10,8))
-                ax.plot(wf.cumulative_density_)
-                ax.plot(kmf.cumulative_density_)
-                fig.tight_layout()
-                fig.savefig(path+algo+'_'+comunication+'_'+msg_hops+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
+                # fig, ax = plt.subplots(figsize=(10,8))
+                # ax.plot(wf.cumulative_density_)
+                # ax.plot(kmf.cumulative_density_)
+                # fig.tight_layout()
+                # fig.savefig(path+algo+'_'+comunication+'_'+msg_hops+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
                 estimates.update({k:[self.wb_get_mean_and_std(wf),len(a_buffers)-1]})
         return estimates
 
@@ -644,8 +644,6 @@ class Data:
                     # nascondi xticks/label nelle righe non-bottom per evitare sovrapposizioni
                     if i != nrows - 1:
                         ax.set_xticklabels([])
-                    
-
 
                 # annotazioni riga
                 if entry == "Time":
@@ -659,7 +657,8 @@ class Data:
                                     fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
 
             fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-            fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
+            # fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
+            fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"))
             plt.close(fig)
 
         # Salva i boxplot
@@ -677,7 +676,17 @@ class Data:
         xbins = np.linspace(0, 0.5, 30)
         ybins = np.arange(0, event_max+5, 2)
         for key_var, (label, color) in variant_map.items():
-            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(30, 18), sharex=True, sharey=True)
+            columns = len(msg_list) if key_var != "P.0" else 1
+            w_size = 30 if columns > 1 else 12
+            x_w = 0 if columns > 1 else 5
+
+            fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
+            # Flatten axes array for uniform processing
+            if columns == 1:
+                axes = np.array(axes).reshape(-1, 1)
+            elif len(grid) == 1:
+                axes = np.array(axes).reshape(1, -1)
+
             h = None
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
@@ -692,27 +701,43 @@ class Data:
                         h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
                     if i == 0:
                         ax.set_title(col_labels[j])
-                    if i == 2:
+                    if i == len(grid) - 1:
                         ax.set_xlabel(r"$|G-\tau|$")
                         ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
                         ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
                     if j == 0:
-                        ax.set_yticks(np.arange(0,event_max+5,10))
-                        ax.set_ylabel(r"$Events$")
-                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                        ax.set_yticks(np.arange(0, 155, 20))
+                        ax.set_ylabel("Events")
+                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+                    ax.set_ylim(0, event_max)
+                    if columns == 1: break
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=270)
+                                fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
             if h is not None:
-                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='#')
-            fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
+                # Use divider to place the colorbar correctly
+                fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
+                cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
+                fig.colorbar(h[3], cax=cbar_ax, label='#')
+            # fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
+            fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.pdf"))
             plt.close(fig)
 
         # Istogrammi 2D per variante (Error vs Time)
         xbins = np.linspace(0, 0.5, 30)
         ybins = np.arange(0, 155, 5)
         for key_var, (label, color) in variant_map.items():
-            fig, axes = plt.subplots(len(grid), len(msg_list), figsize=(30, 18), sharex=True, sharey=True)
+            columns = len(msg_list) if key_var != "P.0" else 1
+            w_size = 30 if columns > 1 else 12
+            x_w = 0 if columns > 1 else 5
+
+            fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
+            # Flatten axes array for uniform processing
+            if columns == 1:
+                axes = np.array(axes).reshape(-1, 1)
+            elif len(grid) == 1:
+                axes = np.array(axes).reshape(1, -1)
+
             h = None
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
@@ -727,20 +752,27 @@ class Data:
                         h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
                     if i == 0:
                         ax.set_title(col_labels[j])
-                    if i == 2:
+                    if i == len(grid) - 1:
                         ax.set_xlabel(r"$|G-\tau|$")
                         ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
                         ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
                     if j == 0:
-                        ax.set_yticks(np.arange(0,155,20))
-                        ax.set_ylabel(r"$Time$")
-                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                        ax.set_yticks(np.arange(0, 155, 20))
+                        ax.set_ylabel("Time")
+                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+                    ax.set_ylim(0, 150)
+                    if columns == 1: break
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=270)
+                                fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
+            # Add colorbar aligned to the last subplot row and column
             if h is not None:
-                fig.colorbar(h[3], ax=axes.ravel().tolist(), label='#')
-            fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
+                # Use divider to place the colorbar correctly
+                fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
+                cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
+                fig.colorbar(h[3], cax=cbar_ax, label='#')
+            # fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
+            fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.pdf"))
             plt.close(fig)
 
 ###################################################
@@ -1116,8 +1148,10 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
+        # fig_path = self.base+"/msgs_data/images/messages.png"
+        # fig.savefig(fig_path, bbox_inches='tight')
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
@@ -1330,6 +1364,7 @@ class Data:
         fig.tight_layout()
         if not os.path.exists(self.base+"/dec_data/images/"):
             os.mkdir(self.base+"/dec_data/images/")
+        # fig_path = self.base+"/dec_data/images/decisions.png"
         fig_path = self.base+"/dec_data/images/decisions.pdf"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
@@ -1802,29 +1837,40 @@ class Data:
         tfig.tight_layout()
         fig_path = path+_type+"_activation.pdf"
         tfig_path = path+t_type+"_time.pdf"
+        # fig_path = path+_type+"_activation.png"
+        # tfig_path = path+t_type+"_time.png"
         fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
         tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=6,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
-        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
+        self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
         """
         Genera una tabella unica per ogni valore di o_k e protocollo, con valori v2 (rosso) e v8 (verde) nella stessa cella.
         """
-        protocols = [
-            ("anonymous_real_fifo", "pr"),
-            ("anonymous", "p"),
-            ("id_broad", "a"),
-            ("id_rebroad_fifo", "f"),
-            ("id_rebroad_rnd", "r"),
-            ("id_rebroad_rnd_inf", "ri"),
-        ]
         for (a, ag), proto_dict in vals_dict.items():
             for idx, ok_val in enumerate(o_k):
+                if ok_val == 60:
+                    protocols = [
+                        ("anonymous_real_fifo", "pr"),
+                        ("anonymous", "p"),
+                        ("id_broad", "a"),
+                        ("id_rebroad_fifo", "f"),
+                        ("id_rebroad_rnd", "r"),
+                        ("id_rebroad_rnd_inf", "ri"),
+                    ]
+                else:
+                    protocols = [
+                        ("anonymous", "p"),
+                        ("id_broad", "a"),
+                        ("id_rebroad_fifo", "f"),
+                        ("id_rebroad_rnd", "r"),
+                        ("id_rebroad_rnd_inf", "ri"),
+                    ]
                 fig, axes = plt.subplots(len(protocols), 1, figsize=(28, 84))
                 if len(protocols) == 1:
                     axes = [axes]
@@ -1887,5 +1933,6 @@ class Data:
                                 elif txt.split('_')[-1] == "H":
                                     cell.get_text().set_text(txt.split("_H")[0])
                                     cell.set_facecolor('#ccffcc')  # verde
-                fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.png", bbox_inches='tight')
+                # fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.png", bbox_inches='tight')
+                fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.pdf", bbox_inches='tight')
                 plt.close(fig)
