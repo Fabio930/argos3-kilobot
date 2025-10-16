@@ -538,10 +538,9 @@ class Data:
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [large_intrfc,small_intrfc]
         svoid_x_ticks   = []
         void_x_ticks    = []
@@ -573,8 +572,6 @@ class Data:
                                     cax[row][k].plot(dict_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                                 if dict_inf_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_inf_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
-                                if dict_adp_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    cax[row][k].plot(dict_adp_rnd_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
                                 if dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_park_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -585,8 +582,6 @@ class Data:
                                     cax[row][k].plot(dict_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                                 if dict_inf_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_inf_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
-                                if dict_adp_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    cax[row][k].plot(dict_adp_rnd_comm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 cax[row][k].set_xlim(0,901)
                                 cax[row][k].set_ylim(-0.03,1.03)
                                 if dict_park_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -599,8 +594,6 @@ class Data:
                                     uax[row][k].plot(dict_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                                 if dict_inf_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_inf_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
-                                if dict_adp_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    uax[row][k].plot(dict_adp_rnd_uncomm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
                                 if dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_park_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -611,8 +604,6 @@ class Data:
                                     uax[row][k].plot(dict_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                                 if dict_inf_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     uax[row][k].plot(dict_inf_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
-                                if dict_adp_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    uax[row][k].plot(dict_adp_rnd_uncomm_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 uax[row][k].set_xlim(0,901)
                                 uax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
@@ -727,10 +718,9 @@ class Data:
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [large_intrfc,small_intrfc]
         svoid_x_ticks   = []
         void_x_ticks    = []
@@ -761,8 +751,6 @@ class Data:
                                     ax[row][k].plot(dict_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                                 if dict_inf_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_inf_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
-                                if dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    ax[row][k].plot(dict_adp_rnd_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='-')
                                 if dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_park_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                                 if dict_adam_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
@@ -773,8 +761,6 @@ class Data:
                                     ax[row][k].plot(dict_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                                 if dict_inf_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_inf_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
-                                if dict_adp_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
-                                    ax[row][k].plot(dict_adp_rnd_rt.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6,ls='--')
                                 ax[row][k].set_xlim(0,901)
                                 ax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
@@ -854,13 +840,12 @@ class Data:
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [large_intrfc,small_intrfc]
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -905,13 +890,6 @@ class Data:
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_inf_rnd_sq.update({k:tmp})
-        for k in dict_adpt_rnd_sq.keys():
-            tmp =[]
-            res = dict_adpt_rnd_sq.get(k)
-            norm = int(k[3])-1
-            for xi in range(len(res)):
-                tmp.append(res[xi]/norm)
-            dict_adpt_rnd_sq.update({k:tmp})
         for k in dict_adam_rt.keys():
             tmp =[]
             res = dict_adam_rt.get(k)
@@ -947,13 +925,6 @@ class Data:
             for xi in range(len(res)):
                 tmp.append(res[xi]/norm)
             dict_inf_rnd_rt.update({k:tmp})
-        for k in dict_adpt_rnd_rt.keys():
-            tmp =[]
-            res = dict_adpt_rnd_rt.get(k)
-            norm = int(k[3])-1
-            for xi in range(len(res)):
-                tmp.append(res[xi]/norm)
-            dict_adpt_rnd_rt.update({k:tmp})
         for t in thr:
             for g in gt:
                 fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
@@ -1060,26 +1031,6 @@ class Data:
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
                                 ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                            if dict_adpt_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                ax[row][col].plot(dict_adpt_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[5]),lw=6,ls=ls)
-                            if dict_adpt_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                ax[row][col].plot(dict_adpt_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[5]),lw=6,ls=ls)
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
@@ -1151,13 +1102,12 @@ class Data:
         fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
         rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
-        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [large_intrfc,small_intrfc]
         fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
         if len(real_x_ticks)==0:
@@ -1218,16 +1168,6 @@ class Data:
                 com_tmp.append(com_res[xi]/norm)
             comm_dict_inf_rnd_sq.update({k:com_tmp})
             uncomm_dict_inf_rnd_sq.update({k:uncom_tmp})
-        for k in comm_dict_adp_rnd_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_adp_rnd_sq.get(k)
-            uncom_res = uncomm_dict_adp_rnd_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_adp_rnd_sq.update({k:com_tmp})
-            uncomm_dict_adp_rnd_sq.update({k:uncom_tmp})
         for k in comm_dict_adam_rt.keys():
             uncom_tmp,com_tmp = [],[]
             norm = int(k[3])-1
@@ -1278,16 +1218,6 @@ class Data:
                 com_tmp.append(com_res[xi]/norm)
             comm_dict_inf_rnd_rt.update({k:com_tmp})
             uncomm_dict_inf_rnd_rt.update({k:uncom_tmp})
-        for k in comm_dict_adp_rnd_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_adp_rnd_rt.get(k)
-            uncom_res = uncomm_dict_adp_rnd_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_adp_rnd_rt.update({k:com_tmp})
-            uncomm_dict_adp_rnd_rt.update({k:uncom_tmp})
         for t in thr:
             for g in gt:
                 fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
@@ -1444,36 +1374,6 @@ class Data:
                                 for i in range(len(comm_flag)):
                                     flag.append(comm_flag[i]-uncomm_flag[i])
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                            if comm_dict_adp_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                comm_flag   = comm_dict_adp_rnd_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_adp_rnd_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[5]),lw=6,ls=ls)
-                            if comm_dict_adp_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                comm_flag   = comm_dict_adp_rnd_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_adp_rnd_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[5]),lw=6,ls=ls)
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
