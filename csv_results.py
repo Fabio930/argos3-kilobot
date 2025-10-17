@@ -181,9 +181,9 @@ class Data:
         buff_starts     = data_in[0]
         durations       = data_in[1]
         event_observed  = data_in[2]
-        if not os.path.exists(self.base+"/weib_images/"):
-            os.mkdir(self.base+"/weib_images/")
-        path = self.base+"/weib_images/"
+        # if not os.path.exists(self.base+"/weib_images/"):
+        #     os.mkdir(self.base+"/weib_images/")
+        # path = self.base+"/weib_images/"
 
         durations_by_buffer = self.dull_division(buff_starts,durations,event_observed)
         durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
