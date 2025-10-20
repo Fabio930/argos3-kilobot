@@ -227,7 +227,6 @@ class Data:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
         self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
-        # self.print_compare_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -235,122 +234,6 @@ class Data:
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5],data_in[6]
-        o_k = keys
-        for x in range(len(o_k)):
-            o_k[x] = int(o_k[x])
-        o_k     = np.sort(o_k)
-        arena   = more_k[0]
-        park_real   = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
-        park        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
-        adam        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
-        fifo        = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        rnd         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        rnd_inf     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        rnd_adp     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[5]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{a}$')
-        svoid_x_ticks   = []
-        void_x_ticks    = []
-        void_y_ticks    = []
-        real_x_ticks    = []
-        handles_r       = [park_real,park,adam,fifo,rnd,rnd_inf,rnd_adp]
-        for gt in ground_T:
-            for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
-                for a in arena:
-                    if a=="smallA":
-                        row = 1
-                        agents = ["25"]
-                    else:
-                        row = 0
-                        agents = more_k[1]
-                    for ag in agents:
-                        if int(ag)==100: row = 2
-                        for k in range(len(o_k)):
-                            if dict_park_real.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_park_real.get((a,ag,str(o_k[k]),gt,thr)),color="red",lw=6)
-                            if dict_park.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_park.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6)
-                            if dict_adam.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_adam.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[1]),lw=6)
-                            if dict_fifo.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_fifo.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[2]),lw=6)
-                            if dict_rnd.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[3]),lw=6)
-                            if dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_inf.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[4]),lw=6)
-                            if dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)) != None:
-                                ax[row][k].plot(dict_rnd_adapt.get((a,ag,str(o_k[k]),gt,thr)),color=scalarMap.to_rgba(typo[5]),lw=6)
-                            ax[row][k].set_xlim(0,1201)
-                            ax[row][k].set_ylim(-0.03,1.03)
-                            if len(real_x_ticks)==0:
-                                for x in range(0,1201,50):
-                                    if x%300 == 0:
-                                        svoid_x_ticks.append('')
-                                        void_x_ticks.append('')
-                                        real_x_ticks.append(str(int(np.round(x,0))))
-                                    else:
-                                        void_x_ticks.append('')
-                                for y in range(0,11,1):
-                                    void_y_ticks.append('')
-                            if row == 0:
-                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
-                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
-                                axt = ax[row][k].twiny()
-                                labels = [item.get_text() for item in axt.get_xticklabels()]
-                                empty_string_labels = ['']*len(labels)
-                                axt.set_xticklabels(empty_string_labels)
-                                if k==0:
-                                    axt.set_xlabel(r"$T_m = 60\, s$")
-                                elif k==1:
-                                    axt.set_xlabel(r"$T_m = 300\, s$")
-                                elif k==2:
-                                    axt.set_xlabel(r"$T_m = 600\, s$")
-                            elif row==2:
-                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
-                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
-                                if k==0:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                                elif k==1:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                                elif k==2:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                            else:
-                                ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
-                                ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
-                            if k==0:
-                                ax[row][k].set_yticks(np.arange(0,1.01,.1))
-                                if row==0:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
-                                elif row==1:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
-                                elif row==2:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
-                            elif k==2:
-                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
-                                axt = ax[row][k].twinx()
-                                labels = [item.get_text() for item in axt.get_yticklabels()]
-                                empty_string_labels = ['']*len(labels)
-                                axt.set_yticklabels(empty_string_labels)
-                                if row==0:
-                                    axt.set_ylabel("LD25")
-                                elif row==1:
-                                    axt.set_ylabel("HD25")
-                                elif row==2:
-                                    axt.set_ylabel("HD100")
-                            else:
-                                ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
-                            ax[row][k].grid(which='major')
-                fig.tight_layout()
-                fig_path = path+thr+"_"+gt+"_activation.pdf"
-                fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
-                fig.savefig(fig_path, bbox_inches='tight')
-                plt.close(fig)
-
-##########################################################################################################
-    def print_compare_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
-        typo = [0,1,2,3,4,5]
-        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_rnd_adapt, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         o_k = keys
         for x in range(len(o_k)):
             o_k[x] = int(o_k[x])
