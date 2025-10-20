@@ -648,10 +648,10 @@ class Data:
                 # annotazioni riga
                 if entry == "Time":
                     axes[i, 0].annotate(r"$T_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
-                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=0)
+                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
                 else:
                     axes[i, 0].annotate(r"$E_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
-                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=0)
+                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
 
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
                                     fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
