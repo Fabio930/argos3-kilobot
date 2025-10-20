@@ -8,8 +8,7 @@ build
 **/*results_*
 **/*_processed*
 **/*cache*
-*_DATA_*
-*_data/*
+*_data*/*
 *diagnostics_*/*
 *.tar.xz
 *_images*
