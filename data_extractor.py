@@ -1,4 +1,4 @@
-import os, csv, math, gc, logging
+import os, csv, math, logging
 import numpy as np
 class Results:
     thresholds      = {}

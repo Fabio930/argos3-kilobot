@@ -14,11 +14,6 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 
 ##########################################################################################################
-import numpy as np
-import matplotlib.scale as mscale
-import matplotlib.transforms as mtransforms
-import matplotlib.ticker as ticker
-
 class LinLogScale(mscale.ScaleBase):
     """
     Scala ibrida: lineare [0..threshold] occupa fraction_linear della
