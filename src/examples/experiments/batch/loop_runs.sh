@@ -132,66 +132,15 @@ for exp_len_par in $experiment_length; do
                                 mkdir $msgs_hop_dir
                             fi
                             if [ $agents_par -eq 25 ]; then
-                                if [[ $arena_x_par == "0.500" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="13 18 19"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="14 19 20"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="15 20 22"
-                                    fi
-                                elif [[ $arena_x_par == "1.000" && $arena_y_par == "0.250" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="10 12 13"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="11 14 15"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="13 16 17"
-                                    fi
-                                elif [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="7 11 12"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="7 12 13"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="7 14 15"
-                                    fi
-                                elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="6 10 11"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="6 11 12"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="7 12 14"
-                                    fi
-                                fi
+                                buffer_dim="24"
                             elif [ $agents_par -eq 100 ]; then
-                                if [[ $arena_x_par == "1.000" && $arena_y_par == "1.000" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="28 45 49"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="29 48 53"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="31 56 62"
-                                    fi
-                                elif [[ $arena_x_par == "2.000" && $arena_y_par == "0.500" ]]; then
-                                    if [ $committed_par == "0.68" ];then
-                                        buffer_dim="27 42 45"
-                                    elif [ $committed_par == "0.76" ];then
-                                        buffer_dim="27 45 49"
-                                    elif [ $committed_par == "0.84" ];then
-                                        buffer_dim="28 51 56"
-                                    fi
-                                fi
+                                buffer_dim="99"
                             fi
-                            buffer_dim_array=($buffer_dim)
-                            dim_b_idx=0
                             for msgs_par in $msg_expiring_seconds; do
                                 msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
                                 if [[ ! -e $msgs_dir ]]; then
                                     mkdir $msgs_dir
                                 fi
-                                buff_par=${buffer_dim_array[dim_b_idx]}
                                 read N1 N0 area1 area0 < <(calculate_areas $agents_par $committed_par $arena_x_par $arena_y_par)
                                 read width1 height1 x_min1 x_max1 < <(calculate_dimensions_and_coordinates $area1 $arena_x_par $arena_y_par)
                                 read width0 height0 x_min0 x_max0 < <(calculate_dimensions_and_coordinates $area0 $arena_x_par $arena_y_par)
@@ -217,7 +166,7 @@ for exp_len_par in $experiment_length; do
                                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
                                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                                     sed -i "s|__MSG_HOPS__|$msgs_hop_par|g" $config
-                                    sed -i "s|__QUORUM_BUFFER_DIM__|$buff_par|g" $config
+                                    sed -i "s|__QUORUM_BUFFER_DIM__|$buffer_dim|g" $config
                                     sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                                     sed -i "s|__THRESHOLD__|$thr_par|g" $config
                                     sed -i "s|__COMMITTED_PERC__|$committed_par|g" $config
@@ -243,8 +192,18 @@ for exp_len_par in $experiment_length; do
                                     done
                                     rm *.argos
                                 done
+                                arena_x_par=${arena_x_par//./_}
+                                arena_y_par=${arena_y_par//./_}
+                                thr_par=${thr_par//./_}
+                                committed_par=${committed_par//./_}
+                                dest_dir="/media/fabio_admin/HDD_2TB/argos/sPresults_loop_runs_bigA/ExperimentLength#$exp_len_par/ArenaType#${arena_x_par};${arena_y_par}/Rebroadcast#$comm_par/Robots#$agents_par/Threshold#$thr_par/GT#$committed_par/MsgHops#$msgs_hop_par/MsgExpTime#$msgs_par/"
+                                thr_par=${thr_par//_/.}
+                                committed_par=${committed_par//_/.}
+                                arena_x_par=${arena_x_par//_/.}
+                                arena_y_par=${arena_y_par//_/.}
+                                mkdir -p "$dest_dir"
+                                mv "$msgs_dir"/*.tsv "$dest_dir"
                             done
-                            dim_b_idx=$((dim_b_idx + 1))
                         done
                     done
                 done
@@ -252,3 +211,5 @@ for exp_len_par in $experiment_length; do
         done
     done
 done
+
+rm -rf $res_dir
