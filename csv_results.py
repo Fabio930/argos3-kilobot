@@ -1118,106 +1118,6 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in comm_dict_adam_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_adam_sq.get(k)
-            uncom_res = uncomm_dict_adam_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_adam_sq.update({k:com_tmp})
-            uncomm_dict_adam_sq.update({k:uncom_tmp})
-        for k in comm_dict_park_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_park_sq.get(k)
-            uncom_res = uncomm_dict_park_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_park_sq.update({k:com_tmp})
-            uncomm_dict_park_sq.update({k:uncom_tmp})
-        for k in comm_dict_fifo_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_fifo_sq.get(k)
-            uncom_res = uncomm_dict_fifo_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_fifo_sq.update({k:com_tmp})
-            uncomm_dict_fifo_sq.update({k:uncom_tmp})
-        for k in comm_dict_rnd_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_rnd_sq.get(k)
-            uncom_res = uncomm_dict_rnd_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_rnd_sq.update({k:com_tmp})
-            uncomm_dict_rnd_sq.update({k:uncom_tmp})
-        for k in comm_dict_inf_rnd_sq.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_inf_rnd_sq.get(k)
-            uncom_res = uncomm_dict_inf_rnd_sq.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_inf_rnd_sq.update({k:com_tmp})
-            uncomm_dict_inf_rnd_sq.update({k:uncom_tmp})
-        for k in comm_dict_adam_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_adam_rt.get(k)
-            uncom_res = uncomm_dict_adam_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_adam_rt.update({k:com_tmp})
-            uncomm_dict_adam_rt.update({k:uncom_tmp})
-        for k in comm_dict_park_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_park_rt.get(k)
-            uncom_res = uncomm_dict_park_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_park_rt.update({k:com_tmp})
-            uncomm_dict_park_rt.update({k:uncom_tmp})
-        for k in comm_dict_fifo_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_fifo_rt.get(k)
-            uncom_res = uncomm_dict_fifo_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_fifo_rt.update({k:com_tmp})
-            uncomm_dict_fifo_rt.update({k:uncom_tmp})
-        for k in comm_dict_rnd_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_rnd_rt.get(k)
-            uncom_res = uncomm_dict_rnd_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_rnd_rt.update({k:com_tmp})
-            uncomm_dict_rnd_rt.update({k:uncom_tmp})
-        for k in comm_dict_inf_rnd_rt.keys():
-            uncom_tmp,com_tmp = [],[]
-            norm = int(k[3])-1
-            com_res = comm_dict_inf_rnd_rt.get(k)
-            uncom_res = uncomm_dict_inf_rnd_rt.get(k)
-            for xi in range(len(com_res)):
-                uncom_tmp.append(uncom_res[xi]/norm)
-                com_tmp.append(com_res[xi]/norm)
-            comm_dict_inf_rnd_rt.update({k:com_tmp})
-            uncomm_dict_inf_rnd_rt.update({k:uncom_tmp})
         for t in thr:
             for g in gt:
                 fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
@@ -1237,7 +1137,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
@@ -1252,7 +1156,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
@@ -1267,7 +1175,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
@@ -1282,7 +1194,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
@@ -1297,7 +1213,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_fifo_sq.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_fifo_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
@@ -1312,7 +1232,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
@@ -1327,7 +1251,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_rnd_sq.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
@@ -1342,7 +1270,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'-'
@@ -1357,7 +1289,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_inf_rnd_sq.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
@@ -1372,7 +1308,11 @@ class Data:
                                 uncomm_flag = uncomm_dict_inf_rnd_rt.get((a,t,g,ag,b))
                                 flag = []
                                 for i in range(len(comm_flag)):
-                                    flag.append(comm_flag[i]-uncomm_flag[i])
+                                    denom = comm_flag[i] + uncomm_flag[i]
+                                    if denom != 0:
+                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                    else:
+                                        flag.append(0)
                                 ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                 for y in range(3):
                     ax[2][y].grid(True)
