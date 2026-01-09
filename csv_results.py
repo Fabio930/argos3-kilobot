@@ -150,7 +150,6 @@ mscale.register_scale(LinLogScale)
 
 ##########################################################################################################
 class Data:
-
     def __init__(self) -> None:
         self.bases = []
         self.base = os.path.abspath("")
@@ -597,7 +596,10 @@ class Data:
                     ]
 
                     # rimuovi AN dalle colonne successive alla prima
-                    plot_labels = labels.copy()
+                    # Escludi completamente le varianti P.0 (AN) e O.2.0 (ID+R_f)
+                    excluded_labels = [variant_map['P.0'][0], variant_map['O.2.0'][0]]
+                    plot_labels = [lbl for lbl in labels if lbl not in excluded_labels]
+                    # Mantieni la logica originale: rimuovi AN dalle colonne successive (ridondante se già escluso)
                     if j > 0:
                         plot_labels = [lbl for lbl in plot_labels if lbl != r'$AN$']
 
@@ -627,14 +629,39 @@ class Data:
                     if i == 0:
                         ax.set_title(col_labels[j])
 
-                    # Asse y: scala e limiti
-                    if global_max <= 100:  # caso in cui non serve la parte log
-                        ax.set_yscale('linear')
-                        ax.set_yticks(np.arange(0,global_max+5,5,dtype=int))
+                    # Asse y: scala lineare e limiti; calcola min/max dal subset se disponibile
+                    ax.set_yscale('linear')
+                    # usa i valori del subset passato a save_box quando possibile
+                    if not subset.empty and subset[entry].count() > 0:
+                        subset_min = float(subset[entry].min())
+                        subset_max = float(subset[entry].max())
                     else:
-                        ax.set_yscale('linlog', threshold=100, fraction_linear=0.7, data_max=global_max)
-                    ax.set_ylim(-3, global_max+333)  if entry=="Time" else ax.set_ylim(-3, global_max+3)
-                    plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size")-5)
+                        subset_min = 0.0
+                        subset_max = float(global_max)
+
+                    # preferisci subset_max così i plot filtrati hanno un massimo inferiore
+                    source_max = subset_max if subset_max > 0 else float(global_max)
+
+                    # per Time usiamo steps di 50, per Events steps di 10
+                    if entry == "Time":
+                        top = int(np.ceil(source_max / 50.0) * 50)
+                        step = 50
+                    else:
+                        top = int(np.ceil(source_max / 10.0) * 10)
+                        step = 10
+
+                    # margini: se il minimo del subset è 0, partiamo da -1 (senza label)
+                    ymin = 0
+                    ymin_plot = -1 if ymin == 0 else ymin
+
+                    # se il top arrotondato è 60, estendi a 61 per margine (senza aggiungere label)
+                    top_plot = top + 1 if top == 60 else top
+
+                    yticks = np.arange(0, top + 1, step)
+                    ax.set_yticks(yticks)
+                    ax.set_ylim(ymin_plot, top_plot)
+                    plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5)
+                    ax.grid(True)
 
                     # nascondi xticks/label nelle righe non-bottom per evitare sovrapposizioni
                     if i != nrows - 1:
@@ -652,6 +679,7 @@ class Data:
                                     fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
 
             fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+            plt.grid(True)
             # fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"))
             plt.close(fig)
@@ -670,6 +698,8 @@ class Data:
         # Istogrammi 2D per variante (Error vs Events)
         xbins = np.linspace(0, 0.5, 30)
         ybins = np.arange(0, event_max+5, 2)
+        # limite superiore arrotondato a multipli di 10 per gli eventi
+        top_event = int(np.ceil((event_max if event_max > 0 else 1) / 10.0) * 10)
         for key_var, (label, color) in variant_map.items():
             columns = len(msg_list) if key_var != "P.0" else 1
             w_size = 30 if columns > 1 else 12
@@ -694,6 +724,11 @@ class Data:
                     ]
                     if not cell.empty:
                         h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
+                        ax.set_yscale('linear')
+                        # imposta ticks a multipli di 10 e ylim basato su top_event
+                        ax.set_ylim(0, top_event)
+                        ax.set_yticks(np.arange(0, top_event + 1, 10))
+                        ax.grid(True)
                     if i == 0:
                         ax.set_title(col_labels[j])
                     if i == len(grid) - 1:
@@ -702,10 +737,11 @@ class Data:
                         ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
                         plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
                     if j == 0:
-                        ax.set_yticks(np.arange(0, 155, 20))
                         ax.set_ylabel("Events")
                         plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    ax.set_ylim(0, event_max)
+                    ax.set_ylim(0, top_event)
+                    # assicurati che ci sia la griglia anche quando non ci sono dati
+                    ax.grid(True)
                     if columns == 1: break
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
                                 fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
@@ -721,6 +757,8 @@ class Data:
         # Istogrammi 2D per variante (Error vs Time)
         xbins = np.linspace(0, 0.5, 30)
         ybins = np.arange(0, 155, 5)
+        # limite superiore arrotondato a multipli di 50 per i tempi (ticks 0,50,100,...)
+        top_time = int(np.ceil((time_max if time_max > 0 else 1) / 50.0) * 50)
         for key_var, (label, color) in variant_map.items():
             columns = len(msg_list) if key_var != "P.0" else 1
             w_size = 30 if columns > 1 else 12
@@ -745,6 +783,11 @@ class Data:
                     ]
                     if not cell.empty:
                         h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
+                        ax.set_yscale('linear')
+                        # imposta ticks a multipli di 50 e ylim basato su top_time
+                        ax.set_ylim(0, top_time)
+                        ax.set_yticks(np.arange(0, top_time + 1, 50))
+                        ax.grid(True)
                     if i == 0:
                         ax.set_title(col_labels[j])
                     if i == len(grid) - 1:
@@ -753,10 +796,9 @@ class Data:
                         ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
                         plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
                     if j == 0:
-                        ax.set_yticks(np.arange(0, 155, 20))
                         ax.set_ylabel("Time")
                         plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    ax.set_ylim(0, 150)
+                    ax.set_ylim(0, top_time)
                     if columns == 1: break
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
                                 fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
