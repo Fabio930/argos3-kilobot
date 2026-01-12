@@ -318,11 +318,11 @@ class Data:
                             if k==0:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1))
                                 if row==0:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
                                 elif row==1:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
                                 elif row==2:
-                                    ax[row][k].set_ylabel(r"$\hat{Q}(G,\tau)$")
+                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
                             elif k==2:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 axt = ax[row][k].twinx()
