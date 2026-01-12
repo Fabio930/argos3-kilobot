@@ -940,6 +940,11 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
+                                min_buf = []
+                                val = 5/(int(ag)-1)
+                                for i in range(900):
+                                    min_buf.append(val)
+                                ax[row][col].plot(min_buf,color="black",lw=4,ls=":")
                                 ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if dict_park_rt.get((a,t,g,ag,b)) != None:
                                 col,row,ls = 0,0,'--'
