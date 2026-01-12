@@ -612,7 +612,7 @@ class Data:
 
                     # rimuovi AN dalle colonne successive alla prima
                     # Escludi completamente le varianti P.0 (AN) e O.2.0 (ID+R_f)
-                    excluded_labels = [variant_map['P.0'][0], variant_map['O.2.0'][0]]
+                    excluded_labels = [variant_map['P.0'][0], variant_map['P.1'][0],variant_map['O.0.0'][0]]
                     plot_labels = [lbl for lbl in labels if lbl not in excluded_labels]
                     # Mantieni la logica originale: rimuovi AN dalle colonne successive (ridondante se già escluso)
                     if j > 0:
