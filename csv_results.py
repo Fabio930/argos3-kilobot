@@ -5,7 +5,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 30})
+plt.rcParams.update({"font.size": 18})
 class Data:
 
 ##########################################################################################################
@@ -226,7 +226,8 @@ class Data:
                                                                     else:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+        # self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+        self.print_evolutions_anonymous(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -343,6 +344,142 @@ class Data:
                 fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
+
+##########################################################################################################
+    def print_evolutions_anonymous(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
+        # Plots only anonymous protocols (AN_t and AN real) for msg_exp_time 60 and 0.
+        # 3 rows (LD25, smallA, HD100) and 2 columns: left shows High->Low transitions, right Low->High.
+        typo = [0]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        dict_park,_,_,_,_,_, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
+        arena = more_k[0]
+        agents_list = more_k[1]
+
+        # classify ground truth keys into H2L and L2H by inspecting series data
+        gt_h2l = None
+        gt_l2h = None
+        # helper to decide trend from a series: start mean vs end mean
+        def trend_of(series):
+            if series is None or len(series) < 10:
+                return None
+            start = np.mean(series[:10])
+            end = np.mean(series[-10:])
+            if start - end > 0.2:
+                return 'H2L'
+            if end - start > 0.2:
+                return 'L2H'
+            return None
+
+        for gt in ground_T:
+            found = False
+            # look in dict_park for any sample series with this gt
+            for k in list(dict_park.keys()) + list(dict_park_real.keys()):
+                try:
+                    if k[3] != gt:
+                        continue
+                except Exception:
+                    continue
+                series = dict_park.get(k)
+                if series is None:
+                    series = dict_park_real.get(k)
+                t = trend_of(series)
+                if t == 'H2L' and gt_h2l is None:
+                    gt_h2l = gt
+                    found = True
+                    break
+                if t == 'L2H' and gt_l2h is None:
+                    gt_l2h = gt
+                    found = True
+                    break
+            if gt_h2l is not None and gt_l2h is not None:
+                break
+
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.makedirs(self.base+"/proc_data/images/", exist_ok=True)
+
+        for thr in threshlds:
+            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(14,12))
+            # rows mapping same as other methods
+            for a in arena:
+                if a=="smallA":
+                    row_base = 1
+                    agents = ["25"]
+                else:
+                    row_base = 0
+                    agents = agents_list
+                for ag in agents:
+                    row = row_base
+                    if int(ag) == 100:
+                        row = 2
+
+                    # left column: high->low
+                    if gt_h2l is not None:
+                        # AN_t at msg_exp_time=60
+                        s = dict_park.get((a,ag,"60",gt_h2l,thr))
+                        if s is not None:
+                            ax[row][0].plot(s, color=scalarMap.to_rgba(typo[0]), lw=4)
+                        # AN real (originally msg_exp_time 0 stored as "60") in red
+                        sr = dict_park_real.get((a,ag,"60",gt_h2l,thr))
+                        if sr is not None:
+                            ax[row][0].plot(sr, color="red", lw=4)
+
+                    # right column: low->high
+                    if gt_l2h is not None:
+                        s = dict_park.get((a,ag,"60",gt_l2h,thr))
+                        if s is not None:
+                            ax[row][1].plot(s, color=scalarMap.to_rgba(typo[0]), lw=4)
+                        sr = dict_park_real.get((a,ag,"60",gt_l2h,thr))
+                        if sr is not None:
+                            ax[row][1].plot(sr, color="red", lw=4)
+
+            # formatting ticks/labels
+            svoid_x_ticks = []
+            void_x_ticks = []
+            real_x_ticks = []
+            for x in range(0,1201,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.round(x,0))))
+                else:
+                    void_x_ticks.append('')
+
+            for r in range(3):
+                for c in range(2):
+                    ax[r][c].set_xlim(0,1201)
+                    ax[r][c].set_ylim(-0.03,1.03)
+                    ax[r][c].set_xticks(np.arange(0,1201,300), labels=svoid_x_ticks)
+                    ax[r][c].set_xticks(np.arange(0,1201,50), labels=void_x_ticks, minor=True)
+                    if c==0:
+                        ax[r][c].set_ylabel(r"$Q(G,\tau)$")
+                    # grid
+                    ax[r][c].grid(True)
+
+            # top twin labels for columns
+            axt0 = ax[0][0].twiny()
+            axt1 = ax[0][1].twiny()
+            labels0 = [item.get_text() for item in axt0.get_xticklabels()]
+            empty0 = ['']*len(labels0)
+            axt0.set_xticklabels(empty0)
+            axt1.set_xticklabels(empty0)
+            axt0.set_xlabel(r"$G_{i}=0.92,G_{f}=0.68$")
+            axt1.set_xlabel(r"$G_{i}=0.68,G_{f}=0.92$")
+
+            # bottom row x labels
+            for c in range(2):
+                ax[2][c].set_xticks(np.arange(0,1201,300), labels=real_x_ticks)
+                ax[2][c].set_xticks(np.arange(0,1201,50), labels=void_x_ticks, minor=True)
+                ax[2][c].set_xlabel(r"$T\, (s)$")
+
+            fig.tight_layout()
+            fig_path = self.base+"/proc_data/images/"+thr+"_anonymous_60_0_activation.pdf"
+            # create legend: AN_t and AN (red)
+            an_t = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
+            an_r = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
+            fig.legend(bbox_to_anchor=(1, 0), handles=[an_r, an_t], ncols=2, loc='upper right', framealpha=0.7, borderaxespad=0)
+            fig.savefig(fig_path, bbox_inches='tight')
+            plt.close(fig)
 
 ##########################################################################################################
     def print_messages(self,data_in):
