@@ -576,7 +576,10 @@ class Data:
             nrows = len(grid)
             ncols = len(msg_list)
 
-            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=True, sharex=False)
+            # non condividere l'asse y tra tutte le sottotrame: vogliamo limiti y
+            # diversi per ogni riga. Con sharey=True tutti gli assi avrebbero lo
+            # stesso limite e ciò impedisce lo zoom per riga.
+            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=False, sharex=False)
 
             # assicurati che axes sia array 2D
             if nrows == 1 and ncols == 1:
@@ -585,6 +588,18 @@ class Data:
                 axes = np.array([axes])
             elif ncols == 1:
                 axes = np.array([[ax] for ax in axes])
+
+            # Calcola il massimo per ogni riga (considerando tutti i column/Msg presenti
+            # nel `subset` passato a questa chiamata). Questo permette a ciascuna
+            # riga di avere un proprio limite y basato sui dati effettivi della
+            # singola invocazione di `save_box`.
+            row_maxs = []
+            for (arena_r, ag_r) in grid:
+                row_cell = subset[(subset['Arena'] == arena_r) & (subset['Agents'] == ag_r)]
+                if not row_cell.empty and row_cell[entry].count() > 0:
+                    row_maxs.append(float(row_cell[entry].max()))
+                else:
+                    row_maxs.append(float(global_max))
 
             for i, (arena, ag) in enumerate(grid):
                 for j, m in enumerate(msg_list):
@@ -631,33 +646,54 @@ class Data:
 
                     # Asse y: scala lineare e limiti; calcola min/max dal subset se disponibile
                     ax.set_yscale('linear')
-                    # usa i valori del subset passato a save_box quando possibile
-                    if not subset.empty and subset[entry].count() > 0:
-                        subset_min = float(subset[entry].min())
-                        subset_max = float(subset[entry].max())
-                    else:
-                        subset_min = 0.0
-                        subset_max = float(global_max)
 
-                    # preferisci subset_max così i plot filtrati hanno un massimo inferiore
-                    source_max = subset_max if subset_max > 0 else float(global_max)
+                    # Usa il massimo calcolato per la riga; fallback su global_max
+                    raw_top = row_maxs[i] if (i < len(row_maxs)) else float(global_max)
+                    try:
+                        raw_top = float(raw_top)
+                    except Exception:
+                        raw_top = float(global_max if global_max is not None else 1.0)
+                    if raw_top <= 0:
+                        raw_top = 1.0
 
-                    # per Time usiamo steps di 50, per Events steps di 10
-                    if entry == "Time":
-                        top = int(np.ceil(source_max / 50.0) * 50)
-                        step = 50
+                    # Vogliamo mantenere un numero di tick costante/attorno a desired_ticks
+                    # (es. ~11). Calcoliamo il passo target e scegliamo uno step "tondo"
+                    # dalla serie [1,2,2.5,5,10] * 10^exp più vicino al passo target.
+                    desired_ticks = 11.0
+                    target_step = raw_top / desired_ticks
+                    exp = np.floor(np.log10(target_step)) if target_step > 0 else 0
+                    magnitude = 10.0 ** exp
+                    base_candidates = np.array([1.0, 2.0, 2.5, 5.0, 10.0])
+                    candidates = magnitude * base_candidates
+
+                    # Scegli il candidato più vicino al target_step
+                    diffs = np.abs(candidates - target_step)
+                    best_idx = int(np.argmin(diffs))
+                    best_step = candidates[best_idx]
+
+                    # Normalizza step a intero quando possibile (per yticks interi)
+                    if abs(best_step - round(best_step)) < 1e-8:
+                        step = int(round(best_step))
                     else:
-                        top = int(np.ceil(source_max / 10.0) * 10)
-                        step = 10
+                        # se il passo è frazionario (molto raro per eventi), mantienilo float
+                        step = float(best_step)
+
+                    # Arrotonda il top al prossimo multiplo del passo scelto
+                    top_rounded = int(np.ceil(raw_top / best_step) * best_step)
+
+                    # Mantieni la vecchia logica di margine speciale per 60 (compatibilità)
+                    top_plot = top_rounded + 1 if top_rounded == 60 else top_rounded
+
+                    # Crea yticks come multipli "tondi" dello step
+                    if isinstance(step, int):
+                        yticks = np.arange(0, top_rounded + step, step, dtype=int)
+                    else:
+                        yticks = np.arange(0, top_rounded + step, step)
 
                     # margini: se il minimo del subset è 0, partiamo da -1 (senza label)
                     ymin = 0
-                    ymin_plot = -1 if ymin == 0 else ymin
+                    ymin_plot = ymin - 1
 
-                    # se il top arrotondato è 60, estendi a 61 per margine (senza aggiungere label)
-                    top_plot = top + 1 if top == 60 else top
-
-                    yticks = np.arange(0, top + 1, step)
                     ax.set_yticks(yticks)
                     ax.set_ylim(ymin_plot, top_plot)
                     plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5)
