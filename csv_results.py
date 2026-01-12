@@ -5,7 +5,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 18})
+plt.rcParams.update({"font.size": 30})
 class Data:
 
 ##########################################################################################################
@@ -226,8 +226,8 @@ class Data:
                                                                     else:
                                                                         dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
                                                                         dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
-        # self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
-        self.print_evolutions_anonymous(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+        # self.print_evolutions_anonymous(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
@@ -620,6 +620,11 @@ class Data:
                 col = 1
             elif k[5] == '600':
                 col = 2
+            min_buf = []
+            val = 5/(int(k[4])-1)
+            for i in range(900):
+                min_buf.append(val)
+            ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
