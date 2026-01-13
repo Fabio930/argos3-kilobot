@@ -263,22 +263,30 @@ class Data:
 ###################################################
     def plot_messages(self,data):
         dict_park, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{}
+        std_dict_park, std_dict_park_real_fifo, std_dict_adam, std_dict_fifo,std_dict_rnd,std_dict_rnd_inf = {},{},{},{},{},{}
         for k in data.keys():
             if k[1]=='P' and int(k[4]) > 0:
-                dict_park.update({(k[0],k[3],k[4]):data.get(k)})
+                dict_park.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                std_dict_park.update({(k[0],k[3],k[4]):data.get(k)[1]})
             elif k[1]=='P' and int(k[4]) == 0:
-                dict_park_real_fifo.update({(k[0],k[3],k[4]):data.get(k)})
+                dict_park_real_fifo.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                std_dict_park_real_fifo.update({(k[0],k[3],k[4]):data.get(k)[1]})
             else:
                 if k[2]=="0":
-                    dict_adam.update({(k[0],k[3],k[4]):data.get(k)})
+                    dict_adam.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                    std_dict_adam.update({(k[0],k[3],k[4]):data.get(k)[1]})
                 elif k[2]=="2":
-                    dict_fifo.update({(k[0],k[3],k[4]):data.get(k)})
+                    dict_fifo.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                    std_dict_fifo.update({(k[0],k[3],k[4]):data.get(k)[1]})
                 else:
                     if k[5] == "1":
-                        dict_rnd.update({(k[0],k[3],k[4]):data.get(k)})
+                        dict_rnd.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                        std_dict_rnd.update({(k[0],k[3],k[4]):data.get(k)[1]})
                     else:
-                        dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)})
-        self.print_messages([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo])
+                        dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)[0]})
+                        std_dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)[1]})
+
+        self.print_messages([dict_park,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo],[std_dict_park,std_dict_adam,std_dict_fifo,std_dict_rnd,std_dict_rnd_inf,std_dict_park_real_fifo])
 
 
 ###################################################
@@ -313,6 +321,8 @@ class Data:
                 else:
                     keys = []
                     array_val=[]
+                    std_val=[]
+                    sem = 0
                     for val in row:
                         split_val = val.split('\t')
                         if len(split_val)==1:
@@ -322,18 +332,22 @@ class Data:
                                 for c in val:
                                     if c != ']':
                                         tval+=c
-                            array_val.append(float(tval))
-                            if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):array_val})
+                            array_val.append(float(tval)) if sem==0 else std_val.append(float(tval))
+                            if ']' in val and sem==1:
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,std_val)})
                         else:
                             for k in range(len(split_val)):
                                 tval = split_val[k]
-                                if '[' in split_val[k]:
+                                if '[' in split_val[k] or ']' in split_val[k]:
                                     tval = ''
                                     for c in split_val[k]:
-                                        if c != '[':
+                                        if c != ']' and c != '[':
                                             tval+=c
-                                    array_val.append(float(tval))
+                                        elif c == ']':
+                                            array_val.append(float(tval))
+                                            tval = ''
+                                            sem = 1
+                                    if tval!= '': array_val.append(float(tval)) if sem==0 else std_val.append(float(tval))
                                 else:
                                     keys.append(tval)
         return data
@@ -970,11 +984,12 @@ class Data:
         self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg,dict_park_avg_real_fifo],[dict_park_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed,dict_park_tmed_real_fifo],o_k,[arena,agents])
         
 ###################################################
-    def print_messages(self,data_in):
+    def print_messages(self,data_in,data_std):
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5]
+        std_dict_park,std_dict_adam,std_dict_fifo, std_dict_rnd, std_dict_rnd_inf,std_dict_park_real_fifo = data_std[0], data_std[1], data_std[2], data_std[3], data_std[4], data_std[5]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
         anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
         anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}$')
@@ -996,47 +1011,71 @@ class Data:
                 else:
                     void_x_ticks.append('')
         for k in dict_park_real_fifo.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_park_real_fifo.get(k)
+            restd = std_dict_park_real_fifo.get(k)
             norm = int(k[1])-1
-            for xi in res:
+            for xi,sti in zip(res,restd):
                 tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_park_real_fifo.update({k:tmp})
+            std_dict_park_real_fifo.update({k:tmpstd})
+
         for k in dict_park.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_park.get(k)
+            restd = std_dict_park.get(k)
             norm = int(k[1])-1
-            for xi in res:
+            for xi,sti in zip(res,restd):
                 tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_park.update({k:tmp})
+            std_dict_park.update({k:tmpstd})
+
         for k in dict_adam.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_adam.get(k)
+            restd = std_dict_adam.get(k)
             norm = int(k[1])-1
-            for xi in range(len(res)):
-                tmp.append(res[xi]/norm)
+            for xi,sti in zip(res,restd):
+                tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_adam.update({k:tmp})
+            std_dict_adam.update({k:tmpstd})
+
         for k in dict_fifo.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_fifo.get(k)
+            restd = std_dict_fifo.get(k)
             norm = int(k[1])-1
-            for xi in res:
+            for xi,sti in zip(res,restd):
                 tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_fifo.update({k:tmp})
+            std_dict_fifo.update({k:tmpstd})
+
         for k in dict_rnd.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_rnd.get(k)
+            restd = std_dict_rnd.get(k)
             norm = int(k[1])-1
-            for xi in res:
+            for xi,sti in zip(res,restd):
                 tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_rnd.update({k:tmp})
+            std_dict_rnd.update({k:tmpstd})
+
         for k in dict_rnd_inf.keys():
-            tmp =[]
+            tmp,tmpstd = [],[]
             res = dict_rnd_inf.get(k)
+            restd = std_dict_rnd_inf.get(k)
             norm = int(k[1])-1
-            for xi in res:
+            for xi,sti in zip(res,restd):
                 tmp.append(xi/norm)
+                tmpstd.append(sti/norm)
             dict_rnd_inf.update({k:tmp})
+            std_dict_rnd_inf.update({k:tmpstd})
+
         for k in dict_park_real_fifo.keys():
             row = 0
             col = 0
@@ -1057,6 +1096,13 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+            try:
+                mean = np.array(dict_park_real_fifo.get(k))
+                std = np.array(std_dict_park_real_fifo.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color="red", alpha=0.3)
+            except Exception:
+                pass
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -1082,6 +1128,13 @@ class Data:
                 min_buf.append(val)
             ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            try:
+                mean = np.array(dict_park.get(k))
+                std = np.array(std_dict_park.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[0]), alpha=0.3)
+            except Exception:
+                pass
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -1102,6 +1155,13 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+            try:
+                mean = np.array(dict_adam.get(k))
+                std = np.array(std_dict_adam.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[1]), alpha=0.3)
+            except Exception:
+                pass
         for k in dict_fifo.keys():
             row = 0
             col = 0
@@ -1122,6 +1182,13 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+            try:
+                mean = np.array(dict_fifo.get(k))
+                std = np.array(std_dict_fifo.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[2]), alpha=0.3)
+            except Exception:
+                pass
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -1142,6 +1209,13 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+            try:
+                mean = np.array(dict_rnd.get(k))
+                std = np.array(std_dict_rnd.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[3]), alpha=0.3)
+            except Exception:
+                pass
         for k in dict_rnd_inf.keys():
             row = 0
             col = 0
@@ -1162,6 +1236,13 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+            try:
+                mean = np.array(dict_rnd_inf.get(k))
+                std = np.array(std_dict_rnd_inf.get(k))
+                x = np.arange(len(mean))
+                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[4]), alpha=0.3)
+            except Exception:
+                pass
         for x in range(2):
             for y in range(5):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
