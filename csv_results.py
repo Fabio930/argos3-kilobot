@@ -719,10 +719,7 @@ class Data:
             for y in range(3):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,1201)
-                if x==0 or x==1:
-                    ax[x][y].set_ylim(-0.03,1.03)
-                else:
-                    ax[x][y].set_ylim(-0.03,1.03)
+                ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
