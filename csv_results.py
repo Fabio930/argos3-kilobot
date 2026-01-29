@@ -842,11 +842,12 @@ class Data:
         rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
         large_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='-', linewidth=10, label="LI")
         small_intrfc    = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=10, label="SI")
+        minbuflab       = mlines.Line2D([], [], color="black", marker='None', linestyle=':', linewidth=10, label=r"$min\|\mathcal{B}\|$")
         void_x_ticks    = []
         svoid_x_ticks   = []
         real_x_ticks    = []
         handles_r       = [park,adam,fifo,rnd,rnd_inf]
-        handles_l       = [large_intrfc,small_intrfc]
+        handles_l       = [large_intrfc,small_intrfc, minbuflab]
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%150 == 0:
@@ -932,7 +933,7 @@ class Data:
                     for ag in agents:
                         for b in buffer:
                             if dict_park_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -942,12 +943,13 @@ class Data:
                                 elif ag=="100": row=2
                                 min_buf = []
                                 val = 5/(int(ag)-1)
-                                for i in range(900):
-                                    min_buf.append(val)
-                                ax[row][col].plot(min_buf,color="black",lw=4,ls=":")
-                                ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    for i in range(900):
+                                        min_buf.append(val)
+                                    ax[row][col].plot(min_buf,color="black",lw=4,ls=":")
+                                    ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if dict_park_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -955,9 +957,10 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if dict_adam_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -965,9 +968,10 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if dict_adam_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -977,7 +981,7 @@ class Data:
                                 elif ag=="100": row=2
                                 ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if dict_fifo_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -985,9 +989,10 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_fifo_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_fifo_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if dict_fifo_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -995,9 +1000,10 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if dict_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1005,9 +1011,10 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if dict_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1015,9 +1022,10 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1025,9 +1033,10 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_inf_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_inf_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                             if dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1035,11 +1044,14 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if row!=-1 and col!=-1:
+                                    ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
                     ax[2][y].set_ylim(-0.03,1.03)
+                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                    ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 for x in range(2):
                     for y in range(3):
                         ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
@@ -1052,10 +1064,6 @@ class Data:
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                         empty_string_labels = ['']*len(labels)
                         ax[x][y].set_yticklabels(empty_string_labels)
-                for y in range(3):
-                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
-                    ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-
                 axt0=ax[0][0].twiny()
                 axt1=ax[0][1].twiny()
                 axt2=ax[0][2].twiny()
@@ -1130,7 +1138,7 @@ class Data:
                     for ag in agents:
                         for b in buffer:
                             if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1138,18 +1146,19 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1157,18 +1166,19 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
                             if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1176,18 +1186,19 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1195,18 +1206,19 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                             if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1214,18 +1226,19 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_fifo_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_fifo_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_fifo_sq.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_fifo_sq.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_fifo_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'--'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1233,18 +1246,19 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_fifo_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_fifo_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                             if comm_dict_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1252,18 +1266,19 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_rnd_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_rnd_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_rnd_sq.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_rnd_sq.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1271,18 +1286,19 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_rnd_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_rnd_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'-'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1290,18 +1306,19 @@ class Data:
                                     if a == "0_500;0_500": row=1
                                     elif a=="1_000;1_000": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_inf_rnd_sq.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_inf_rnd_sq.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_inf_rnd_sq.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_inf_rnd_sq.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                             if comm_dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = 0,0,'--'
+                                col,row,ls = -1,-1,'-'
                                 if b == '60': col = 0
                                 elif b == '300': col = 1
                                 elif b == '600': col = 2
@@ -1309,20 +1326,23 @@ class Data:
                                     if a == "1_000;0_250": row=1
                                     elif a=="2_000;0_500": row=0
                                 elif ag=="100": row=2
-                                comm_flag   = comm_dict_inf_rnd_rt.get((a,t,g,ag,b))
-                                uncomm_flag = uncomm_dict_inf_rnd_rt.get((a,t,g,ag,b))
-                                flag = []
-                                for i in range(len(comm_flag)):
-                                    denom = comm_flag[i] + uncomm_flag[i]
-                                    if denom != 0:
-                                        flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                    else:
-                                        flag.append(0)
-                                ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if col != -1 and row != -1:
+                                    comm_flag   = comm_dict_inf_rnd_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_inf_rnd_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                 for y in range(3):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
                     ax[2][y].set_ylim(-0.03,1.03)
+                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                    ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 for x in range(2):
                     for y in range(3):
                         ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
@@ -1335,9 +1355,6 @@ class Data:
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                         empty_string_labels = ['']*len(labels)
                         ax[x][y].set_yticklabels(empty_string_labels)
-                for y in range(3):
-                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
-                    ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 axt0=ax[0][0].twiny()
                 axt1=ax[0][1].twiny()
                 axt2=ax[0][2].twiny()
