@@ -622,7 +622,7 @@ class Data:
                 col = 2
             min_buf = []
             val = 5/(int(k[4])-1)
-            for i in range(900):
+            for i in range(1200):
                 min_buf.append(val)
             ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
             ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
