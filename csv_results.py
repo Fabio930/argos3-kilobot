@@ -321,6 +321,43 @@ class Data:
                 else:
                     keys = []
                     array_val=[]
+                    for val in row:
+                        split_val = val.split('\t')
+                        if len(split_val)==1:
+                            tval = val  
+                            if ']' in val:
+                                tval = ''
+                                for c in val:
+                                    if c != ']':
+                                        tval+=c
+                            array_val.append(float(tval))
+                            if ']' in val:
+                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,[])})
+                        else:
+                            for k in range(len(split_val)):
+                                tval = split_val[k]
+                                if '[' in split_val[k]:
+                                    tval = ''
+                                    for c in split_val[k]:
+                                        if c != '[':
+                                            tval+=c
+                                    array_val.append(float(tval))
+                                else:
+                                    keys.append(tval.strip())
+        return data
+    
+###################################################
+    def read_msgs_csv_w_std(self,path):
+        data = {}
+        lc = 0
+        with open(path,newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if lc == 0:
+                    lc = 1
+                else:
+                    keys = []
+                    array_val=[]
                     std_val=[]
                     sem = 0
                     for val in row:
@@ -349,7 +386,7 @@ class Data:
                                             sem = 1
                                     if tval!= '': array_val.append(float(tval)) if sem==0 else std_val.append(float(tval))
                                 else:
-                                    keys.append(tval)
+                                    keys.append(tval.strip())
         return data
 
 ###################################################
