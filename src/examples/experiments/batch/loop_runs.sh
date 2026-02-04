@@ -68,17 +68,17 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 buffer_dim=""
-numrobots="25 100"
+numrobots="25"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-msg_expiring_seconds="60 300 600"
+msg_expiring_seconds="120 180"
 messages_hops="0"
 # small arena dimensions
-# arena_x_side="0.500 1.000"
-# arena_y_side="0.500 0.250"
+arena_x_side="0.500 1.000"
+arena_y_side="0.500 0.250"
 # big arena dimensions
-arena_x_side="1.000 2.000"
-arena_y_side="1.000 0.500"
+# arena_x_side="1.000 2.000"
+# arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)
@@ -192,17 +192,17 @@ for exp_len_par in $experiment_length; do
                                     done
                                     rm *.argos
                                 done
-                                arena_x_par=${arena_x_par//./_}
-                                arena_y_par=${arena_y_par//./_}
-                                thr_par=${thr_par//./_}
-                                committed_par=${committed_par//./_}
-                                dest_dir="/media/fabio_admin/HDD_2TB/argos/sPresults_loop_runs_bigA/ExperimentLength#$exp_len_par/ArenaType#${arena_x_par};${arena_y_par}/Rebroadcast#$comm_par/Robots#$agents_par/Threshold#$thr_par/GT#$committed_par/MsgHops#$msgs_hop_par/MsgExpTime#$msgs_par/"
-                                thr_par=${thr_par//_/.}
-                                committed_par=${committed_par//_/.}
-                                arena_x_par=${arena_x_par//_/.}
-                                arena_y_par=${arena_y_par//_/.}
-                                mkdir -p "$dest_dir"
-                                mv "$msgs_dir"/*.tsv "$dest_dir"
+                                # arena_x_par=${arena_x_par//./_}
+                                # arena_y_par=${arena_y_par//./_}
+                                # thr_par=${thr_par//./_}
+                                # committed_par=${committed_par//./_}
+                                # dest_dir="/media/fabio_admin/HDD_2TB/argos/sPresults_loop_runs_bigA/ExperimentLength#$exp_len_par/ArenaType#${arena_x_par};${arena_y_par}/Rebroadcast#$comm_par/Robots#$agents_par/Threshold#$thr_par/GT#$committed_par/MsgHops#$msgs_hop_par/MsgExpTime#$msgs_par/"
+                                # thr_par=${thr_par//_/.}
+                                # committed_par=${committed_par//_/.}
+                                # arena_x_par=${arena_x_par//_/.}
+                                # arena_y_par=${arena_y_par//_/.}
+                                # mkdir -p "$dest_dir"
+                                # mv "$msgs_dir"/*.tsv "$dest_dir"
                             done
                         done
                     done
@@ -211,5 +211,3 @@ for exp_len_par in $experiment_length; do
         done
     done
 done
-
-rm -rf $res_dir
