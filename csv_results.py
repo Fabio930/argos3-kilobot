@@ -98,10 +98,12 @@ class Data:
     def read_msgs_csv(self,path):
         data = {}
         lc = 0
+        labels = []
         with open(path,newline='') as f:
             reader = csv.reader(f)
             for row in reader:
                 if lc == 0:
+                    labels =row[0].split()
                     lc = 1
                 else:
                     keys = []
@@ -471,22 +473,7 @@ class Data:
                                                                     uncom_dict_rnd_rect.update({(a,t,g,ag,b):s_data})
                                                                 else:
                                                                     dict_rnd_rect.update({(a,t,g,ag,b):s_data})
-                                                        elif mh=="a31":
-                                                            if a.split(';')[0] == a.split(';')[1]:
-                                                                if gp == "commit_average":
-                                                                    com_dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
-                                                                elif gp == "uncommit_average":
-                                                                    uncom_dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
-                                                                else:
-                                                                    dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
-                                                            else:
-                                                                if gp == "commit_average":
-                                                                    com_dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
-                                                                elif gp == "uncommit_average":
-                                                                    uncom_dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
-                                                                else:
-                                                                    dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
-                                                        else:
+                                                        elif mh=="0":
                                                             if a.split(';')[0] == a.split(';')[1]:
                                                                 if gp == "commit_average":
                                                                     com_dict_inf_rnd_square.update({(a,t,g,ag,b):s_data})
@@ -501,6 +488,21 @@ class Data:
                                                                     uncom_dict_inf_rnd_rect.update({(a,t,g,ag,b):s_data})
                                                                 else:
                                                                     dict_inf_rnd_rect.update({(a,t,g,ag,b):s_data})
+                                                        else:
+                                                            if a.split(';')[0] == a.split(';')[1]:
+                                                                if gp == "commit_average":
+                                                                    com_dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
+                                                                elif gp == "uncommit_average":
+                                                                    uncom_dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
+                                                                else:
+                                                                    dict_adapt_rnd_square.update({(a,t,g,ag,b):s_data})
+                                                            else:
+                                                                if gp == "commit_average":
+                                                                    com_dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
+                                                                elif gp == "uncommit_average":
+                                                                    uncom_dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
+                                                                else:
+                                                                    dict_adapt_rnd_rect.update({(a,t,g,ag,b):s_data})
                                                     elif int(c)==2:
                                                         if a.split(';')[0] == a.split(';')[1]:
                                                             if gp == "commit_average":
@@ -548,8 +550,8 @@ class Data:
         real_x_ticks    = []
         for gt in ground_T:
             for thr in threshlds:
-                cfig, cax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
-                ufig, uax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                cfig, cax = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
+                ufig, uax = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
                 for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
@@ -608,19 +610,19 @@ class Data:
                                 uax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
                                     for x in range(0,901,50):
-                                        if x%150 == 0:
+                                        if x%300 == 0:
                                             svoid_x_ticks.append('')
                                             void_x_ticks.append('')
                                             real_x_ticks.append(str(int(np.round(x,0))))
                                         else:
                                             void_x_ticks.append('')
-                                    for y in range(0,11,1):
+                                    for _ in range(0,11,1):
                                         void_y_ticks.append('')
                                 if row == 0:
-                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     caxt = cax[row][k].twiny()
-                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     uaxt = uax[row][k].twiny()
                                     labels = [item.get_text() for item in caxt.get_xticklabels()]
@@ -631,43 +633,35 @@ class Data:
                                         caxt.set_xlabel(r"$T_m = 60\, s$")
                                         uaxt.set_xlabel(r"$T_m = 60\, s$")
                                     elif k==1:
+                                        caxt.set_xlabel(r"$T_m = 120\, s$")
+                                        uaxt.set_xlabel(r"$T_m = 120\, s$")
+                                    elif k==2:
+                                        caxt.set_xlabel(r"$T_m = 180\, s$")
+                                        uaxt.set_xlabel(r"$T_m = 180\, s$")
+                                    elif k==3:
                                         caxt.set_xlabel(r"$T_m = 300\, s$")
                                         uaxt.set_xlabel(r"$T_m = 300\, s$")
-                                    elif k==2:
+                                    elif k==4:
                                         caxt.set_xlabel(r"$T_m = 600\, s$")
                                         uaxt.set_xlabel(r"$T_m = 600\, s$")
                                 elif row==2:
-                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
                                     cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
                                     uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                                    if k==0:
-                                        cax[row][k].set_xlabel(r"$T\,  s$")
-                                        uax[row][k].set_xlabel(r"$T\,  s$")
-                                    elif k==1:
-                                        cax[row][k].set_xlabel(r"$T\,  s$")
-                                        uax[row][k].set_xlabel(r"$T\,  s$")
-                                    elif k==2:
-                                        cax[row][k].set_xlabel(r"$T\,  s$")
-                                        uax[row][k].set_xlabel(r"$T\,  s$")
+                                    cax[row][k].set_xlabel(r"$T\,  s$")
+                                    uax[row][k].set_xlabel(r"$T\,  s$")
                                 else:
-                                    cax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    cax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     cax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                                    uax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    uax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     uax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                 if k==0:
                                     cax[row][k].set_yticks(np.arange(0,1.01,.1))
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1))
-                                    if row==0:
-                                        cax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                        uax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                    elif row==1:
-                                        cax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                        uax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                    elif row==2:
-                                        cax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                        uax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                elif k==2:
+                                    cax[row][k].set_ylabel(r"$Q(G,\tau)$")
+                                    uax[row][k].set_ylabel(r"$Q(G,\tau)$")
+                                elif k==4:
                                     cax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                     caxt = cax[row][k].twinx()
                                     uax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
@@ -728,7 +722,7 @@ class Data:
         real_x_ticks    = []
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
                 for m_h in msg_hop:
                     for a in arena:
                         if a=="0_500;0_500" or a=="1_000;0_250":
@@ -765,7 +759,7 @@ class Data:
                                 ax[row][k].set_ylim(-0.03,1.03)
                                 if len(real_x_ticks)==0:
                                     for x in range(0,901,50):
-                                        if x%150 == 0:
+                                        if x%300 == 0:
                                             svoid_x_ticks.append('')
                                             void_x_ticks.append('')
                                             real_x_ticks.append(str(int(np.round(x,0))))
@@ -774,7 +768,7 @@ class Data:
                                     for y in range(0,11,1):
                                         void_y_ticks.append('')
                                 if row == 0:
-                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                     axt = ax[row][k].twiny()
                                     labels = [item.get_text() for item in axt.get_xticklabels()]
@@ -783,30 +777,24 @@ class Data:
                                     if k==0:
                                         axt.set_xlabel(r"$T_m = 60\, s$")
                                     elif k==1:
-                                        axt.set_xlabel(r"$T_m = 300\, s$")
+                                        axt.set_xlabel(r"$T_m = 120\, s$")
                                     elif k==2:
+                                        axt.set_xlabel(r"$T_m = 180\, s$")
+                                    elif k==3:
+                                        axt.set_xlabel(r"$T_m = 300\, s$")
+                                    elif k==4:
                                         axt.set_xlabel(r"$T_m = 600\, s$")
                                 elif row==2:
-                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
                                     ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                                    if k==0:
-                                        ax[row][k].set_xlabel(r"$T\,  s$")
-                                    elif k==1:
-                                        ax[row][k].set_xlabel(r"$T\,  s$")
-                                    elif k==2:
-                                        ax[row][k].set_xlabel(r"$T\,  s$")
+                                    ax[row][k].set_xlabel(r"$T\,  s$")
                                 else:
-                                    ax[row][k].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                                    ax[row][k].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                                     ax[row][k].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                                 if k==0:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1))
-                                    if row==0:
-                                        ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                    elif row==1:
-                                        ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                    elif row==2:
-                                        ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                elif k==2:
+                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
+                                elif k==4:
                                     ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                     axt = ax[row][k].twinx()
                                     labels = [item.get_text() for item in axt.get_yticklabels()]
@@ -850,7 +838,7 @@ class Data:
         handles_l       = [large_intrfc,small_intrfc, minbuflab]
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
-                if x%150 == 0:
+                if x%300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
                     real_x_ticks.append(str(int(np.round(x,0))))
@@ -928,156 +916,87 @@ class Data:
             dict_inf_rnd_rt.update({k:tmp})
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
                 for a in arena:
                     for ag in agents:
+                        row = -1
+                        if int(ag) == 25:
+                            if a == "0_500;0_500": row=1
+                            elif a =="1_000;1_000": row=0
+                        elif int(ag) == 100: row=2
                         for b in buffer:
-                            if dict_park_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
+                            col = -1
+                            if int(b) == 60: col = 0
+                            elif int(b) == 120: col = 1
+                            elif int(b) == 180: col = 2
+                            elif int(b) == 300: col = 3
+                            elif int(b) == 600: col = 4
+                            if row!=-1 and col!=-1:
                                 min_buf = []
                                 val = 5/(int(ag)-1)
-                                if row!=-1 and col!=-1:
-                                    for i in range(900):
-                                        min_buf.append(val)
-                                    ax[row][col].plot(min_buf,color="black",lw=4,ls=":")
+                                for _ in range(900):
+                                    min_buf.append(val)
+                                ax[row][col].plot(min_buf,color="black",lw=4,ls=":")
+                                ls = '-'
+                                if dict_park_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_park_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            if dict_park_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
-                                    ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            if dict_adam_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
+                                if dict_adam_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_adam_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            if dict_adam_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            if dict_fifo_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
+                                if dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_fifo_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
-                            if dict_fifo_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
-                                    ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
-                            if dict_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
-                                    ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
-                            if dict_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
-                                    ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
-                            if dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
+                                if dict_rnd_sq.get((a,t,g,ag,b)) != None:
+                                    ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_inf_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                            if dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if row!=-1 and col!=-1:
+                                ls ='--'
+                                if dict_park_rt.get((a,t,g,ag,b)) != None:
+                                    ax[row][col].plot(dict_park_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if dict_adam_rt.get((a,t,g,ag,b)) != None:
+                                    ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                                if dict_fifo_rt.get((a,t,g,ag,b)) != None:
+                                    ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if dict_rnd_rt.get((a,t,g,ag,b)) != None:
+                                    ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                if dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                for y in range(3):
+                for y in range(5):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
                     ax[2][y].set_ylim(-0.03,1.03)
-                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                    ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
                     ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 for x in range(2):
-                    for y in range(3):
-                        ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                    for y in range(5):
+                        ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                         ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
                         ax[x][y].set_ylim(-0.03,1.03)
                 for x in range(3):
-                    for y in range(1,3):
+                    for y in range(1,5):
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                         empty_string_labels = ['']*len(labels)
                         ax[x][y].set_yticklabels(empty_string_labels)
                 axt0=ax[0][0].twiny()
                 axt1=ax[0][1].twiny()
                 axt2=ax[0][2].twiny()
+                axt3=ax[0][3].twiny()
+                axt4=ax[0][4].twiny()
                 labels = [item.get_text() for item in axt0.get_xticklabels()]
                 empty_string_labels = ['']*len(labels)
                 axt0.set_xticklabels(empty_string_labels)
                 axt1.set_xticklabels(empty_string_labels)
                 axt2.set_xticklabels(empty_string_labels)
+                axt3.set_xticklabels(empty_string_labels)
+                axt4.set_xticklabels(empty_string_labels)
                 axt0.set_xlabel(r"$T_m = 60\, s$")
-                axt1.set_xlabel(r"$T_m = 300\, s$")
-                axt2.set_xlabel(r"$T_m = 600\, s$")
-                ayt0=ax[0][2].twinx()
-                ayt1=ax[1][2].twinx()
-                ayt2=ax[2][2].twinx()
+                axt1.set_xlabel(r"$T_m = 120\, s$")
+                axt2.set_xlabel(r"$T_m = 180\, s$")
+                axt3.set_xlabel(r"$T_m = 300\, s$")
+                axt4.set_xlabel(r"$T_m = 600\, s$")
+                ayt0=ax[0][4].twinx()
+                ayt1=ax[1][4].twinx()
+                ayt2=ax[2][4].twinx()
                 labels = [item.get_text() for item in axt0.get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ayt0.set_yticklabels(empty_string_labels)
@@ -1092,6 +1011,8 @@ class Data:
                 ax[2][0].set_xlabel(r"$T\, (s)$")
                 ax[2][1].set_xlabel(r"$T\, (s)$")
                 ax[2][2].set_xlabel(r"$T\, (s)$")
+                ax[2][3].set_xlabel(r"$T\, (s)$")
+                ax[2][4].set_xlabel(r"$T\, (s)$")
                 fig.tight_layout()
                 if not os.path.exists(self.base+"/msgs_data/images/"):
                     os.mkdir(self.base+"/msgs_data/images/")
@@ -1125,7 +1046,7 @@ class Data:
         fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
-                if x%150 == 0:
+                if x%300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
                     real_x_ticks.append(str(int(np.round(x,0))))
@@ -1133,20 +1054,24 @@ class Data:
                     void_x_ticks.append('')
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                fig, ax = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
                 for a in arena:
                     for ag in agents:
+                        row = -1
+                        if int(ag) == 25:
+                            if a == "0_500;0_500": row=1
+                            elif a =="1_000;1_000": row=0
+                        elif int(ag) == 100: row=2
                         for b in buffer:
-                            if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                            col = -1
+                            if int(b) == 60: col = 0
+                            elif int(b) == 120: col = 1
+                            elif int(b) == 180: col = 2
+                            elif int(b) == 300: col = 3
+                            elif int(b) == 600: col = 4
+                            if row!=-1 and col!=-1:
+                                ls = '-'
+                                if comm_dict_park_sq.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_park_sq.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_park_sq.get((a,t,g,ag,b))
                                     flag = []
@@ -1157,36 +1082,7 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
-                                    comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
-                                    uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
-                                    flag = []
-                                    for i in range(len(comm_flag)):
-                                        denom = comm_flag[i] + uncomm_flag[i]
-                                        if denom != 0:
-                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                        else:
-                                            flag.append(0)
-                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
-                            if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                                if comm_dict_adam_sq.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_adam_sq.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_adam_sq.get((a,t,g,ag,b))
                                     flag = []
@@ -1197,36 +1093,7 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
-                                    comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
-                                    uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
-                                    flag = []
-                                    for i in range(len(comm_flag)):
-                                        denom = comm_flag[i] + uncomm_flag[i]
-                                        if denom != 0:
-                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                        else:
-                                            flag.append(0)
-                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
-                            if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                                if comm_dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_fifo_sq.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_fifo_sq.get((a,t,g,ag,b))
                                     flag = []
@@ -1237,36 +1104,7 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
-                            if comm_dict_fifo_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'--'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
-                                    comm_flag   = comm_dict_fifo_rt.get((a,t,g,ag,b))
-                                    uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
-                                    flag = []
-                                    for i in range(len(comm_flag)):
-                                        denom = comm_flag[i] + uncomm_flag[i]
-                                        if denom != 0:
-                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                        else:
-                                            flag.append(0)
-                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
-                            if comm_dict_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                                if comm_dict_rnd_sq.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_rnd_sq.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_rnd_sq.get((a,t,g,ag,b))
                                     flag = []
@@ -1277,36 +1115,7 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
-                            if comm_dict_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
-                                    comm_flag   = comm_dict_rnd_rt.get((a,t,g,ag,b))
-                                    uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
-                                    flag = []
-                                    for i in range(len(comm_flag)):
-                                        denom = comm_flag[i] + uncomm_flag[i]
-                                        if denom != 0:
-                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
-                                        else:
-                                            flag.append(0)
-                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
-                            if comm_dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "0_500;0_500": row=1
-                                    elif a=="1_000;1_000": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                                if comm_dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_inf_rnd_sq.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_inf_rnd_sq.get((a,t,g,ag,b))
                                     flag = []
@@ -1317,16 +1126,52 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                            if comm_dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
-                                col,row,ls = -1,-1,'-'
-                                if b == '60': col = 0
-                                elif b == '300': col = 1
-                                elif b == '600': col = 2
-                                if ag == "25":
-                                    if a == "1_000;0_250": row=1
-                                    elif a=="2_000;0_500": row=0
-                                elif ag=="100": row=2
-                                if col != -1 and row != -1:
+                                ls = '--'
+                                if comm_dict_park_rt.get((a,t,g,ag,b)) != None:
+                                    comm_flag   = comm_dict_park_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_park_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[0]),lw=6,ls=ls)
+                                if comm_dict_adam_rt.get((a,t,g,ag,b)) != None:
+                                    comm_flag   = comm_dict_adam_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_adam_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
+                                if comm_dict_fifo_rt.get((a,t,g,ag,b)) != None:
+                                    comm_flag   = comm_dict_fifo_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_fifo_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
+                                if comm_dict_rnd_rt.get((a,t,g,ag,b)) != None:
+                                    comm_flag   = comm_dict_rnd_rt.get((a,t,g,ag,b))
+                                    uncomm_flag = uncomm_dict_rnd_rt.get((a,t,g,ag,b))
+                                    flag = []
+                                    for i in range(len(comm_flag)):
+                                        denom = comm_flag[i] + uncomm_flag[i]
+                                        if denom != 0:
+                                            flag.append((comm_flag[i]-uncomm_flag[i]) / denom)
+                                        else:
+                                            flag.append(0)
+                                    ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
+                                if comm_dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                     comm_flag   = comm_dict_inf_rnd_rt.get((a,t,g,ag,b))
                                     uncomm_flag = uncomm_dict_inf_rnd_rt.get((a,t,g,ag,b))
                                     flag = []
@@ -1337,38 +1182,44 @@ class Data:
                                         else:
                                             flag.append(0)
                                     ax[row][col].plot(flag,color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
-                for y in range(3):
+                for y in range(5):
                     ax[2][y].grid(True)
                     ax[2][y].set_xlim(0,900)
-                    ax[2][y].set_ylim(-0.03,1.03)
-                    ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
+                    ax[2][y].set_ylim(-0.03,0.63)
+                    ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
                     ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 for x in range(2):
-                    for y in range(3):
-                        ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
+                    for y in range(5):
+                        ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                         ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
-                        ax[x][y].set_ylim(-0.03,1.03)
+                        ax[x][y].set_ylim(-0.03,0.63)
                 for x in range(3):
-                    for y in range(1,3):
+                    for y in range(1,5):
                         labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                         empty_string_labels = ['']*len(labels)
                         ax[x][y].set_yticklabels(empty_string_labels)
                 axt0=ax[0][0].twiny()
                 axt1=ax[0][1].twiny()
                 axt2=ax[0][2].twiny()
+                axt3=ax[0][3].twiny()
+                axt4=ax[0][4].twiny()
                 labels = [item.get_text() for item in axt0.get_xticklabels()]
                 empty_string_labels = ['']*len(labels)
                 axt0.set_xticklabels(empty_string_labels)
                 axt1.set_xticklabels(empty_string_labels)
                 axt2.set_xticklabels(empty_string_labels)
+                axt3.set_xticklabels(empty_string_labels)
+                axt4.set_xticklabels(empty_string_labels)
                 axt0.set_xlabel(r"$T_m = 60\, s$")
-                axt1.set_xlabel(r"$T_m = 300\, s$")
-                axt2.set_xlabel(r"$T_m = 600\, s$")
-                ayt0=ax[0][2].twinx()
-                ayt1=ax[1][2].twinx()
-                ayt2=ax[2][2].twinx()
+                axt1.set_xlabel(r"$T_m = 120\, s$")
+                axt2.set_xlabel(r"$T_m = 180\, s$")
+                axt3.set_xlabel(r"$T_m = 300\, s$")
+                axt4.set_xlabel(r"$T_m = 600\, s$")
+                ayt0=ax[0][4].twinx()
+                ayt1=ax[1][4].twinx()
+                ayt2=ax[2][4].twinx()
                 labels = [item.get_text() for item in axt0.get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ayt0.set_yticklabels(empty_string_labels)
@@ -1383,6 +1234,8 @@ class Data:
                 ax[2][0].set_xlabel(r"$T\, (s)$")
                 ax[2][1].set_xlabel(r"$T\, (s)$")
                 ax[2][2].set_xlabel(r"$T\, (s)$")
+                ax[2][3].set_xlabel(r"$T\, (s)$")
+                ax[2][4].set_xlabel(r"$T\, (s)$")
                 fig.tight_layout()
                 if not os.path.exists(self.base+"/msgs_data/images/"):
                     os.mkdir(self.base+"/msgs_data/images/")
