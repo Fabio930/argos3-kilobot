@@ -134,7 +134,7 @@ class Data:
         return data
 
 ##########################################################################################################
-    def read_csv(self,path,algo,n_runs,arena):
+    def read_csv(self,path,algo,n_runs):
         lc = 0
         keys = []
         data = {}

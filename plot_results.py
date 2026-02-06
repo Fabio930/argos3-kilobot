@@ -13,7 +13,6 @@ def main():
             tot_stbc    = []
             for file in sorted(os.listdir(base)):
                 n_runs = 0
-                arena = ""
                 if "images" not in file:
                     file_path = os.path.join(base, file)
                     no_ext_file = file.split('.')[0]
@@ -24,9 +23,7 @@ def main():
                         if len(val)>1:
                             if val[0] == 'r':
                                 n_runs = val[1]
-                            elif val[0] == 'a':
-                                arena = val[1]
-                    data = csv_res.read_csv(file_path,algo,n_runs,arena)
+                    data = csv_res.read_csv(file_path,algo,n_runs)
                     keys, states, times, states_by_commit = csv_res.divide_data(data)     
                     if len(tot_st) == 0:
                         tot_st      = [states]
