@@ -41,13 +41,6 @@ def main():
                     file_path = os.path.join(base, file)
                     data = csv_res.read_msgs_csv(file_path)
                     csv_res.plot_messages(data)
-        # if folder == "pos_data":
-        #     for file in sorted(os.listdir(base)):
-        #         if "images" not in file:
-        #             file_path = os.path.join(base, file)
-        #             data = csv_res.read_pos_csv(file_path)
-        #             csv_res.plot_pos(data)
-
 
 ##################################################################################
 if __name__ == "__main__":

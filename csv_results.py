@@ -14,85 +14,8 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "proc_data" or elem == "msgs_data" or elem == "pos_data":
+            if elem == "proc_data" or elem == "msgs_data":
                 self.bases.append(os.path.join(self.base, elem))
-
-##########################################################################################################
-    def plot_pos(self,data):
-        dict_park_square, dict_adam_square, dict_fifo_square, dict_rnd_square, dict_inf_rnd_square,dict_adp_rnd_square  = {},{},{},{},{},{}
-        dict_park_rect, dict_adam_rect, dict_fifo_rect, dict_rnd_rect, dict_inf_rnd_rect,dict_adp_rnd_rect            = {},{},{},{},{},{}
-        for k in data.keys():
-            if k[1]=='P':
-                if k[0].split(';')[0] == k[0].split(';')[1]:
-                    dict_park_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                else:
-                    dict_park_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-            else:
-                if int(k[4])==0:
-                    if k[0].split(';')[0] == k[0].split(';')[1]:
-                        dict_adam_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    else:
-                        dict_adam_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                elif int(k[4])==1:
-                    if k[6]=="1":
-                        if k[0].split(';')[0] == k[0].split(';')[1]:
-                            dict_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        else:
-                            dict_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    elif k[6]=="a31":
-                        if k[0].split(';')[0] == k[0].split(';')[1]:
-                            dict_adp_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        else:
-                            dict_adp_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    else:
-                        if k[0].split(';')[0] == k[0].split(';')[1]:
-                            dict_inf_rnd_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                        else:
-                            dict_inf_rnd_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                elif int(k[4])==2:
-                    if k[0].split(';')[0] == k[0].split(';')[1]:
-                        dict_fifo_square.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-                    else:
-                        dict_fifo_rect.update({(k[0],k[2],k[3],k[5],k[6]):data.get(k)})
-        self.print_pos("tot_average_distance",[dict_park_square,dict_adam_square,dict_fifo_square,dict_rnd_square,dict_inf_rnd_square,dict_adp_rnd_square],[dict_park_rect,dict_adam_rect,dict_fifo_rect,dict_rnd_rect,dict_inf_rnd_rect,dict_adp_rnd_rect])
-
-
-##########################################################################################################
-    def read_pos_csv(self,path):
-        data = {}
-        lc = 0
-        with open(path,newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if lc == 0:
-                    lc = 1
-                else:
-                    keys = []
-                    array_val=[]
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval))
-                            if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    keys.append(tval)
-        return data
 
 ##########################################################################################################
     def read_msgs_csv(self,path):
@@ -131,7 +54,7 @@ class Data:
                                     array_val.append(float(tval))
                                 else:
                                     keys.append(tval)
-        return data
+        return data #,labels
 
 ##########################################################################################################
     def read_csv(self,path,algo,n_runs):
@@ -559,10 +482,10 @@ class Data:
                         else:
                             agents = more_k[1]
                         for ag in agents:
-                            if ag=="25":
-                                if a=="0_500;0_500" or a=="1_000;0_250": row = 1
-                                else: row = 0
-                            else: row = 2
+                            if int(ag) == 25:
+                                if a == "0_500;0_500" or a == "1_000;0_250": row=1
+                                elif a =="1_000;1_000" or a =="2_000;0_500": row=0
+                            elif int(ag) == 100: row=2
                             for k in range(len(o_k)):
                                 if dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     cax[row][k].plot(dict_park_comm_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
@@ -730,10 +653,10 @@ class Data:
                         else:
                             agents = more_k[1]
                         for ag in agents:
-                            if ag=="25":
-                                if a=="0_500;0_500" or a=="1_000;0_250": row = 1
-                                else: row = 0
-                            else: row = 2
+                            if int(ag) == 25:
+                                if a == "0_500;0_500" or a == "1_000;0_250": row=1
+                                elif a =="1_000;1_000" or a =="2_000;0_500": row=0
+                            elif int(ag) == 100: row=2
                             for k in range(len(o_k)):
                                 if dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)) != None:
                                     ax[row][k].plot(dict_park_sq.get((a,ag,str(o_k[k]),m_h,gt,thr)),color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
@@ -921,8 +844,8 @@ class Data:
                     for ag in agents:
                         row = -1
                         if int(ag) == 25:
-                            if a == "0_500;0_500": row=1
-                            elif a =="1_000;1_000": row=0
+                            if a == "0_500;0_500" or a == "1_000;0_250": row=1
+                            elif a =="1_000;1_000" or a =="2_000;0_500": row=0
                         elif int(ag) == 100: row=2
                         for b in buffer:
                             col = -1
@@ -945,7 +868,7 @@ class Data:
                                 if dict_fifo_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_fifo_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                                 if dict_rnd_sq.get((a,t,g,ag,b)) != None:
-                                    ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                    ax[row][col].plot(dict_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                                 if dict_inf_rnd_sq.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_inf_rnd_sq.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                                 ls ='--'
@@ -954,9 +877,9 @@ class Data:
                                 if dict_adam_rt.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_adam_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[1]),lw=6,ls=ls)
                                 if dict_fifo_rt.get((a,t,g,ag,b)) != None:
-                                    ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                    ax[row][col].plot(dict_fifo_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[2]),lw=6,ls=ls)
                                 if dict_rnd_rt.get((a,t,g,ag,b)) != None:
-                                    ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
+                                    ax[row][col].plot(dict_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[3]),lw=6,ls=ls)
                                 if dict_inf_rnd_rt.get((a,t,g,ag,b)) != None:
                                     ax[row][col].plot(dict_inf_rnd_rt.get((a,t,g,ag,b)),color=scalarMap.to_rgba(typo[4]),lw=6,ls=ls)
                 for y in range(5):
@@ -1043,7 +966,7 @@ class Data:
         real_x_ticks    = []
         handles_r       = [park,adam,fifo,rnd,rnd_inf]
         handles_l       = [large_intrfc,small_intrfc]
-        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+        fig, ax         = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1059,8 +982,8 @@ class Data:
                     for ag in agents:
                         row = -1
                         if int(ag) == 25:
-                            if a == "0_500;0_500": row=1
-                            elif a =="1_000;1_000": row=0
+                            if a == "0_500;0_500" or a == "1_000;0_250": row=1
+                            elif a =="1_000;1_000" or a =="2_000;0_500": row=0
                         elif int(ag) == 100: row=2
                         for b in buffer:
                             col = -1
@@ -1244,183 +1167,3 @@ class Data:
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
     
-##########################################################################################################
-    def print_pos(self,c_type,square_data_in,rect_data_in):
-        typo        = [0,1,2,3,4,5]
-        cNorm       = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap   = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        square_dict_park,square_dict_adam,square_dict_fifo,square_dict_rnd,square_dict_inf_rnd,square_dict_adp_rnd  = square_data_in[0], square_data_in[1], square_data_in[2], square_data_in[3], square_data_in[4], square_data_in[5]
-        rect_dict_park,rect_dict_adam,rect_dict_fifo,rect_dict_rnd,rect_dict_inf_rnd,rect_dict_adp_rnd            = rect_data_in[0], rect_data_in[1], rect_data_in[2], rect_data_in[3], rect_data_in[4], rect_data_in[5]
-        park            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
-        adam            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$ID+B$")
-        fifo            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        rnd             = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        rnd_inf         = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
-        solid           = mlines.Line2D([], [], color="black", marker="None", linestyle="-", linewidth=10, label='large interface')
-        dashed          = mlines.Line2D([], [], color="black", marker="None", linestyle="--", linewidth=10, label='small interface')
-        real_x_ticks    = []
-        void_x_ticks    = []
-        svoid_x_ticks   = []
-        handles_r       = [park,adam,fifo,rnd,rnd_inf]
-        handles_l       = [solid,dashed]
-        fig, ax         = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
-        if len(real_x_ticks)==0:
-            for x in range(0,901,50):
-                if x%150 == 0:
-                    svoid_x_ticks.append('')
-                    void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.round(x,0))))
-                else:
-                    void_x_ticks.append('')
-        for k in square_dict_park.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            elif k[2]=="0.84": ax[row][col].plot(square_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="-")
-        for k in rect_dict_park.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            elif k[2]=="0.84": ax[row][col].plot(rect_dict_park.get(k)[3:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_park.get(k)[10:],color=scalarMap.to_rgba(typo[0]),lw=6,ls="--")
-        for k in square_dict_adam.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(square_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-") if k[1] == "25" else ax[row][col].plot(square_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="-")
-        for k in rect_dict_adam.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(rect_dict_adam.get(k)[3:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_adam.get(k)[10:],color=scalarMap.to_rgba(typo[1]),lw=6,ls="--")
-        for k in square_dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(square_dict_fifo.get(k)[3:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_fifo.get(k)[10:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="-")
-        for k in rect_dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(rect_dict_fifo.get(k)[3:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_fifo.get(k)[10:],color=scalarMap.to_rgba(typo[2]),lw=6,ls="--")
-        for k in square_dict_rnd.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(square_dict_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="-")
-        for k in rect_dict_rnd.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(rect_dict_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[3]),lw=6,ls="--")
-        for k in square_dict_inf_rnd.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(square_dict_inf_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="-") if k[3] == "25" else ax[row][col].plot(square_dict_inf_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="-")
-        for k in rect_dict_inf_rnd.keys():
-            row = 0
-            col = 0
-            if k[4] == '60': col = 0
-            elif k[4] == '300': col = 1
-            elif k[4] == '600': col = 2
-            if (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='25': row = 0
-            elif (k[0]=="1_000;1_000" or k[0]=="2_000;0_500") and k[3]=='100': row = 2
-            elif (k[0]=="0_500;0_500" or k[0]=="1_000;0_250"): row = 1
-            if k[2]=="0.84": ax[row][col].plot(rect_dict_inf_rnd.get(k)[3:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="--") if k[3] == "25" else ax[row][col].plot(rect_dict_inf_rnd.get(k)[10:],color=scalarMap.to_rgba(typo[4]),lw=6,ls="--")
-        for x in range(2):
-            for y in range(3):
-                ax[x][y].set_xticks(np.arange(0,901,150),labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-        for x in range(3):
-            for y in range(1,3):
-                labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
-                empty_string_labels = ['']*len(labels)
-                ax[x][y].set_yticklabels(empty_string_labels)
-        for y in range(3):
-            ax[2][y].set_xticks(np.arange(0,901,150),labels=real_x_ticks)
-            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-        axt0=ax[0][0].twiny()
-        axt1=ax[0][1].twiny()
-        axt2=ax[0][2].twiny()
-        labels = [item.get_text() for item in axt0.get_xticklabels()]
-        empty_string_labels = ['']*len(labels)
-        axt0.set_xticklabels(empty_string_labels)
-        axt1.set_xticklabels(empty_string_labels)
-        axt2.set_xticklabels(empty_string_labels)
-        axt0.set_xlabel(r"$T_m = 60\, s$")
-        axt1.set_xlabel(r"$T_m = 300\, s$")
-        axt2.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][2].twinx()
-        ayt1=ax[1][2].twinx()
-        ayt2=ax[2][2].twinx()
-        labels = [item.get_text() for item in axt0.get_yticklabels()]
-        empty_string_labels = ['']*len(labels)
-        ayt0.set_yticklabels(empty_string_labels)
-        ayt1.set_yticklabels(empty_string_labels)
-        ayt2.set_yticklabels(empty_string_labels)
-        ayt0.set_ylabel("LD25")
-        ayt1.set_ylabel("HD25")
-        ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$D\, (m)$")
-        ax[1][0].set_ylabel(r"$D\, (m)$")
-        ax[2][0].set_ylabel(r"$D\, (m)$")
-        ax[2][0].set_xlabel(r"$T\, (s)$")
-        ax[2][1].set_xlabel(r"$T\, (s)$")
-        ax[2][2].set_xlabel(r"$T\, (s)$")
-        for x in range(3):
-            for y in range(3):
-                ax[x][y].grid(True)
-                ax[x][y].set_xlim(0,900)
-                ax[x][y].set_ylim(-0.03,1.03)
-        fig.tight_layout()
-        if not os.path.exists(self.base+"/pos_data/images/"):
-            os.mkdir(self.base+"/pos_data/images/")
-        fig_path = self.base+"/pos_data/images/"+c_type+".pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_l,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
-        fig.savefig(fig_path, bbox_inches='tight')
-        plt.close(fig)
