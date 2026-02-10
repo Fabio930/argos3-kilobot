@@ -630,7 +630,7 @@ class Data:
             # non condividere l'asse y tra tutte le sottotrame: vogliamo limiti y
             # diversi per ogni riga. Con sharey=True tutti gli assi avrebbero lo
             # stesso limite e ciò impedisce lo zoom per riga.
-            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=False, sharex=False)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=True, sharex=False)
 
             # assicurati che axes sia array 2D
             if nrows == 1 and ncols == 1:
@@ -663,7 +663,7 @@ class Data:
 
                     # rimuovi AN dalle colonne successive alla prima
                     # Escludi completamente le varianti P.0 (AN) e O.2.0 (ID+R_f)
-                    excluded_labels = [variant_map['P.0'][0], variant_map['P.1'][0],variant_map['O.0.0'][0]]
+                    excluded_labels = [variant_map['P.0'][0],variant_map['O.2.0'][0]]
                     plot_labels = [lbl for lbl in labels if lbl not in excluded_labels]
                     # Mantieni la logica originale: rimuovi AN dalle colonne successive (ridondante se già escluso)
                     if j > 0:
@@ -734,19 +734,20 @@ class Data:
 
                     # Mantieni la vecchia logica di margine speciale per 60 (compatibilità)
                     top_plot = top_rounded + 1 if top_rounded == 60 else top_rounded
-
-                    # Crea yticks come multipli "tondi" dello step
-                    if isinstance(step, int):
-                        yticks = np.arange(0, top_rounded + step, step, dtype=int)
-                    else:
-                        yticks = np.arange(0, top_rounded + step, step)
+                    step = int(step)
+                    sstep = int(max(step,top_rounded/8))
+                    yticks = np.arange(0, top_rounded + step, sstep)
 
                     # margini: se il minimo del subset è 0, partiamo da -1 (senza label)
                     ymin = 0
                     ymin_plot = ymin - 1
 
-                    ax.set_yticks(yticks)
-                    ax.set_ylim(ymin_plot, top_plot)
+                    if entry!="Time":
+                        ax.set_yticks(yticks)
+                        ax.set_ylim(ymin_plot, top_plot)
+                    else:
+                        ax.set_yscale('log')
+                        ax.set_ylim(1,500)
                     plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5)
                     ax.grid(True)
 
@@ -775,129 +776,129 @@ class Data:
         time_max = df["Time"].max()
         event_max = df["Events"].max()
 
-        save_box(df, 'all_events', 'Events',event_max)
-        save_box(df, 'all_time', 'Time',time_max)
+        # save_box(df, 'all_events', 'Events',event_max)
+        # save_box(df, 'all_time', 'Time',time_max)
         save_box(df[df['Error'] <= 0.05], 'le05_events', 'Events',event_max)
         save_box(df[df['Error'] <= 0.05], 'le05_time', 'Time',time_max)
         save_box(df[df['Error'] > 0.05], 'gt05_events', 'Events',event_max)
         save_box(df[df['Error'] > 0.05], 'gt05_time', 'Time',time_max)
 
-        # Istogrammi 2D per variante (Error vs Events)
-        xbins = np.linspace(0, 0.5, 30)
-        ybins = np.arange(0, event_max+5, 2)
-        # limite superiore arrotondato a multipli di 10 per gli eventi
-        top_event = int(np.ceil((event_max if event_max > 0 else 1) / 10.0) * 10)
-        for key_var, (label, color) in variant_map.items():
-            columns = len(msg_list) if key_var != "P.0" else 1
-            w_size = 30 if columns > 1 else 12
-            x_w = 0 if columns > 1 else 5
+        # # Istogrammi 2D per variante (Error vs Events)
+        # xbins = np.linspace(0, 0.5, 30)
+        # ybins = np.arange(0, event_max+5, 2)
+        # # limite superiore arrotondato a multipli di 10 per gli eventi
+        # top_event = int(np.ceil((event_max if event_max > 0 else 1) / 10.0) * 10)
+        # for key_var, (label, color) in variant_map.items():
+        #     columns = len(msg_list) if key_var != "P.0" else 1
+        #     w_size = 30 if columns > 1 else 12
+        #     x_w = 0 if columns > 1 else 5
 
-            fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
-            # Flatten axes array for uniform processing
-            if columns == 1:
-                axes = np.array(axes).reshape(-1, 1)
-            elif len(grid) == 1:
-                axes = np.array(axes).reshape(1, -1)
+        #     fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
+        #     # Flatten axes array for uniform processing
+        #     if columns == 1:
+        #         axes = np.array(axes).reshape(-1, 1)
+        #     elif len(grid) == 1:
+        #         axes = np.array(axes).reshape(1, -1)
 
-            h = None
-            for i, (arena, ag) in enumerate(grid):
-                for j, m in enumerate(msg_list):
-                    ax = axes[i, j]
-                    cell = df[
-                        (df['VariantKey'] == key_var) &
-                        (df['Arena'] == arena) &
-                        (df['Agents'] == ag) &
-                        (df['Msgs_exp_time'] == m)
-                    ]
-                    if not cell.empty:
-                        h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
-                        ax.set_yscale('linear')
-                        # imposta ticks a multipli di 10 e ylim basato su top_event
-                        ax.set_ylim(0, top_event)
-                        ax.set_yticks(np.arange(0, top_event + 1, 10))
-                        ax.grid(True)
-                    if i == 0:
-                        ax.set_title(col_labels[j])
-                    if i == len(grid) - 1:
-                        ax.set_xlabel(r"$|G-\tau|$")
-                        ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-                        ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    if j == 0:
-                        ax.set_ylabel("Events")
-                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    ax.set_ylim(0, top_event)
-                    # assicurati che ci sia la griglia anche quando non ci sono dati
-                    ax.grid(True)
-                    if columns == 1: break
-                axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
-            if h is not None:
-                # Use divider to place the colorbar correctly
-                fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
-                cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
-                fig.colorbar(h[3], cax=cbar_ax, label='#')
-            # fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
-            fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.pdf"))
-            plt.close(fig)
+        #     h = None
+        #     for i, (arena, ag) in enumerate(grid):
+        #         for j, m in enumerate(msg_list):
+        #             ax = axes[i, j]
+        #             cell = df[
+        #                 (df['VariantKey'] == key_var) &
+        #                 (df['Arena'] == arena) &
+        #                 (df['Agents'] == ag) &
+        #                 (df['Msgs_exp_time'] == m)
+        #             ]
+        #             if not cell.empty:
+        #                 h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
+        #                 ax.set_yscale('linear')
+        #                 # imposta ticks a multipli di 10 e ylim basato su top_event
+        #                 ax.set_ylim(0, top_event)
+        #                 ax.set_yticks(np.arange(0, top_event + 1, 10))
+        #                 ax.grid(True)
+        #             if i == 0:
+        #                 ax.set_title(col_labels[j])
+        #             if i == len(grid) - 1:
+        #                 ax.set_xlabel(r"$|G-\tau|$")
+        #                 ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+        #                 ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
+        #                 plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+        #             if j == 0:
+        #                 ax.set_ylabel("Events")
+        #                 plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+        #             ax.set_ylim(0, top_event)
+        #             # assicurati che ci sia la griglia anche quando non ci sono dati
+        #             ax.grid(True)
+        #             if columns == 1: break
+        #         axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
+        #                         fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
+        #     if h is not None:
+        #         # Use divider to place the colorbar correctly
+        #         fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
+        #         cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
+        #         fig.colorbar(h[3], cax=cbar_ax, label='#')
+        #     # fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
+        #     fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.pdf"))
+        #     plt.close(fig)
 
-        # Istogrammi 2D per variante (Error vs Time)
-        xbins = np.linspace(0, 0.5, 30)
-        ybins = np.arange(0, 155, 5)
-        # limite superiore arrotondato a multipli di 50 per i tempi (ticks 0,50,100,...)
-        top_time = int(np.ceil((time_max if time_max > 0 else 1) / 50.0) * 50)
-        for key_var, (label, color) in variant_map.items():
-            columns = len(msg_list) if key_var != "P.0" else 1
-            w_size = 30 if columns > 1 else 12
-            x_w = 0 if columns > 1 else 5
+        # # Istogrammi 2D per variante (Error vs Time)
+        # xbins = np.linspace(0, 0.5, 30)
+        # ybins = np.arange(0, 155, 5)
+        # # limite superiore arrotondato a multipli di 50 per i tempi (ticks 0,50,100,...)
+        # top_time = int(np.ceil((time_max if time_max > 0 else 1) / 50.0) * 50)
+        # for key_var, (label, color) in variant_map.items():
+        #     columns = len(msg_list) if key_var != "P.0" else 1
+        #     w_size = 30 if columns > 1 else 12
+        #     x_w = 0 if columns > 1 else 5
 
-            fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
-            # Flatten axes array for uniform processing
-            if columns == 1:
-                axes = np.array(axes).reshape(-1, 1)
-            elif len(grid) == 1:
-                axes = np.array(axes).reshape(1, -1)
+        #     fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
+        #     # Flatten axes array for uniform processing
+        #     if columns == 1:
+        #         axes = np.array(axes).reshape(-1, 1)
+        #     elif len(grid) == 1:
+        #         axes = np.array(axes).reshape(1, -1)
 
-            h = None
-            for i, (arena, ag) in enumerate(grid):
-                for j, m in enumerate(msg_list):
-                    ax = axes[i, j]
-                    cell = df[
-                        (df['VariantKey'] == key_var) &
-                        (df['Arena'] == arena) &
-                        (df['Agents'] == ag) &
-                        (df['Msgs_exp_time'] == m)
-                    ]
-                    if not cell.empty:
-                        h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
-                        ax.set_yscale('linear')
-                        # imposta ticks a multipli di 50 e ylim basato su top_time
-                        ax.set_ylim(0, top_time)
-                        ax.set_yticks(np.arange(0, top_time + 1, 50))
-                        ax.grid(True)
-                    if i == 0:
-                        ax.set_title(col_labels[j])
-                    if i == len(grid) - 1:
-                        ax.set_xlabel(r"$|G-\tau|$")
-                        ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-                        ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-                        plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    if j == 0:
-                        ax.set_ylabel("Time")
-                        plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-                    ax.set_ylim(0, top_time)
-                    if columns == 1: break
-                axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
-            # Add colorbar aligned to the last subplot row and column
-            if h is not None:
-                # Use divider to place the colorbar correctly
-                fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
-                cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
-                fig.colorbar(h[3], cax=cbar_ax, label='#')
-            # fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
-            fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.pdf"))
-            plt.close(fig)
+        #     h = None
+        #     for i, (arena, ag) in enumerate(grid):
+        #         for j, m in enumerate(msg_list):
+        #             ax = axes[i, j]
+        #             cell = df[
+        #                 (df['VariantKey'] == key_var) &
+        #                 (df['Arena'] == arena) &
+        #                 (df['Agents'] == ag) &
+        #                 (df['Msgs_exp_time'] == m)
+        #             ]
+        #             if not cell.empty:
+        #                 h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
+        #                 ax.set_yscale('linear')
+        #                 # imposta ticks a multipli di 50 e ylim basato su top_time
+        #                 ax.set_ylim(0, top_time)
+        #                 ax.set_yticks(np.arange(0, top_time + 1, 50))
+        #                 ax.grid(True)
+        #             if i == 0:
+        #                 ax.set_title(col_labels[j])
+        #             if i == len(grid) - 1:
+        #                 ax.set_xlabel(r"$|G-\tau|$")
+        #                 ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+        #                 ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
+        #                 plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+        #             if j == 0:
+        #                 ax.set_ylabel("Time")
+        #                 plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
+        #             ax.set_ylim(0, top_time)
+        #             if columns == 1: break
+        #         axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
+        #                         fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
+        #     # Add colorbar aligned to the last subplot row and column
+        #     if h is not None:
+        #         # Use divider to place the colorbar correctly
+        #         fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
+        #         cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
+        #         fig.colorbar(h[3], cax=cbar_ax, label='#')
+        #     # fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
+        #     fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.pdf"))
+        #     plt.close(fig)
 
 ###################################################
     def store_recovery(self,data_in):
@@ -1037,7 +1038,7 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
+        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1047,99 +1048,74 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in dict_park_real_fifo.keys():
-            tmp,tmpstd = [],[]
-            res = dict_park_real_fifo.get(k)
-            restd = std_dict_park_real_fifo.get(k)
-            norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
-                tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
-            dict_park_real_fifo.update({k:tmp})
-            std_dict_park_real_fifo.update({k:tmpstd})
-
+        # for k in dict_park_real_fifo.keys():
+        #     tmp = []
+        #     res = dict_park_real_fifo.get(k)
+        #     norm = int(k[1])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_park_real_fifo.update({k:tmp})
         for k in dict_park.keys():
-            tmp,tmpstd = [],[]
+            tmp = []
             res = dict_park.get(k)
-            restd = std_dict_park.get(k)
             norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
+            for xi in res:
                 tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
             dict_park.update({k:tmp})
-            std_dict_park.update({k:tmpstd})
 
         for k in dict_adam.keys():
-            tmp,tmpstd = [],[]
+            tmp = []
             res = dict_adam.get(k)
-            restd = std_dict_adam.get(k)
             norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
+            for xi in res:
                 tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
             dict_adam.update({k:tmp})
-            std_dict_adam.update({k:tmpstd})
 
-        for k in dict_fifo.keys():
-            tmp,tmpstd = [],[]
-            res = dict_fifo.get(k)
-            restd = std_dict_fifo.get(k)
-            norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
-                tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
-            dict_fifo.update({k:tmp})
-            std_dict_fifo.update({k:tmpstd})
+        # for k in dict_fifo.keys():
+        #     tmp = []
+        #     res = dict_fifo.get(k)
+        #     restd = std_dict_fifo.get(k)
+        #     norm = int(k[1])-1
+        #     for xi in res:
+        #         tmp.append(xi/norm)
+        #     dict_fifo.update({k:tmp})
 
         for k in dict_rnd.keys():
-            tmp,tmpstd = [],[]
+            tmp = []
             res = dict_rnd.get(k)
-            restd = std_dict_rnd.get(k)
             norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
+            for xi in res:
                 tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
             dict_rnd.update({k:tmp})
-            std_dict_rnd.update({k:tmpstd})
 
         for k in dict_rnd_inf.keys():
-            tmp,tmpstd = [],[]
+            tmp = []
             res = dict_rnd_inf.get(k)
-            restd = std_dict_rnd_inf.get(k)
             norm = int(k[1])-1
-            for xi,sti in zip(res,restd):
+            for xi in res:
                 tmp.append(xi/norm)
-                tmpstd.append(sti/norm)
             dict_rnd_inf.update({k:tmp})
-            std_dict_rnd_inf.update({k:tmpstd})
 
-        for k in dict_park_real_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
-            try:
-                mean = np.array(dict_park_real_fifo.get(k))
-                std = np.array(std_dict_park_real_fifo.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color="red", alpha=0.3)
-            except Exception:
-                pass
+        # for k in dict_park_real_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -1165,13 +1141,6 @@ class Data:
                 min_buf.append(val)
             ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
             ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
-            try:
-                mean = np.array(dict_park.get(k))
-                std = np.array(std_dict_park.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[0]), alpha=0.3)
-            except Exception:
-                pass
         for k in dict_adam.keys():
             row = 0
             col = 0
@@ -1192,40 +1161,28 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-            try:
-                mean = np.array(dict_adam.get(k))
-                std = np.array(std_dict_adam.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[1]), alpha=0.3)
-            except Exception:
-                pass
-        for k in dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
-            try:
-                mean = np.array(dict_fifo.get(k))
-                std = np.array(std_dict_fifo.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[2]), alpha=0.3)
-            except Exception:
-                pass
+           
+        # for k in dict_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+            
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -1246,13 +1203,7 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
-            try:
-                mean = np.array(dict_rnd.get(k))
-                std = np.array(std_dict_rnd.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[3]), alpha=0.3)
-            except Exception:
-                pass
+            
         for k in dict_rnd_inf.keys():
             row = 0
             col = 0
@@ -1273,13 +1224,7 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
-            try:
-                mean = np.array(dict_rnd_inf.get(k))
-                std = np.array(std_dict_rnd_inf.get(k))
-                x = np.arange(len(mean))
-                ax[row][col].fill_between(x, mean - std, mean + std, color=scalarMap.to_rgba(typo[4]), alpha=0.3)
-            except Exception:
-                pass
+            
         for x in range(2):
             for y in range(5):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
@@ -1332,10 +1277,7 @@ class Data:
             for y in range(5):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
-                if x==0 or x==1:
-                    ax[x][y].set_ylim(-0.03,1.03)
-                else:
-                    ax[x][y].set_ylim(-0.03,1.03)
+                ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
@@ -1362,7 +1304,7 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
+        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1372,26 +1314,26 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in dict_park_real_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+        # for k in dict_park_real_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -1436,26 +1378,26 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        for k in dict_fifo.keys():
-            row = 0
-            col = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        # for k in dict_fifo.keys():
+        #     row = 0
+        #     col = 0
+        #     if k[0]=='big' and k[1]=='25':
+        #         row = 0
+        #     elif k[0]=='big' and k[1]=='100':
+        #         row = 2
+        #     elif k[0]=='small':
+        #         row = 1
+        #     if k[2] == '60':
+        #         col = 0
+        #     elif k[2] == '120':
+        #         col = 1
+        #     elif k[2] == '180':
+        #         col = 2
+        #     elif k[2] == '300':
+        #         col = 3
+        #     elif k[2] == '600':
+        #         col = 4
+        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -1585,7 +1527,7 @@ class Data:
         id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
 
         handles_c   = [high_bound,low_bound]
-        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
+        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
         tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         str_threshlds = []
@@ -1883,24 +1825,24 @@ class Data:
                         tvalsri[k][th] = ri_valst
 
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
-                    ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
+                    # ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
+                    # ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
 
                     ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                     ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                     ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                     ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    # ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    # ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                     ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                     ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                     ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
                     ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
 
-                    tax[row][k].plot(tvalspr[k],color="red",lw=6)
+                    # tax[row][k].plot(tvalspr[k],color="red",lw=6)
                     tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
                     tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
+                    # tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
                     tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
                     tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
@@ -1959,38 +1901,20 @@ class Data:
                         tax[row][k].set_xticks(np.arange(0,41,10),labels=str_threshlds_y)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
-                        if k==0:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==1:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==2:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==3:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
-                        elif k==4:
-                            ax[row][k].set_xlabel(r"$\tau$")
-                            tax[row][k].set_xlabel(r"$\tau$")
+                        tax[row][k].set_ylim(0,80)
+                        ax[row][k].set_xlabel(r"$\tau$")
+                        tax[row][k].set_xlabel(r"$\tau$")
                     else:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
                         ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
                         tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
+                        tax[row][k].set_ylim(0,40)
                     if k==0:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1))
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        if row==0:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c$")
-                        elif row==1:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c$")
-                        elif row==2:
-                            ax[row][k].set_ylabel(r"$G$")
-                            tax[row][k].set_ylabel(r"$T_c$")
+                        ax[row][k].set_ylabel(r"$G$")
+                        tax[row][k].set_ylabel(r"$T_c$")
                     elif k==4:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
@@ -2000,15 +1924,8 @@ class Data:
                         empty_string_labels = ['']*len(labels)
                         axt.set_yticklabels(empty_string_labels)
                         taxt.set_yticklabels(empty_string_labels)
-                        if row==0:
-                            axt.set_ylabel("LD25")
-                            taxt.set_ylabel("LD25")
-                        elif row==1:
-                            axt.set_ylabel("HD25")
-                            taxt.set_ylabel("HD25")
-                        elif row==2:
-                            axt.set_ylabel("HD100")
-                            taxt.set_ylabel("HD100")
+                        axt.set_ylabel("HD100")
+                        taxt.set_ylabel("HD100")
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
@@ -2036,7 +1953,7 @@ class Data:
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
-        self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
+        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
