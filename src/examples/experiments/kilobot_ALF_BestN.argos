@@ -52,8 +52,11 @@
         <hierarchicStruct
             rebroadcast = "0"
             msgs_n_hops = "0"
-            expiring_quorum_sec = "300"
-            committed_percentage = "0.8"
+            msgs_timeout = "300"
+            options = "5"
+            eta = "0.5"
+            grid_rows = "20"
+            grid_cols = "20"
         >
         </hierarchicStruct>
 
@@ -116,7 +119,7 @@
 
         <floor id="floor"
         source="loop_functions"
-        pixels_per_meter="100" />
+        pixels_per_meter="200" />
     </arena>
     
     <!-- ******************* -->

@@ -3,6 +3,17 @@
 **/
 
 #include "BestN_ALF.h"
+#include <algorithm>
+#include <cmath>
+
+namespace {
+UInt32 NextXorShift32(UInt32& unState) {
+    unState ^= (unState << 13);
+    unState ^= (unState >> 17);
+    unState ^= (unState << 5);
+    return unState;
+}
+}
 
 /****************************************/
 /****************************************/
@@ -58,20 +69,20 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     std::vector<UInt8> assigned_kilo_states;
     assigned_kilo_states.resize(m_tKilobotEntities.size());
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) assigned_kilo_states[it]=0;
-    UInt8 count = 0;
-    UInt8 p;
-    while (true){
-        for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
-            if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*committed_percentage){
-                p = rand()%2;
-                if(p==1){
-                    assigned_kilo_states[it]=1;
-                    count++;
-                }
-            }
-        }
-        if(count>=m_vecKilobotStates.size()*committed_percentage) break;
-    }
+    // UInt8 count = 0;
+    // UInt8 p;
+    // while (true){
+    //     for(UInt16 it=0;it< m_tKilobotEntities.size();it++){
+    //         if(assigned_kilo_states[it]==0 && count<m_vecKilobotStates.size()*committed_percentage){
+    //             p = rand()%2;
+    //             if(p==1){
+    //                 assigned_kilo_states[it]=1;
+    //                 count++;
+    //             }
+    //         }
+    //     }
+    //     if(count>=m_vecKilobotStates.size()*committed_percentage) break;
+    // }
     
     for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it],assigned_kilo_states[it]);
 }
@@ -98,9 +109,90 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"hierarchicStruct");
     /* Get dimensions and quality scaling factor*/
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
-    GetNodeAttribute(tHierarchicalStructNode,"committed_percentage",committed_percentage);
-    GetNodeAttribute(tHierarchicalStructNode,"expiring_quorum_sec",expiring_quorum_sec);
+    GetNodeAttribute(tHierarchicalStructNode,"options",options);
+    GetNodeAttribute(tHierarchicalStructNode,"eta",eta);
+    GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
+    eta = Min<Real>(1.0, Max<Real>(0.0, eta));
+    options = Max<UInt8>(1, options);
+    m_unEtaQ = static_cast<UInt8>(std::round(eta * 127.0));
+    m_unFloorSeed = static_cast<UInt16>(m_random_seed & 0x0FFF);
+    if(m_unFloorSeed == 0) {
+        m_unFloorSeed = 1;
+    }
+
+    UInt32 unGridRows = 10;
+    UInt32 unGridCols = 10;
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "grid_rows", unGridRows, unGridRows);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "grid_cols", unGridCols, unGridCols);
+
+    m_cGridFloor.Rows = unGridRows;
+    m_cGridFloor.Cols = unGridCols;
+    if(m_cGridFloor.Rows > 0 && m_cGridFloor.Cols > 0) {
+        const CVector3& cArenaMin = this->GetSpace().GetArenaLimits().GetMin();
+        const CVector3& cArenaMax = this->GetSpace().GetArenaLimits().GetMax();
+        CVector3 cMin(cArenaMin.GetX() + 0.05, cArenaMin.GetY() + 0.05, cArenaMin.GetZ());
+        CVector3 cMax(cArenaMax.GetX() - 0.05, cArenaMax.GetY() - 0.05, cArenaMax.GetZ());
+        const Real fCellSizeX = (cMax.GetX() - cMin.GetX()) / m_cGridFloor.Cols;
+        const Real fCellSizeY = (cMax.GetY() - cMin.GetY()) / m_cGridFloor.Rows;
+
+        m_cGridFloor.XMin = cMin.GetX();
+        m_cGridFloor.YMin = cMin.GetY();
+        m_cGridFloor.InvCellSizeX = (fCellSizeX > 0 ? 1.0 / fCellSizeX : 0);
+        m_cGridFloor.InvCellSizeY = (fCellSizeY > 0 ? 1.0 / fCellSizeY : 0);
+        m_cGridFloor.ColorId.assign(m_cGridFloor.Rows * m_cGridFloor.Cols, 1);
+        SetupFloorColorMap();
+
+        const Real fGpsMinX = cMin.GetX() + cArenaMax.GetX();
+        const Real fGpsMaxX = cMax.GetX() + cArenaMax.GetX();
+        const Real fGpsMinY = cMin.GetY() + cArenaMax.GetY();
+        const Real fGpsMaxY = cMax.GetY() + cArenaMax.GetY();
+        const SInt32 nGpsMinXQ = static_cast<SInt32>(std::round(fGpsMinX * 100.0));
+        const SInt32 nGpsMaxXQ = static_cast<SInt32>(std::round(fGpsMaxX * 100.0));
+        const SInt32 nGpsMinYQ = static_cast<SInt32>(std::round(fGpsMinY * 100.0));
+        const SInt32 nGpsMaxYQ = static_cast<SInt32>(std::round(fGpsMaxY * 100.0));
+        m_unGpsMinXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMinXQ)));
+        m_unGpsMaxXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxXQ)));
+        m_unGpsMinYQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMinYQ)));
+        m_unGpsMaxYQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxYQ)));
+    }
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SetupFloorColorMap() {
+    const UInt32 unTotalCells = m_cGridFloor.Rows * m_cGridFloor.Cols;
+    if(unTotalCells == 0) {
+        return;
+    }
+
+    m_cGridFloor.ColorId.assign(unTotalCells, 1); // 1 = best option
+
+    const UInt32 unWorseCells =
+        static_cast<UInt32>((static_cast<UInt32>(m_unEtaQ) * unTotalCells + 63) / 127);
+    if(unWorseCells == 0 || options == 1) {
+        return;
+    }
+
+    const UInt8 unWorseOptions = options - 1;
+    const UInt32 unBaseCount = unWorseCells / unWorseOptions;
+    const UInt32 unRemainder = unWorseCells % unWorseOptions;
+
+    UInt32 unCursor = 0;
+    for(UInt8 unOpt = 0; unOpt < unWorseOptions; ++unOpt) {
+        const UInt32 unCellsForThisOption = unBaseCount + (unOpt < unRemainder ? 1 : 0);
+        const UInt8 unColorId = static_cast<UInt8>((unOpt % 254) + 2);
+        for(UInt32 j = 0; j < unCellsForThisOption && unCursor < unWorseCells; ++j, ++unCursor) {
+            m_cGridFloor.ColorId[unCursor] = unColorId;
+        }
+    }
+
+    UInt32 unState = m_unFloorSeed;
+    for(UInt32 i = unTotalCells - 1; i > 0; --i) {
+        const UInt32 j = NextXorShift32(unState) % (i + 1);
+        std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
+    }
 }
 
 /****************************************/
@@ -146,16 +238,32 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 case 1:
                     m_vecStart_experiment[unKilobotID]=2;
-                    SendStateInformation(c_kilobot_entity);
+                    SendGridInitInformation(c_kilobot_entity);
                     break;
                 case 2:
                     m_vecStart_experiment[unKilobotID]=3;
+                    SendMapInitInformation(c_kilobot_entity);
+                    break;
+                case 3:
+                    m_vecStart_experiment[unKilobotID]=4;
+                    SendBoundsInitInformation(c_kilobot_entity, false);
+                    break;
+                case 4:
+                    m_vecStart_experiment[unKilobotID]=5;
+                    SendBoundsInitInformation(c_kilobot_entity, true);
+                    break;
+                case 5:
+                    m_vecStart_experiment[unKilobotID]=6;
+                    SendStateInformation(c_kilobot_entity);
+                    break;
+                case 6:
+                    m_vecStart_experiment[unKilobotID]=7;
                     SendInformationGPS(c_kilobot_entity);
                     break;
             }
             start_experiment=1;
-            for(UInt8 i=0;i<m_vecStart_experiment.size();i++){
-                if(m_vecStart_experiment[i]!=3){
+            for(size_t i = 0; i < m_vecStart_experiment.size(); ++i){
+                if(m_vecStart_experiment[i]!=7){
                     start_experiment=0;
                     break;
                 }
@@ -174,30 +282,62 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = rebroadcast;
-    tKilobotMessage.m_sID = expiring_quorum_sec;
-    tKilobotMessage.m_sData = 0;
-    // tKilobotMessage.m_sID = minimum_quorum_length;
-    // tKilobotMessage.m_sData = quorum_scaling_factor*100;
-    // Fill the kilobot message by the ARK-type messages
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3]   = (UInt8)(tMessage.m_sID >> 7) << 1;
-        m_tMessages[unKilobotID].data[1+i*3] = (UInt8)tMessage.m_sID << 1;
-        m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sType;
-    }
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = msgs_timeout & 0x3FFFu;
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (rebroadcast & 0x3Fu));
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendGridInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
+
+    m_tMessages[unKilobotID].type = 0;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = static_cast<UInt16>(((m_cGridFloor.Rows & 0x7Fu) << 7) | (m_cGridFloor.Cols & 0x7Fu));
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((1u << 6) | ((m_unFloorSeed >> 6) & 0x3Fu));
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendMapInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
+
+    m_tMessages[unKilobotID].type = 0;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = static_cast<UInt16>(((m_unEtaQ & 0x7Fu) << 7) | (options & 0x7Fu));
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((2u << 6) | (m_unFloorSeed & 0x3Fu));
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity, bool bSendY){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
+
+    m_tMessages[unKilobotID].type = 0;
+    const UInt8 unMinQ = bSendY ? m_unGpsMinYQ : m_unGpsMinXQ;
+    const UInt8 unMaxQ = bSendY ? m_unGpsMaxYQ : m_unGpsMaxXQ;
+    const UInt16 unPayload = static_cast<UInt16>(((unMinQ & 0x7Fu) << 7) | (unMaxQ & 0x7Fu));
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((3u << 6) | (bSendY ? 1u : 0u));
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
@@ -284,9 +424,11 @@ Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
 /****************************************/
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
-    CColor color=CColor::WHITE;
-    if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
-    return color;
+    if(abs(vec_position_on_plane.GetX()) > this->GetSpace().GetArenaLimits().GetMax()[0] - 0.05 ||
+       abs(vec_position_on_plane.GetY()) > this->GetSpace().GetArenaLimits().GetMax()[1] - 0.05) {
+        return CColor::BLACK;
+    }
+    return m_cGridFloor.GetColorAt(vec_position_on_plane);
 }
 
 REGISTER_LOOP_FUNCTIONS(CBestN_ALF, "ALF_BestN_loop_function")

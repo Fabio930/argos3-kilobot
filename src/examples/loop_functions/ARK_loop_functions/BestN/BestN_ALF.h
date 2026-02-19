@@ -7,6 +7,7 @@
 #define BESTN_ALF_H
 
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
+#include "grid_floor.h"
 
 class CBestN_ALF : public CALF{
 
@@ -32,6 +33,10 @@ public:
 
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
+    void SetupFloorColorMap();
+    void SendGridInitInformation(CKilobotEntity &c_kilobot_entity);
+    void SendMapInitInformation(CKilobotEntity &c_kilobot_entity);
+    void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity, bool bSendY);
 
     /** Get experiment variables */
     void GetExperimentVariables(TConfigurationNode& t_tree);
@@ -64,11 +69,18 @@ private:
     /************************************/
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
-    float                   committed_percentage;
+    float                   eta;
+    UInt8                   options;
 
-    UInt16                  expiring_quorum_sec;
+    UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
+    UInt16                  m_unFloorSeed;
+    UInt8                   m_unEtaQ;
+    UInt8                   m_unGpsMinXQ;
+    UInt8                   m_unGpsMaxXQ;
+    UInt8                   m_unGpsMinYQ;
+    UInt8                   m_unGpsMaxYQ;
 
     std::vector<CVector2>   m_vecKilobotPositions;
     std::vector<CDegrees>   m_vecKilobotOrientations;
@@ -99,6 +111,8 @@ private:
 
     /* data acquisition frequency in ticks */
     UInt16 m_unDataAcquisitionFrequency;
+
+    CGridFloor m_cGridFloor;
 };
 
 #endif

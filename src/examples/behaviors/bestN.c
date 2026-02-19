@@ -3,6 +3,15 @@
  */
 #include "bestN.h"
 
+static uint32_t next_xorshift32(uint32_t *state){
+    uint32_t x = *state;
+    x ^= (x << 13);
+    x ^= (x >> 17);
+    x ^= (x << 5);
+    *state = x;
+    return x;
+}
+
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -80,8 +89,6 @@ void talk(){
 }
 
 void broadcast(){
-    // frequency log
-    num_own_info += 1;
     // message
     sa_type = 0;
     if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops;
@@ -94,8 +101,6 @@ void broadcast(){
 }
 
 void rebroadcast(){
-    // frequency log
-    num_other_info +=1;
     // message
     sa_type = 0;
     if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
@@ -111,6 +116,119 @@ void rebroadcast(){
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 255.0;
     return min + (r*(max-min));
+}
+
+uint8_t led_from_color_id(uint8_t color_id){
+    uint8_t id = color_id;
+    if(id > 0){
+        id = (uint8_t)(((id - 1) % 6) + 1);
+    }
+    switch(id){
+        case 1: return RGB(3,0,0);
+        case 2: return RGB(0,3,0);
+        case 3: return RGB(0,0,3);
+        case 4: return RGB(3,3,0);
+        case 5: return RGB(0,3,3);
+        case 6: return RGB(3,0,3);
+        default: return RGB(0,0,0);
+    }
+}
+
+void setup_floor_colors(){
+    if(grid_rows == 0 || grid_cols == 0){
+        return;
+    }
+    uint16_t total_cells = (uint16_t)(grid_rows * grid_cols);
+    if(total_cells == 0){
+        return;
+    }
+    if(floor_colors != NULL){
+        free(floor_colors);
+        floor_colors = NULL;
+    }
+    floor_colors = (uint8_t*)malloc(total_cells * sizeof(uint8_t));
+    if(floor_colors == NULL){
+        return;
+    }
+
+    if(map_options == 0){
+        map_options = 1;
+    }
+    for(uint16_t i = 0; i < total_cells; ++i){
+        floor_colors[i] = 1;
+    }
+
+    uint16_t worse_cells = (uint16_t)(((uint32_t)eta_q * total_cells + 63) / 127);
+    if(worse_cells == 0 || map_options == 1){
+        return;
+    }
+
+    uint8_t worse_options = (uint8_t)(map_options - 1);
+    uint16_t base_count = (uint16_t)(worse_cells / worse_options);
+    uint16_t remainder = (uint16_t)(worse_cells % worse_options);
+    uint16_t cursor = 0;
+    for(uint8_t opt = 0; opt < worse_options; ++opt){
+        uint16_t cells_for_option = (uint16_t)(base_count + (opt < remainder ? 1 : 0));
+        uint8_t color_id = (uint8_t)(opt + 2);
+        for(uint16_t j = 0; j < cells_for_option && cursor < worse_cells; ++j, ++cursor){
+            floor_colors[cursor] = color_id;
+        }
+    }
+
+    uint32_t state = map_seed;
+    if(state == 0){
+        state = 1;
+    }
+    for(uint16_t i = (uint16_t)(total_cells - 1); i > 0; --i){
+        uint16_t j = (uint16_t)(next_xorshift32(&state) % (i + 1));
+        uint8_t tmp = floor_colors[i];
+        floor_colors[i] = floor_colors[j];
+        floor_colors[j] = tmp;
+    }
+}
+
+uint8_t floor_color_id_at_position(float x, float y){
+    if(floor_colors == NULL || grid_rows == 0 || grid_cols == 0){
+        return 0;
+    }
+    float x_min = gps_min_x_q * 0.01f;
+    float y_min = gps_min_y_q * 0.01f;
+    float x_max = gps_max_x_q * 0.01f;
+    float y_max = gps_max_y_q * 0.01f;
+    if(x_max <= x_min || y_max <= y_min){
+        x_min = 0.05f;
+        y_min = 0.05f;
+        x_max = 1.05f;
+        y_max = 1.05f;
+    }
+    const float cell_w = (x_max - x_min) / grid_cols;
+    const float cell_h = (y_max - y_min) / grid_rows;
+    if(cell_w <= 0.0f || cell_h <= 0.0f){
+        return 0;
+    }
+
+    /* Outside the colored inner area: this is the black safety border. */
+    if(x <= x_min || x >= x_max || y <= y_min || y >= y_max){
+        return 0;
+    }
+
+    int16_t col = (int16_t)((x - x_min) / cell_w);
+    int16_t row = (int16_t)((y - y_min) / cell_h);
+    if(col < 0) col = 0;
+    if(row < 0) row = 0;
+    if(col >= grid_cols) col = (int16_t)(grid_cols - 1);
+    if(row >= grid_rows) row = (int16_t)(grid_rows - 1);
+
+    return floor_colors[(uint16_t)(row * grid_cols + col)];
+}
+
+void update_debug_led(){
+    if(!init_received_C){
+        return;
+    }
+    uint8_t color_id = floor_color_id_at_position(gps_position.position_x, gps_position.position_y);
+    led = led_from_color_id(color_id);
+    set_color(led);
 }
 
 void select_new_point(bool force){
@@ -180,7 +298,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
-                set_color(led);
+                update_debug_led();
             }
             break;
         case MSG_B:
@@ -189,12 +307,10 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 uint8_t state = (uint8_t)sa_payload;
                 switch (state){
                     case 0:
-                        led = RGB(0,0,0);
                         my_state = uncommitted;
                         break;
                     
                     case 1:
-                        led = RGB(0,0,3);
                         my_state = committed;
                         break;
                 }
@@ -207,17 +323,6 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
-    switch (result){
-        case 0:
-            buffer_neglect += 1;
-            break;
-        case 1:
-            buffer_insertion += 1;
-            break;
-        case 2:
-            buffer_update +=1;
-            break;
-    }
     sort_q(&quorum_array);
 }
 
@@ -242,23 +347,72 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
     switch (sa_type){
         case MSG_A:
             sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
-            if(!init_received_A){   
-                led = RGB(3,3,0);
-                set_color(led);
-                complete_tree(&the_arena);
-                set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
-                uint32_t expiring_dist;
-                switch (sa_payload){
-                    case 0:
-                        expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                        break;
-                    default:
-                        expiring_dist = sa_payload;
-                        break;
+            {
+                uint8_t packet_type = (uint8_t)(data[2] >> 6);
+                uint8_t packet_data = (uint8_t)(data[2] & 0b00111111);
+                if(packet_type == 0){
+                    if(the_arena == NULL){
+                        complete_tree(&the_arena);
+                        set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
+                    }
+                    uint32_t msg_timeout = sa_payload;
+                    if(msg_timeout == 0){
+                        msg_timeout = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                    }
+                    broadcasting_flag = packet_data;
+                    set_quorum_vars(msg_timeout * TICKS_PER_SEC,0,(uint8_t)(msg_timeout & 0x00FF));
+                    init_struct_received = true;
+                    init_received_A = true;
                 }
-                broadcasting_flag = data[2];
-                set_quorum_vars(expiring_dist * TICKS_PER_SEC,(uint8_t)(sa_payload>>8),(uint8_t)(sa_payload));
-                init_received_A = true;
+                else if(packet_type == 1){
+                    grid_rows = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    grid_cols = (uint8_t)(sa_payload & 0x7F);
+                    seed_hi = packet_data;
+                    init_grid_received = (grid_rows > 0 && grid_cols > 0);
+                }
+                else if(packet_type == 2){
+                    eta_q = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    map_options = (uint8_t)(sa_payload & 0x7F);
+                    if(map_options == 0){
+                        map_options = 1;
+                    }
+                    seed_lo = packet_data;
+                    map_seed = (uint16_t)((seed_hi << 6) | seed_lo);
+                    if(map_seed == 0){
+                        map_seed = 1;
+                    }
+                    init_map_received = true;
+                }
+                else if(packet_type == 3){
+                    uint8_t is_y_bounds = (uint8_t)(packet_data & 0x01);
+                    uint8_t gps_min_q = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    uint8_t gps_max_q = (uint8_t)(sa_payload & 0x7F);
+                    if(gps_max_q <= gps_min_q){
+                        gps_min_q = 5;
+                        gps_max_q = 105;
+                    }
+                    if(is_y_bounds){
+                        gps_min_y_q = gps_min_q;
+                        gps_max_y_q = gps_max_q;
+                        init_bounds_y_received = true;
+                    }
+                    else{
+                        gps_min_x_q = gps_min_q;
+                        gps_max_x_q = gps_max_q;
+                        init_bounds_x_received = true;
+                    }
+                }
+
+                if(init_struct_received &&
+                   init_grid_received &&
+                   init_map_received &&
+                   init_bounds_x_received &&
+                   init_bounds_y_received &&
+                   floor_colors == NULL){
+                    setup_floor_colors();
+                    led = RGB(3,3,0);
+                    set_color(led);
+                }
             }
             break;
         case MSG_B:
@@ -325,6 +479,7 @@ float AngleToGoal(){
 
 void random_way_point_model(){   
     if(init_received_C){
+        update_debug_led();
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
@@ -405,6 +560,10 @@ void loop(){
 
 void deallocate_memory(){
     destroy_tree(&the_arena);
+    if(floor_colors != NULL){
+        free(floor_colors);
+        floor_colors = NULL;
+    }
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
 }
