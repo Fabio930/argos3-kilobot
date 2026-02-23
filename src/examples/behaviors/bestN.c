@@ -30,6 +30,13 @@ static uint32_t received_arena_diagonal_cm(){
     return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
 }
 
+static bool adaptive_broadcast_only_active(){
+    if(broadcasting_flag != 1 || adaptive_comm == 0){
+        return false;
+    }
+    return ((int32_t)(adaptive_broadcast_until_ticks - kilo_ticks) > 0);
+}
+
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -74,6 +81,10 @@ void talk(){
                 broadcast();
                 break;
             case 1:
+                if(adaptive_broadcast_only_active()){
+                    broadcast();
+                    break;
+                }
                 selected_msg_indx = select_a_random_message();
                 p = random_in_range(0,1);
                 if(p<0.5){
@@ -392,43 +403,23 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                     control_parameter_q = (uint8_t)(sa_payload & 0x7F);
                     control_parameter = control_parameter_q / 127.0f;
                     init_control_received = true;
-                    init_voting_array();
                 }
             }
             break;
     }
 }
 
-void init_voting_array(){
-    if(voting_array != NULL){
-        free(voting_array);
-        voting_array = NULL;
-    }
-    if(voting_msgs == 0){
-        return;
-    }
-    voting_array = (uint8_t*)malloc(voting_msgs * sizeof(uint8_t));
-    if(voting_array == NULL){
-        return;
-    }
-    for(uint8_t i = 0; i < voting_msgs; i++){
-        voting_array[i] = 0xFF;
-    }
-}
-
-void update_voting_array(const uint8_t cmd,const uint8_t state){
-    if(cmd > 0 && voting_array != NULL && voting_msgs > 0){
-        for(uint8_t i = (uint8_t)(voting_msgs - 1); i > 0; --i){
-            voting_array[i] = voting_array[i - 1];
-        }
-        voting_array[0] = state;
-    }
-}
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
-    update_voting_array(result,received_committed);
+    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
+        uint32_t pause_ticks = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+        if(pause_ticks == 0){
+            pause_ticks = 1;
+        }
+        adaptive_broadcast_until_ticks = kilo_ticks + pause_ticks;
+    }
     sort_q(&quorum_array);
 }
 
@@ -468,7 +459,9 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                             msg_timeout = 1;
                         }
                     }
-                    broadcasting_flag = packet_data;
+                    adaptive_comm = (uint8_t)((packet_data >> 5) & 0x01);
+                    broadcasting_flag = (uint8_t)(packet_data & 0x1F);
+                    adaptive_broadcast_until_ticks = 0;
                     set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
                     init_struct_received = true;
                     init_received_A = true;
@@ -626,17 +619,10 @@ void random_way_point_model(){
 }
 
 void decision(){
-    // il quorum non si può calcolare se il buffer non ha almeno X messaggi
-    // gli agenti non inviano nulla finchè il loro stato è == 0
-    // con r dinamico lo impostiamo a 0 se non si può calcolare il qrm
-    // in ogni caso, se sono presenti almeno M messaggi si può comunque usare il majority model
-    // a prescindere da r (se 0 si fa sensing)
-    // i messaggi hanno il solito timeout -> devo prendere gli M più freschi secondo quello
-    // 
-    float quorum_value = compute_quorum_value();
-    float r = compute_r_threshold(quorum_value);
+    quorum_value = compute_quorum_value();
+    control_value = compute_r_threshold(quorum_value);
     float p = rand_hard()/255.0;
-    if(p < r){
+    if(p < control_value){
         my_state = majority_vote();
     }
     else{
@@ -645,10 +631,10 @@ void decision(){
 }
 
 int majority_vote(){
-    if(voting_array != NULL && voting_msgs > 0 && voting_array[voting_msgs - 1] != 0xFF){
+    if(num_quorum_items>=voting_msgs){
         uint8_t buffer[6] = {0};
         for(uint8_t i = 0; i < voting_msgs; i++){
-            buffer[voting_array[i]]++;
+            buffer[quorum_array[i]->agent_state]++;
         }
         uint8_t max = 0;
         uint8_t selection = 0;
@@ -698,10 +684,7 @@ void loop(){
     delta_elapsed = kilo_ticks - ticks_elapsed;
     ticks_elapsed = kilo_ticks;
     fp = fopen(log_title,"a");
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
-        else fprintf(fp,"%d,",quorum_array[i]->agent_id);
-    }
+    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,num_quorum_items,quorum_value,control_value);
     fclose(fp);
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
@@ -714,10 +697,6 @@ void deallocate_memory(){
     if(floor_colors != NULL){
         free(floor_colors);
         floor_colors = NULL;
-    }
-    if(voting_array != NULL){
-        free(voting_array);
-        voting_array = NULL;
     }
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;

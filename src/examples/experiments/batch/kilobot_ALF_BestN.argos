@@ -52,13 +52,16 @@
 
         <hierarchicStruct
             rebroadcast = "__BROADCAST_POLICY__"
+            adaptive_comm = "__ADAPTIVE_COMM__"
             msgs_n_hops = "__MSGS_HOPS__"
-            expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
-            minimum_quorum_length = "0"
-            quorum_scaling_factor = "0"
-            committed_percentage = "1"
-            commitment_variation_time = "0"
-            next_committed_percentage = "0"
+            msgs_timeout = "__MSG_EXPIRING_SECONDS__"
+            options = "__N_OPTIONS__"
+            eta = "__ETA__"
+            grid_rows = "20"
+            grid_cols = "20"
+            control = "__CONTROL_TYPE__"
+            voting_msgs = "__VOTING_MSGS__"
+            control_parameter = "__CONTROL_PARAMETER__"
         >
         </hierarchicStruct>
     

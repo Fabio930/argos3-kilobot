@@ -100,6 +100,8 @@ bool init_bounds_y_received = false;
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
 uint8_t broadcasting_flag = 0;
+uint8_t adaptive_comm = 0;
+uint32_t adaptive_broadcast_until_ticks = 0;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -115,7 +117,6 @@ arena_a *the_arena = NULL;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-uint8_t *voting_array = NULL;
 
 // uint8_t quorum_reached = 0;
 char log_title[30];
@@ -133,6 +134,8 @@ control_type control_mode = f_static;
 uint8_t voting_msgs = 0;
 uint8_t control_parameter_q = 0;
 float control_parameter = 0.0f;
+float control_value = 0.0f;
+float quorum_value = 0.0f;
 bool init_control_received = false;
 uint8_t gps_min_x_q = 5;
 uint8_t gps_max_x_q = 105;
@@ -173,8 +176,6 @@ float random_in_range(float min, float max);
 float compute_quorum_value();
 float compute_r_threshold(float quorum_value);
 int majority_vote();
-void init_voting_array();
-void update_voting_array(const uint8_t cmd,const uint8_t state);
 
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */

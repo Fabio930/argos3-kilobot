@@ -101,12 +101,15 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"eta",eta);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
     eta = Min<Real>(1.0, Max<Real>(0.0, eta));
     options = Max<UInt8>(1, options);
+    rebroadcast = Min<UInt8>(31, rebroadcast);
     msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
+    adaptive_comm = Min<UInt8>(1, adaptive_comm);
     voting_msgs = Min<UInt8>(127, voting_msgs);
     control_parameter = Min<Real>(1.0, Max<Real>(0.0, control_parameter));
     m_unControlMode = ControlModeFromString(control);
@@ -275,7 +278,8 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     const UInt16 unPayload = msgs_timeout & 0x3FFFu;
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
-    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (rebroadcast & 0x3Fu));
+    const UInt8 unPacketData = static_cast<UInt8>(((adaptive_comm & 0x01u) << 5) | (rebroadcast & 0x1Fu));
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (unPacketData & 0x3Fu));
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 

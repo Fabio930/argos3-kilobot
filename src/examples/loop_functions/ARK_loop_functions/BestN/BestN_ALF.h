@@ -77,6 +77,7 @@ private:
     UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
+    UInt8                   adaptive_comm;
     UInt8                   m_unControlMode;
     UInt8                   m_unControlParameterQ;
     UInt16                  m_unFloorSeed;
