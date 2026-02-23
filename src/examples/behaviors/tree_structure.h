@@ -6,7 +6,7 @@ typedef struct arena{
     float tlX,tlY,brX,brY;
 }arena_a;
 
-void complete_tree(arena_a **the_arena);
+void build_arena(arena_a **the_arena);
 
 void set_vertices(arena_a **the_arena,const float BrX,const float BrY);
 

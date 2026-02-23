@@ -12,6 +12,24 @@ static uint32_t next_xorshift32(uint32_t *state){
     return x;
 }
 
+static void update_arena_from_received_bounds(){
+    if(the_arena == NULL){
+        return;
+    }
+    the_arena->tlX = gps_min_x_q * 0.01f;
+    the_arena->brX = gps_max_x_q * 0.01f;
+    the_arena->tlY = gps_min_y_q * 0.01f;
+    the_arena->brY = gps_max_y_q * 0.01f;
+}
+
+static uint32_t received_arena_diagonal_cm(){
+    float dx_cm = (float)gps_max_x_q - (float)gps_min_x_q;
+    float dy_cm = (float)gps_max_y_q - (float)gps_min_y_q;
+    if(dx_cm < 0.0f) dx_cm = 0.0f;
+    if(dy_cm < 0.0f) dy_cm = 0.0f;
+    return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
+}
+
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -118,12 +136,62 @@ float random_in_range(float min, float max){
     return min + (r*(max-min));
 }
 
-uint8_t led_from_color_id(uint8_t color_id){
-    uint8_t id = color_id;
-    if(id > 0){
-        id = (uint8_t)(((id - 1) % 6) + 1);
+static float clamp01(float value){
+    if(value < 0.0f){
+        return 0.0f;
     }
-    switch(id){
+    if(value > 1.0f){
+        return 1.0f;
+    }
+    return value;
+}
+
+float compute_quorum_value(){
+    if(quorum_array == NULL){
+        return 2.0f;
+    }
+    if(num_quorum_items < min_quorum_length){
+        return 2.0f;
+    }
+
+    uint16_t agreeing = 1; /* include own opinion */
+    for(uint8_t i = 0; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
+            ++agreeing;
+        }
+    }
+
+    return (float)agreeing / (float)(num_quorum_items + 1);
+}
+
+float compute_r_threshold(float quorum_value){
+    if(control_mode == f_static){
+        return clamp01(control_parameter);
+    }
+
+    if(quorum_value > 1.0f){
+        return 0.0f;
+    }
+
+    switch(control_mode){
+        case f_linear:
+            return clamp01(quorum_value);
+        case f_sigmoid:
+        {
+            const float num = quorum_value;
+            const float den = 1.0f + expf(-10.0*(quorum_value - control_parameter));
+            return clamp01(num / den);
+        }
+        case f_polynomial:
+        {
+            const float polynomial = (1.0f - control_parameter) * powf(quorum_value,3.0f) + control_parameter;
+            return clamp01(polynomial);
+        }
+    }
+}
+
+uint8_t led_from_color_value(uint8_t color_value){
+    switch(color_value){
         case 1: return RGB(3,0,0);
         case 2: return RGB(0,3,0);
         case 3: return RGB(0,0,3);
@@ -222,12 +290,24 @@ uint8_t floor_color_id_at_position(float x, float y){
     return floor_colors[(uint16_t)(row * grid_cols + col)];
 }
 
-void update_debug_led(){
-    if(!init_received_C){
-        return;
+uint8_t floor_color_value_at_position(float x, float y){
+    uint8_t color_id = floor_color_id_at_position(x, y);
+    if(color_id > 0){
+        color_id = (uint8_t)(((color_id - 1) % 6) + 1);
     }
-    uint8_t color_id = floor_color_id_at_position(gps_position.position_x, gps_position.position_y);
-    led = led_from_color_id(color_id);
+    return color_id;
+}
+
+uint8_t led_from_color_id(uint8_t color_id){
+    uint8_t color_value = color_id;
+    if(color_value > 0){
+        color_value = (uint8_t)(((color_value - 1) % 6) + 1);
+    }
+    return led_from_color_value(color_value);
+}
+
+void update_debug_led(){
+    led = led_from_color_id(my_state);
     set_color(led);
 }
 
@@ -235,7 +315,8 @@ void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
         if(!force){
-            set_color(RGB(0,3,3));
+            decision();
+            update_debug_led();
         }
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
@@ -244,7 +325,6 @@ void select_new_point(bool force){
 
     }
     else{
-        set_color(led);
         if(avoid_tmmts==0){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag >= expiring_dist + 0.01){
@@ -294,35 +374,61 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
             gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
-            if(init_received_B && !init_received_C){
+            if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
-                update_debug_led();
             }
             break;
         case MSG_B:
             if(init_received_A){
-                msg_n_hops = (uint8_t)(sa_payload >> 8);
-                uint8_t state = (uint8_t)sa_payload;
-                switch (state){
-                    case 0:
-                        my_state = uncommitted;
-                        break;
-                    
-                    case 1:
-                        my_state = committed;
-                        break;
+                if(kb_index == 0){
+                    msg_n_hops = (uint8_t)(sa_payload & 0x1F);
+                    init_received_B = true;
                 }
-                init_received_B = true;
+                else if(kb_index == 1){
+                    control_mode = (uint8_t)((sa_payload >> 14) & 0x03);
+                    voting_msgs = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    control_parameter_q = (uint8_t)(sa_payload & 0x7F);
+                    control_parameter = control_parameter_q / 127.0f;
+                    init_control_received = true;
+                    init_voting_array();
+                }
             }
             break;
+    }
+}
+
+void init_voting_array(){
+    if(voting_array != NULL){
+        free(voting_array);
+        voting_array = NULL;
+    }
+    if(voting_msgs == 0){
+        return;
+    }
+    voting_array = (uint8_t*)malloc(voting_msgs * sizeof(uint8_t));
+    if(voting_array == NULL){
+        return;
+    }
+    for(uint8_t i = 0; i < voting_msgs; i++){
+        voting_array[i] = 0xFF;
+    }
+}
+
+void update_voting_array(const uint8_t cmd,const uint8_t state){
+    if(cmd > 0 && voting_array != NULL && voting_msgs > 0){
+        for(uint8_t i = (uint8_t)(voting_msgs - 1); i > 0; --i){
+            voting_array[i] = voting_array[i - 1];
+        }
+        voting_array[0] = state;
     }
 }
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    update_voting_array(result,received_committed);
     sort_q(&quorum_array);
 }
 
@@ -352,15 +458,18 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t packet_data = (uint8_t)(data[2] & 0b00111111);
                 if(packet_type == 0){
                     if(the_arena == NULL){
-                        complete_tree(&the_arena);
-                        set_vertices(&the_arena,(ARENA_X*.1),(ARENA_Y*.1));
+                        build_arena(&the_arena);
                     }
+                    update_arena_from_received_bounds();
                     uint32_t msg_timeout = sa_payload;
                     if(msg_timeout == 0){
-                        msg_timeout = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
+                        msg_timeout = received_arena_diagonal_cm();
+                        if(msg_timeout == 0){
+                            msg_timeout = 1;
+                        }
                     }
                     broadcasting_flag = packet_data;
-                    set_quorum_vars(msg_timeout * TICKS_PER_SEC,0,(uint8_t)(msg_timeout & 0x00FF));
+                    set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
                     init_struct_received = true;
                     init_received_A = true;
                 }
@@ -368,39 +477,35 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                     grid_rows = (uint8_t)((sa_payload >> 7) & 0x7F);
                     grid_cols = (uint8_t)(sa_payload & 0x7F);
                     seed_hi = packet_data;
-                    init_grid_received = (grid_rows > 0 && grid_cols > 0);
-                }
-                else if(packet_type == 2){
-                    eta_q = (uint8_t)((sa_payload >> 7) & 0x7F);
-                    map_options = (uint8_t)(sa_payload & 0x7F);
+                    eta_q = (uint8_t)(data[3] & 0x7F);
+                    map_options = (uint8_t)(data[4] & 0x7F);
                     if(map_options == 0){
                         map_options = 1;
                     }
-                    seed_lo = packet_data;
+                    seed_lo = (uint8_t)(data[5] & 0x3F);
                     map_seed = (uint16_t)((seed_hi << 6) | seed_lo);
                     if(map_seed == 0){
                         map_seed = 1;
                     }
+                    init_grid_received = (grid_rows > 0 && grid_cols > 0);
                     init_map_received = true;
                 }
                 else if(packet_type == 3){
-                    uint8_t is_y_bounds = (uint8_t)(packet_data & 0x01);
-                    uint8_t gps_min_q = (uint8_t)((sa_payload >> 7) & 0x7F);
-                    uint8_t gps_max_q = (uint8_t)(sa_payload & 0x7F);
-                    if(gps_max_q <= gps_min_q){
-                        gps_min_q = 5;
-                        gps_max_q = 105;
+                    gps_min_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    gps_max_x_q = (uint8_t)(sa_payload & 0x7F);
+                    gps_min_y_q = (uint8_t)(data[3] & 0x7F);
+                    gps_max_y_q = (uint8_t)(data[4] & 0x7F);
+                    if(gps_max_x_q <= gps_min_x_q){
+                        gps_min_x_q = 5;
+                        gps_max_x_q = 105;
                     }
-                    if(is_y_bounds){
-                        gps_min_y_q = gps_min_q;
-                        gps_max_y_q = gps_max_q;
-                        init_bounds_y_received = true;
+                    if(gps_max_y_q <= gps_min_y_q){
+                        gps_min_y_q = 5;
+                        gps_max_y_q = 105;
                     }
-                    else{
-                        gps_min_x_q = gps_min_q;
-                        gps_max_x_q = gps_max_q;
-                        init_bounds_x_received = true;
-                    }
+                    init_bounds_x_received = true;
+                    init_bounds_y_received = true;
+                    update_arena_from_received_bounds();
                 }
 
                 if(init_struct_received &&
@@ -410,8 +515,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                    init_bounds_y_received &&
                    floor_colors == NULL){
                     setup_floor_colors();
-                    led = RGB(3,3,0);
-                    set_color(led);
                 }
             }
             break;
@@ -420,8 +523,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
             id2 = (data[3] & 0b11111110) >> 1;
             id3 = (data[6] & 0b11111110) >> 1;
             if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
-            else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
-            else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
+            if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
+            if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
             break;
     }
 }
@@ -442,8 +545,8 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             id2 = (msg->data[3] & 0b11111110) >> 1;
             id3 = (msg->data[6] & 0b11111110) >> 1;
             if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
-            else if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
-            else if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
+            if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
             break;
         case KILO_BROADCAST_MSG:
             parse_kilo_message(msg->data);
@@ -479,7 +582,6 @@ float AngleToGoal(){
 
 void random_way_point_model(){   
     if(init_received_C){
-        update_debug_led();
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
@@ -523,12 +625,61 @@ void random_way_point_model(){
     }
 }
 
+void decision(){
+    // il quorum non si può calcolare se il buffer non ha almeno X messaggi
+    // gli agenti non inviano nulla finchè il loro stato è == 0
+    // con r dinamico lo impostiamo a 0 se non si può calcolare il qrm
+    // in ogni caso, se sono presenti almeno M messaggi si può comunque usare il majority model
+    // a prescindere da r (se 0 si fa sensing)
+    // i messaggi hanno il solito timeout -> devo prendere gli M più freschi secondo quello
+    // 
+    float quorum_value = compute_quorum_value();
+    float r = compute_r_threshold(quorum_value);
+    float p = rand_hard()/255.0;
+    if(p < r){
+        my_state = majority_vote();
+    }
+    else{
+        my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
+    }    
+}
+
+int majority_vote(){
+    if(voting_array != NULL && voting_msgs > 0 && voting_array[voting_msgs - 1] != 0xFF){
+        uint8_t buffer[6] = {0};
+        for(uint8_t i = 0; i < voting_msgs; i++){
+            buffer[voting_array[i]]++;
+        }
+        uint8_t max = 0;
+        uint8_t selection = 0;
+        for(uint8_t i=0;i<sizeof(buffer);i++){
+            if(buffer[i]>max){
+                max = buffer[i];
+                selection = i;
+            }
+            else if(max!=0 && buffer[i]==max){
+                float p = rand_hard()/255.0;
+                if(p<0.5){
+                    max=buffer[i];
+                    selection = i;
+                }
+            }
+        }
+        return selection;
+    }
+    else{
+        printf("Agent %d got not enough messages for decision!\n",kilo_uid);
+        return my_state;
+    }
+}
+
 void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
     /* Init state, message type and control parameters*/
+    my_state = 0;
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
     init_array_qrm(&quorum_array);
@@ -555,7 +706,7 @@ void loop(){
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
-    if(init_received_C) talk();
+    if(my_state > 0) talk();
 }
 
 void deallocate_memory(){
@@ -563,6 +714,10 @@ void deallocate_memory(){
     if(floor_colors != NULL){
         free(floor_colors);
         floor_colors = NULL;
+    }
+    if(voting_array != NULL){
+        free(voting_array);
+        voting_array = NULL;
     }
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;

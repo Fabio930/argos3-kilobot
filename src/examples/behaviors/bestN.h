@@ -1,9 +1,11 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
+
 #ifndef BESTN_H
 #define BESTN_H
 
+#include <stdint.h>
 #include "kilolib.h"
 #include "tree_structure.c"
 #include "quorum_structure.c"
@@ -12,12 +14,6 @@
 #define PI 3.14159265358979323846
 FILE *fp;
 
-/* divided by 10 */
-typedef enum{
-    ARENA_X = 10,
-    ARENA_Y = 10
-}arena_size;
-
 /* Enum for messages type */
 typedef enum{
   ARK_BROADCAST_MSG = 0,
@@ -25,6 +21,13 @@ typedef enum{
   KILO_BROADCAST_MSG = 255,
   KILO_IDENTIFICATION = 120
 }received_message_type;
+
+typedef enum{
+  f_static = 0,
+  f_linear = 1,
+  f_sigmoid = 2,
+  f_polynomial = 3
+}control_type;
 
 typedef enum{
   MSG_A = 0,
@@ -46,12 +49,6 @@ typedef enum{
     false = 0,
     true = 1,
 }bool;
-
-/* struct for the robot states */
-typedef enum{
-    uncommitted = 0,
-    committed = 1,
-}state_t;
 
 uint64_t delta_elapsed = 0;
 uint64_t ticks_elapsed = 0;
@@ -79,7 +76,7 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 /* current state */
-state_t my_state;
+uint8_t my_state;
 uint8_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
@@ -118,6 +115,8 @@ arena_a *the_arena = NULL;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
+uint8_t *voting_array = NULL;
+
 // uint8_t quorum_reached = 0;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
@@ -130,12 +129,18 @@ uint8_t map_options = 1;
 uint16_t map_seed = 1;
 uint8_t seed_hi = 0;
 uint8_t seed_lo = 1;
+control_type control_mode = f_static;
+uint8_t voting_msgs = 0;
+uint8_t control_parameter_q = 0;
+float control_parameter = 0.0f;
+bool init_control_received = false;
 uint8_t gps_min_x_q = 5;
 uint8_t gps_max_x_q = 105;
 uint8_t gps_min_y_q = 5;
 uint8_t gps_max_y_q = 105;
 uint8_t *floor_colors = NULL;
 
+void decision();
 /*-------------------------------------------------------------------*/
 /*              Function for setting the motor speed                 */
 /*-------------------------------------------------------------------*/
@@ -160,19 +165,16 @@ void broadcast();
 
 void rebroadcast();
 
-/*-------------------------------------------------------------------*/
-/*           Bunch of funtions for handling the quorum               */
-/*-------------------------------------------------------------------*/
-uint8_t check_quorum_trigger(quorum_a **Array[]);
-
-void check_quorum(quorum_a **Array[]);
-
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-// void prepare_quorum_variables();
 
 float random_in_range(float min, float max);
+float compute_quorum_value();
+float compute_r_threshold(float quorum_value);
+int majority_vote();
+void init_voting_array();
+void update_voting_array(const uint8_t cmd,const uint8_t state);
 
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */
@@ -197,6 +199,8 @@ void parse_kilo_message(uint8_t data[9]);
 void parse_smart_arena_broadcast(uint8_t data[9]);
 void setup_floor_colors();
 uint8_t floor_color_id_at_position(float x, float y);
+uint8_t floor_color_value_at_position(float x, float y);
+uint8_t led_from_color_value(uint8_t color_value);
 uint8_t led_from_color_id(uint8_t color_id);
 void update_debug_led();
 

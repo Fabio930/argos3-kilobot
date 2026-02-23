@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="900"
+        <experiment length="0"
         ticks_per_second="10"/>
     </framework>
     
@@ -50,14 +50,16 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "0"
+            rebroadcast = "1"
             msgs_n_hops = "0"
-            msgs_timeout = "300"
+            msgs_timeout = "180"
             options = "5"
-            eta = "0.5"
+            eta = "0.65"
             grid_rows = "20"
             grid_cols = "20"
-        >
+            control = "polynomial"
+            voting_msgs = "5"
+            control_parameter = "0.7">
         </hierarchicStruct>
 
     </loop_functions>
@@ -83,7 +85,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="50" max_trials="200">
+            <entity quantity="100" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

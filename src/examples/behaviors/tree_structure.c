@@ -1,6 +1,6 @@
 #include "tree_structure.h"
 
-void complete_tree(arena_a **the_arena){
+void build_arena(arena_a **the_arena){
     *the_arena=(arena_a*)malloc(sizeof(arena_a));
     (*the_arena)->tlX=0,(*the_arena)->tlY=0,(*the_arena)->brX=0,(*the_arena)->brY=0;
 }

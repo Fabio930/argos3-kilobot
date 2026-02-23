@@ -29,14 +29,13 @@ public:
     void SetupInitialKilobotStates();
 
     /** Setup the initial state of the kilobot pc_kilobot_entity */
-    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity, UInt8 state);
+    void SetupInitialKilobotState(CKilobotEntity& c_kilobot_entity);
 
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
     void SetupFloorColorMap();
-    void SendGridInitInformation(CKilobotEntity &c_kilobot_entity);
-    void SendMapInitInformation(CKilobotEntity &c_kilobot_entity);
-    void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity, bool bSendY);
+    void SendEnvironmentInitInformation(CKilobotEntity &c_kilobot_entity);
+    void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity);
 
     /** Get experiment variables */
     void GetExperimentVariables(TConfigurationNode& t_tree);
@@ -70,11 +69,16 @@ private:
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
     float                   eta;
+    float                   control_parameter;
     UInt8                   options;
+    UInt8                   voting_msgs;
+    std::string             control;
 
     UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
+    UInt8                   m_unControlMode;
+    UInt8                   m_unControlParameterQ;
     UInt16                  m_unFloorSeed;
     UInt8                   m_unEtaQ;
     UInt8                   m_unGpsMinXQ;
@@ -86,7 +90,6 @@ private:
     std::vector<CDegrees>   m_vecKilobotOrientations;
     std::vector<Real>       m_vecLastTimeMessaged;
     std::vector<UInt8>      m_vecStart_experiment;
-    std::vector<UInt8>      m_vecKilobotStates;
     std::vector<UInt8>      m_vecKilobotMsgType;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
