@@ -286,11 +286,6 @@ uint8_t floor_color_id_at_position(float x, float y){
         return 0;
     }
 
-    /* Outside the colored inner area: this is the black safety border. */
-    if(x <= x_min || x >= x_max || y <= y_min || y >= y_max){
-        return 0;
-    }
-
     int16_t col = (int16_t)((x - x_min) / cell_w);
     int16_t row = (int16_t)((y - y_min) / cell_h);
     if(col < 0) col = 0;
@@ -651,10 +646,11 @@ int majority_vote(){
                 }
             }
         }
+        if(max==0) return my_state;
         return selection;
     }
     else{
-        printf("Agent %d got not enough messages for decision!\n",kilo_uid);
+        // printf("Agent %d got not enough messages for decision!\n",kilo_uid);
         return my_state;
     }
 }

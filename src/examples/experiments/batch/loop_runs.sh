@@ -24,18 +24,18 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="900"
-RUNS=100
-numrobots="25 100"
-rebroadcast="0 1 2"
+experiment_length="1000"
+RUNS=5
+numrobots="100"
+rebroadcast="0 1"
 adaptive_comm="0 1"
 msgs_n_hops="0"
-msgs_timeout="60 120 180 300 600"
+msgs_timeout="60 300 600"
 options="2 5"
-eta="0.2 0.4 0.6 0.8"
-control="static linear sigmoid polynomial"
+eta2="0.3 0.4 0.5"
+control="static polynomial"
 voting_msgs="3 5 7 9"
-control_parameter="0.5 0.6 0.7 0.8"
+control_parameter_list="0.5 0.6 0.7 0.8"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -52,6 +52,11 @@ for exp_len_par in $experiment_length; do
                 adaptive_set=$adaptive_comm
             else
                 adaptive_set="0"
+            fi
+            if [[ $comm_par == "0" ]]; then
+                control_parameter="0.8"
+            else
+                control_parameter=$control_parameter_list
             fi
             for adaptive_par in $adaptive_set; do
                 adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
@@ -77,6 +82,11 @@ for exp_len_par in $experiment_length; do
                             options_dir=$msgs_hop_dir/"Options#"$options_par
                             if [[ ! -e $options_dir ]]; then
                                 mkdir $options_dir
+                            fi
+                            if [[ $options_par == "2" ]]; then
+                                eta=$eta2
+                            else
+                                eta="0.6 0.7 0.8"
                             fi
                             for eta_par in $eta; do
                                 eta_dir=$options_dir/"Eta#"$eta_par

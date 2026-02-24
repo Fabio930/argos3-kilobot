@@ -31,24 +31,24 @@ def check_inputs():
                 logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
                 exit()
     if ticks <= 0:
-        logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
+        logging.error("BAD format -t input type\nmust input a positive integer --EXIT--")
         exit()
     return ticks
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops, sub_path,ticks_per_sec,states = task
+    ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, dtemp, exp_length, communication, n_agents, msg_exp_time, msg_hops, sub_path, states)
+        results.extract_data(ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par)
     except KeyError as e:
-        logging.error(f"KeyError processing {sub_path}: {e}")
+        logging.error(f"KeyError processing {path}: {e}")
     except Exception as e:
-        logging.error(f"Error processing {sub_path}: {e}")
+        logging.error(f"Error processing {path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, dtemp, exp_length, n_agents, communication, msg_exp_time, msg_hops, sub_path, ticks_per_sec,states
+        del results, ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par
 
 def main():
     setup_logging()
@@ -58,29 +58,52 @@ def main():
     manager = Manager()
     queue = manager.Queue()
 
-    states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(100,100)}
     for base in dex.Results().bases:
-        for adir in sorted(os.listdir(base)):
-            if '.' not in adir and '#' in adir:
-                pre_apath = os.path.join(base, adir)
-                exp_length = int(adir.split('#')[1])
-                for dir in sorted(os.listdir(pre_apath)):
-                    if '.' not in dir and '#' in dir:
-                        communication = int(dir.split('#')[1])
-                        pre_path = os.path.join(pre_apath, dir)
-                        for zdir in sorted(os.listdir(pre_path)):
-                            if '.' not in zdir and '#' in zdir:
-                                n_agents = int(zdir.split('#')[1])
-                                dtemp = os.path.join(pre_path, zdir)
-                                for pre_folder in sorted(os.listdir(dtemp)):
-                                    if '.' not in pre_folder:
-                                        msg_exp_time = int(pre_folder.split('#')[-1])
-                                        sub_path = os.path.join(dtemp,pre_folder)
-                                        for folder in sorted(os.listdir(sub_path)):
-                                            if '.' not in folder:
-                                                msg_hops = int(folder.split('#')[-1])
-                                                path = os.path.join(sub_path,folder)
-                                                queue.put((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,path,ticks_per_sec,states_by_gt.get(n_agents)))
+        for exp_len_dir in sorted(os.listdir(base)):
+            if '#' in exp_len_dir:
+                exp_len_path = os.path.join(base, exp_len_dir)
+                exp_length = int(exp_len_dir.split('#')[1])
+                for comm_dir in sorted(os.listdir(exp_len_path)):
+                    if '#' in comm_dir:
+                        comm_path = os.path.join(exp_len_path, comm_dir)
+                        communication = int(comm_dir.split('#')[1])
+                        for adpt_dir in sorted(os.listdir(comm_path)):
+                            if '#' in adpt_dir:
+                                adpt_path = os.path.join(comm_path, adpt_dir)
+                                adaptive_com = int(adpt_dir.split('#')[1])
+                                for agents_dir in sorted(os.listdir(adpt_path)):
+                                    if '#' in agents_dir:
+                                        agents_path = os.path.join(adpt_path, agents_dir)
+                                        n_agents = int(agents_dir.split('#')[1])
+                                        for msg_exp_time_dir in sorted(os.listdir(agents_path)):
+                                            if '#' in msg_exp_time_dir:
+                                                msg_exp_time_path = os.path.join(agents_path,msg_exp_time_dir)
+                                                msg_exp_time = int(msg_exp_time_dir.split('#')[-1])
+                                                for hops_dir in sorted(os.listdir(msg_exp_time_path)):
+                                                    if '#' in hops_dir:
+                                                        hops_path = os.path.join(msg_exp_time_path,hops_dir)
+                                                        msg_hops = int(hops_dir.split('#')[-1])
+                                                        for options_dir in sorted(os.listdir(hops_path)):
+                                                            if '#' in options_dir:
+                                                                options_path = os.path.join(hops_path,options_dir)
+                                                                n_options = int(options_dir.split('#')[-1])
+                                                                for eta_dir in sorted(os.listdir(options_path)):
+                                                                    if '#' in eta_dir:
+                                                                        eta_path = os.path.join(options_path,eta_dir)
+                                                                        eta = float(eta_dir.split('#')[-1])
+                                                                        for functn_dir in sorted(os.listdir(eta_path)):
+                                                                            if '#' in functn_dir:
+                                                                                functn_path = os.path.join(eta_path,functn_dir)
+                                                                                function = str(functn_dir.split('#')[-1])
+                                                                                for vote_msg_dir in sorted(os.listdir(functn_path)):
+                                                                                    if '#' in vote_msg_dir:
+                                                                                        vote_msg_path = os.path.join(functn_path,vote_msg_dir)
+                                                                                        vote_msg = int(vote_msg_dir.split('#')[-1])
+                                                                                        for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
+                                                                                            if '#' in ctrl_par_dir:
+                                                                                                ctrl_par_path = os.path.join(vote_msg_path,ctrl_par_dir)
+                                                                                                ctrl_par = float(ctrl_par_dir.split('#')[-1])
+                                                                                                queue.put((ticks_per_sec,ctrl_par_path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -109,7 +132,7 @@ def main():
                         to_remove.append(key)
             except psutil.NoSuchProcess:
                 to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-3]} not found")
+                logging.info(f"Process {key} for task {process[1][1]} not found")
         cpu_usage = psutil.cpu_percent(percpu=True)
         idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
         # Kill the last process and put it back in the queue
@@ -124,26 +147,26 @@ def main():
                         logging.warning(f"Process {key} could not be terminated properly.")
                     else:
                         to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1][-3]} terminated due to low memory")
+                        logging.info(f"Process {last_pid} for task {last_process[1][1]} terminated due to low memory")
                         # Requeue the task
                         queue.put(last_process[1])
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][3] == 100: h_counter -= 4
+            if process[1][3] == 100: h_counter -= 1
             elif process[1][3] == 25: h_counter -= 1
-            logging.info(f"Process {key} for task {process[1][-3]} joined and removed from active processes")
+            logging.info(f"Process {key} for task {process[1][1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 start = True
                 if task[3] == 100:
-                    if h_counter < 12 : h_counter += 4
+                    if h_counter < 15 : h_counter += 1
                     else:
                         queue.put(task)
                         start = False
                 elif task[3] == 25:
-                    if h_counter < 15 : h_counter += 1
+                    if h_counter < 18 : h_counter += 1
                     else:
                         queue.put(task)
                         start = False
@@ -151,7 +174,7 @@ def main():
                     p = Process(target=process_folder, args=(task,))
                     p.start()
                     active_processes.update({p.pid:(p,task)})
-                    logging.info(f"Started process {p.pid} for task {task[-3]}")
+                    logging.info(f"Started process {p.pid} for task {task[1]}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
                 logging.debug(f"Exception details: {e}", exc_info=True)
