@@ -25,17 +25,17 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="1000"
-RUNS=5
+RUNS=3
 numrobots="100"
 rebroadcast="0 1"
 adaptive_comm="0 1"
 msgs_n_hops="0"
-msgs_timeout="60 300 600"
+msgs_timeout="300"
 options="2 5"
 eta2="0.3 0.4 0.5"
 control="static polynomial"
-voting_msgs="3 5 7 9"
-control_parameter_list="0.5 0.6 0.7 0.8"
+voting_msgs="3 9 21"
+control_parameter_list="0.5 0.6 0.7 0.8 0.9"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -52,11 +52,6 @@ for exp_len_par in $experiment_length; do
                 adaptive_set=$adaptive_comm
             else
                 adaptive_set="0"
-            fi
-            if [[ $comm_par == "0" ]]; then
-                control_parameter="0.8"
-            else
-                control_parameter=$control_parameter_list
             fi
             for adaptive_par in $adaptive_set; do
                 adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
@@ -97,6 +92,11 @@ for exp_len_par in $experiment_length; do
                                     control_dir=$eta_dir/"Control#"$control_par
                                     if [[ ! -e $control_dir ]]; then
                                         mkdir $control_dir
+                                    fi
+                                    if [[ $control_par == "static" ]]; then
+                                        control_parameter="0.8"
+                                    else
+                                        control_parameter=$control_parameter_list
                                     fi
                                     for voting_msgs_par in $voting_msgs; do
                                         voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par

@@ -155,7 +155,7 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        file_name = f"{data_type}_resume_t#{exp_length}_a#{n_agents}_o#{n_options}_r#{num_runs}_f#{arenaS}.csv"
+        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_runs#{num_runs}_arena#{arenaS}.csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         for i in range(len(static_fields)):

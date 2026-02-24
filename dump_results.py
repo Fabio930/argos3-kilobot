@@ -1,5 +1,7 @@
 import os, sys, logging, gc, time, psutil
+import pandas as pd
 import data_extractor as dex
+from pathlib import Path
 from multiprocessing import Process, Manager
 
 # Setup logging
@@ -49,6 +51,34 @@ def process_folder(task):
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
         del results, ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par
+
+def convert_csv_results_to_pickle(output_dir="proc_data"):
+    output_path = Path(os.path.abspath("")) / output_dir
+    if not output_path.exists():
+        logging.info(f"No CSV conversion needed: {output_path} does not exist.")
+        return
+
+    csv_files = sorted(output_path.rglob("*.csv"))
+    if not csv_files:
+        logging.info(f"No CSV files found in {output_path}.")
+        return
+
+    converted = 0
+    failed = 0
+    for csv_file in csv_files:
+        pkl_file = csv_file.with_suffix(".pkl")
+        try:
+            df = pd.read_csv(csv_file, sep="\t")
+            df.to_pickle(pkl_file)
+            os.remove(csv_file)
+            converted += 1
+            logging.info(f"Converted {csv_file} -> {pkl_file} and removed CSV.")
+        except Exception as e:
+            failed += 1
+            logging.error(f"Error converting {csv_file}: {e}")
+            logging.debug(f"Exception details: {e}", exc_info=True)
+
+    logging.info(f"CSV to PKL conversion completed. Converted={converted}, Failed={failed}.")
 
 def main():
     setup_logging()
@@ -184,6 +214,7 @@ def main():
         time.sleep(.5)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
+    convert_csv_results_to_pickle()
 
 if __name__ == "__main__":
     main()
