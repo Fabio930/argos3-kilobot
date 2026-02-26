@@ -25,40 +25,91 @@ class Results:
         raise ValueError(f"{name} id fuori range: {raw_id} (size={size})")
 
 ##########################################################################################################
-    def compute_average_selection_through_run(self, data: np.ndarray, n_options: int):
-        """
-        data shape: (n_runs, n_agents, steps)
-        Ritorna due liste:
-        - medie per stato nel tempo (len = n_options + 1)
-        - std per stato nel tempo (len = n_options + 1)
-        """
+    def compute_average_cohesion_through_run(self, data: np.ndarray, n_options: int):
+
         if data.ndim != 3:
             raise ValueError(f"Input atteso 3D (n_runs,n_agents,steps), trovato ndim={data.ndim}")
-        if n_options < 1:
-            raise ValueError(f"n_options deve essere >= 1, trovato {n_options}")
-
-        _, n_agents, _ = data.shape
-        n_states = n_options + 1  # include lo stato 0 (nessuna scelta)
+        
+        n_runs, n_agents, n_steps = data.shape
+        n_states = n_options + 1 
 
         data_int = data.astype(np.int32, copy=False)
-        if np.any(data_int < 0) or np.any(data_int > n_options):
-            raise ValueError(f"Valori stato fuori range [0,{n_options}]")
-
-        # Conteggio agenti per stato ad ogni step, per ogni run
-        # shape: (n_runs, n_states, steps)
+        
         state_values = np.arange(n_states, dtype=np.int32)[:, None, None]
         counts = (data_int[:, None, :, :] == state_values[None, :, :, :]).sum(axis=2).astype(np.float64)
-
-        # Normalizzazione sul numero di agenti
+        
         counts_norm = counts / float(n_agents)
+        state_0 = counts_norm[:, 0, :]
 
-        # Andamento medio e std tra run (per ogni stato e step)
-        mean_over_runs = counts_norm.mean(axis=0)
-        std_over_runs = counts_norm.std(axis=0)
+        options_data = counts_norm[:, 1:, :]
 
-        data_in = [np.around(mean_over_runs[s], decimals=6).tolist() for s in range(n_states)]
-        data_std = [np.around(std_over_runs[s], decimals=6).tolist() for s in range(n_states)]
-        return data_in, data_std
+        winner_counts = np.max(options_data, axis=1) # (n_runs, n_steps)
+        
+        if n_options > 1:
+            other_counts = (np.sum(options_data, axis=1) - winner_counts) / (n_options - 1)
+        else:
+            other_counts = np.zeros_like(winner_counts)
+
+        final_means = []
+        final_stds = []
+
+        for group in [state_0, winner_counts, other_counts]:
+            final_means.append(np.around(group.mean(axis=0), decimals=6).tolist())
+            final_stds.append(np.around(group.std(axis=0), decimals=6).tolist())
+
+        return final_means, final_stds
+
+##########################################################################################################
+    def compute_accuracy(self, data: np.ndarray, n_options: int, eta: float, window: int = 100):
+        n_runs, n_agents, n_steps = data.shape
+        crit_eta = (n_options - 1) / n_options
+        threshold = 0.9 * n_agents
+        actual_window = min(window, n_steps)
+        last_data = data[:, :, -actual_window:] # shape: (runs, agents, window)
+        
+        success_count = 0
+
+        for r in range(n_runs):
+            counts_per_step = np.array([np.bincount(last_data[r, :, t].astype(np.int32), minlength=n_options + 1) 
+                                       for t in range(actual_window)])
+            
+            avg_counts = np.mean(counts_per_step, axis=0)
+            
+            is_success = False
+            if eta < crit_eta:
+                if avg_counts[1] >= threshold:
+                    is_success = True
+            elif eta > crit_eta:
+                if n_options > 1 and np.any(avg_counts[2:] >= threshold):
+                    is_success = True
+            else:
+                if np.any(avg_counts[1:] >= threshold):
+                    is_success = True
+            
+            if is_success:
+                success_count += 1
+
+        return (success_count / n_runs) * 100
+
+    def compute_exit_time(self, data: np.ndarray, n_options: int):
+        n_runs, n_agents, n_steps = data.shape
+        threshold = 0.9 * n_agents
+        exit_times = []
+
+        for r in range(n_runs):
+            run_data = data[r] 
+            found_step = n_steps + 1
+            
+            for t in range(n_steps):
+                counts = np.bincount(run_data[:, t].astype(np.int32), minlength=n_options + 1)
+                if np.any(counts[1:] >= threshold):
+                    found_step = t
+                    break
+            
+            exit_times.append(found_step)
+
+        exit_times_arr = np.array(exit_times)
+        return exit_times_arr
 
 ##########################################################################################################
     def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,communication:int,
@@ -121,42 +172,86 @@ class Results:
         incomplete_runs = np.where(agents_loaded_per_run != n_agents)[0]
         if incomplete_runs.size:
             raise ValueError(f"Run incomplete: {incomplete_runs.tolist()}")
-        state_mean, state_std = self.compute_average_selection_through_run(state_m, n_options)
+        
 
-        for state_id in range(n_options + 1):
-            self.dump_resume_csv(
-                data_in=state_mean[state_id],
-                data_std=state_std[state_id],
-                exp_length=exp_length,
-                communication=communication,
-                adaptive_com=adaptive_com,
-                n_agents=n_agents,
-                msg_exp_time=msg_exp_time,
-                msg_hops=msg_hops,
-                n_options=n_options,
-                eta=eta,
-                function=function,
-                vote_msg=vote_msg,
-                ctrl_par=ctrl_par,
-                num_runs=num_runs,
-                arenaS=arenaS,
-                option_id=state_id,
-                data_type="state"
-            )
+        # cohesion_mean, cohesion_std = self.compute_average_cohesion_through_run(state_m, n_options)
+
+        # for state_id in range(3):
+        #     self.dump_resume_per_opt_csv(
+        #         data_in=cohesion_mean[state_id],
+        #         data_std=cohesion_std[state_id],
+        #         exp_length=exp_length,
+        #         communication=communication,
+        #         adaptive_com=adaptive_com,
+        #         n_agents=n_agents,
+        #         msg_exp_time=msg_exp_time,
+        #         msg_hops=msg_hops,
+        #         n_options=n_options,
+        #         eta=eta,
+        #         function=function,
+        #         vote_msg=vote_msg,
+        #         ctrl_par=ctrl_par,
+        #         num_runs=num_runs,
+        #         arenaS=arenaS,
+        #         option_id=state_id,
+        #         data_type="choesion"
+        #     )
+
+        success = self.compute_accuracy(state_m, n_options,eta)
+        self.dump_resume_csv(
+            data_in=success,
+            data_std="-",
+            exp_length=exp_length,
+            communication=communication,
+            adaptive_com=adaptive_com,
+            n_agents=n_agents,
+            msg_exp_time=msg_exp_time,
+            msg_hops=msg_hops,
+            n_options=n_options,
+            eta=eta,
+            function=function,
+            vote_msg=vote_msg,
+            ctrl_par=ctrl_par,
+            num_runs=num_runs,
+            arenaS=arenaS,
+            data_type="accuracy"
+        )
+
+        time_mean = self.compute_exit_time(state_m, n_options)
+
+        self.dump_resume_csv(
+            data_in=time_mean,
+            data_std="-",
+            exp_length=exp_length,
+            communication=communication,
+            adaptive_com=adaptive_com,
+            n_agents=n_agents,
+            msg_exp_time=msg_exp_time,
+            msg_hops=msg_hops,
+            n_options=n_options,
+            eta=eta,
+            function=function,
+            vote_msg=vote_msg,
+            ctrl_par=ctrl_par,
+            num_runs=num_runs,
+            arenaS=arenaS,
+            data_type="time"
+        )
 
 ##########################################################################################################
-    def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
+    def dump_resume_per_opt_csv(self,data_in,data_std,exp_length:int,communication:int,
                        adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,option_id:int,data_type:str):    
         static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","function","vote_msg","control_par"]
         static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,function,vote_msg,ctrl_par]
-        if not os.path.exists(os.path.abspath("")+"/proc_data"):
-            os.mkdir(os.path.abspath("")+"/proc_data")
+        if not os.path.exists(os.path.abspath("")+f"/proc_data/{data_type}"):
+            os.mkdir(os.path.abspath("")+f"/proc_data/{data_type}")
+        output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
         write_header = 0
         name_fields = []
         values = []
         file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_runs#{num_runs}_arena#{arenaS}.csv"
-        if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
+        if not os.path.exists(output_path+file_name):
             write_header = 1
         for i in range(len(static_fields)):
             name_fields.append(static_fields[i])
@@ -167,7 +262,37 @@ class Results:
         name_fields.append("std")
         values.append(data_in)
         values.append(data_std)
-        fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
+        fw = open(output_path+file_name,mode='a',newline='\n')
+        fwriter = csv.writer(fw,delimiter='\t')
+        if write_header == 1:
+            fwriter.writerow(name_fields)
+        fwriter.writerow(values)
+        fw.close()
+
+
+##########################################################################################################
+    def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
+                       adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
+                       eta:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str):    
+        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","function","vote_msg","control_par"]
+        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,function,vote_msg,ctrl_par]
+        if not os.path.exists(os.path.abspath("")+f"/proc_data/{data_type}"):
+            os.mkdir(os.path.abspath("")+f"/proc_data/{data_type}")
+        output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
+        write_header = 0
+        name_fields = []
+        values = []
+        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_runs#{num_runs}_arena#{arenaS}.csv"
+        if not os.path.exists(output_path+file_name):
+            write_header = 1
+        for i in range(len(static_fields)):
+            name_fields.append(static_fields[i])
+            values.append(static_values[i])
+        name_fields.append("data")
+        name_fields.append("std")
+        values.append(data_in)
+        values.append(data_std)
+        fw = open(output_path+file_name,mode='a',newline='\n')
         fwriter = csv.writer(fw,delimiter='\t')
         if write_header == 1:
             fwriter.writerow(name_fields)

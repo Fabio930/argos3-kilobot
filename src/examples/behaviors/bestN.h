@@ -99,6 +99,8 @@ bool init_bounds_y_received = false;
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
+const uint16_t decision_ticks = TICKS_PER_SEC * 5;
+uint32_t last_decision_ticks = 0;
 uint8_t broadcasting_flag = 0;
 uint8_t adaptive_comm = 0;
 uint32_t adaptive_broadcast_until_ticks = 0;

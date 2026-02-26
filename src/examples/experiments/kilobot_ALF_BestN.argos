@@ -51,16 +51,16 @@
 
         <hierarchicStruct
             rebroadcast = "1"
-            adaptive_comm = "1"
-            msgs_n_hops = "0"
-            msgs_timeout = "180"
+            adaptive_comm = "0"
+            msgs_n_hops = "1"
+            msgs_timeout = "300"
             options = "5"
-            eta = "0.65"
+            eta = "0.78"
             grid_rows = "20"
             grid_cols = "20"
-            control = "linear"
+            control = "polynomial"
             voting_msgs = "5"
-            control_parameter = "0.8">
+            control_parameter = "0.7">
         </hierarchicStruct>
 
     </loop_functions>

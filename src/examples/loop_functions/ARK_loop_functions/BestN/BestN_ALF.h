@@ -86,6 +86,8 @@ private:
     UInt8                   m_unGpsMaxXQ;
     UInt8                   m_unGpsMinYQ;
     UInt8                   m_unGpsMaxYQ;
+    Real                    m_fInitDistrib;
+    bool                    m_bTargetRandomWorse;
 
     std::vector<CVector2>   m_vecKilobotPositions;
     std::vector<CDegrees>   m_vecKilobotOrientations;

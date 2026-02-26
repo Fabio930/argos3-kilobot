@@ -320,15 +320,10 @@ void update_debug_led(){
 void select_new_point(bool force){
     /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
-        if(!force){
-            decision();
-            update_debug_led();
-        }
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         reaching_goal_ticks = expiring_dist * goal_ticks_sec;
-
     }
     else{
         if(avoid_tmmts==0){
@@ -614,45 +609,70 @@ void random_way_point_model(){
 }
 
 void decision(){
-    quorum_value = compute_quorum_value();
-    control_value = compute_r_threshold(quorum_value);
-    float p = rand_hard()/255.0;
-    if(p < control_value){
-        my_state = majority_vote();
+    if (kilo_ticks > last_decision_ticks + decision_ticks){
+        last_decision_ticks = kilo_ticks;
+        quorum_value = compute_quorum_value();
+        control_value = compute_r_threshold(quorum_value);
+        float p = rand_hard()/255.0;
+        if(p < 0.01){
+            my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
+        }
+        else{
+            p = rand_hard()/255.0;
+            if(p < control_value){
+                my_state = majority_vote();
+            }
+            else{
+                my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
+            }
+        }
+        update_debug_led();
     }
-    else{
-        my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
-    }    
 }
 
-int majority_vote(){
-    if(num_quorum_items>=voting_msgs){
-        uint8_t buffer[6] = {0};
-        for(uint8_t i = 0; i < voting_msgs; i++){
-            buffer[quorum_array[i]->agent_state]++;
-        }
-        uint8_t max = 0;
-        uint8_t selection = 0;
-        for(uint8_t i=0;i<sizeof(buffer);i++){
-            if(buffer[i]>max){
-                max = buffer[i];
-                selection = i;
-            }
-            else if(max!=0 && buffer[i]==max){
-                float p = rand_hard()/255.0;
-                if(p<0.5){
-                    max=buffer[i];
-                    selection = i;
-                }
-            }
-        }
-        if(max==0) return my_state;
-        return selection;
-    }
-    else{
-        // printf("Agent %d got not enough messages for decision!\n",kilo_uid);
+int majority_vote() {
+    // 1. Safety check: if we don't have enough messages, don't change state
+    if (num_quorum_items < voting_msgs || num_quorum_items == 0) {
         return my_state;
     }
+
+    uint8_t buffer[6] = {0};
+
+    // 2. Pick voting_msgs random UNIQUE entries
+    // We swap chosen items to the front of quorum_array to ensure uniqueness
+    for (uint8_t i = 0; i < voting_msgs; i++) {
+        // Pick a random index from the remaining pool
+        // rand_hard() returns 0-255. Use modulo to fit the remaining items.
+        uint8_t remaining_count = num_quorum_items - i;
+        uint8_t random_index = i + (rand_hard() % remaining_count);
+
+        // Swap the pointer at current 'i' with the one at 'random_index'
+        // This moves the "used" item out of the selection pool
+        quorum_a* temp = quorum_array[i];
+        quorum_array[i] = quorum_array[random_index];
+        quorum_array[random_index] = temp;
+
+        // Count the vote from the uniquely selected item
+        buffer[quorum_array[i]->agent_state]++;
+    }
+
+    // 3. Determine the winner (Majority with Tie-breaking)
+    uint8_t max = 0;
+    uint8_t selection = 0;
+    for (uint8_t i = 0; i < sizeof(buffer); i++) {
+        if (buffer[i] > max) {
+            max = buffer[i];
+            selection = i;
+        }
+        else if (max != 0 && buffer[i] == max) {
+            // Tie-break: 50% chance to switch to the new option
+            if (rand_hard() < 128) { // 128 is approx 50% of 255
+                selection = i;
+            }
+        }
+    }
+
+    return (max == 0) ? my_state : selection;
 }
 
 void setup(){
@@ -685,6 +705,7 @@ void loop(){
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
     random_way_point_model();
+    decision();
     if(my_state > 0) talk();
 }
 
