@@ -39,18 +39,18 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par = task
+    ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_data(ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par)
+        results.extract_data(ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par)
     except KeyError as e:
         logging.error(f"KeyError processing {path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par
+        del results, ticks_per_sec,path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par
 
 def convert_csv_results_to_pickle(output_dir="proc_data"):
     output_path = Path(os.path.abspath("")) / output_dir
@@ -121,19 +121,23 @@ def main():
                                                                     if '#' in eta_dir:
                                                                         eta_path = os.path.join(options_path,eta_dir)
                                                                         eta = float(eta_dir.split('#')[-1])
-                                                                        for functn_dir in sorted(os.listdir(eta_path)):
-                                                                            if '#' in functn_dir:
-                                                                                functn_path = os.path.join(eta_path,functn_dir)
-                                                                                function = str(functn_dir.split('#')[-1])
-                                                                                for vote_msg_dir in sorted(os.listdir(functn_path)):
-                                                                                    if '#' in vote_msg_dir:
-                                                                                        vote_msg_path = os.path.join(functn_path,vote_msg_dir)
-                                                                                        vote_msg = int(vote_msg_dir.split('#')[-1])
-                                                                                        for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
-                                                                                            if '#' in ctrl_par_dir:
-                                                                                                ctrl_par_path = os.path.join(vote_msg_path,ctrl_par_dir)
-                                                                                                ctrl_par = float(ctrl_par_dir.split('#')[-1])
-                                                                                                queue.put((ticks_per_sec,ctrl_par_path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,function,vote_msg,ctrl_par))
+                                                                        for init_dir in sorted(os.listdir(eta_path)):
+                                                                            if '#' in init_dir:
+                                                                                init_path = os.path.join(eta_path,init_dir)
+                                                                                init_distr = float(init_dir.split('#')[-1])
+                                                                                for functn_dir in sorted(os.listdir(init_path)):
+                                                                                    if '#' in functn_dir:
+                                                                                        functn_path = os.path.join(init_path,functn_dir)
+                                                                                        function = str(functn_dir.split('#')[-1])
+                                                                                        for vote_msg_dir in sorted(os.listdir(functn_path)):
+                                                                                            if '#' in vote_msg_dir:
+                                                                                                vote_msg_path = os.path.join(functn_path,vote_msg_dir)
+                                                                                                vote_msg = int(vote_msg_dir.split('#')[-1])
+                                                                                                for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
+                                                                                                    if '#' in ctrl_par_dir:
+                                                                                                        ctrl_par_path = os.path.join(vote_msg_path,ctrl_par_dir)
+                                                                                                        ctrl_par = float(ctrl_par_dir.split('#')[-1])
+                                                                                                        queue.put((ticks_per_sec,ctrl_par_path,exp_length,communication,adaptive_com,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")

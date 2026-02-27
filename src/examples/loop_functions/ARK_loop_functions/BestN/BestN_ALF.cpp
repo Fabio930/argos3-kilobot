@@ -66,7 +66,6 @@ void CBestN_ALF::PostStep(){
 /****************************************/
 void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecKilobotState.resize(m_tKilobotEntities.size());
-    m_vecKilobotMsgType.resize(m_tKilobotEntities.size());
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
@@ -109,7 +108,6 @@ void CBestN_ALF::SetupInitialKilobotStates(){
 void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     /* The kilobots begins in the root node with a random goal position inside it */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecKilobotMsgType[unKilobotID] = 0;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
 }
@@ -179,17 +177,11 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
         m_cGridFloor.ColorId.assign(m_cGridFloor.Rows * m_cGridFloor.Cols, 1);
         SetupFloorColorMap();
 
-        const Real fGpsMinX = cMin.GetX() + cArenaMax.GetX();
-        const Real fGpsMaxX = cMax.GetX() + cArenaMax.GetX();
-        const Real fGpsMinY = cMin.GetY() + cArenaMax.GetY();
-        const Real fGpsMaxY = cMax.GetY() + cArenaMax.GetY();
-        const SInt32 nGpsMinXQ = static_cast<SInt32>(std::round(fGpsMinX * 100.0));
+        const Real fGpsMaxX = cMax.GetX() - cMin.GetX();
+        const Real fGpsMaxY = cMax.GetY() - cMin.GetY();
         const SInt32 nGpsMaxXQ = static_cast<SInt32>(std::round(fGpsMaxX * 100.0));
-        const SInt32 nGpsMinYQ = static_cast<SInt32>(std::round(fGpsMinY * 100.0));
         const SInt32 nGpsMaxYQ = static_cast<SInt32>(std::round(fGpsMaxY * 100.0));
-        m_unGpsMinXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMinXQ)));
         m_unGpsMaxXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxXQ)));
-        m_unGpsMinYQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMinYQ)));
         m_unGpsMaxYQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxYQ)));
     }
 }
@@ -348,13 +340,11 @@ void CBestN_ALF::SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity){
     m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
 
     m_tMessages[unKilobotID].type = 0;
-    const UInt16 unPayload = static_cast<UInt16>(((m_unGpsMinXQ & 0x7Fu) << 7) | (m_unGpsMaxXQ & 0x7Fu));
+    const UInt16 unPayload = static_cast<UInt16>(((m_unGpsMaxXQ & 0x7Fu) << 7) | (m_unGpsMaxYQ & 0x7Fu));
     for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(3u << 6);
-    m_tMessages[unKilobotID].data[3] = static_cast<UInt8>(m_unGpsMinYQ & 0x7Fu);
-    m_tMessages[unKilobotID].data[4] = static_cast<UInt8>(m_unGpsMaxYQ & 0x7Fu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
@@ -365,32 +355,35 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 1;
-    tKilobotMessage.m_sType = 0;
-    UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100)*.5;
-    UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + this->GetSpace().GetArenaLimits().GetMax()[1]) * 100)*.5;   
-    tKilobotMessage.m_sType = (valY & 0b00000111) << 1 | tKilobotMessage.m_sType;
-    tKilobotMessage.m_sID = unKilobotID << 3 | angle >> 1;
-    tKilobotMessage.m_sData = valX << 4 | (valY >> 3) << 1 | (angle & 0b00000001);
-    // Prepare an empty ARK-type message to fill the gap in the full kilobot message
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3] = (tKilobotMessage.m_sID >> 3) << 1;
-        m_tMessages[unKilobotID].data[1+i*3] = (tKilobotMessage.m_sData >> 4) <<2 | (tKilobotMessage.m_sID & 0b0000000110) >> 1;
-        m_tMessages[unKilobotID].data[2+i*3] = (tKilobotMessage.m_sID & 0b0000000001) << 7 | (tKilobotMessage.m_sData & 0b0000000001) << 6 | (tKilobotMessage.m_sData & 0b0000001110) << 2 | ((tKilobotMessage.m_sType & 0b1110) >> 1);
+    for(UInt8 i = 0; i < 9; ++i) {
+        m_tMessages[unKilobotID].data[i] = 0;
     }
+
+    UInt8 unAngleQ = static_cast<UInt8>(m_vecKilobotOrientations[unKilobotID].GetValue() * 0.0417) & 0x0Fu;
+    const Real fPosXInRobotFrame = m_vecKilobotPositions[unKilobotID].GetX() - m_cGridFloor.XMin;
+    const Real fPosYInRobotFrame = m_vecKilobotPositions[unKilobotID].GetY() - m_cGridFloor.YMin;
+    const SInt32 nXQ = static_cast<SInt32>(std::round(fPosXInRobotFrame * 50.0));
+    const SInt32 nYQ = static_cast<SInt32>(std::round(fPosYInRobotFrame * 50.0));
+    UInt8 unXQ = static_cast<UInt8>(Min<SInt32>(63, Max<SInt32>(0, nXQ)));
+    UInt8 unYQ = static_cast<UInt8>(Min<SInt32>(63, Max<SInt32>(0, nYQ)));
+
+    UInt8 unColorId = m_cGridFloor.GetColorIdAt(m_vecKilobotPositions[unKilobotID]);
+    UInt8 unColorQ = 0;
+    if(unColorId > 0 && unColorId < 255) {
+        unColorQ = static_cast<UInt8>((unColorId - 1) % 6);
+    }
+
+    const UInt32 unPayload =
+        (static_cast<UInt32>(unXQ) & 0x3Fu) |
+        ((static_cast<UInt32>(unYQ) & 0x3Fu) << 6) |
+        ((static_cast<UInt32>(unAngleQ) & 0x0Fu) << 12) |
+        ((static_cast<UInt32>(unColorQ) & 0x07u) << 16);
+
+    /* Individual GPS packet: MSG_A in bit0 + 23-bit payload across 3 bytes. */
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 16) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload >> 8) & 0xFFu);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(unPayload & 0xFFu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
@@ -423,17 +416,6 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].data[7] = 0;
     m_tMessages[unKilobotID].data[8] = static_cast<UInt8>(m_unControlParameterQ & 0x7Fu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
-}
-
-/****************************************/
-/****************************************/
-
-Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
-    Real x = a.GetX()-b.GetX();
-    x = x * x;
-    Real y = a.GetY()-b.GetY();
-    y = y * y;
-    return sqrt(x + y);
 }
 
 /****************************************/

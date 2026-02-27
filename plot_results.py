@@ -63,6 +63,18 @@ def _safe_filename_from_params(values: dict) -> str:
                 
     return "_".join(safe_parts) if safe_parts else "plot"
 
+
+def _safe_filename_from_metadata(values: dict) -> str:
+    """Generates a safe filename using all scalar metadata key/value pairs."""
+    safe_parts = []
+    for key in sorted(values.keys()):
+        val = values[key]
+        if isinstance(val, (list, tuple, np.ndarray, pd.Series, dict, set)):
+            continue
+        clean = f"{key}#{val}".replace("/", "-").replace(" ", "").replace(":", "-")
+        safe_parts.append(clean)
+    return "_".join(safe_parts) if safe_parts else "plot"
+
 def metadata_from_filename(file_name: str) -> dict:
     """Extracts metadata dictionary from a pickle filename."""
     stem = Path(file_name).stem
@@ -107,7 +119,263 @@ def _function_colormap(function_names):
     return mapping
 
 ##################################################################################
-# 4. PARETO PLOTTING ENGINE
+# 4. STANDARD PLOTTING
+##################################################################################
+
+def _iter_groups(df: pd.DataFrame, grouping_cols: list):
+    """Yields (key_dict, group_df) even when no grouping columns are available."""
+    if not grouping_cols:
+        yield {}, df
+        return
+
+    for group_key, group_df in df.groupby(grouping_cols, dropna=False):
+        if isinstance(group_key, tuple):
+            yield dict(zip(grouping_cols, group_key)), group_df
+        else:
+            yield {grouping_cols[0]: group_key}, group_df
+
+
+def _vote_color_map(vote_values):
+    """Stable color mapping keyed by vote_msg."""
+    cmap = plt.get_cmap("tab10")
+    return {vote: cmap(idx % 10) for idx, vote in enumerate(sorted(vote_values))}
+
+
+def plot_cohesion_df(result_df: pd.DataFrame) -> int:
+    """
+    Cohesion line plots with std shadow.
+    Produces one image per metadata group with two panels: option_id 0 and 1.
+    """
+    required_cols = {"option_id", "vote_msg", "data", "std"}
+    missing = required_cols.difference(result_df.columns)
+    if missing:
+        raise ValueError(f"plot_cohesion_df missing required columns: {sorted(missing)}")
+
+    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion"
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    exclude_cols = {"option_id", "vote_msg", "function", "data", "std"}
+    grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
+    image_count = 0
+
+    for group_meta, gdf in _iter_groups(result_df, grouping_cols):
+        option_1_df = gdf[gdf["option_id"] == 0]
+        option_2_df = gdf[gdf["option_id"] == 1]
+        if option_1_df.empty and option_2_df.empty:
+            continue
+
+        function_values = sorted(gdf["function"].astype(str).unique().tolist()) if "function" in gdf.columns else []
+        function_cmaps = _function_colormap(function_values)
+
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+        panel_data = [(1, option_1_df, axes[0]), (2, option_2_df, axes[1])]
+
+        for option_id, opt_df, ax in panel_data:
+            if opt_df.empty:
+                ax.set_title(f"Option {option_id} (no data)")
+                ax.set_xlabel("step")
+                ax.grid(alpha=0.25)
+                continue
+
+            for function_name in sorted(opt_df["function"].astype(str).unique().tolist()):
+                fn_df = opt_df[opt_df["function"].astype(str) == function_name]
+                votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
+                cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
+                vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
+                vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
+
+                for _, row in fn_df.iterrows():
+                    data_arr = m_array_from_cell(row["data"])
+                    std_arr = m_array_from_cell(row["std"])
+                    n_steps = min(len(data_arr), len(std_arr))
+                    if n_steps == 0:
+                        continue
+
+                    x = np.arange(n_steps)
+                    y = data_arr[:n_steps]
+                    s = std_arr[:n_steps]
+                    vote = row["vote_msg"]
+                    color = vote_to_color.get(vote, cmap(0.7))
+                    label = f"f:{function_name} | m:{vote}"
+
+                    ax.plot(x, y, color=color, linewidth=2.0, label=label)
+                    ax.fill_between(x, y - s, y + s, color=color, alpha=0.18)
+
+            ax.set_title(f"Option {option_id}")
+            ax.set_xlabel("step")
+            ax.grid(alpha=0.25)
+            handles, labels = ax.get_legend_handles_labels()
+            if handles:
+                uniq = dict(zip(labels, handles))
+                ax.legend(uniq.values(), uniq.keys(), loc="best", frameon=False, fontsize=8)
+
+        axes[0].set_ylabel("cohesion")
+        fig.suptitle("Cohesion")
+
+        file_name = f"cohesion_{_safe_filename_from_metadata(dict(group_meta))}.png"
+        fig.tight_layout()
+        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        image_count += 1
+
+    return image_count
+
+
+def plot_accuracy_df(result_df: pd.DataFrame) -> int:
+    """Accuracy bar plot with eta on x-axis and colors keyed by vote_msg."""
+    required_cols = {"eta", "vote_msg", "data"}
+    missing = required_cols.difference(result_df.columns)
+    if missing:
+        raise ValueError(f"plot_accuracy_df missing required columns: {sorted(missing)}")
+
+    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "accuracy"
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    exclude_cols = {"eta", "vote_msg", "function", "data", "std"}
+    grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
+    image_count = 0
+
+    for group_meta, gdf in _iter_groups(result_df, grouping_cols):
+        work = gdf.copy()
+        work["metric"] = work["data"].apply(lambda x: float(np.mean(m_array_from_cell(x))))
+        agg = work.groupby(["eta", "vote_msg"], dropna=False)["metric"].agg(["mean", "std"]).reset_index()
+        if agg.empty:
+            continue
+
+        eta_values = np.array(sorted(agg["eta"].dropna().unique().tolist()), dtype=float)
+        vote_values = sorted(agg["vote_msg"].dropna().unique().tolist())
+        vote_colors = _vote_color_map(vote_values)
+        if eta_values.size == 0 or not vote_values:
+            continue
+
+        if eta_values.size > 1:
+            min_gap = float(np.min(np.diff(eta_values)))
+        else:
+            min_gap = 0.1
+        cluster_w = min_gap * 0.8
+        bar_w = cluster_w / max(1, len(vote_values))
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        mean_table = agg.pivot(index="eta", columns="vote_msg", values="mean").reindex(eta_values)
+        std_table = agg.pivot(index="eta", columns="vote_msg", values="std").reindex(eta_values)
+
+        for i, vote in enumerate(vote_values):
+            means = mean_table[vote].to_numpy(dtype=float) if vote in mean_table.columns else np.full(eta_values.shape, np.nan)
+            stds = std_table[vote].to_numpy(dtype=float) if vote in std_table.columns else np.zeros(eta_values.shape, dtype=float)
+            stds = np.nan_to_num(stds, nan=0.0)
+
+            pos = eta_values - (cluster_w / 2.0) + (i + 0.5) * bar_w
+            ax.bar(pos, means, width=bar_w, yerr=stds, capsize=3, label=f"m:{vote}", color=vote_colors[vote], alpha=0.85)
+
+        ax.set_xticks(eta_values)
+        ax.set_xticklabels([str(e) for e in eta_values])
+        ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
+        ax.set_xlabel(r"$\eta$")
+        ax.set_ylabel("accuracy (%)")
+        ax.set_title("Accuracy by eta")
+        ax.grid(axis="y", alpha=0.25)
+        ax.legend(frameon=False, loc="best")
+
+        file_name = f"accuracy_{_safe_filename_from_params(dict(group_meta))}.png"
+        fig.tight_layout()
+        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        image_count += 1
+
+    return image_count
+
+
+def plot_time_df(result_df: pd.DataFrame) -> int:
+    """Time box plot with eta on x-axis and colors keyed by vote_msg."""
+    required_cols = {"eta", "vote_msg", "data"}
+    missing = required_cols.difference(result_df.columns)
+    if missing:
+        raise ValueError(f"plot_time_df missing required columns: {sorted(missing)}")
+
+    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "time"
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    exclude_cols = {"eta", "vote_msg", "function", "data", "std"}
+    grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
+    image_count = 0
+
+    for group_meta, gdf in _iter_groups(result_df, grouping_cols):
+        eta_values = np.array(sorted(gdf["eta"].dropna().unique().tolist()), dtype=float)
+        vote_values = sorted(gdf["vote_msg"].dropna().unique().tolist())
+        if eta_values.size == 0 or not vote_values:
+            continue
+
+        vote_colors = _vote_color_map(vote_values)
+        if eta_values.size > 1:
+            min_gap = float(np.min(np.diff(eta_values)))
+        else:
+            min_gap = 0.1
+        cluster_w = min_gap * 0.7
+        box_w = cluster_w / max(1, len(vote_values))
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        has_boxes = False
+        for i, vote in enumerate(vote_values):
+            series_data = []
+            positions = []
+            for eta in eta_values:
+                subset = gdf[np.isclose(gdf["eta"].astype(float), eta) & (gdf["vote_msg"] == vote)]
+                merged = []
+                for cell in subset["data"].tolist():
+                    merged.extend(m_array_from_cell(cell).tolist())
+                if not merged:
+                    continue
+                series_data.append(merged)
+                positions.append(float(eta - (cluster_w / 2.0) + (i + 0.5) * box_w))
+
+            if not series_data:
+                continue
+
+            bp = ax.boxplot(
+                series_data,
+                positions=positions,
+                widths=box_w * 0.9,
+                patch_artist=True,
+                manage_ticks=False,
+                showfliers=False
+            )
+            for patch in bp["boxes"]:
+                patch.set_facecolor(vote_colors[vote])
+                patch.set_alpha(0.55)
+            for median in bp["medians"]:
+                median.set_color("black")
+                median.set_linewidth(1.3)
+            has_boxes = True
+
+        if not has_boxes:
+            plt.close(fig)
+            continue
+
+        ax.set_xticks(eta_values)
+        ax.set_xticklabels([str(e) for e in eta_values])
+        ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
+        ax.set_xlabel(r"$\eta$")
+        ax.set_ylabel("exit time (ticks)")
+        ax.set_title("Exit Time by eta")
+        ax.grid(axis="y", alpha=0.25)
+
+        legend_items = [
+            Line2D([0], [0], color=vote_colors[v], lw=8, alpha=0.55, label=f"m:{v}")
+            for v in vote_values
+        ]
+        if legend_items:
+            ax.legend(handles=legend_items, frameon=False, loc="best")
+
+        file_name = f"time_{_safe_filename_from_params(dict(group_meta))}.png"
+        fig.tight_layout()
+        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        image_count += 1
+
+    return image_count
+
+##################################################################################
+# 5. PARETO PLOTTING ENGINE
 ##################################################################################
 
 def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_label, sub_folder):
@@ -177,7 +445,7 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
 
 def plot_cohesion_accuracy_pareto(coh_df, acc_df):
     """Prepares Cohesion vs Accuracy data."""
-    c = coh_df[coh_df["option_id"] == 1].copy()
+    c = coh_df[coh_df["option_id"] == 0].copy()
     c[["coh_f", "coh_s"]] = c.apply(lambda r: pd.Series([np.mean(m_array_from_cell(r["data"])[-100:]), np.mean(m_array_from_cell(r["std"])[-100:])]), axis=1)
     
     a = acc_df.copy()
@@ -191,7 +459,7 @@ def plot_cohesion_accuracy_pareto(coh_df, acc_df):
 
 def plot_cohesion_time_pareto(coh_df, time_df):
     """Prepares Cohesion vs Time data."""
-    c = coh_df[coh_df["option_id"] == 1].copy()
+    c = coh_df[coh_df["option_id"] == 0].copy()
     c[["coh_f", "coh_s"]] = c.apply(lambda r: pd.Series([np.mean(m_array_from_cell(r["data"])[-100:]), np.mean(m_array_from_cell(r["std"])[-100:])]), axis=1)
     
     t = time_df.copy()
@@ -204,7 +472,7 @@ def plot_cohesion_time_pareto(coh_df, time_df):
     return plot_pareto_base(merged, "val_f", "val_s", "coh_f", "coh_s", "Median Exit Time (Ticks)", "Final Cohesion (Avg last 100)", "cohesion_time")
 
 ##################################################################################
-# 5. MAIN EXECUTION
+# 6. MAIN EXECUTION
 ##################################################################################
 
 def main():
@@ -212,22 +480,22 @@ def main():
     df_coh = load_pickles_to_single_df("proc_data/cohesion")
     df_acc = load_pickles_to_single_df("proc_data/accuracy")
     df_time = load_pickles_to_single_df("proc_data/time")
-    # if not df_coh.empty:
-    #     total_imgs += plot_cohesion_df(df_coh)
-    # if not df_acc.empty:
-    #     total_imgs += plot_accuracy_df(df_acc)
-    # if not df_time.empty:
-    #     imagtotal_imgses += plot_time_df(df_time)
+    if not df_coh.empty:
+        total_imgs += plot_cohesion_df(df_coh)
+    if not df_acc.empty:
+        total_imgs += plot_accuracy_df(df_acc)
+    if not df_time.empty:
+        total_imgs += plot_time_df(df_time)
 
-    if not df_coh.empty and not df_acc.empty:
-        print("Generating Pareto: Cohesion vs Accuracy...")
-        total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
+    # if not df_coh.empty and not df_acc.empty:
+    #     print("Generating Pareto: Cohesion vs Accuracy...")
+    #     total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
         
-    if not df_coh.empty and not df_time.empty:
-        print("Generating Pareto: Cohesion vs Time...")
-        total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
+    # if not df_coh.empty and not df_time.empty:
+    #     print("Generating Pareto: Cohesion vs Time...")
+    #     total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
 
-    print(f"\nExecution finished. Total Pareto images saved: {total_imgs}")
+    print(f"\nExecution finished. Total images saved: {total_imgs}")
 
 if __name__ == "__main__":
     main()

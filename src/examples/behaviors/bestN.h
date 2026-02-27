@@ -90,11 +90,6 @@ uint16_t sa_payload = 0;
 bool init_received_A = false;
 bool init_received_B = false;
 bool init_received_C = false;
-bool init_struct_received = false;
-bool init_grid_received = false;
-bool init_map_received = false;
-bool init_bounds_x_received = false;
-bool init_bounds_y_received = false;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
@@ -124,14 +119,6 @@ quorum_a **quorum_array;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
 
-/* local copy of floor map for debug */
-uint8_t grid_rows = 0;
-uint8_t grid_cols = 0;
-uint8_t eta_q = 0;
-uint8_t map_options = 1;
-uint16_t map_seed = 1;
-uint8_t seed_hi = 0;
-uint8_t seed_lo = 1;
 control_type control_mode = f_static;
 uint8_t voting_msgs = 0;
 uint8_t control_parameter_q = 0;
@@ -139,11 +126,9 @@ float control_parameter = 0.0f;
 float control_value = 0.0f;
 float quorum_value = 0.0f;
 bool init_control_received = false;
-uint8_t gps_min_x_q = 5;
 uint8_t gps_max_x_q = 105;
-uint8_t gps_min_y_q = 5;
 uint8_t gps_max_y_q = 105;
-uint8_t *floor_colors = NULL;
+uint8_t gps_floor_color = 0;
 
 void decision();
 /*-------------------------------------------------------------------*/
@@ -200,11 +185,7 @@ void update_messages(const uint8_t Msg_n_hops);
 void parse_kilo_message(uint8_t data[9]);
 
 void parse_smart_arena_broadcast(uint8_t data[9]);
-void setup_floor_colors();
-uint8_t floor_color_id_at_position(float x, float y);
-uint8_t floor_color_value_at_position(float x, float y);
 uint8_t led_from_color_value(uint8_t color_value);
-uint8_t led_from_color_id(uint8_t color_id);
 void update_debug_led();
 
 /*-------------------------------------------------------------------*/

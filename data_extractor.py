@@ -31,29 +31,33 @@ class Results:
             raise ValueError(f"Input atteso 3D (n_runs,n_agents,steps), trovato ndim={data.ndim}")
         
         n_runs, n_agents, n_steps = data.shape
-        n_states = n_options + 1 
+        n_states = n_options
 
         data_int = data.astype(np.int32, copy=False)
-        
+        valid_mask = (data_int >= 0) & (data_int < n_states)
+        valid_agents = valid_mask.sum(axis=1).astype(np.float64)  # (n_runs, n_steps)
+        valid_agents = np.where(valid_agents > 0.0, valid_agents, np.nan)
+
         state_values = np.arange(n_states, dtype=np.int32)[:, None, None]
-        counts = (data_int[:, None, :, :] == state_values[None, :, :, :]).sum(axis=2).astype(np.float64)
-        
-        counts_norm = counts / float(n_agents)
-        state_0 = counts_norm[:, 0, :]
+        counts = (
+            (data_int[:, None, :, :] == state_values[None, :, :, :]) &
+            valid_mask[:, None, :, :]
+        ).sum(axis=2).astype(np.float64)
 
-        options_data = counts_norm[:, 1:, :]
-
-        winner_counts = np.max(options_data, axis=1) # (n_runs, n_steps)
+        counts_norm = counts / valid_agents[:, None, :]
+        counts_norm = np.nan_to_num(counts_norm, nan=0.0)
+        winner_counts = np.max(counts_norm, axis=1) # (n_runs, n_steps)
         
         if n_options > 1:
-            other_counts = (np.sum(options_data, axis=1) - winner_counts) / (n_options - 1)
+            other_counts = (np.sum(counts_norm, axis=1) - winner_counts) / (n_options - 1)
         else:
             other_counts = np.zeros_like(winner_counts)
 
         final_means = []
         final_stds = []
 
-        for group in [state_0, winner_counts, other_counts]:
+        # option_id = 0 -> coesione massima; option_id = 1 -> media delle altre opzioni
+        for group in [winner_counts, other_counts]:
             final_means.append(np.around(group.mean(axis=0), decimals=6).tolist())
             final_stds.append(np.around(group.std(axis=0), decimals=6).tolist())
 
@@ -63,27 +67,38 @@ class Results:
     def compute_accuracy(self, data: np.ndarray, n_options: int, eta: float, window: int = 100):
         n_runs, n_agents, n_steps = data.shape
         crit_eta = (n_options - 1) / n_options
-        threshold = 0.9 * n_agents
         actual_window = min(window, n_steps)
         last_data = data[:, :, -actual_window:] # shape: (runs, agents, window)
         
         success_count = 0
 
         for r in range(n_runs):
-            counts_per_step = np.array([np.bincount(last_data[r, :, t].astype(np.int32), minlength=n_options + 1) 
-                                       for t in range(actual_window)])
+            counts_per_step = []
+            valid_per_step = []
+            for t in range(actual_window):
+                states = last_data[r, :, t].astype(np.int32)
+                valid_states = states[(states >= 0) & (states < n_options)]
+                valid_per_step.append(valid_states.size)
+                counts_per_step.append(np.bincount(valid_states, minlength=n_options))
+
+            counts_per_step = np.asarray(counts_per_step, dtype=np.float64)
+            valid_per_step = np.asarray(valid_per_step, dtype=np.float64)
             
             avg_counts = np.mean(counts_per_step, axis=0)
+            avg_valid_agents = float(np.mean(valid_per_step))
+            threshold = 0.9 * avg_valid_agents
             
             is_success = False
-            if eta < crit_eta:
-                if avg_counts[1] >= threshold:
+            if avg_valid_agents <= 0:
+                is_success = False
+            elif eta < crit_eta:
+                if avg_counts[0] >= threshold:
                     is_success = True
             elif eta > crit_eta:
-                if n_options > 1 and np.any(avg_counts[2:] >= threshold):
+                if n_options > 1 and np.any(avg_counts[1:] >= threshold):
                     is_success = True
             else:
-                if np.any(avg_counts[1:] >= threshold):
+                if np.any(avg_counts[:] >= threshold):
                     is_success = True
             
             if is_success:
@@ -93,7 +108,6 @@ class Results:
 
     def compute_exit_time(self, data: np.ndarray, n_options: int):
         n_runs, n_agents, n_steps = data.shape
-        threshold = 0.9 * n_agents
         exit_times = []
 
         for r in range(n_runs):
@@ -101,8 +115,13 @@ class Results:
             found_step = n_steps + 1
             
             for t in range(n_steps):
-                counts = np.bincount(run_data[:, t].astype(np.int32), minlength=n_options + 1)
-                if np.any(counts[1:] >= threshold):
+                states = run_data[:, t].astype(np.int32)
+                valid_states = states[(states >= 0) & (states < n_options)]
+                if valid_states.size == 0:
+                    continue
+                counts = np.bincount(valid_states, minlength=n_options)
+                threshold = 0.9 * valid_states.size
+                if np.any(counts[:] >= threshold):
                     found_step = t
                     break
             
@@ -114,7 +133,7 @@ class Results:
 ##########################################################################################################
     def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,communication:int,
                        adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
-                       eta:float,function:str,vote_msg:int,ctrl_par:float) -> None:
+                       eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float) -> None:
         max_steps = exp_length * ticks_per_sec
         num_runs = int(len(os.listdir(path))/n_agents)
         info_vec    = path.split('/')
@@ -174,28 +193,38 @@ class Results:
             raise ValueError(f"Run incomplete: {incomplete_runs.tolist()}")
         
 
-        # cohesion_mean, cohesion_std = self.compute_average_cohesion_through_run(state_m, n_options)
+        invalid_state_mask = (state_m < 0) | (state_m >= n_options)
+        if np.any(invalid_state_mask):
+            invalid_values = np.unique(state_m[invalid_state_mask]).tolist()
+            non_temp_invalid = [v for v in invalid_values if v != 255]
+            if non_temp_invalid:
+                raise ValueError(f"Stati non validi trovati (attesi 0..{n_options-1}): {non_temp_invalid}")
+            temp_count = int(np.count_nonzero(state_m == 255))
+            print(f"[WARN] Ignoro {temp_count} campioni con stato temporaneo 255")
 
-        # for state_id in range(3):
-        #     self.dump_resume_per_opt_csv(
-        #         data_in=cohesion_mean[state_id],
-        #         data_std=cohesion_std[state_id],
-        #         exp_length=exp_length,
-        #         communication=communication,
-        #         adaptive_com=adaptive_com,
-        #         n_agents=n_agents,
-        #         msg_exp_time=msg_exp_time,
-        #         msg_hops=msg_hops,
-        #         n_options=n_options,
-        #         eta=eta,
-        #         function=function,
-        #         vote_msg=vote_msg,
-        #         ctrl_par=ctrl_par,
-        #         num_runs=num_runs,
-        #         arenaS=arenaS,
-        #         option_id=state_id,
-        #         data_type="choesion"
-        #     )
+        cohesion_mean, cohesion_std = self.compute_average_cohesion_through_run(state_m, n_options)
+
+        for state_id in range(len(cohesion_mean)):
+            self.dump_resume_per_opt_csv(
+                data_in=cohesion_mean[state_id],
+                data_std=cohesion_std[state_id],
+                exp_length=exp_length,
+                communication=communication,
+                adaptive_com=adaptive_com,
+                n_agents=n_agents,
+                msg_exp_time=msg_exp_time,
+                msg_hops=msg_hops,
+                n_options=n_options,
+                eta=eta,
+                init_distr=init_distr,
+                function=function,
+                vote_msg=vote_msg,
+                ctrl_par=ctrl_par,
+                num_runs=num_runs,
+                arenaS=arenaS,
+                option_id=state_id,
+                data_type="cohesion"
+            )
 
         success = self.compute_accuracy(state_m, n_options,eta)
         self.dump_resume_csv(
@@ -209,6 +238,7 @@ class Results:
             msg_hops=msg_hops,
             n_options=n_options,
             eta=eta,
+            init_distr=init_distr,
             function=function,
             vote_msg=vote_msg,
             ctrl_par=ctrl_par,
@@ -230,6 +260,7 @@ class Results:
             msg_hops=msg_hops,
             n_options=n_options,
             eta=eta,
+            init_distr=init_distr,
             function=function,
             vote_msg=vote_msg,
             ctrl_par=ctrl_par,
@@ -241,11 +272,10 @@ class Results:
 ##########################################################################################################
     def dump_resume_per_opt_csv(self,data_in,data_std,exp_length:int,communication:int,
                        adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
-                       eta:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,option_id:int,data_type:str):    
-        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","function","vote_msg","control_par"]
-        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,function,vote_msg,ctrl_par]
-        if not os.path.exists(os.path.abspath("")+f"/proc_data/{data_type}"):
-            os.mkdir(os.path.abspath("")+f"/proc_data/{data_type}")
+                       eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,option_id:int,data_type:str):    
+        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
+        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
+        os.makedirs(os.path.abspath("")+f"/proc_data/{data_type}", exist_ok=True)
         output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
         write_header = 0
         name_fields = []
@@ -273,11 +303,10 @@ class Results:
 ##########################################################################################################
     def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
                        adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
-                       eta:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str):    
-        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","function","vote_msg","control_par"]
-        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,function,vote_msg,ctrl_par]
-        if not os.path.exists(os.path.abspath("")+f"/proc_data/{data_type}"):
-            os.mkdir(os.path.abspath("")+f"/proc_data/{data_type}")
+                       eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str):    
+        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
+        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
+        os.makedirs(os.path.abspath("")+f"/proc_data/{data_type}", exist_ok=True)
         output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
         write_header = 0
         name_fields = []

@@ -32,11 +32,11 @@ adaptive_comm="0"
 msgs_n_hops="0"
 msgs_timeout="300"
 options="2 5"
-eta2="0.3 0.4 0.5"
-init_distr="0.2"
-control="static polynomial"
-voting_msgs="3 9 21"
-control_parameter_list="0.5 0.7 0.8"
+eta2="0.4 0.5"
+init_distr="0.5"
+control="polynomial"
+voting_msgs="3 5 7 9 15"
+control_parameter_list="0.7 0.8"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -80,9 +80,11 @@ for exp_len_par in $experiment_length; do
                                 mkdir $options_dir
                             fi
                             if [[ $options_par == "2" ]]; then
-                                eta=$eta2
+                                eta="0.4 0.5"
+                                init_distr="0.5"
                             else
-                                eta="0.6 0.7 0.8"
+                                eta="0.7 0.8"
+                                init_distr="0.2"
                             fi
                             for eta_par in $eta; do
                                 eta_dir=$options_dir/"Eta#"$eta_par
@@ -116,7 +118,7 @@ for exp_len_par in $experiment_length; do
                                                 fi
                                                 for i in $(seq 1 $RUNS); do
                                                     kilo_file="run#${i}.tsv"
-                                                    config=`printf 'config_nrobots%d_rebroad%d_adap%d_MsgExpTime%d_MsgHop%d_Opt%d_Eta%s_Ctrl%s_Vote%d_CPar%s_run%d.argos' $agents_par $comm_par $adaptive_par $msgs_par $msgs_hop_par $options_par $eta_par $control_par $voting_msgs_par $control_parameter_par $i`
+                                                    config=`printf 'config_nrobots%d_rebroad%d_adap%d_MsgExpTime%d_MsgHop%d_Opt%d_Eta%s_InitDistr%s_Ctrl%s_Vote%d_CPar%s_run%d.argos' $agents_par $comm_par $adaptive_par $msgs_par $msgs_hop_par $options_par $eta_par $init_par $control_par $voting_msgs_par $control_parameter_par $i`
                                                     cp $base_config $config
                                                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                                                     sed -i "s|__ADAPTIVE_COMM__|$adaptive_par|g" $config

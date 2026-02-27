@@ -3,28 +3,19 @@
  */
 #include "bestN.h"
 
-static uint32_t next_xorshift32(uint32_t *state){
-    uint32_t x = *state;
-    x ^= (x << 13);
-    x ^= (x >> 17);
-    x ^= (x << 5);
-    *state = x;
-    return x;
-}
-
 static void update_arena_from_received_bounds(){
     if(the_arena == NULL){
         return;
     }
-    the_arena->tlX = gps_min_x_q * 0.01f;
+    the_arena->tlX = 0.0f;
     the_arena->brX = gps_max_x_q * 0.01f;
-    the_arena->tlY = gps_min_y_q * 0.01f;
+    the_arena->tlY = 0.0f;
     the_arena->brY = gps_max_y_q * 0.01f;
 }
 
 static uint32_t received_arena_diagonal_cm(){
-    float dx_cm = (float)gps_max_x_q - (float)gps_min_x_q;
-    float dy_cm = (float)gps_max_y_q - (float)gps_min_y_q;
+    float dx_cm = (float)gps_max_x_q;
+    float dy_cm = (float)gps_max_y_q;
     if(dx_cm < 0.0f) dx_cm = 0.0f;
     if(dy_cm < 0.0f) dy_cm = 0.0f;
     return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
@@ -198,6 +189,8 @@ float compute_r_threshold(float quorum_value){
             const float polynomial = (1.0f - control_parameter) * powf(quorum_value,3.0f) + control_parameter;
             return clamp01(polynomial);
         }
+        default:
+            return clamp01(control_parameter);
     }
 }
 
@@ -213,107 +206,8 @@ uint8_t led_from_color_value(uint8_t color_value){
     }
 }
 
-void setup_floor_colors(){
-    if(grid_rows == 0 || grid_cols == 0){
-        return;
-    }
-    uint16_t total_cells = (uint16_t)(grid_rows * grid_cols);
-    if(total_cells == 0){
-        return;
-    }
-    if(floor_colors != NULL){
-        free(floor_colors);
-        floor_colors = NULL;
-    }
-    floor_colors = (uint8_t*)malloc(total_cells * sizeof(uint8_t));
-    if(floor_colors == NULL){
-        return;
-    }
-
-    if(map_options == 0){
-        map_options = 1;
-    }
-    for(uint16_t i = 0; i < total_cells; ++i){
-        floor_colors[i] = 0;
-    }
-
-    uint16_t worse_cells = (uint16_t)(((uint32_t)eta_q * total_cells + 63) / 127);
-    if(worse_cells == 0 || map_options == 1){
-        return;
-    }
-
-    uint8_t worse_options = (uint8_t)(map_options - 1);
-    uint16_t base_count = (uint16_t)(worse_cells / worse_options);
-    uint16_t remainder = (uint16_t)(worse_cells % worse_options);
-    uint16_t cursor = 0;
-    for(uint8_t opt = 0; opt < worse_options; ++opt){
-        uint16_t cells_for_option = (uint16_t)(base_count + (opt < remainder ? 1 : 0));
-        uint8_t color_id = (uint8_t)(opt + 1);
-        for(uint16_t j = 0; j < cells_for_option && cursor < worse_cells; ++j, ++cursor){
-            floor_colors[cursor] = color_id;
-        }
-    }
-
-    uint32_t state = map_seed;
-    if(state == 0){
-        state = 1;
-    }
-    for(uint16_t i = (uint16_t)(total_cells - 1); i > 0; --i){
-        uint16_t j = (uint16_t)(next_xorshift32(&state) % (i + 1));
-        uint8_t tmp = floor_colors[i];
-        floor_colors[i] = floor_colors[j];
-        floor_colors[j] = tmp;
-    }
-}
-
-uint8_t floor_color_id_at_position(float x, float y){
-    if(floor_colors == NULL || grid_rows == 0 || grid_cols == 0){
-        return 0;
-    }
-    float x_min = gps_min_x_q * 0.01f;
-    float y_min = gps_min_y_q * 0.01f;
-    float x_max = gps_max_x_q * 0.01f;
-    float y_max = gps_max_y_q * 0.01f;
-    if(x_max <= x_min || y_max <= y_min){
-        x_min = 0.05f;
-        y_min = 0.05f;
-        x_max = 1.05f;
-        y_max = 1.05f;
-    }
-    const float cell_w = (x_max - x_min) / grid_cols;
-    const float cell_h = (y_max - y_min) / grid_rows;
-    if(cell_w <= 0.0f || cell_h <= 0.0f){
-        return 0;
-    }
-
-    int16_t col = (int16_t)((x - x_min) / cell_w);
-    int16_t row = (int16_t)((y - y_min) / cell_h);
-    if(col < 0) col = 0;
-    if(row < 0) row = 0;
-    if(col >= grid_cols) col = (int16_t)(grid_cols - 1);
-    if(row >= grid_rows) row = (int16_t)(grid_rows - 1);
-
-    return floor_colors[(uint16_t)(row * grid_cols + col)];
-}
-
-uint8_t floor_color_value_at_position(float x, float y){
-    uint8_t color_id = floor_color_id_at_position(x, y);
-    if(color_id > 0){
-        color_id = (uint8_t)(((color_id - 1) % 6));
-    }
-    return color_id;
-}
-
-uint8_t led_from_color_id(uint8_t color_id){
-    uint8_t color_value = color_id;
-    if(color_value > 0){
-        color_value = (uint8_t)(((color_value - 1) % 6) + 1);
-    }
-    return led_from_color_value(color_value);
-}
-
 void update_debug_led(){
-    led = led_from_color_id(my_state);
+    led = led_from_color_value(my_state);
     set_color(led);
 }
 
@@ -372,15 +266,27 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     
     switch(sa_type){
         case MSG_A:
-            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01f * 2.0f;
-            gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01f * 2.0f;
-            gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
+        {
+            uint32_t payload24 = (((uint32_t)(data[shift] >> 1) & 0x7F) << 16) |
+                                 ((uint32_t)data[shift + 1] << 8) |
+                                 (uint32_t)data[shift + 2];
+            uint8_t x_q = (uint8_t)(payload24 & 0x3F);
+            uint8_t y_q = (uint8_t)((payload24 >> 6) & 0x3F);
+            uint8_t angle_q = (uint8_t)((payload24 >> 12) & 0x0F);
+            uint8_t color_q = (uint8_t)((payload24 >> 16) & 0x07);
+
+            gps_position.position_x = x_q * 0.01f * 2.0f;
+            gps_position.position_y = y_q * 0.01f * 2.0f;
+            gps_angle = angle_q * 24.0f;
+            gps_floor_color = color_q;
+
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
             }
             break;
+        }
 
         case MSG_B:
             if(init_received_A){
@@ -458,52 +364,20 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                     broadcasting_flag = (uint8_t)(packet_data & 0x1F);
                     adaptive_broadcast_until_ticks = 0;
                     set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
-                    init_struct_received = true;
                     init_received_A = true;
                 }
-                else if(packet_type == 1){
-                    grid_rows = (uint8_t)((sa_payload >> 7) & 0x7F);
-                    grid_cols = (uint8_t)(sa_payload & 0x7F);
-                    seed_hi = packet_data;
-                    eta_q = (uint8_t)(data[3] & 0x7F);
-                    map_options = (uint8_t)(data[4] & 0x7F);
-                    if(map_options == 0){
-                        map_options = 1;
-                    }
-                    seed_lo = (uint8_t)(data[5] & 0x3F);
-                    map_seed = (uint16_t)((seed_hi << 6) | seed_lo);
-                    if(map_seed == 0){
-                        map_seed = 1;
-                    }
-                    init_grid_received = (grid_rows > 0 && grid_cols > 0);
-                    init_map_received = true;
-                }
                 else if(packet_type == 3){
-                    gps_min_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
-                    gps_max_x_q = (uint8_t)(sa_payload & 0x7F);
-                    gps_min_y_q = (uint8_t)(data[3] & 0x7F);
-                    gps_max_y_q = (uint8_t)(data[4] & 0x7F);
-                    if(gps_max_x_q <= gps_min_x_q){
-                        gps_min_x_q = 5;
-                        gps_max_x_q = 105;
+                    gps_max_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    gps_max_y_q = (uint8_t)(sa_payload & 0x7F);
+                    if(gps_max_x_q == 0){
+                        gps_max_x_q = 100;
                     }
-                    if(gps_max_y_q <= gps_min_y_q){
-                        gps_min_y_q = 5;
-                        gps_max_y_q = 105;
+                    if(gps_max_y_q == 0){
+                        gps_max_y_q = 100;
                     }
-                    init_bounds_x_received = true;
-                    init_bounds_y_received = true;
                     update_arena_from_received_bounds();
                 }
 
-                if(init_struct_received &&
-                   init_grid_received &&
-                   init_map_received &&
-                   init_bounds_x_received &&
-                   init_bounds_y_received &&
-                   floor_colors == NULL){
-                    setup_floor_colors();
-                }
             }
             break;
         case MSG_B:
@@ -529,12 +403,18 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             parse_smart_arena_broadcast(msg->data);
             break;
         case ARK_INDIVIDUAL_MSG:
-            id1 = (msg->data[0] & 0b11111110) >> 1;
-            id2 = (msg->data[3] & 0b11111110) >> 1;
-            id3 = (msg->data[6] & 0b11111110) >> 1;
-            if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
-            if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
-            if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            if((msg->data[0] & 0x01) == MSG_A){
+                /* GPS+color packet: destination already enforced by OHC send. */
+                parse_smart_arena_message(msg->data, 0);
+            }
+            else{
+                id1 = (msg->data[0] & 0b11111110) >> 1;
+                id2 = (msg->data[3] & 0b11111110) >> 1;
+                id3 = (msg->data[6] & 0b11111110) >> 1;
+                if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
+                if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
+                if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            }
             break;
         case KILO_BROADCAST_MSG:
             parse_kilo_message(msg->data);
@@ -620,7 +500,7 @@ void decision(){
         control_value = compute_r_threshold(quorum_value);
         float p = rand_hard()/255.0;
         if(p < 0.01){
-            my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
+            my_state = gps_floor_color;
         }
         else{
             p = rand_hard()/255.0;
@@ -628,7 +508,7 @@ void decision(){
                 my_state = majority_vote();
             }
             else{
-                my_state = floor_color_id_at_position(gps_position.position_x,gps_position.position_y);
+                my_state = gps_floor_color;
             }
         }
         update_debug_led();
@@ -639,15 +519,25 @@ int majority_vote() {
     if (num_quorum_items < voting_msgs || num_quorum_items == 0) {
         return my_state;
     }
-    uint8_t buffer[6] = {0};
-    for (uint8_t i = 0; i < voting_msgs; i++) {
-        uint8_t remaining_count = num_quorum_items - i;
-        uint8_t random_index = i + (rand_hard() % remaining_count);
-        quorum_a* temp = quorum_array[i];
-        quorum_array[i] = quorum_array[random_index];
-        quorum_array[random_index] = temp;
-        buffer[quorum_array[i]->agent_state]++;
+
+    uint8_t sample_target = voting_msgs;
+    if(sample_target > num_quorum_items){
+        sample_target = num_quorum_items;
     }
+
+    uint8_t buffer[6] = {0};
+    uint8_t remaining_to_pick = sample_target;
+    for(uint8_t i = 0; i < num_quorum_items && remaining_to_pick > 0; ++i){
+        uint8_t remaining_items = (uint8_t)(num_quorum_items - i);
+        if((rand_hard() % remaining_items) < remaining_to_pick){
+            uint8_t state = quorum_array[i]->agent_state;
+            if(state < sizeof(buffer)){
+                buffer[state]++;
+            }
+            --remaining_to_pick;
+        }
+    }
+
     uint8_t max = 0;
     uint8_t selection = 0;
     for (uint8_t i = 0; i < sizeof(buffer); i++) {
@@ -698,10 +588,6 @@ void loop(){
 
 void deallocate_memory(){
     destroy_tree(&the_arena);
-    if(floor_colors != NULL){
-        free(floor_colors);
-        floor_colors = NULL;
-    }
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
 }

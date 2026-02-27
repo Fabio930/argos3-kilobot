@@ -56,8 +56,6 @@ public:
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity);
 
     void SendStateInformation(CKilobotEntity &c_kilobot_entity);
-    
-    Real abs_distance(const CVector2 a,const CVector2 b);
 
     // void UpdateLog(UInt16 Time);
 
@@ -83,16 +81,13 @@ private:
     UInt8                   m_unControlParameterQ;
     UInt16                  m_unFloorSeed;
     UInt8                   m_unEtaQ;
-    UInt8                   m_unGpsMinXQ;
     UInt8                   m_unGpsMaxXQ;
-    UInt8                   m_unGpsMinYQ;
     UInt8                   m_unGpsMaxYQ;
 
     std::vector<CVector2>   m_vecKilobotPositions;
     std::vector<CDegrees>   m_vecKilobotOrientations;
     std::vector<Real>       m_vecLastTimeMessaged;
     std::vector<UInt8>      m_vecStart_experiment;
-    std::vector<UInt8>      m_vecKilobotMsgType;
     std::vector<UInt8>      m_vecKilobotState;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
@@ -106,11 +101,6 @@ private:
     
     /* simulator seed */
     uint m_random_seed;
-
-    /* output file for data acquisition */
-    // std::ofstream m_cLog;
-    UInt8 header = 0;
-    UInt16 logging_time = 0;
 
     /* output file name*/
     std::string m_strLogFileName;
