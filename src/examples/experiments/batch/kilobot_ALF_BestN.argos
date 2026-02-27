@@ -57,6 +57,7 @@
             msgs_timeout = "__MSG_EXPIRING_SECONDS__"
             options = "__N_OPTIONS__"
             eta = "__ETA__"
+            init_distr = "__INIT_DISTR__"
             grid_rows = "20"
             grid_cols = "20"
             control = "__CONTROL_TYPE__"

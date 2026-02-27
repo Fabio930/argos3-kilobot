@@ -203,12 +203,12 @@ float compute_r_threshold(float quorum_value){
 
 uint8_t led_from_color_value(uint8_t color_value){
     switch(color_value){
-        case 1: return RGB(3,0,0);
-        case 2: return RGB(0,3,0);
-        case 3: return RGB(0,0,3);
-        case 4: return RGB(3,3,0);
-        case 5: return RGB(0,3,3);
-        case 6: return RGB(3,0,3);
+        case 0: return RGB(3,0,0);
+        case 1: return RGB(0,3,0);
+        case 2: return RGB(0,0,3);
+        case 3: return RGB(3,3,0);
+        case 4: return RGB(0,3,3);
+        case 5: return RGB(3,0,3);
         default: return RGB(0,0,0);
     }
 }
@@ -234,7 +234,7 @@ void setup_floor_colors(){
         map_options = 1;
     }
     for(uint16_t i = 0; i < total_cells; ++i){
-        floor_colors[i] = 1;
+        floor_colors[i] = 0;
     }
 
     uint16_t worse_cells = (uint16_t)(((uint32_t)eta_q * total_cells + 63) / 127);
@@ -248,7 +248,7 @@ void setup_floor_colors(){
     uint16_t cursor = 0;
     for(uint8_t opt = 0; opt < worse_options; ++opt){
         uint16_t cells_for_option = (uint16_t)(base_count + (opt < remainder ? 1 : 0));
-        uint8_t color_id = (uint8_t)(opt + 2);
+        uint8_t color_id = (uint8_t)(opt + 1);
         for(uint16_t j = 0; j < cells_for_option && cursor < worse_cells; ++j, ++cursor){
             floor_colors[cursor] = color_id;
         }
@@ -299,7 +299,7 @@ uint8_t floor_color_id_at_position(float x, float y){
 uint8_t floor_color_value_at_position(float x, float y){
     uint8_t color_id = floor_color_id_at_position(x, y);
     if(color_id > 0){
-        color_id = (uint8_t)(((color_id - 1) % 6) + 1);
+        color_id = (uint8_t)(((color_id - 1) % 6));
     }
     return color_id;
 }
@@ -366,14 +366,14 @@ void select_new_point(bool force){
 }
 
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
-    // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
     sa_type = data[shift] & 0b00000001;
     sa_payload = ((uint16_t)(data[shift + 1]) << 8) | data[shift + 2];
+    
     switch(sa_type){
         case MSG_A:
-            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
-            gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
+            gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01f * 2.0f;
+            gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01f * 2.0f;
             gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
@@ -381,6 +381,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 set_motion(FORWARD);
             }
             break;
+
         case MSG_B:
             if(init_received_A){
                 if(kb_index == 0){
@@ -390,15 +391,19 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 else if(kb_index == 1){
                     control_mode = (uint8_t)((sa_payload >> 14) & 0x03);
                     voting_msgs = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    
+                    my_state = (uint8_t)(sa_payload & 0x7F);
+                    init_control_received = true;
+                    update_debug_led();
+                }
+                else if(kb_index == 2){
                     control_parameter_q = (uint8_t)(sa_payload & 0x7F);
                     control_parameter = control_parameter_q / 127.0f;
-                    init_control_received = true;
                 }
             }
             break;
     }
 }
-
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
@@ -631,32 +636,18 @@ void decision(){
 }
 
 int majority_vote() {
-    // 1. Safety check: if we don't have enough messages, don't change state
     if (num_quorum_items < voting_msgs || num_quorum_items == 0) {
         return my_state;
     }
-
     uint8_t buffer[6] = {0};
-
-    // 2. Pick voting_msgs random UNIQUE entries
-    // We swap chosen items to the front of quorum_array to ensure uniqueness
     for (uint8_t i = 0; i < voting_msgs; i++) {
-        // Pick a random index from the remaining pool
-        // rand_hard() returns 0-255. Use modulo to fit the remaining items.
         uint8_t remaining_count = num_quorum_items - i;
         uint8_t random_index = i + (rand_hard() % remaining_count);
-
-        // Swap the pointer at current 'i' with the one at 'random_index'
-        // This moves the "used" item out of the selection pool
         quorum_a* temp = quorum_array[i];
         quorum_array[i] = quorum_array[random_index];
         quorum_array[random_index] = temp;
-
-        // Count the vote from the uniquely selected item
         buffer[quorum_array[i]->agent_state]++;
     }
-
-    // 3. Determine the winner (Majority with Tie-breaking)
     uint8_t max = 0;
     uint8_t selection = 0;
     for (uint8_t i = 0; i < sizeof(buffer); i++) {
@@ -665,10 +656,8 @@ int majority_vote() {
             selection = i;
         }
         else if (max != 0 && buffer[i] == max) {
-            // Tie-break: 50% chance to switch to the new option
-            if (rand_hard() < 128) { // 128 is approx 50% of 255
-                selection = i;
-            }
+            float p = rand_hard() / 255.0;
+            if (p < 0.5) selection = i;
         }
     }
 
@@ -677,22 +666,18 @@ int majority_vote() {
 
 void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
-    /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-    /* Init state, message type and control parameters*/
-    my_state = 0;
+    my_state = 255;
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
     init_array_qrm(&quorum_array);
 
-    /* Init random seed */
     uint8_t seed = rand_hard();
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
 
-    /* Init motion variables */
     set_motion(STOP);
 }
 
@@ -704,9 +689,11 @@ void loop(){
     fclose(fp);
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
-    random_way_point_model();
-    decision();
-    if(my_state > 0) talk();
+    if(my_state != 255){
+        random_way_point_model();
+        decision();
+        talk();
+    }
 }
 
 void deallocate_memory(){

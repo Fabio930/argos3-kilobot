@@ -68,12 +68,13 @@ private:
     /************************************/
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
-    float                   eta;
-    float                   control_parameter;
+    Real                    eta;
+    Real                    init_distr;
+    Real                    control_parameter;
     UInt8                   options;
     UInt8                   voting_msgs;
     std::string             control;
-
+    bool                    bTargetRandomWorse;
     UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
@@ -86,14 +87,13 @@ private:
     UInt8                   m_unGpsMaxXQ;
     UInt8                   m_unGpsMinYQ;
     UInt8                   m_unGpsMaxYQ;
-    Real                    m_fInitDistrib;
-    bool                    m_bTargetRandomWorse;
 
     std::vector<CVector2>   m_vecKilobotPositions;
     std::vector<CDegrees>   m_vecKilobotOrientations;
     std::vector<Real>       m_vecLastTimeMessaged;
     std::vector<UInt8>      m_vecStart_experiment;
     std::vector<UInt8>      m_vecKilobotMsgType;
+    std::vector<UInt8>      m_vecKilobotState;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
 

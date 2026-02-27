@@ -16,14 +16,14 @@ class CGridFloor {
 public:
     UInt32 Rows = 0, Cols = 0;
     Real XMin = 0, YMin = 0;
-    Real InvCellSizeX = 0, InvCellSizeY = 0; // precompute 1/dx, 1/dy
-    std::vector<UInt8> ColorId;              // Rows*Cols, colore per cella (id compatto)
+    Real InvCellSizeX = 0, InvCellSizeY = 0;
+    std::vector<UInt8> ColorId;             
 
     inline UInt32 Index(UInt32 r, UInt32 c) const { return r * Cols + c; }
 
     inline UInt8 GetColorIdAt(const CVector2& p) const {
         if(Rows == 0 || Cols == 0 || ColorId.empty()) {
-            return 0;
+            return 225;
         }
         UInt32 c = static_cast<UInt32>((p.GetX() - XMin) * InvCellSizeX);
         UInt32 r = static_cast<UInt32>((p.GetY() - YMin) * InvCellSizeY);
@@ -34,16 +34,16 @@ public:
 
     inline CColor GetColorAt(const CVector2& p) const {
         UInt8 unId = GetColorIdAt(p);
-        if(unId > 0) {
-            unId = static_cast<UInt8>(((unId - 1) % 6) + 1);
+        if(unId < 255) {
+            unId = static_cast<UInt8>(((unId - 1) % 6));
         }
         switch(unId) {
-            case 1: return CColor::RED;     // best
-            case 2: return CColor::GREEN;
-            case 3: return CColor::BLUE;
-            case 4: return CColor::YELLOW;
-            case 5: return CColor::CYAN;
-            case 6: return CColor::MAGENTA;
+            case 0: return CColor::RED;     // best
+            case 1: return CColor::GREEN;
+            case 2: return CColor::BLUE;
+            case 3: return CColor::YELLOW;
+            case 4: return CColor::CYAN;
+            case 5: return CColor::MAGENTA;
             default: return CColor::WHITE;
         }
     }

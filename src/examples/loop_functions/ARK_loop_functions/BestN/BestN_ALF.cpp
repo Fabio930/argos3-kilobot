@@ -64,18 +64,45 @@ void CBestN_ALF::PostStep(){
 
 /****************************************/
 /****************************************/
-
 void CBestN_ALF::SetupInitialKilobotStates(){
+    m_vecKilobotState.resize(m_tKilobotEntities.size());
     m_vecKilobotMsgType.resize(m_tKilobotEntities.size());
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
-    /* Setup the virtual states of a kilobot */
-    for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
+    UInt32 unTotalRobots = m_tKilobotEntities.size();
+    UInt32 unSpecialRobots = static_cast<UInt32>(unTotalRobots * init_distr);
+    UInt8 unSpecialOption = 0; 
+    if(bTargetRandomWorse && options > 1) {
+        unSpecialOption = c_rng->Uniform(CRange<UInt32>(1, options)); 
+    } else {
+        unSpecialOption = 0;
+    }
+    std::vector<UInt8> vecOtherOptions;
+    for(UInt8 i = 0; i < options; ++i) {
+        if(i != unSpecialOption) {
+            vecOtherOptions.push_back(i);
+        }
+    }
+    for(UInt16 it = 0; it < unTotalRobots; it++) {
+        UInt16 unKilobotID = GetKilobotId(*m_tKilobotEntities[it]);
+        
+        if(it < unSpecialRobots) {
+            m_vecKilobotState[unKilobotID] = unSpecialOption;
+        } 
+        else {
+            if (!vecOtherOptions.empty()) {
+                UInt32 idx = (it - unSpecialRobots) % vecOtherOptions.size();
+                m_vecKilobotState[unKilobotID] = vecOtherOptions[idx];
+            } else {
+                m_vecKilobotState[unKilobotID] = unSpecialOption;
+            }
+        }
+        SetupInitialKilobotState(*m_tKilobotEntities[it]);
+    }
 }
-
 /****************************************/
 /****************************************/
 
@@ -99,6 +126,16 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"options",options);
     GetNodeAttribute(tHierarchicalStructNode,"eta",eta);
+    std::string strInitDistr;
+    GetNodeAttribute(tHierarchicalStructNode, "init_distr", strInitDistr);
+    strInitDistr.erase(0, strInitDistr.find_first_not_of(" \t\r\n"));
+    strInitDistr.erase(strInitDistr.find_last_not_of(" \t\r\n") + 1);
+    bTargetRandomWorse = false;
+    if(!strInitDistr.empty() && strInitDistr.back() == 'r') {
+        bTargetRandomWorse = true;
+        strInitDistr.pop_back();
+    }
+    init_distr = std::stof(strInitDistr);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
@@ -359,36 +396,32 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
 
 /****************************************/
 /****************************************/
-
 void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
 
-    m_tMessages[unKilobotID].type = 0;
+    m_tMessages[unKilobotID].type = 1; // Cambiato a 1 per Individual Message
     for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
 
     const UInt8 unKilobotId7b = static_cast<UInt8>(unKilobotID & 0x7Fu);
     const UInt16 unPayloadHops = static_cast<UInt16>(msgs_n_hops & 0x1Fu);
+    
     const UInt16 unPayloadControl = static_cast<UInt16>(
         ((m_unControlMode & 0x03u) << 14) |
         ((voting_msgs & 0x7Fu) << 7) |
-        (m_unControlParameterQ & 0x7Fu));
+        (m_vecKilobotState[unKilobotID] & 0x7Fu));
 
-    /* Slot 0: MSG_B payload for msgs_n_hops (5 bits). */
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>(unPayloadHops >> 8);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(unPayloadHops & 0xFFu);
 
-    /* Slot 1: MSG_B payload reused for extra init params */
     m_tMessages[unKilobotID].data[3] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
     m_tMessages[unKilobotID].data[4] = static_cast<UInt8>(unPayloadControl >> 8);
     m_tMessages[unKilobotID].data[5] = static_cast<UInt8>(unPayloadControl & 0xFFu);
 
-    /* Slot 2: dummy MSG_B packet for the same robot, ignored by kb_index logic */
     m_tMessages[unKilobotID].data[6] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
     m_tMessages[unKilobotID].data[7] = 0;
-    m_tMessages[unKilobotID].data[8] = 0;
-
+    m_tMessages[unKilobotID].data[8] = static_cast<UInt8>(m_unControlParameterQ & 0x7Fu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 

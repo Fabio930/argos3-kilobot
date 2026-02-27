@@ -50,17 +50,17 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
+            rebroadcast = "0"
             adaptive_comm = "0"
-            msgs_n_hops = "1"
+            msgs_n_hops = "0"
             msgs_timeout = "300"
             options = "5"
-            init_distrib = "0.5"
-            eta = "0.78"
+            init_distr = "0.2"
+            eta = "0.7"
             grid_rows = "20"
             grid_cols = "20"
             control = "polynomial"
-            voting_msgs = "5"
+            voting_msgs = "7"
             control_parameter = "0.7">
         </hierarchicStruct>
 
