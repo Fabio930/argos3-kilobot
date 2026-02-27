@@ -109,7 +109,6 @@ void talk(){
 }
 
 void broadcast(){
-    // message
     sa_type = 0;
     if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops;
     sa_id = kilo_uid;
@@ -121,7 +120,6 @@ void broadcast(){
 }
 
 void rebroadcast(){
-    // message
     sa_type = 0;
     if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
     sa_id = quorum_array[selected_msg_indx]->agent_id;
@@ -149,10 +147,7 @@ static float clamp01(float value){
 }
 
 float compute_quorum_value(){
-    if(quorum_array == NULL){
-        return 2.0f;
-    }
-    if(num_quorum_items < min_quorum_length){
+    if(quorum_array == NULL || num_quorum_items < min_quorum_length){
         return 2.0f;
     }
 
@@ -212,7 +207,7 @@ void update_debug_led(){
 }
 
 void select_new_point(bool force){
-    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
+    /* if the robot arrived to the destination, a new goal is selected */
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
@@ -404,7 +399,6 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             break;
         case ARK_INDIVIDUAL_MSG:
             if((msg->data[0] & 0x01) == MSG_A){
-                /* GPS+color packet: destination already enforced by OHC send. */
                 parse_smart_arena_message(msg->data, 0);
             }
             else{
@@ -568,15 +562,13 @@ void setup(){
     seed = rand_hard();
     srand(seed);
 
+    fp = fopen(log_title,"a");
     set_motion(STOP);
 }
 
 void loop(){
     delta_elapsed = kilo_ticks - ticks_elapsed;
     ticks_elapsed = kilo_ticks;
-    fp = fopen(log_title,"a");
-    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,num_quorum_items,quorum_value,control_value);
-    fclose(fp);
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
     if(my_state != 255){
@@ -584,9 +576,11 @@ void loop(){
         decision();
         talk();
     }
+    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,num_quorum_items,quorum_value,control_value);
 }
 
 void deallocate_memory(){
+    fclose(fp);
     destroy_tree(&the_arena);
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
