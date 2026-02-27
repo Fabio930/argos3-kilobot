@@ -55,6 +55,7 @@
             msgs_n_hops = "1"
             msgs_timeout = "300"
             options = "5"
+            init_distrib = "0.5"
             eta = "0.78"
             grid_rows = "20"
             grid_cols = "20"
