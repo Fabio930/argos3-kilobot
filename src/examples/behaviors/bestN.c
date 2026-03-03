@@ -147,29 +147,19 @@ static float clamp01(float value){
 }
 
 float compute_quorum_value(){
-    if(quorum_array == NULL || num_quorum_items < min_quorum_length){
-        return 2.0f;
-    }
-
+    if(quorum_array == NULL || num_quorum_items < min_quorum_length) return 2.0f;
     uint16_t agreeing = 1; /* include own opinion */
     for(uint8_t i = 0; i < num_quorum_items; ++i){
         if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
             ++agreeing;
         }
     }
-
     return (float)agreeing / (float)(num_quorum_items + 1);
 }
 
 float compute_r_threshold(float quorum_value){
-    if(control_mode == f_static){
-        return clamp01(control_parameter);
-    }
-
-    if(quorum_value > 1.0f){
-        return 0.0f;
-    }
-
+    if(control_mode == f_static) return clamp01(control_parameter);
+    if(quorum_value > 1.0f) return 0.0f;
     switch(control_mode){
         case f_linear:
             return clamp01(quorum_value);
@@ -510,15 +500,9 @@ void decision(){
 }
 
 int majority_vote() {
-    if (num_quorum_items < voting_msgs || num_quorum_items == 0) {
-        return my_state;
-    }
-
+    if (num_quorum_items < voting_msgs || num_quorum_items == 0) return my_state;
     uint8_t sample_target = voting_msgs;
-    if(sample_target > num_quorum_items){
-        sample_target = num_quorum_items;
-    }
-
+    if(sample_target > num_quorum_items) sample_target = num_quorum_items;
     uint8_t buffer[6] = {0};
     uint8_t remaining_to_pick = sample_target;
     for(uint8_t i = 0; i < num_quorum_items && remaining_to_pick > 0; ++i){
@@ -531,7 +515,6 @@ int majority_vote() {
             --remaining_to_pick;
         }
     }
-
     uint8_t max = 0;
     uint8_t selection = 0;
     for (uint8_t i = 0; i < sizeof(buffer); i++) {
@@ -544,7 +527,6 @@ int majority_vote() {
             if (p < 0.5) selection = i;
         }
     }
-
     return (max == 0) ? my_state : selection;
 }
 
