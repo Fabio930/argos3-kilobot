@@ -360,7 +360,8 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
         m_tMessages[unKilobotID].data[i] = 0;
     }
 
-    UInt8 unAngleQ = static_cast<UInt8>(m_vecKilobotOrientations[unKilobotID].GetValue() * 0.0417) & 0x0Fu;
+    const Real fAngleDeg = m_vecKilobotOrientations[unKilobotID].GetValue();
+    UInt8 unAngleQ = static_cast<UInt8>(std::floor(fAngleDeg * (256.0 / 360.0))) & 0xFFu;
     const Real fPosXInRobotFrame = m_vecKilobotPositions[unKilobotID].GetX() - m_cGridFloor.XMin;
     const Real fPosYInRobotFrame = m_vecKilobotPositions[unKilobotID].GetY() - m_cGridFloor.YMin;
     const SInt32 nXQ = static_cast<SInt32>(std::round(fPosXInRobotFrame * 50.0));
@@ -377,8 +378,8 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     const UInt32 unPayload =
         (static_cast<UInt32>(unXQ) & 0x3Fu) |
         ((static_cast<UInt32>(unYQ) & 0x3Fu) << 6) |
-        ((static_cast<UInt32>(unAngleQ) & 0x0Fu) << 12) |
-        ((static_cast<UInt32>(unColorQ) & 0x07u) << 16);
+        ((static_cast<UInt32>(unAngleQ) & 0xFFu) << 12) |
+        ((static_cast<UInt32>(unColorQ) & 0x07u) << 20);
 
     /* Individual GPS packet: MSG_A in bit0 + 23-bit payload across 3 bytes. */
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 16) & 0x7Fu) << 1);

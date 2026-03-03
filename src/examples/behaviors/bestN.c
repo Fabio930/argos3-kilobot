@@ -257,12 +257,12 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                                  (uint32_t)data[shift + 2];
             uint8_t x_q = (uint8_t)(payload24 & 0x3F);
             uint8_t y_q = (uint8_t)((payload24 >> 6) & 0x3F);
-            uint8_t angle_q = (uint8_t)((payload24 >> 12) & 0x0F);
-            uint8_t color_q = (uint8_t)((payload24 >> 16) & 0x07);
+            uint8_t angle_q = (uint8_t)((payload24 >> 12) & 0xFF);
+            uint8_t color_q = (uint8_t)((payload24 >> 20) & 0x07);
 
             gps_position.position_x = x_q * 0.01f * 2.0f;
             gps_position.position_y = y_q * 0.01f * 2.0f;
-            gps_angle = angle_q * 24.0f;
+            gps_angle = angle_q * (360.0f / 256.0f);
             gps_floor_color = color_q;
 
             if(init_received_B && init_control_received && !init_received_C){
