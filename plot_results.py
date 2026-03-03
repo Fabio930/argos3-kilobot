@@ -222,7 +222,14 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
 
 
 def plot_accuracy_df(result_df: pd.DataFrame) -> int:
-    """Accuracy bar plot with eta on x-axis and colors keyed by vote_msg."""
+    """Accuracy bar plot with eta on x-axis.
+
+    Colors are now chosen exactly the same way as in :func:`plot_cohesion_df`:
+    each *function* gets its own base colormap and each distinct ``vote_msg``
+    receives a different shade from that colormap.  This keeps the color
+    classification consistent across cohesion, accuracy and time figures so
+    that different functions can be compared by the number of messages used.
+    """
     required_cols = {"eta", "vote_msg", "data"}
     missing = required_cols.difference(result_df.columns)
     if missing:
@@ -238,34 +245,52 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
         work = gdf.copy()
         work["metric"] = work["data"].apply(lambda x: float(np.mean(m_array_from_cell(x))))
-        agg = work.groupby(["eta", "vote_msg"], dropna=False)["metric"].agg(["mean", "std"]).reset_index()
+        # if there is no function column we still want the code to run, so
+        # introduce a dummy placeholder; this keeps the grouping logic
+        # uniform with the cohesion plots.
+        if "function" not in work.columns:
+            work["function"] = ""
+        # preserve the function column so we can colour by it
+        agg = work.groupby(["eta", "vote_msg", "function"], dropna=False)["metric"].agg(["mean", "std"]).reset_index()
         if agg.empty:
             continue
 
         eta_values = np.array(sorted(agg["eta"].dropna().unique().tolist()), dtype=float)
-        vote_values = sorted(agg["vote_msg"].dropna().unique().tolist())
-        vote_colors = _vote_color_map(vote_values)
-        if eta_values.size == 0 or not vote_values:
+        if eta_values.size == 0:
             continue
+
+        # build colour maps per function and list of (function,vote_msg) pairs
+        funcs = sorted(agg["function"].dropna().unique().tolist())
+        f_cmaps = _function_colormap(funcs)
+        pairs = agg[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
+        pairs.sort()
+        total_series = len(pairs)
 
         if eta_values.size > 1:
             min_gap = float(np.min(np.diff(eta_values)))
         else:
             min_gap = 0.1
         cluster_w = min_gap * 0.8
-        bar_w = cluster_w / max(1, len(vote_values))
+        bar_w = cluster_w / max(1, total_series)
+
+        pair_colors = {}
+        for f in funcs:
+            votes_for_f = sorted(agg[agg["function"] == f]["vote_msg"].dropna().unique().tolist())
+            cmap = f_cmaps[f]
+            shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
+            for idx, v in enumerate(votes_for_f):
+                pair_colors[(f, v)] = cmap(shades[idx])
 
         fig, ax = plt.subplots(figsize=(11, 6))
-        mean_table = agg.pivot(index="eta", columns="vote_msg", values="mean").reindex(eta_values)
-        std_table = agg.pivot(index="eta", columns="vote_msg", values="std").reindex(eta_values)
-
-        for i, vote in enumerate(vote_values):
-            means = mean_table[vote].to_numpy(dtype=float) if vote in mean_table.columns else np.full(eta_values.shape, np.nan)
-            stds = std_table[vote].to_numpy(dtype=float) if vote in std_table.columns else np.zeros(eta_values.shape, dtype=float)
+        for j, (f, v) in enumerate(pairs):
+            sub = agg[(agg["function"] == f) & (agg["vote_msg"] == v)]
+            means = sub.set_index("eta")["mean"].reindex(eta_values).to_numpy(dtype=float)
+            stds = sub.set_index("eta")["std"].reindex(eta_values).to_numpy(dtype=float)
             stds = np.nan_to_num(stds, nan=0.0)
 
-            pos = eta_values - (cluster_w / 2.0) + (i + 0.5) * bar_w
-            ax.bar(pos, means, width=bar_w, yerr=stds, capsize=3, label=f"m:{vote}", color=vote_colors[vote], alpha=0.85)
+            pos = eta_values - (cluster_w / 2.0) + (j + 0.5) * bar_w
+            ax.bar(pos, means, width=bar_w, yerr=stds, capsize=3,
+                   label=f"{f} m:{v}", color=pair_colors.get((f, v), "gray"), alpha=0.85)
 
         ax.set_xticks(eta_values)
         ax.set_xticklabels([str(e) for e in eta_values])
@@ -274,7 +299,10 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
         ax.set_ylabel("accuracy (%)")
         ax.set_title("Accuracy by eta")
         ax.grid(axis="y", alpha=0.25)
-        ax.legend(frameon=False, loc="best")
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            uniq = dict(zip(labels, handles))
+            ax.legend(uniq.values(), uniq.keys(), frameon=False, loc="best")
 
         file_name = f"accuracy_{_safe_filename_from_params(dict(group_meta))}.png"
         fig.tight_layout()
@@ -286,7 +314,14 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
 
 
 def plot_time_df(result_df: pd.DataFrame) -> int:
-    """Time box plot with eta on x-axis and colors keyed by vote_msg."""
+    """Time box plot with eta on x-axis.
+
+    Uses the same colour classification as the cohesion plots: each
+    ``function`` has its own colormap and each ``vote_msg`` is assigned a
+    different shade.  This makes it possible to visually match bars and boxes
+    across the various figure types when comparing functions with different
+    message counts.
+    """
     required_cols = {"eta", "vote_msg", "data"}
     missing = required_cols.difference(result_df.columns)
     if missing:
@@ -301,32 +336,57 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
 
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
         eta_values = np.array(sorted(gdf["eta"].dropna().unique().tolist()), dtype=float)
-        vote_values = sorted(gdf["vote_msg"].dropna().unique().tolist())
-        if eta_values.size == 0 or not vote_values:
+        if eta_values.size == 0:
             continue
 
-        vote_colors = _vote_color_map(vote_values)
+        # if function column is missing add empty placeholder so that downstream
+        # routines can operate without KeyError
+        if "function" not in gdf.columns:
+            gdf = gdf.copy()
+            gdf["function"] = ""
+
+        # build list of (function,vote) pairs and colour map
+        funcs = sorted(gdf["function"].dropna().unique().tolist())
+        f_cmaps = _function_colormap(funcs)
+        pairs = gdf[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
+        pairs.sort()
+        total_series = len(pairs)
+
         if eta_values.size > 1:
             min_gap = float(np.min(np.diff(eta_values)))
         else:
             min_gap = 0.1
         cluster_w = min_gap * 0.7
-        box_w = cluster_w / max(1, len(vote_values))
+        box_w = cluster_w / max(1, total_series)
+
+        # compute colours for each combination
+        pair_colors = {}
+        for f in funcs:
+            votes_for_f = sorted(gdf[gdf["function"] == f]["vote_msg"].dropna().unique().tolist())
+            cmap = f_cmaps[f]
+            shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
+            for idx, v in enumerate(votes_for_f):
+                pair_colors[(f, v)] = cmap(shades[idx])
 
         fig, ax = plt.subplots(figsize=(11, 6))
         has_boxes = False
-        for i, vote in enumerate(vote_values):
+
+        for j, (f, v) in enumerate(pairs):
             series_data = []
             positions = []
             for eta in eta_values:
-                subset = gdf[np.isclose(gdf["eta"].astype(float), eta) & (gdf["vote_msg"] == vote)]
+                subset = gdf[
+                    np.isclose(gdf["eta"].astype(float), eta)
+                    & (gdf["vote_msg"] == v)
+                    & (gdf["function"] == f)
+                ]
                 merged = []
                 for cell in subset["data"].tolist():
                     merged.extend(m_array_from_cell(cell).tolist())
                 if not merged:
                     continue
                 series_data.append(merged)
-                positions.append(float(eta - (cluster_w / 2.0) + (i + 0.5) * box_w))
+                positions.append(float(eta - (cluster_w / 2.0) + (j + 0.5) * box_w))
 
             if not series_data:
                 continue
@@ -337,10 +397,10 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
                 widths=box_w * 0.9,
                 patch_artist=True,
                 manage_ticks=False,
-                showfliers=False
+                showfliers=False,
             )
             for patch in bp["boxes"]:
-                patch.set_facecolor(vote_colors[vote])
+                patch.set_facecolor(pair_colors.get((f, v), "gray"))
                 patch.set_alpha(0.55)
             for median in bp["medians"]:
                 median.set_color("black")
@@ -360,8 +420,8 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
         ax.grid(axis="y", alpha=0.25)
 
         legend_items = [
-            Line2D([0], [0], color=vote_colors[v], lw=8, alpha=0.55, label=f"m:{v}")
-            for v in vote_values
+            Line2D([0], [0], color=pair_colors[p], lw=0, marker='o', markersize=8, label=f"{p[0]} m:{p[1]}")
+            for p in pair_colors
         ]
         if legend_items:
             ax.legend(handles=legend_items, frameon=False, loc="best")
