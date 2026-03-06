@@ -52,17 +52,26 @@ public:
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity);
 
     void SendStateInformation(CKilobotEntity &c_kilobot_entity);
+
+    void SendVariationStartInformation(CKilobotEntity &c_kilobot_entity);
+
+    void SendVariationEndInformation(CKilobotEntity &c_kilobot_entity);
+
+    void SendVariationSeedInformation(CKilobotEntity &c_kilobot_entity);
     
     Real abs_distance(const CVector2 a,const CVector2 b);
 
 private:
+
+    void SetupStateVariationPlan(const std::vector<UInt8>& vec_assigned_states);
 
     /************************************/
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
     float                   committed_percentage;
-    UInt16                  commitment_variation_time;
+    UInt16                  start_commitment_variation_time;
+    UInt16                  end_commitment_variation_time;
     bool                    variation_done = false;
     float                   next_committed_percentage;
 
@@ -77,6 +86,8 @@ private:
     std::vector<UInt8>      m_vecStart_experiment;
     std::vector<UInt8>      m_vecKilobotStates;
     std::vector<UInt8>      m_vecKilobotMsgType;
+    std::vector<UInt16>     m_vecVariationSeeds;
+    std::vector<UInt8>      m_vecVariationNumFlips;
     Real                    m_fMinTimeBetweenTwoMsg;
     UInt8                   start_experiment = 0;
 
