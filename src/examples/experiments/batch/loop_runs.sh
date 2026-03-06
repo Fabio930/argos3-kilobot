@@ -28,7 +28,7 @@ experiment_length="1000"
 RUNS=5
 numrobots="100"
 rebroadcast="0 1"
-adaptive_comm="0"
+adaptive_comm="0 1"
 msgs_n_hops="1"
 msgs_timeout="300"
 options="2 5"
@@ -36,7 +36,7 @@ eta2="0.4 0.5"
 init_distr="0.5"
 control="static polynomial"
 voting_msgs="3 5 7 9 15"
-control_parameter_list="0.5 0.6"
+control_parameter="0.5 0.6 0.7 0.8"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -100,11 +100,6 @@ for exp_len_par in $experiment_length; do
                                         control_dir=$init_dir/"Control#"$control_par
                                         if [[ ! -e $control_dir ]]; then
                                             mkdir $control_dir
-                                        fi
-                                        if [[ $control_par == "static" ]]; then
-                                            control_parameter="0.5 0.6 0.7"
-                                        else
-                                            control_parameter=$control_parameter_list
                                         fi
                                         for voting_msgs_par in $voting_msgs; do
                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
