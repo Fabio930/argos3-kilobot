@@ -200,7 +200,7 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
 
                     ax.plot(x, y, color=color, linewidth=2.0, label=label)
                     ax.fill_between(x, y - s, y + s, color=color, alpha=0.18)
-
+            ax.set_ylim(-0.03,1.03)
             ax.set_title(f"Option {option_id}")
             ax.set_xlabel("step")
             ax.grid(alpha=0.25)
@@ -297,6 +297,7 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
         ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
         ax.set_xlabel(r"$\eta$")
         ax.set_ylabel("accuracy (%)")
+        ax.set_ylim(-0.03,103)
         ax.set_title("Accuracy by eta")
         ax.grid(axis="y", alpha=0.25)
         handles, labels = ax.get_legend_handles_labels()
@@ -417,6 +418,7 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
         ax.set_xlabel(r"$\eta$")
         ax.set_ylabel("exit time (ticks)")
         ax.set_title("Exit Time by eta")
+        ax.set_ylim(0,10000)
         ax.grid(axis="y", alpha=0.25)
 
         legend_items = [
