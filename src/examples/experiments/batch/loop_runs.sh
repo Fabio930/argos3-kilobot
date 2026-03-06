@@ -28,12 +28,12 @@ experiment_length="1200"
 variation_start_time="600"
 variation_end_time="900"
 RUNS=100
-msg_hops="0"
-rebroadcast="0 1 2"
-msg_expiring_sec="120 180"
+msg_hops="1"
+rebroadcast="0 1"
+msg_expiring_sec="300"
 numrobots="25 100"
 threshold="0.8"
-delta="0.68;0.92 0.92;0.68"
+delta="0.68;0.92" # 0.92;0.68"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -66,7 +66,7 @@ for exp_len_par in $experiment_length; do
                         mkdir $comm_dir
                     fi
                     if [[ $comm_par == "1" ]]; then
-                        msg_hops="0 1"
+                        msg_hops="1"
                     else
                         msg_hops="0"
                     fi
@@ -110,15 +110,6 @@ for exp_len_par in $experiment_length; do
                                 done
                                 rm *.argos
                             done
-                            thr_par=${thr_par//./_}
-                            gt_before=${gt_before//./_}
-                            gt_after=${gt_after//./_}
-                            dest_dir="/media/fabio/Volume/dOresults_loop_runs_bigA/ExperimentLength#$exp_len_par/Threshold#$thr_par/GT#$gt_before;$gt_after/Rebroadcast#$comm_par/Robots#$agents_par/MsgExpTime#$msgs_par/MsgHops#$msgh/"
-                            thr_par=${thr_par//_/.}
-                            gt_before=${gt_before//_/.}
-                            gt_after=${gt_after//_/.}
-                            mkdir -p "$dest_dir"
-                            mv "$msgs_dir"/*.tsv "$dest_dir"
                         done
                     done
                 done
