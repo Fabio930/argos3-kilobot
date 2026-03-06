@@ -158,7 +158,11 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_position.position_x = (((sa_payload >> 8) & 0b11111100) >> 2) * 0.01 * 2;
             gps_position.position_y = ((uint8_t)sa_payload & 0b00111111) * 0.01 * 2;
             gps_angle = (((uint8_t)(sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b11000000) >> 6) * 24;
-            if(init_received_B && !init_received_C){
+            if(init_received_B &&
+               init_received_variation_start &&
+               init_received_variation_end &&
+               init_received_variation_seed &&
+               !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
                 set_motion(FORWARD);
@@ -167,21 +171,47 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             break;
         case MSG_B:
             if(init_received_A){
-                uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
-                uint8_t state = (uint8_t)sa_payload & 0b00000001;
-                switch (state){
-                    case 0:
-                        led = RGB(0,0,0);
-                        my_state = uncommitted;
-                        break;
-                    
-                    case 1:
-                        led = RGB(0,0,3);
-                        my_state = committed;
-                        break;
+                if(!init_received_B){
+                    uint8_t quorum_threshold = (uint8_t)(sa_payload >> 8);
+                    uint8_t state = (uint8_t)sa_payload & 0b00000001;
+                    switch (state){
+                        case 0:
+                            led = RGB(0,0,0);
+                            my_state = uncommitted;
+                            break;
+                        
+                        case 1:
+                            led = RGB(0,0,3);
+                            my_state = committed;
+                            break;
+                    }
+                    set_quorum_threshold(quorum_threshold);
+                    init_received_B = true;
                 }
-                set_quorum_threshold(quorum_threshold);
-                init_received_B = true;
+                else if(!init_received_variation_start){
+                    if((sa_payload & VARIATION_TAG_MASK) == VARIATION_START_TAG){
+                        variation_start_tick = (sa_payload & VARIATION_TIME_MASK);
+                        init_received_variation_start = true;
+                    }
+                }
+                else if(!init_received_variation_end){
+                    if((sa_payload & VARIATION_TAG_MASK) == VARIATION_END_TAG){
+                        variation_end_tick = (sa_payload & VARIATION_TIME_MASK);
+                        init_received_variation_end = true;
+                    }
+                }
+                else if(!init_received_variation_seed){
+                    uint16_t parsed_seed = sa_payload >> 4;
+                    uint8_t parsed_num_flips = (uint8_t)sa_payload & 0b00001111;
+                    if(parsed_seed >= VARIATION_SEED_MIN &&
+                       parsed_seed <= VARIATION_SEED_MAX &&
+                       parsed_num_flips <= MAX_STATE_CHANGES){
+                        variation_seed = parsed_seed;
+                        variation_num_flips = parsed_num_flips;
+                        build_state_change_schedule();
+                        init_received_variation_seed = true;
+                    }
+                }
             }
             break;
     }
@@ -342,6 +372,71 @@ void random_way_point_model(){
     }
 }
 
+uint16_t variation_rng_next(){
+    if(variation_rng_state == 0){
+        variation_rng_state = (uint32_t)variation_seed + 1;
+    }
+    variation_rng_state ^= variation_rng_state << 13;
+    variation_rng_state ^= variation_rng_state >> 17;
+    variation_rng_state ^= variation_rng_state << 5;
+    return (uint16_t)(variation_rng_state & 0x0000FFFF);
+}
+
+void build_state_change_schedule(){
+    next_state_change = 0;
+    if(variation_num_flips == 0) return;
+
+    uint8_t local_num_flips = variation_num_flips;
+    if(local_num_flips > MAX_STATE_CHANGES) local_num_flips = MAX_STATE_CHANGES;
+    variation_num_flips = local_num_flips;
+    variation_rng_state = variation_seed;
+
+    const uint32_t start_tick_kilo = (uint32_t)variation_start_tick * TICKS_PER_SEC;
+
+    if(variation_end_tick == 0 || variation_end_tick <= variation_start_tick){
+        for(uint8_t i = 0; i < local_num_flips; ++i){
+            state_change_ticks[i] = start_tick_kilo;
+        }
+        return;
+    }
+
+    uint16_t range = variation_end_tick - variation_start_tick + 1;
+    for(uint8_t i = 0; i < local_num_flips; ++i){
+        uint16_t random_sec = variation_start_tick + (variation_rng_next() % range);
+        state_change_ticks[i] = (uint32_t)random_sec * TICKS_PER_SEC;
+    }
+
+    for(uint8_t i = 0; i < local_num_flips; ++i){
+        for(uint8_t j = i + 1; j < local_num_flips; ++j){
+            if(state_change_ticks[j] < state_change_ticks[i]){
+                uint32_t tmp = state_change_ticks[i];
+                state_change_ticks[i] = state_change_ticks[j];
+                state_change_ticks[j] = tmp;
+            }
+        }
+    }
+}
+
+void apply_state_changes(){
+    if(!init_received_C) return;
+    while(next_state_change < variation_num_flips && kilo_ticks >= state_change_ticks[next_state_change]){
+        switch (my_state){
+            case uncommitted:
+                my_state = committed;
+                led = RGB(0,0,3);
+                break;
+            case committed:
+            default:
+                my_state = uncommitted;
+                led = RGB(0,0,0);
+                break;
+        }
+        next_state_change += 1;
+    }
+    if(my_state == committed) led = RGB(0,0,3);
+    else led = RGB(0,0,0);
+}
+
 void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     /* Init LED and motors */
@@ -350,6 +445,16 @@ void setup(){
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
+    init_received_variation_start = false;
+    init_received_variation_end = false;
+    init_received_variation_seed = false;
+    variation_start_tick = 0;
+    variation_end_tick = 0;
+    variation_seed = 0;
+    variation_num_flips = 0;
+    variation_rng_state = 0;
+    next_state_change = 0;
+    for(uint8_t i = 0; i < MAX_STATE_CHANGES; ++i) state_change_ticks[i] = 0;
 
     /* Init random seed */
     uint8_t seed = rand_hard();
@@ -367,10 +472,15 @@ void loop(){
     ticks_elapsed = kilo_ticks;
     random_way_point_model();
     decrement_quorum_counter(&quorum_array,delta_elapsed);
+    apply_state_changes();
     check_quorum(&quorum_array);
     if(init_received_C) talk();
-    fprintf(fp,"%d\t%d\t%d\n",my_state,quorum_reached,num_quorum_items);
-    if(quorum_reached==1) set_color(RGB(3,0,0));
+    fprintf(fp,"%d\t%d\t%d\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
+            my_state,quorum_reached,num_quorum_items,
+            init_received_B,init_received_variation_start,init_received_variation_end,init_received_variation_seed,
+            variation_start_tick,variation_end_tick,variation_num_flips,variation_seed);
+    if(quorum_reached==1 && my_state==committed) set_color(RGB(3,0,0));
+    else if(quorum_reached==1 && my_state==uncommitted) set_color(RGB(3,3,0));
     else set_color(led);
 }
 

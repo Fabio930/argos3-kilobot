@@ -10,6 +10,13 @@
 #include "distribution_functions.c"
 
 #define PI 3.14159265358979323846
+#define MAX_STATE_CHANGES 9
+#define VARIATION_START_TAG 0xA000
+#define VARIATION_END_TAG 0xB000
+#define VARIATION_TAG_MASK 0xF000
+#define VARIATION_TIME_MASK 0x0FFF
+#define VARIATION_SEED_MIN 0x0800
+#define VARIATION_SEED_MAX 0x09FF
 FILE *fp;
 
 /* divided by 10 */
@@ -89,7 +96,18 @@ uint16_t sa_payload = 0;
 
 bool init_received_A = false;
 bool init_received_B = false;
+bool init_received_variation_start = false;
+bool init_received_variation_end = false;
+bool init_received_variation_seed = false;
 bool init_received_C = false;
+
+uint16_t variation_start_tick = 0;
+uint16_t variation_end_tick = 0;
+uint16_t variation_seed = 0;
+uint8_t variation_num_flips = 0;
+uint32_t variation_rng_state = 0;
+uint32_t state_change_ticks[MAX_STATE_CHANGES];
+uint8_t next_state_change = 0;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
@@ -192,6 +210,12 @@ float AngleToGoal();
 /*                      Random way point model                       */
 /*-------------------------------------------------------------------*/
 void random_way_point_model();
+
+uint16_t variation_rng_next();
+
+void build_state_change_schedule();
+
+void apply_state_changes();
 
 /*-------------------------------------------------------------------*/
 /*                          Init function                            */

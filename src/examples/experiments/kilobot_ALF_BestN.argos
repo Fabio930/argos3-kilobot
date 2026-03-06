@@ -50,12 +50,13 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "0"
+            rebroadcast = "1"
             queue_lenght = "24"
-            msg_expiring_seconds = "600"
+            msg_expiring_seconds = "300"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
-            commitment_variation_time = "600"
+            start_commitment_variation_time = "600"
+            end_commitment_variation_time = "900"
             next_committed_percentage = "0.92"
         >
         </hierarchicStruct>
@@ -83,7 +84,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="25" max_trials="200">
+            <entity quantity="100" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
