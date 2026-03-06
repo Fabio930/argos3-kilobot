@@ -25,7 +25,8 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="1200"
-variation_time="600"
+variation_start_time="600"
+variation_end_time="900"
 RUNS=100
 msg_hops="0"
 rebroadcast="0 1 2"
@@ -85,6 +86,7 @@ for exp_len_par in $experiment_length; do
                                 mkdir $msgs_dir
                             fi
                             for i in $(seq 1 $RUNS); do
+                                kilo_file="run#${i}.tsv"
                                 config=`printf 'config_nrobots%s_rebroad%s_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
                                 cp $base_config $config
                                 sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
@@ -93,14 +95,14 @@ for exp_len_par in $experiment_length; do
                                 sed -i "s|__MSG_HOPS__|$msgh|g" $config
                                 sed -i "s|__SEED__|$i|g" $config
                                 sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                                sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
+                                sed -i "s|__VARIATION_START_TIME__|$variation_start_time|g" $config
+                                sed -i "s|__VARIATION_END_TIME__|$variation_end_time|g" $config
                                 sed -i "s|__THRESHOLD__|$thr_par|g" $config
                                 sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
                                 sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
                                 sed -i "s|__KILOLOG__|$kilo_file|g" $config
                                 echo "Running next configuration -- $config"
                                 argos3 -c './'$config
-                                kilo_file="run#${i}.tsv"
                                 for j in $(seq 0 $last_id); do
                                     rename="quorum_log_agent#$j"_"$kilo_file"
                                     mv "quorum_log_agent#$j.tsv" $rename

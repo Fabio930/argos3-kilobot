@@ -56,7 +56,8 @@
             expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
             quorum_threshold = "__THRESHOLD__"
             committed_percentage = "__GT_BEFORE_VAR__"
-            commitment_variation_time = "__VARIATION_TIME__"
+            start_commitment_variation_time = "__VARIATION_START_TIME__"
+            end_commitment_variation_time = "__VARIATION_END_TIME__"
             next_committed_percentage = "__GT_AFTER_VAR__"
         >
         </hierarchicStruct>
