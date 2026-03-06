@@ -55,8 +55,8 @@
             expiring_quorum_sec = "300"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
-            start_commitment_variation_time = "600"
-            end_commitment_variation_time = "900"
+            start_commitment_variation_time = "450"
+            end_commitment_variation_time = "750"
             next_committed_percentage = "0.92"
         >
         </hierarchicStruct>
