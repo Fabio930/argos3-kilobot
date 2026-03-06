@@ -50,7 +50,7 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
+            rebroadcast = "0"
             queue_lenght = "24"
             msg_expiring_seconds = "300"
             quorum_threshold = "0.8"
