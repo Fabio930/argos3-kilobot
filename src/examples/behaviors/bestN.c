@@ -475,10 +475,7 @@ void loop(){
     apply_state_changes();
     check_quorum(&quorum_array);
     if(init_received_C) talk();
-    fprintf(fp,"%d\t%d\t%d\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
-            my_state,quorum_reached,num_quorum_items,
-            init_received_B,init_received_variation_start,init_received_variation_end,init_received_variation_seed,
-            variation_start_tick,variation_end_tick,variation_num_flips,variation_seed);
+    fprintf(fp,"%d\t%d\t%d\n",my_state,quorum_reached,num_quorum_items);
     if(quorum_reached==1 && my_state==committed) set_color(RGB(3,0,0));
     else if(quorum_reached==1 && my_state==uncommitted) set_color(RGB(3,3,0));
     else set_color(led);

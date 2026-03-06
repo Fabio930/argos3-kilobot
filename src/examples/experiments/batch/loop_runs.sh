@@ -5,7 +5,6 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-
 wdir=`pwd`
 base_config=$1$2
 if [ ! -e $base_config ]; then
@@ -26,11 +25,12 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="1200"
-variation_time="600"
+variation_start_time="450"
+variation_end_time="750"
 RUNS=100
-rebroadcast="0"
+rebroadcast="0 1"
 numrobots="25 100"
-msg_expiring_seconds="120 180"
+msg_expiring_seconds="60 120 180 300 600"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
 
@@ -83,6 +83,7 @@ for exp_len_par in $experiment_length; do
                             mkdir $hops_dir
                         fi
                         for i in $(seq 1 $RUNS); do
+                            kilo_file="run#${i}.tsv"
                             config=`printf 'config_nrobots%s_rebroad%d_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
                             cp $base_config $config
                             sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
@@ -91,12 +92,12 @@ for exp_len_par in $experiment_length; do
                             sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
                             sed -i "s|__SEED__|$i|g" $config
                             sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                            sed -i "s|__VARIATION_TIME__|$variation_time|g" $config
+                            sed -i "s|__VARIATION_START_TIME__|$variation_start_time|g" $config
+                            sed -i "s|__VARIATION_END_TIME__|$variation_end_time|g" $config
                             sed -i "s|__THRESHOLD__|$thr_par|g" $config
                             sed -i "s|__GT_BEFORE_VAR__|$gt_before|g" $config
                             sed -i "s|__GT_AFTER_VAR__|$gt_after|g" $config
                             sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                            kilo_file="run#${i}.tsv"
                             echo "Running next configuration -- $config"
                             argos3 -c './'$config
                             for j in $(seq 0 $last_id); do
