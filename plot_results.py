@@ -496,7 +496,11 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
             ax.set_title(f"Pareto Trade-off | {sub_folder.replace('_', ' ').title()} | ctrl={ctrl}")
             ax.grid(alpha=0.3)
             ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1), frameon=False)
-            
+            ax.set_ylim(-0.03,1.03)
+            ax.set_xlim(-0.03,103)
+            if "time" in output_path:
+                ax.set_xlim(1,15000)
+                ax.set_xscale("log")
             # Use the new safe filename function
             curr_meta = {**base_meta, "control_par": ctrl}
             filename = f"pareto_{_safe_filename_from_params(curr_meta)}.png"
