@@ -393,6 +393,7 @@ void setup(){
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
+    fp = fopen(log_title,"a");
 
     /* Init motion variables */
     set_motion(STOP);
@@ -406,14 +407,13 @@ void loop(){
     random_way_point_model();
     check_quorum(&quorum_array);
     if(init_received_C) talk();
-    fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\n",my_state,quorum_reached,num_quorum_items);
-    fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
 }
 
 void deallocate_memory(){
+    fclose(fp);
     destroy_tree(&the_arena);
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
