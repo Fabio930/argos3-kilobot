@@ -25,15 +25,15 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="1200"
-variation_start_time="600"
-variation_end_time="900"
+variation_start_time="450"
+variation_end_time="750"
 RUNS=100
-msg_hops="1"
+msg_hops="0 1 2"
 rebroadcast="0 1"
-msg_expiring_sec="300"
+msg_expiring_sec="60 120 180 300 600"
 numrobots="25 100"
 threshold="0.8"
-delta="0.68;0.92" # 0.92;0.68"
+delta="0.68;0.92 0.92;0.68"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -66,7 +66,7 @@ for exp_len_par in $experiment_length; do
                         mkdir $comm_dir
                     fi
                     if [[ $comm_par == "1" ]]; then
-                        msg_hops="1"
+                        msg_hops="0 1"
                     else
                         msg_hops="0"
                     fi
