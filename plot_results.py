@@ -498,7 +498,7 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
             ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1), frameon=False)
             ax.set_ylim(-0.03,1.03)
             ax.set_xlim(-0.03,103)
-            if "time" in output_path:
+            if "time" in str(output_path):
                 ax.set_xlim(1,15000)
                 ax.set_xscale("log")
             # Use the new safe filename function
