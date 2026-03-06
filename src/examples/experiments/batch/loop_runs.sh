@@ -55,7 +55,6 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $dlt_dir ]]; then
                     mkdir $dlt_dir
                 fi
-
                 gt_before=${gt_before//_/.}
                 gt_after=${gt_after//_/.}
                 for comm_par in $rebroadcast; do
