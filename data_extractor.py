@@ -1,11 +1,13 @@
-import os, csv, gc, sys
+import os, csv, gc, sys, re
 import numpy as np
+from pathlib import Path
 
 class Results:
     min_buff_dim = 5
     ticks_per_sec = 10
     x_limit = 100
     limit = 0.8
+    FILE_RE = re.compile(r"agent#(?P<agent>\d+).*?run#(?P<run>\d+)")
         
 ##########################################################################################################
     def __init__(self):
@@ -16,10 +18,23 @@ class Results:
                 selem=elem.split('_')
                 if selem[0] in ("Oresults","Presults"):
                     self.bases.append(os.path.join(self.base, elem))
+
+##########################################################################################################
+    def _norm_idx(self, raw_id: int, size: int, name: str) -> int:
+        # Accept both 0-based and 1-based indices
+        if 0 <= raw_id < size:
+            return raw_id
+        if 1 <= raw_id <= size:
+            return raw_id - 1
+        raise ValueError(f"{name} id out of range: {raw_id} (size={size})")
     
 ##########################################################################################################
     def compute_avg_msgs(self,data):
         print("--- Computing avg buffer dimension ---")
+        if isinstance(data, np.ndarray):
+            if data.size == 0:
+                return []
+            return np.mean(data, axis=(0,1)).tolist()
         out = [0]*len(data[0][0])
         for i in range(len(data)):
             for j in range(len(data[i])):
@@ -31,54 +46,40 @@ class Results:
     
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,msg_hops,sub_path):
-        num_runs = int(len(os.listdir(sub_path))/n_agents)
-        states_bigM_1 = [np.array([])] * n_agents
-        quorum_bigM_1 = [np.array([])] * n_agents
-        msgs_bigM_1 = [np.array([])] * n_agents
-        states_M_1 = [np.array([],dtype=int)]*num_runs
-        quorum_M_1 = [np.array([],dtype=int)]*num_runs
-        msgs_M_1 = [np.array([],dtype=int)]*num_runs
-        agents_count = [0]*n_agents
-        for elem in sorted(os.listdir(sub_path)):
-            if '.' in elem:
-                selem=elem.split('.')
-                if selem[-1]=="tsv" and selem[0].split('_')[0]=="quorum":
-                    agent_id = int(selem[0].split('#')[-2].split('_')[0])
-                    seed = int(selem[0].split('#')[-1])
-                    agents_count[agent_id] += 1
-                    with open(os.path.join(sub_path, elem), newline='') as f:
-                        reader = csv.reader(f)
-                        log_count = 0
-                        for row in reader:
-                            log_count += 1
-                            if log_count % self.ticks_per_sec == 0:
-                                state = -1
-                                quorum = -1
-                                msgs = -1
-                                for val in row:
-                                    val             = val.split('\t')
-                                    state           = int(val[0])
-                                    quorum          = int(val[1])
-                                    msgs            = int(val[2])
-                                states_M_1[seed-1] = np.append(states_M_1[seed-1],state)
-                                quorum_M_1[seed-1] = np.append(quorum_M_1[seed-1],quorum)
-                                msgs_M_1[seed-1] = np.append(msgs_M_1[seed-1],msgs)
-                    if len(msgs_M_1[seed-1])<max_steps:
-                        missing = max_steps - len(msgs_M_1[seed-1])
-                        pad = np.full(missing, 0, dtype=int)
-                        states_M_1[seed-1] = np.concatenate((pad, states_M_1[seed-1]))
-                        quorum_M_1[seed-1] = np.concatenate((pad, quorum_M_1[seed-1]))
-                        msgs_M_1[seed-1] = np.concatenate((pad, msgs_M_1[seed-1]))
-                    elif len(msgs_M_1[seed-1])>max_steps:
-                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",len(msgs_M_1[seed-1]))
-                        sys.exit(0)
-                    if agents_count[agent_id]==num_runs:
-                        msgs_bigM_1[agent_id] = msgs_M_1
-                        states_bigM_1[agent_id] = states_M_1
-                        quorum_bigM_1[agent_id] = quorum_M_1
-                        msgs_M_1 = [np.array([],dtype=int)]*num_runs
-                        states_M_1 = [np.array([],dtype=int)]*num_runs
-                        quorum_M_1 = [np.array([],dtype=int)]*num_runs
+        files = [fp for fp in sorted(Path(sub_path).glob("*.tsv")) if self.FILE_RE.search(fp.stem)]
+        num_runs = int(len(files)/n_agents)
+        state_m = np.zeros((num_runs, n_agents, max_steps), dtype=np.int16)
+        quorum_m = np.zeros((num_runs, n_agents, max_steps), dtype=np.int16)
+        msgs_m = np.zeros((num_runs, n_agents, max_steps), dtype=np.int32)
+        loaded = np.zeros((num_runs, n_agents), dtype=bool)
+
+        for fp in files:
+            m = self.FILE_RE.search(fp.stem)
+            if not m:
+                continue
+            agent_raw = int(m.group("agent"))
+            run_raw = int(m.group("run"))
+            agent_id = self._norm_idx(agent_raw, n_agents, "agent")
+            seed = self._norm_idx(run_raw, num_runs, "run")
+
+            sampled = np.loadtxt(fp, delimiter="\t", ndmin=2)
+            if sampled.ndim == 1:
+                sampled = sampled.reshape(1, -1)
+            if sampled.shape[1] < 3:
+                print(fp, "bad columns:", sampled.shape[1])
+                sys.exit(0)
+            if self.ticks_per_sec > 1:
+                sampled = sampled[self.ticks_per_sec-1::self.ticks_per_sec]
+            n_rows = sampled.shape[0]
+            if n_rows > max_steps:
+                print(sub_path,'\n',"run:",run_raw,"agent:",agent_raw,"tot lines:",n_rows)
+                sys.exit(0)
+            start = max_steps - n_rows
+            if n_rows > 0:
+                state_m[seed, agent_id, start:] = sampled[:,0].astype(np.int16, copy=False)
+                quorum_m[seed, agent_id, start:] = sampled[:,1].astype(np.int16, copy=False)
+                msgs_m[seed, agent_id, start:] = sampled[:,2].astype(np.int32, copy=False)
+            loaded[seed, agent_id] = True
         algo    = ""
         arenaS  = ""
         info_vec    = sub_path.split('/')
@@ -88,12 +89,12 @@ class Results:
                 arenaS      = iv.split('_')[-1][:-1]
                 break
         t_messages  = info_vec[-2].split('#')[-1]
-        messages    = self.compute_avg_msgs(msgs_bigM_1)
+        messages    = self.compute_avg_msgs(msgs_m)
         self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
-        states = np.transpose(quorum_bigM_1, (1,0,2))
+        states = quorum_m
         self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents,self.limit)
         self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents)
-        del states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,messages,states
+        del state_m,quorum_m,msgs_m,loaded,messages,states
         gc.collect()
 
 ##########################################################################################################
@@ -186,6 +187,14 @@ class Results:
 
 ##########################################################################################################
     def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents):
+        if isinstance(data_in, np.ndarray):
+            if data_in.size == 0:
+                return
+            flag2 = np.mean(data_in, axis=(0,1))
+            std_per_run = np.std(data_in, axis=1)
+            fstd3 = np.median(std_per_run, axis=0)
+            self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+            return
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
             flag1=[-1]*len(data_in[i][0])
@@ -222,6 +231,17 @@ class Results:
 
 ##########################################################################################################
     def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents,limit):
+        if isinstance(data_in, np.ndarray):
+            if data_in.size == 0:
+                return
+            n_steps = data_in.shape[2]
+            sums = np.sum(data_in, axis=1)
+            thresh = limit * data_in.shape[1]
+            mask = sums >= thresh
+            times = np.where(mask.any(axis=1), mask.argmax(axis=1), n_steps).tolist()
+            times = sorted(times)
+            self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+            return
         times = [len(data_in[0][0])] * len(data_in)
         for i in range(len(data_in)): # per ogni run
             for z in range(len(data_in[i][0])): # per ogni tick

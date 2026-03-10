@@ -251,10 +251,10 @@ class Data:
         void_x_ticks    = []
         void_y_ticks    = []
         real_x_ticks    = []
-        handles_r       = [park_real,park,adam,fifo,rnd,rnd_inf,rnd_adp]
+        handles_r       = [park,adam,fifo,rnd,rnd_inf,rnd_adp]
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=3,figsize=(26,18))
+                fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
                 for a in arena:
                     if a=="smallA":
                         row = 1
@@ -301,30 +301,24 @@ class Data:
                                 if k==0:
                                     axt.set_xlabel(r"$T_m = 60\, s$")
                                 elif k==1:
-                                    axt.set_xlabel(r"$T_m = 300\, s$")
+                                    axt.set_xlabel(r"$T_m = 120\, s$")
                                 elif k==2:
+                                    axt.set_xlabel(r"$T_m = 180\, s$")
+                                elif k==3:
+                                    axt.set_xlabel(r"$T_m = 300\, s$")
+                                elif k==4:
                                     axt.set_xlabel(r"$T_m = 600\, s$")
                             elif row==2:
                                 ax[row][k].set_xticks(np.arange(0,1201,300),labels=real_x_ticks)
                                 ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
-                                if k==0:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                                elif k==1:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
-                                elif k==2:
-                                    ax[row][k].set_xlabel(r"$T\,  s$")
+                                ax[row][k].set_xlabel(r"$T\,  s$")
                             else:
                                 ax[row][k].set_xticks(np.arange(0,1201,300),labels=svoid_x_ticks)
                                 ax[row][k].set_xticks(np.arange(0,1201,50),labels=void_x_ticks,minor=True)
                             if k==0:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1))
-                                if row==0:
-                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                elif row==1:
-                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                                elif row==2:
-                                    ax[row][k].set_ylabel(r"$Q(G,\tau)$")
-                            elif k==2:
+                                ax[row][k].set_ylabel(r"$Q(G,\tau)$")
+                            elif k==4:
                                 ax[row][k].set_yticks(np.arange(0,1.01,.1),labels=void_y_ticks)
                                 axt = ax[row][k].twinx()
                                 labels = [item.get_text() for item in axt.get_yticklabels()]
