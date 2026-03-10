@@ -7,22 +7,36 @@ void set_quorum_threshold(const uint8_t Quorum_threshold){
 void sort_q(quorum_a **Array[]){
     true_quorum_items = 0;
     uint8_t IDS[num_quorum_items];
-    for (uint8_t i = 0; i < buffer_lenght-1; i++){
-        for (uint8_t j = i+1; j < buffer_lenght; j++){
-            if(((*Array)[i] == NULL && (*Array)[j] != NULL)){
-                quorum_a *flag = (*Array)[i];
-                (*Array)[i] = (*Array)[j];
-                (*Array)[j] = flag;
-            }
-            else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter > (*Array)[j]->counter){
-                quorum_a *flag = (*Array)[i];
-                (*Array)[i] = (*Array)[j];
-                (*Array)[j] = flag;
+    if(expiring_ticks_quorum > 0){
+        for (uint8_t i = 0; i < buffer_lenght-1; i++){
+            for (uint8_t j = i+1; j < buffer_lenght; j++){
+                if(((*Array)[i] == NULL && (*Array)[j] != NULL)){
+                    quorum_a *flag = (*Array)[i];
+                    (*Array)[i] = (*Array)[j];
+                    (*Array)[j] = flag;
+                }
+                else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter > (*Array)[j]->counter){
+                    quorum_a *flag = (*Array)[i];
+                    (*Array)[i] = (*Array)[j];
+                    (*Array)[j] = flag;
+                }
             }
         }
     }
+    else{
+        /* FIFO mode: keep insertion order, just compact NULLs to the end */
+        uint8_t write = 0;
+        for (uint8_t read = 0; read < buffer_lenght; read++){
+            if((*Array)[read] != NULL){
+                if(write != read) (*Array)[write] = (*Array)[read];
+                write++;
+            }
+        }
+        for (uint8_t i = write; i < buffer_lenght; i++) (*Array)[i] = NULL;
+    }
     for (size_t i = 0; i < num_quorum_items; i++) IDS[i] = 111;
     for (size_t i = 0; i < num_quorum_items; i++){
+        if((*Array)[i] == NULL) continue;
         uint8_t add=1;
         for (size_t j = 0; j < num_quorum_items; j++){
             if(IDS[j]==(*Array)[i]->agent_id){
@@ -133,13 +147,30 @@ uint8_t update_circular_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev
         }
     }
     else{
-        free((*Array)[0]);
-        (*Array)[0]=NULL;
-        (*Array)[1]->prev = NULL;
-        num_quorum_items--;
-        sort_q(Array);
-        (*Myquorum) = NULL;
-        out = update_circular_q(Array,Myquorum,&((*Array)[num_quorum_items-1]),Agent_id,received_state,expiring_time); 
+        if(expiring_ticks_quorum == 0){
+            /* FIFO mode: evict oldest (head) without reordering */
+            quorum_a *old = (*Array)[0];
+            if(old != NULL){
+                if(old->next != NULL) old->next->prev = NULL;
+                if(*Myquorum == old) *Myquorum = old->next;
+                free(old);
+            }
+            for(uint8_t i = 1; i < buffer_lenght; i++) (*Array)[i-1] = (*Array)[i];
+            (*Array)[buffer_lenght-1] = NULL;
+            if(num_quorum_items > 0) num_quorum_items--;
+            quorum_a *prev = NULL;
+            if(num_quorum_items > 0) prev = (*Array)[num_quorum_items-1];
+            out = update_circular_q(Array,Myquorum,(num_quorum_items>0)?&prev:NULL,Agent_id,received_state,expiring_time);
+        }
+        else{
+            free((*Array)[0]);
+            (*Array)[0]=NULL;
+            (*Array)[1]->prev = NULL;
+            num_quorum_items--;
+            sort_q(Array);
+            (*Myquorum) = NULL;
+            out = update_circular_q(Array,Myquorum,&((*Array)[num_quorum_items-1]),Agent_id,received_state,expiring_time); 
+        }
     }
     return out; 
 }
@@ -184,9 +215,16 @@ uint16_t select_a_random_message(){
 
 uint16_t select_message_by_fifo(quorum_a **Array[]){
     if(num_quorum_items>0){
-        for(uint8_t i=num_quorum_items-1;i>=0;i--){
-            if((*Array)[i]->delivered == 0) return i;
-            if(i==0) break;
+        if(expiring_ticks_quorum == 0){
+            for(uint8_t i=0;i<num_quorum_items;i++){
+                if((*Array)[i]->delivered == 0) return i;
+            }
+        }
+        else{
+            for(uint8_t i=num_quorum_items-1;i>=0;i--){
+                if((*Array)[i]->delivered == 0) return i;
+                if(i==0) break;
+            }
         }
     }
     return 0b1111111111111111;
