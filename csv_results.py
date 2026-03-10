@@ -172,6 +172,20 @@ class Data:
         ground_T, threshlds , jolly, msg_hops                                               = [],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim                                            = [],[],[],[],[],[],[]
         o_k                                                                                 = []
+
+        # helper used when the same logical configuration appears with different msg_hops
+        def add_or_merge(dct, key, series):
+            """store a new time series or average with an existing one"""
+            if key in dct:
+                old = dct[key]
+                if len(old) == len(series):
+                    dct[key] = [(x + y) / 2 for x, y in zip(old, series)]
+                else:
+                    # mismatched lengths are unexpected; prefer the new one
+                    dct[key] = series
+            else:
+                dct[key] = series
+
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -204,28 +218,31 @@ class Data:
                                                             if int(m_t) !=0 and m_t not in o_k: o_k.append(m_t)
                                                             
                                                             if a=='P' and int(c)==0 and int(m_t)!=0:
-                                                                dict_park_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                dict_park_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                key = (a_s,n_a,m_t,gt,thr)
+                                                                add_or_merge(dict_park_state, key, s_data[0])
+                                                                add_or_merge(dict_park_time, key, t_data[0])
                                                             elif a=='P' and int(c)==0 and int(m_t)==0:
-                                                                dict_park_state_real.update({(a_s,n_a,"60",gt,thr):s_data[0]})
-                                                                dict_park_time_real.update({(a_s,n_a,"60",gt,thr):t_data[0]})
+                                                                key = (a_s,n_a,"60",gt,thr)
+                                                                add_or_merge(dict_park_state_real, key, s_data[0])
+                                                                add_or_merge(dict_park_time_real, key, t_data[0])
                                                             elif a=='O':
+                                                                key = (a_s,n_a,m_t,gt,thr)
                                                                 if int(c)==0:
-                                                                    dict_adms_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                    dict_adms_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                    add_or_merge(dict_adms_state, key, s_data[0])
+                                                                    add_or_merge(dict_adms_time, key, t_data[0])
                                                                 elif int(c)==2:
-                                                                    dict_fifo_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                    dict_fifo_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                    add_or_merge(dict_fifo_state, key, s_data[0])
+                                                                    add_or_merge(dict_fifo_time, key, t_data[0])
                                                                 else:
                                                                     if m_h=="1":
-                                                                        dict_rnd_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                        dict_rnd_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                        add_or_merge(dict_rnd_state, key, s_data[0])
+                                                                        add_or_merge(dict_rnd_time, key, t_data[0])
                                                                     elif m_h=="31":
-                                                                        dict_rnd_adapt_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                        dict_rnd_adapt_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                        add_or_merge(dict_rnd_adapt_state, key, s_data[0])
+                                                                        add_or_merge(dict_rnd_adapt_time, key, t_data[0])
                                                                     else:
-                                                                        dict_rnd_inf_state.update({(a_s,n_a,m_t,gt,thr):s_data[0]})
-                                                                        dict_rnd_inf_time.update({(a_s,n_a,m_t,gt,thr):t_data[0]})
+                                                                        add_or_merge(dict_rnd_inf_state, key, s_data[0])
+                                                                        add_or_merge(dict_rnd_inf_time, key, t_data[0])
         self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
         # self.print_evolutions_anonymous(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
@@ -350,50 +367,30 @@ class Data:
         arena = more_k[0]
         agents_list = more_k[1]
 
-        # classify ground truth keys into H2L and L2H by inspecting series data
+        # choose ground truth for H2L and L2H explicitly to avoid mis‑detection
         gt_h2l = None
         gt_l2h = None
-        # helper to decide trend from a series: start mean vs end mean
-        def trend_of(series):
-            if series is None or len(series) < 10:
-                return None
-            start = np.mean(series[:10])
-            end = np.mean(series[-10:])
-            if start - end > 0.2:
-                return 'H2L'
-            if end - start > 0.2:
-                return 'L2H'
-            return None
-
-        for gt in ground_T:
-            found = False
-            # look in dict_park for any sample series with this gt
-            for k in list(dict_park.keys()) + list(dict_park_real.keys()):
-                try:
-                    if k[3] != gt:
-                        continue
-                except Exception:
-                    continue
-                series = dict_park.get(k)
-                if series is None:
-                    series = dict_park_real.get(k)
-                t = trend_of(series)
-                if t == 'H2L' and gt_h2l is None:
-                    gt_h2l = gt
-                    found = True
-                    break
-                if t == 'L2H' and gt_l2h is None:
-                    gt_l2h = gt
-                    found = True
-                    break
-            if gt_h2l is not None and gt_l2h is not None:
-                break
+        if len(ground_T) >= 2:
+            # assume higher value corresponds to high->low, lower to low->high
+            try:
+                sorted_gt = sorted(ground_T, key=lambda x: float(x))
+                gt_l2h = sorted_gt[0]
+                gt_h2l = sorted_gt[-1]
+            except Exception:
+                # non-numeric values: fall back to first/second
+                gt_l2h = ground_T[0]
+                gt_h2l = ground_T[1]
+        elif ground_T:
+            # only one value available; use it for both sides
+            gt_l2h = gt_h2l = ground_T[0]
+        # earlier logic ensured keys exist but we can optionally keep trend detection as sanity
+        # if a chosen gt has no data, nothing will plot in that column
 
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.makedirs(self.base+"/proc_data/images/", exist_ok=True)
 
         for thr in threshlds:
-            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(14,12))
+            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(19,16))
             # rows mapping same as other methods
             for a in arena:
                 if a=="smallA":
@@ -445,10 +442,25 @@ class Data:
                     ax[r][c].set_ylim(-0.03,1.03)
                     ax[r][c].set_xticks(np.arange(0,1201,300), labels=svoid_x_ticks)
                     ax[r][c].set_xticks(np.arange(0,1201,50), labels=void_x_ticks, minor=True)
+                    # ensure y ticks from 0 to 1 every 0.1
+                    ax[r][c].set_yticks(np.arange(0,1.01,0.1))
                     if c==0:
                         ax[r][c].set_ylabel(r"$Q(G,\tau)$")
                     # grid
                     ax[r][c].grid(True)
+
+            # add row labels (LD25, HD25, HD100) on the right column using twin y axes
+            ayt0 = ax[0][1].twinx()
+            ayt1 = ax[1][1].twinx()
+            ayt2 = ax[2][1].twinx()
+            labels = [item.get_text() for item in ayt0.get_yticklabels()]
+            empty_string_labels = [''] * len(labels)
+            ayt0.set_yticklabels(empty_string_labels)
+            ayt1.set_yticklabels(empty_string_labels)
+            ayt2.set_yticklabels(empty_string_labels)
+            ayt0.set_ylabel("LD25")
+            ayt1.set_ylabel("HD25")
+            ayt2.set_ylabel("HD100")
 
             # top twin labels for columns
             axt0 = ax[0][0].twiny()
