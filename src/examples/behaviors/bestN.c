@@ -3,6 +3,10 @@
  */
 #include "bestN.h"
 
+static void fifo_enqueue(const uint8_t agent_id);
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
+static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
+
 static void update_arena_from_received_bounds(){
     if(the_arena == NULL){
         return;
@@ -65,9 +69,9 @@ void talk(){
                 broadcast();
                 break;
             case 1:
-                selected_msg_indx = select_a_random_message();
                 p = random_in_range(0,1);
                 if(p<0.5){
+                    selected_msg_indx = select_a_random_message();
                     switch(msg_n_hops){
                         case 0:
                             if(selected_msg_indx != 0b1111111111111111) rebroadcast();
@@ -89,8 +93,11 @@ void talk(){
                 else broadcast();
                 break;
             case 2:
-                selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
-                if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                p = random_in_range(0,1);
+                if(p<0.5){
+                    selected_msg_indx = select_message_by_fifo_buffer(msg_n_hops);
+                    if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                }
                 else broadcast();                
                 break;
             default:
@@ -138,6 +145,45 @@ void compute_msg_hops(){
     if(msg_n_hops_rnd > msg_n_hops){
         msg_n_hops_rnd = msg_n_hops;
     }
+}
+
+static void fifo_enqueue(const uint8_t agent_id){
+    if(fifo_count >= FIFO_BUFFER_SIZE){
+        return;
+    }
+    fifo_ids[fifo_tail] = agent_id;
+    fifo_tail = (uint8_t)((fifo_tail + 1) % FIFO_BUFFER_SIZE);
+    fifo_count++;
+}
+
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
+    for(uint8_t i = 0; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
+            return i;
+        }
+    }
+    return 0b1111111111111111;
+}
+
+static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
+    while(fifo_count > 0){
+        uint8_t agent_id = fifo_ids[fifo_head];
+        fifo_head = (uint8_t)((fifo_head + 1) % FIFO_BUFFER_SIZE);
+        fifo_count--;
+        uint16_t idx = find_quorum_index_by_id(agent_id);
+        if(idx == 0b1111111111111111){
+            continue;
+        }
+        quorum_a *item = quorum_array[idx];
+        if(item == NULL || item->delivered != 0){
+            continue;
+        }
+        if(check_4_hops != 0 && item->msg_n_hops == 0){
+            continue;
+        }
+        return idx;
+    }
+    return 0b1111111111111111;
 }
 
 float random_in_range(float min, float max){
@@ -311,6 +357,9 @@ void update_messages(const uint8_t Msg_n_hops){
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
         buffer_update_rng += 1;
+    }
+    if(broadcasting_flag == 2 && (result == 1 || result == 2)){
+        fifo_enqueue(received_id);
     }
     sort_q(&quorum_array);
 }
@@ -551,6 +600,9 @@ void setup(){
 
     fp = fopen(log_title,"a");
     set_motion(STOP);
+    fifo_head = 0;
+    fifo_tail = 0;
+    fifo_count = 0;
 }
 
 void loop(){

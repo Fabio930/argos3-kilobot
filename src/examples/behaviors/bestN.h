@@ -117,6 +117,11 @@ arena_a *the_arena = NULL;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
+#define FIFO_BUFFER_SIZE 128
+uint8_t fifo_ids[FIFO_BUFFER_SIZE];
+uint8_t fifo_head = 0;
+uint8_t fifo_tail = 0;
+uint8_t fifo_count = 0;
 
 // uint8_t quorum_reached = 0;
 char log_title[30];
