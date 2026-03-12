@@ -3,6 +3,10 @@
  */
 #include "bestN.h"
 
+static void fifo_enqueue(const uint8_t agent_id);
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
+static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
+
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -47,9 +51,9 @@ void talk(){
                 broadcast();
                 break;
             case 1:
-                selected_msg_indx = select_a_random_message();
                 p = random_in_range(0,1);
                 if(p<0.5){
+                    selected_msg_indx = select_a_random_message();
                     switch(msg_n_hops){
                         case 0:
                             if(selected_msg_indx != 0b1111111111111111) rebroadcast();
@@ -67,8 +71,11 @@ void talk(){
                 else broadcast();
                 break;
             case 2:
-                selected_msg_indx = select_message_by_fifo(&quorum_array,msg_n_hops);
-                if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                p = random_in_range(0,1);
+                if(p<0.5){
+                    selected_msg_indx = select_message_by_fifo_buffer(msg_n_hops);
+                    if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                }
                 else broadcast();                
                 break;
             default:
@@ -106,6 +113,45 @@ void rebroadcast(){
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
+}
+
+static void fifo_enqueue(const uint8_t agent_id){
+    if(fifo_count >= FIFO_BUFFER_SIZE){
+        return;
+    }
+    fifo_ids[fifo_tail] = agent_id;
+    fifo_tail = (uint8_t)((fifo_tail + 1) % FIFO_BUFFER_SIZE);
+    fifo_count++;
+}
+
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
+    for(uint8_t i = 0; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
+            return i;
+        }
+    }
+    return 0b1111111111111111;
+}
+
+static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
+    while(fifo_count > 0){
+        uint8_t agent_id = fifo_ids[fifo_head];
+        fifo_head = (uint8_t)((fifo_head + 1) % FIFO_BUFFER_SIZE);
+        fifo_count--;
+        uint16_t idx = find_quorum_index_by_id(agent_id);
+        if(idx == 0b1111111111111111){
+            continue;
+        }
+        quorum_a *item = quorum_array[idx];
+        if(item == NULL || item->delivered != 0){
+            continue;
+        }
+        if(check_4_hops != 0 && item->msg_n_hops == 0){
+            continue;
+        }
+        return idx;
+    }
+    return 0b1111111111111111;
 }
 
 float random_in_range(float min, float max){
@@ -208,7 +254,10 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    if(broadcasting_flag == 2 && (result == 1 || result == 2)){
+        fifo_enqueue(received_id);
+    }
     sort_q(&quorum_array);
 }
 
@@ -414,9 +463,13 @@ void setup(){
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
+    fp = fopen(log_title,"a");
 
     /* Init motion variables */
     set_motion(STOP);
+    fifo_head = 0;
+    fifo_tail = 0;
+    fifo_count = 0;
 }
 
 void loop(){
@@ -427,14 +480,13 @@ void loop(){
     check_quorum(&quorum_array);
     random_way_point_model();
     if(init_received_D) talk();
-    fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\t%f\t%f\n",my_state,quorum_reached,num_quorum_items,gps_position.position_x,gps_position.position_y);
-    fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
 }
 
 void deallocate_memory(){
+    fclose(fp);
     destroy_tree(&the_arena);
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
