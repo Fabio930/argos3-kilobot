@@ -409,6 +409,7 @@ void setup(){
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
+    fp = fopen(log_title,"a");
 
     /* Init motion variables */
     set_motion(STOP);
@@ -421,14 +422,13 @@ void loop(){
     check_quorum(&quorum_array);
     random_way_point_model();
     if(init_received_D) talk();
-    fp = fopen(log_title,"a");
     fprintf(fp,"%d\t%d\t%d\t%f\t%f\n",my_state,quorum_reached,true_quorum_items,gps_position.position_x,gps_position.position_y);
-    fclose(fp);
     if(quorum_reached==1) set_color(RGB(3,0,0));
     else set_color(led);
 }
 
 void deallocate_memory(){
+    fclose(fp);
     destroy_tree(&the_arena);
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
