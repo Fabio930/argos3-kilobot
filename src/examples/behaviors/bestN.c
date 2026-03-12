@@ -347,6 +347,7 @@ void setup(){
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
+    fp = fopen(log_title,"a");
 
     /* Init motion variables */
     set_motion(STOP);
@@ -355,18 +356,17 @@ void setup(){
 void loop(){
     delta_elapsed = kilo_ticks - ticks_elapsed;
     ticks_elapsed = kilo_ticks;
-    fp = fopen(log_title,"a");
     for (uint8_t i = 0; i < num_quorum_items; i++){
         if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_array[i]->agent_id);
         else fprintf(fp,"%d,",quorum_array[i]->agent_id);
     }
-    fclose(fp);
     decrement_quorum_counter(&quorum_array,delta_elapsed);
     random_way_point_model();
     if(init_received_C) talk();
 }
 
 void deallocate_memory(){
+    fclose(fp);
     destroy_tree(&the_arena);
     destroy_quorum_memory(&quorum_array,&quorum_list);
     return;
