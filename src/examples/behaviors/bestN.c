@@ -21,13 +21,6 @@ static uint32_t received_arena_diagonal_cm(){
     return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
 }
 
-static bool adaptive_broadcast_only_active(){
-    if(broadcasting_flag != 1 || adaptive_comm == 0){
-        return false;
-    }
-    return ((int32_t)(adaptive_broadcast_until_ticks - kilo_ticks) > 0);
-}
-
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -72,10 +65,6 @@ void talk(){
                 broadcast();
                 break;
             case 1:
-                if(adaptive_broadcast_only_active()){
-                    broadcast();
-                    break;
-                }
                 selected_msg_indx = select_a_random_message();
                 p = random_in_range(0,1);
                 if(p<0.5){
@@ -85,7 +74,11 @@ void talk(){
                             else broadcast();
                             break;
                         default:
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops){
+                            if(adaptive_comm == 1){
+                                compute_msg_hops();
+                            }
+                            uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < hop_limit){
                                 quorum_array[selected_msg_indx]->msg_n_hops += 1;
                                 rebroadcast();
                             }
@@ -129,6 +122,22 @@ void rebroadcast(){
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
+}
+
+void compute_msg_hops(){
+    if(kilo_ticks > buff_ticks_sec + buff_ticks){
+        buff_ticks = kilo_ticks;
+        if(buffer_update_rng > 0){
+            msg_n_hops_rnd = 0;
+        }
+        else{
+            msg_n_hops_rnd += 1;
+        }
+        buffer_update_rng = 0;
+    }
+    if(msg_n_hops_rnd > msg_n_hops){
+        msg_n_hops_rnd = msg_n_hops;
+    }
 }
 
 float random_in_range(float min, float max){
@@ -277,6 +286,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             if(init_received_A){
                 if(kb_index == 0){
                     msg_n_hops = (uint8_t)(sa_payload & 0x1F);
+                    msg_n_hops_rnd = msg_n_hops;
                     init_received_B = true;
                 }
                 else if(kb_index == 1){
@@ -300,11 +310,7 @@ void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
-        uint32_t pause_ticks = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-        if(pause_ticks == 0){
-            pause_ticks = 1;
-        }
-        adaptive_broadcast_until_ticks = kilo_ticks + pause_ticks;
+        buffer_update_rng += 1;
     }
     sort_q(&quorum_array);
 }
@@ -347,7 +353,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                     }
                     adaptive_comm = (uint8_t)((packet_data >> 5) & 0x01);
                     broadcasting_flag = (uint8_t)(packet_data & 0x1F);
-                    adaptive_broadcast_until_ticks = 0;
                     set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
                     init_received_A = true;
                 }

@@ -98,7 +98,10 @@ const uint16_t decision_ticks = TICKS_PER_SEC * 5;
 uint32_t last_decision_ticks = 0;
 uint8_t broadcasting_flag = 0;
 uint8_t adaptive_comm = 0;
-uint32_t adaptive_broadcast_until_ticks = 0;
+uint32_t buff_ticks_sec = TICKS_PER_SEC * .2;
+uint32_t buff_ticks = 0;
+uint8_t msg_n_hops_rnd = 0;
+uint64_t buffer_update_rng = 0;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -154,6 +157,8 @@ void talk();
 void broadcast();
 
 void rebroadcast();
+
+void compute_msg_hops();
 
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
