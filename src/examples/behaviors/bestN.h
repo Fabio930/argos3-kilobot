@@ -122,6 +122,11 @@ uint8_t fifo_ids[FIFO_BUFFER_SIZE];
 uint8_t fifo_head = 0;
 uint8_t fifo_tail = 0;
 uint8_t fifo_count = 0;
+uint8_t vote_fifo_ids[FIFO_BUFFER_SIZE];
+uint8_t vote_fifo_states[FIFO_BUFFER_SIZE];
+uint8_t vote_fifo_head = 0;
+uint8_t vote_fifo_tail = 0;
+uint8_t vote_fifo_count = 0;
 
 // uint8_t quorum_reached = 0;
 char log_title[30];

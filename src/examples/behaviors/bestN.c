@@ -4,6 +4,7 @@
 #include "bestN.h"
 
 static void fifo_enqueue(const uint8_t agent_id);
+static void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state);
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
 static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
 
@@ -155,6 +156,64 @@ static void fifo_enqueue(const uint8_t agent_id){
     fifo_ids[fifo_tail] = agent_id;
     fifo_tail = (uint8_t)((fifo_tail + 1) % FIFO_BUFFER_SIZE);
     fifo_count++;
+}
+
+static void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
+    uint8_t capacity = voting_msgs;
+    if(capacity == 0){
+        vote_fifo_head = 0;
+        vote_fifo_tail = 0;
+        vote_fifo_count = 0;
+        return;
+    }
+    if(capacity > FIFO_BUFFER_SIZE){
+        capacity = FIFO_BUFFER_SIZE;
+    }
+    while(vote_fifo_count > capacity){
+        vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count--;
+    }
+    if(vote_fifo_count == 0){
+        vote_fifo_head = vote_fifo_tail;
+    }
+
+    int16_t found = -1;
+    for(uint8_t i = 0; i < vote_fifo_count; ++i){
+        uint8_t idx = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
+        if(vote_fifo_ids[idx] == agent_id){
+            found = i;
+            break;
+        }
+    }
+
+    if(found < 0){
+        if(vote_fifo_count >= capacity){
+            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+            vote_fifo_count--;
+        }
+        vote_fifo_ids[vote_fifo_tail] = agent_id;
+        vote_fifo_states[vote_fifo_tail] = agent_state;
+        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count++;
+        return;
+    }
+
+    uint8_t last_offset = (uint8_t)(vote_fifo_count - 1);
+    if((uint8_t)found != last_offset){
+        for(uint8_t i = (uint8_t)found; i < last_offset; ++i){
+            uint8_t from = (uint8_t)((vote_fifo_head + i + 1) % FIFO_BUFFER_SIZE);
+            uint8_t to = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
+            vote_fifo_ids[to] = vote_fifo_ids[from];
+            vote_fifo_states[to] = vote_fifo_states[from];
+        }
+        uint8_t last_idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
+        vote_fifo_ids[last_idx] = agent_id;
+        vote_fifo_states[last_idx] = agent_state;
+    }
+    else{
+        uint8_t idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
+        vote_fifo_states[idx] = agent_state;
+    }
 }
 
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
@@ -359,6 +418,7 @@ void update_messages(const uint8_t Msg_n_hops){
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
         buffer_update_rng += 1;
     }
+    vote_fifo_update(received_id, received_committed);
     if(broadcasting_flag == 2 && (result == 1 || result == 2)){
         fifo_enqueue(received_id);
     }
@@ -555,19 +615,18 @@ void decision(){
 }
 
 int majority_vote() {
-    if (num_quorum_items < voting_msgs || num_quorum_items == 0) return my_state;
+    if (vote_fifo_count == 0 || voting_msgs == 0) return my_state;
     uint8_t sample_target = voting_msgs;
-    if(sample_target > num_quorum_items) sample_target = num_quorum_items;
+    if(sample_target > FIFO_BUFFER_SIZE) sample_target = FIFO_BUFFER_SIZE;
+    if(sample_target > vote_fifo_count) sample_target = vote_fifo_count;
     uint8_t buffer[6] = {0};
-    uint8_t remaining_to_pick = sample_target;
-    for(uint8_t i = 0; i < num_quorum_items && remaining_to_pick > 0; ++i){
-        uint8_t remaining_items = (uint8_t)(num_quorum_items - i);
-        if((rand_hard() % remaining_items) < remaining_to_pick){
-            uint8_t state = quorum_array[i]->agent_state;
-            if(state < sizeof(buffer)){
-                buffer[state]++;
-            }
-            --remaining_to_pick;
+    uint8_t start_offset = (uint8_t)(vote_fifo_count - sample_target);
+    uint8_t idx = (uint8_t)((vote_fifo_head + start_offset) % FIFO_BUFFER_SIZE);
+    for(uint8_t i = 0; i < sample_target; ++i){
+        uint8_t state = vote_fifo_states[idx];
+        idx = (uint8_t)((idx + 1) % FIFO_BUFFER_SIZE);
+        if(state < sizeof(buffer)){
+            buffer[state]++;
         }
     }
     uint8_t max = 0;
@@ -604,6 +663,9 @@ void setup(){
     fifo_head = 0;
     fifo_tail = 0;
     fifo_count = 0;
+    vote_fifo_head = 0;
+    vote_fifo_tail = 0;
+    vote_fifo_count = 0;
 }
 
 void loop(){

@@ -27,16 +27,16 @@ fi
 experiment_length="1000"
 RUNS=5
 numrobots="100"
-rebroadcast="0 1"
-adaptive_comm="0"
-msgs_n_hops="1"
+rebroadcast="0 1 2"
+adaptive_set="0"
+msgs_n_hops=""
 msgs_timeout="300"
 options="2 5"
 eta2="0.4 0.5"
 init_distr="0.5"
 control="static polynomial"
 voting_msgs="3 5 7 9 15"
-control_parameter="0.5 0.6 0.7 0.8"
+control_parameter="0.5 0.8"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -50,9 +50,9 @@ for exp_len_par in $experiment_length; do
                 mkdir $comm_dir
             fi
             if [[ $comm_par == "1" ]]; then
-                adaptive_set=$adaptive_comm
+                msgs_n_hops="1"
             else
-                adaptive_set="0"
+                msgs_n_hops="0"
             fi
             for adaptive_par in $adaptive_set; do
                 adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
