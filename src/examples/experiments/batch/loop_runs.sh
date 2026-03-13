@@ -65,13 +65,13 @@ fi
 ### experiment_length is in seconds ###
 #######################################
 experiment_length="900"
+numrobots="25"
 RUNS=100
 rebroadcast="2"
+messages_hops="0"
 msg_expiring_sec="60 120 180 300 600"
-numrobots="25"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-messages_hops="1"
 # small arena dimensions
 arena_x_side="0.500 1.000"
 arena_y_side="0.500 0.250"
