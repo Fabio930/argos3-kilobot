@@ -26,9 +26,9 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="0 1 2"
+rebroadcast="2"
 msg_expiring_sec="60 120 180 300 600"
-numrobots="25 100"
+numrobots="25"
 messages_hops="0"
 
 for exp_len_par in $experiment_length; do
@@ -41,11 +41,6 @@ for exp_len_par in $experiment_length; do
             comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
             if [[ ! -e $comm_dir ]]; then
                 mkdir $comm_dir
-            fi
-            if [[ $comm_par == "1" ]]; then
-                messages_hops="0 1"
-            else
-                messages_hops="0"
             fi
             agents_dir=$comm_dir/"Robots#"$agents_par
             if [[ ! -e $agents_dir ]]; then

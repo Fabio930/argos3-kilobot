@@ -1,4 +1,4 @@
-import os, csv, logging
+import os, csv, logging, re
 import numpy as np
 import pandas as pd
 import matplotlib.colors as colors
@@ -150,6 +150,34 @@ mscale.register_scale(LinLogScale)
 
 ##########################################################################################################
 class Data:
+    _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
+    _INT_RE = re.compile(r"-?\d+")
+
+###################################################
+    @staticmethod
+    def _parse_float_list(raw, allow_dash=False):
+        raw = raw.strip()
+        if allow_dash and raw == "-":
+            return [-1.0]
+        if raw and raw[0] == "[" and raw[-1] == "]":
+            raw = raw[1:-1]
+        if "[" in raw or "]" in raw:
+            raw = raw.replace("[", "").replace("]", "")
+        if not raw:
+            return []
+        return [float(x) for x in Data._FLOAT_RE.findall(raw)]
+
+###################################################
+    @staticmethod
+    def _parse_int_list(raw):
+        raw = raw.strip()
+        if raw and raw[0] == "[" and raw[-1] == "]":
+            raw = raw[1:-1]
+        if "[" in raw or "]" in raw:
+            raw = raw.replace("[", "").replace("]", "")
+        if not raw:
+            return []
+        return [int(x) for x in Data._INT_RE.findall(raw)]
     def __init__(self) -> None:
         self.bases = []
         self.base = os.path.abspath("")
@@ -212,14 +240,7 @@ class Data:
     
 ###################################################
     def dull_division(self,buffer,durations,event_observed):
-        durations_by_buffer = {"all": [[], [], []]}
-        for i in range(len(buffer)):
-            tmp = durations_by_buffer.get("all")
-            tmp[0].append(durations[i])
-            tmp[1].append(event_observed[i])
-            tmp[2].append(buffer[i])
-            durations_by_buffer.update({"all":tmp})
-        return durations_by_buffer
+        return {"all": [list(durations), list(event_observed), list(buffer)]}
     
 ###################################################
     def adapt_dict_to_weibull_est(self,data):
@@ -242,22 +263,15 @@ class Data:
     def sort_arrays_in_dict(self,data_to_sort):
         out = {}
         for k in data_to_sort.keys():
-            durations = data_to_sort.get(k)[0]
-            event_observed = data_to_sort.get(k)[1]
-            buffers = data_to_sort.get(k)[2]
-            for i in range(len(durations)):
-                for j in range(i+1,len(durations)):
-                    if durations[j]<durations[i]:
-                        tmp = durations[i]
-                        durations[i] = durations[j]
-                        durations[j] = tmp
-                        tmp = event_observed[i]
-                        event_observed[i] = event_observed[j]
-                        event_observed[j] = tmp
-                        tmp = buffers[i]
-                        buffers[i] = buffers[j]
-                        buffers[j] = tmp
-            out.update({k:[durations,event_observed,buffers]})
+            durations = np.asarray(data_to_sort.get(k)[0])
+            event_observed = np.asarray(data_to_sort.get(k)[1])
+            buffers = np.asarray(data_to_sort.get(k)[2])
+            if durations.size > 1:
+                order = np.argsort(durations)
+                durations = durations[order]
+                event_observed = event_observed[order]
+                buffers = buffers[order]
+            out.update({k:[durations.tolist(),event_observed.tolist(),buffers.tolist()]})
         return out
 
 ###################################################
@@ -312,218 +326,125 @@ class Data:
 ###################################################
     def read_msgs_csv(self,path):
         data = {}
-        lc = 0
-        with open(path,newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if lc == 0:
-                    lc = 1
-                else:
-                    keys = []
-                    array_val=[]
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval))
-                            if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,[])})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    keys.append(tval.strip())
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            header_cols = header.rstrip('\n').split('\t')
+            try:
+                data_idx = header_cols.index("data")
+            except ValueError:
+                data_idx = max(len(header_cols) - 1, 0)
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= data_idx:
+                    continue
+                keys = cols[:data_idx]
+                array_val = self._parse_float_list(cols[data_idx])
+                if len(keys) >= 6:
+                    data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,[])})
         return data
     
 ###################################################
     def read_msgs_csv_w_std(self,path):
         data = {}
-        lc = 0
-        with open(path,newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if lc == 0:
-                    lc = 1
-                else:
-                    keys = []
-                    array_val=[]
-                    std_val=[]
-                    sem = 0
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval)) if sem==0 else std_val.append(float(tval))
-                            if ']' in val and sem==1:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,std_val)})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k] or ']' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != ']' and c != '[':
-                                            tval+=c
-                                        elif c == ']':
-                                            array_val.append(float(tval))
-                                            tval = ''
-                                            sem = 1
-                                    if tval!= '': array_val.append(float(tval)) if sem==0 else std_val.append(float(tval))
-                                else:
-                                    keys.append(tval.strip())
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            header_cols = header.rstrip('\n').split('\t')
+            try:
+                data_idx = header_cols.index("data")
+            except ValueError:
+                data_idx = max(len(header_cols) - 2, 0)
+            try:
+                std_idx = header_cols.index("std")
+            except ValueError:
+                std_idx = data_idx + 1
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= max(data_idx, std_idx):
+                    continue
+                keys = cols[:data_idx]
+                array_val = self._parse_float_list(cols[data_idx])
+                std_val = self._parse_float_list(cols[std_idx], allow_dash=True)
+                if len(keys) >= 6:
+                    data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,std_val)})
         return data
 
 ###################################################
     def read_recovery_csv(self,path,algo,arena):
-        keys = []
         data = {}
-        lc = 0
-        with open(path,newline='\n',) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                change = 0
-                if lc == 0:
-                    lc = 1
-                    for val in row:
-                        keys=val.split('\t')
-                else:
-                    buffer_start_dim,durations,event_observed = [],[],[]
-                    data_val = {}
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            if change==0:
-                                buffer_start_dim.append(int(tval))
-                            elif change == 1:
-                                durations.append(int(tval))
-                            else:
-                                event_observed.append(int(tval))
-                            if ']' in val:
-                                data_val.update({keys[-3]:buffer_start_dim})
-                                data_val.update({keys[-2]:durations})
-                                data_val.update({keys[-1]:event_observed})
-                                data.update({(algo,arena,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7])):(data_val.get(keys[8]),data_val.get(keys[9]),data_val.get(keys[10]))})
-                        elif len(split_val)==2:
-                            lval = ""
-                            rval = ""
-                            for c in split_val[0]:
-                                if c != ']':
-                                    lval += c
-                            for c in split_val[1]:
-                                if c != '[':
-                                    rval += c
-                            if change == 0:
-                                change = 1
-                                buffer_start_dim.append(int(lval))
-                                durations.append(int(rval))
-                            elif change == 1:
-                                change = 2
-                                durations.append(int(lval))
-                                event_observed.append(int(rval))
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[' and c != ']':
-                                            tval+=c
-                                    if change==0:
-                                        if ']' in split_val[k]:
-                                            change = 1
-                                        buffer_start_dim.append(int(tval))
-                                    elif change == 1:
-                                        if ']' in split_val[k]:
-                                            change = 2
-                                        durations.append(int(tval))
-                                    else:
-                                        event_observed.append(int(tval))
-                                else:
-                                    data_val.update({keys[k]:tval})
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            header_cols = header.rstrip('\n').split('\t')
+            try:
+                buff_idx = header_cols.index("buff_starts")
+            except ValueError:
+                buff_idx = max(len(header_cols) - 3, 0)
+            try:
+                dur_idx = header_cols.index("durations")
+            except ValueError:
+                dur_idx = buff_idx + 1
+            try:
+                evt_idx = header_cols.index("events")
+            except ValueError:
+                evt_idx = buff_idx + 2
+            key_end = min(buff_idx, dur_idx, evt_idx)
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= evt_idx:
+                    continue
+                buffer_start_dim = self._parse_int_list(cols[buff_idx])
+                durations = self._parse_int_list(cols[dur_idx])
+                event_observed = self._parse_int_list(cols[evt_idx])
+                key_cols = cols[:key_end]
+                if len(key_cols) >= 8:
+                    data.update({(algo,arena,key_cols[0],key_cols[1],key_cols[2],key_cols[3],key_cols[4],key_cols[5],key_cols[6],key_cols[7]):(buffer_start_dim,durations,event_observed)})
         return data
 
 ###################################################
     def read_csv(self,path,algo,n_runs,arena):
-        lc = 0
-        keys = []
         data = {}
-        with open(path, newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                change = 0
-                if lc == 0:
-                    lc = 1
-                    for val in row:
-                        keys=val.split('\t')
-                else:
-                    array_val = []
-                    std_val = []
-                    data_val = {}
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval)) if change==0 else std_val.append(float(tval))
-                            if ']' in val:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
-                        elif len(split_val)==2:
-                            lval = ""
-                            rval = ""
-                            change = 1
-                            for c in split_val[0]:
-                                if c != ']':
-                                    lval += c
-                            for c in split_val[1]:
-                                if c != '[':
-                                    rval += c
-                            if rval == '-':
-                                rval = -1
-                            array_val.append(float(lval))
-                            std_val.append(float(rval))
-                            if rval == -1:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    data_val.update({keys[k]:tval})
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            header_cols = header.rstrip('\n').split('\t')
+            try:
+                type_idx = header_cols.index("type")
+            except ValueError:
+                type_idx = max(len(header_cols) - 3, 0)
+            try:
+                data_idx = header_cols.index("data")
+            except ValueError:
+                data_idx = max(len(header_cols) - 2, 0)
+            try:
+                std_idx = header_cols.index("std")
+            except ValueError:
+                std_idx = max(len(header_cols) - 1, 0)
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= max(type_idx, data_idx, std_idx):
+                    continue
+                array_val = self._parse_float_list(cols[data_idx])
+                std_val = self._parse_float_list(cols[std_idx], allow_dash=True)
+                key_cols = cols[:type_idx + 1]
+                data.update({(algo,arena,n_runs,*key_cols):(array_val,std_val)})
         return data
 
 ###################################################
@@ -552,10 +473,15 @@ class Data:
 ###################################################
     def read_fitted_recovery_csv(self,file_path:str) -> dict:
         data = {}
-        with open(file_path, newline='') as f:
-            reader = csv.reader(f)
-            next(reader)  # Skip the header row
-            for row in reader:
+        with open(file_path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                row = line.split(',')
                 key = tuple(row[:10])
                 value = tuple(row[10:])
                 data[key] = value
@@ -905,6 +831,8 @@ class Data:
         if not os.path.exists(self.base+"/rec_data/"):
             os.mkdir(self.base+"/rec_data/")
         path = self.base+"/rec_data/"
+        out_path = os.path.join(path, "recovery_data.csv")
+        write_header = not os.path.exists(out_path) or os.path.getsize(out_path) == 0
         ground_T, threshlds, msg_hops, jolly        = [],[],[],[]
         algo, arena, time, comm, agents, buf_dim ,msgs_time   = [],[],[],[],[],[],[]
         da_K = data_in.keys()
@@ -920,6 +848,7 @@ class Data:
             if k0[8] not in ground_T: ground_T.append(k0[8])
             if k0[9] not in threshlds: threshlds.append(k0[9])
             if k0[10] not in jolly: jolly.append(k0[10])
+        rows = []
         for a in algo:
             for a_s in arena:
                 for et in time:
@@ -933,11 +862,13 @@ class Data:
                                                 for jl in jolly:
                                                     s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,met,m_h,gt,thr,jl))
                                                     if s_data != None:
-                                                        with open(path + 'recovery_data.csv', mode='a', newline='\n') as file:
-                                                            writer = csv.writer(file)
-                                                            if file.tell() == 0:
-                                                                writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean', 'Std', 'Events'])
-                                                            writer.writerow([a, a_s, et, c, n_a, m_b_d,met, m_h, gt, thr, s_data[0][0], s_data[0][1], s_data[1]])
+                                                        rows.append([a, a_s, et, c, n_a, m_b_d, met, m_h, gt, thr, s_data[0][0], s_data[0][1], s_data[1]])
+        if rows:
+            with open(out_path, mode='a', newline='', buffering=1024 * 1024) as file:
+                writer = csv.writer(file)
+                if write_header:
+                    writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean', 'Std', 'Events'])
+                writer.writerows(rows)
 
 ###################################################
     def plot_active(self,data_in,times):

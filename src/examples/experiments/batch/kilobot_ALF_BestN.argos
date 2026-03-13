@@ -66,7 +66,7 @@
     <!-- *********************** -->
     <!-- * Arena configuration * -->
     <!-- *********************** -->
-    <arena size="1.1, 1.1, 1" center="0,0,0">
+    <!-- <arena size="1.1, 1.1, 1" center="0,0,0">
         
         <box id="wall_north" size="1.1,0.01,0.1" movable="false">
             <body position="0,.55,0" orientation="0,0,0" />
@@ -90,9 +90,9 @@
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
-        </distribute>
+        </distribute> -->
 
-    <!-- <arena size=".6, .6, 1" center="0,0,0">
+    <arena size=".6, .6, 1" center="0,0,0">
 
         <box id="wall_north" size=".6,0.01,0.1" movable="false">
             <body position="0,.3,0" orientation="0,0,0" />
@@ -116,7 +116,7 @@
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
             </entity>
-        </distribute>  -->
+        </distribute> 
 
         <floor id="floor"
         source="loop_functions"
