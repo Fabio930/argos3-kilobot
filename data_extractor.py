@@ -197,13 +197,13 @@ class Results:
         messages,decisions,msg_std = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM,max_buff_size)
         self.dump_decisions("decisions_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,decisions])
         self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages,msg_std])
-        # for gt in range(len(self.ground_truth)):
-        #     results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
-        #     for thr in self.thresholds.get(self.ground_truth[gt]):
-        #         quorums = self.compute_quorum(results[0],results[1],thr)
-        #         self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-        #         self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-        #         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
+        for gt in range(len(self.ground_truth)):
+            results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
+            for thr in self.thresholds.get(self.ground_truth[gt]):
+                quorums = self.compute_quorum(results[0],results[1],thr)
+                self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
 
 ##########################################################################################################
     def dump_recovery_raw(self,external_data,data):
