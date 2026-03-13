@@ -451,7 +451,7 @@ class Data:
 
                     # rimuovi AN dalle colonne successive alla prima
                     # Escludi completamente le varianti P.0 (AN) e O.2.0 (ID+R_f)
-                    excluded_labels = [variant_map['P.0'][0],variant_map['O.2.0'][0]]
+                    excluded_labels = []#[variant_map['P.0'][0],variant_map['O.2.0'][0]]
                     plot_labels = [lbl for lbl in labels if lbl not in excluded_labels]
                     # Mantieni la logica originale: rimuovi AN dalle colonne successive (ridondante se già escluso)
                     if j > 0:
@@ -831,7 +831,7 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
+        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -841,13 +841,13 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        # for k in dict_park_real_fifo.keys():
-        #     tmp = []
-        #     res = dict_park_real_fifo.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_park_real_fifo.update({k:tmp})
+        for k in dict_park_real_fifo.keys():
+            tmp = []
+            res = dict_park_real_fifo.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_park_real_fifo.update({k:tmp})
         for k in dict_park.keys():
             tmp = []
             res = dict_park.get(k)
@@ -864,14 +864,14 @@ class Data:
                 tmp.append(xi/norm)
             dict_adam.update({k:tmp})
 
-        # for k in dict_fifo.keys():
-        #     tmp = []
-        #     res = dict_fifo.get(k)
-        #     restd = std_dict_fifo.get(k)
-        #     norm = int(k[1])-1
-        #     for xi in res:
-        #         tmp.append(xi/norm)
-        #     dict_fifo.update({k:tmp})
+        for k in dict_fifo.keys():
+            tmp = []
+            res = dict_fifo.get(k)
+            restd = std_dict_fifo.get(k)
+            norm = int(k[1])-1
+            for xi in res:
+                tmp.append(xi/norm)
+            dict_fifo.update({k:tmp})
 
         for k in dict_rnd.keys():
             tmp = []
@@ -889,26 +889,26 @@ class Data:
                 tmp.append(xi/norm)
             dict_rnd_inf.update({k:tmp})
 
-        # for k in dict_park_real_fifo.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+        for k in dict_park_real_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -955,26 +955,26 @@ class Data:
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
            
-        # for k in dict_fifo.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
             
         for k in dict_rnd.keys():
             row = 0
@@ -1097,7 +1097,7 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous,id_broad,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
+        handles_r   = [anonymous_real_fifo,anonymous,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
         fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1107,26 +1107,26 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        # for k in dict_park_real_fifo.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+        for k in dict_park_real_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
         for k in dict_park.keys():
             row = 0
             col = 0
@@ -1171,26 +1171,26 @@ class Data:
             elif k[2] == '600':
                 col = 4
             ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
-        # for k in dict_fifo.keys():
-        #     row = 0
-        #     col = 0
-        #     if k[0]=='big' and k[1]=='25':
-        #         row = 0
-        #     elif k[0]=='big' and k[1]=='100':
-        #         row = 2
-        #     elif k[0]=='small':
-        #         row = 1
-        #     if k[2] == '60':
-        #         col = 0
-        #     elif k[2] == '120':
-        #         col = 1
-        #     elif k[2] == '180':
-        #         col = 2
-        #     elif k[2] == '300':
-        #         col = 3
-        #     elif k[2] == '600':
-        #         col = 4
-        #     ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+        for k in dict_fifo.keys():
+            row = 0
+            col = 0
+            if k[0]=='big' and k[1]=='25':
+                row = 0
+            elif k[0]=='big' and k[1]=='100':
+                row = 2
+            elif k[0]=='small':
+                row = 1
+            if k[2] == '60':
+                col = 0
+            elif k[2] == '120':
+                col = 1
+            elif k[2] == '180':
+                col = 2
+            elif k[2] == '300':
+                col = 3
+            elif k[2] == '600':
+                col = 4
+            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
         for k in dict_rnd.keys():
             row = 0
             col = 0
@@ -1618,24 +1618,24 @@ class Data:
                         tvalsri[k][th] = ri_valst
 
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    # ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
-                    # ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
+                    ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
+                    ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
 
                     ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
                     ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
                     ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
                     ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    # ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    # ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
+                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
+                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
                     ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
                     ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
                     ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
                     ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
 
-                    # tax[row][k].plot(tvalspr[k],color="red",lw=6)
+                    tax[row][k].plot(tvalspr[k],color="red",lw=6)
                     tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
                     tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    # tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
+                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
                     tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
                     tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
                     if len(str_threshlds)==0:
