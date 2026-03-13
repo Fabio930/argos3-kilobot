@@ -1,4 +1,4 @@
-import os, csv, sys
+import os, sys
 import numpy as np
 
 class Results:
@@ -69,31 +69,40 @@ class Results:
                     seed = int(selem[0].split('#')[-1])
                     agent_id = int(selem[0].split('_')[2].split('#')[-1])
                     agents_count[agent_id] += 1
-                    with open(os.path.join(sub_path, elem), newline='') as f:
-                        reader = csv.reader(f)
+                    with open(os.path.join(sub_path, elem), newline='', buffering=1024 * 1024) as f:
                         log_count = 0
-                        for row in reader:
+                        states_list = []
+                        quorum_list = []
+                        msgs_list = []
+                        positions_list = []
+                        for line in f:
                             log_count += 1
-                            if log_count % self.ticks_per_sec == 0:
-                                state           = -1
-                                msgs            = -1
-                                quorum          = -1
-                                val_x           = -1
-                                val_y           = -1
-                                for val in row:
-                                    val             = val.split('\t')
-                                    state           = int(val[0])
-                                    quorum          = int(val[1])
-                                    msgs            = int(val[2])
-                                    try:
-                                        val_x       = float(val[3])
-                                        val_y       = float(val[4])
-                                    except:
-                                        print("positional values not found")
-                                states_M_1[seed-1]  = np.append(states_M_1[seed-1],state)
-                                quorum_M_1[seed-1]  = np.append(quorum_M_1[seed-1],quorum)
-                                msgs_M_1[seed-1]    = np.append(msgs_M_1[seed-1],msgs)
-                                positions_M[seed-1] = np.append(positions_M[seed-1],val_x)
+                            if log_count % self.ticks_per_sec != 0:
+                                continue
+                            val_x = -1
+                            val_y = -1
+                            parts = line.rstrip('\n').split('\t')
+                            if len(parts) < 3:
+                                continue
+                            state = int(parts[0])
+                            quorum = int(parts[1])
+                            msgs = int(parts[2])
+                            if len(parts) > 4:
+                                try:
+                                    val_x = float(parts[3])
+                                    val_y = float(parts[4])
+                                except:
+                                    print("positional values not found")
+                            else:
+                                print("positional values not found")
+                            states_list.append(state)
+                            quorum_list.append(quorum)
+                            msgs_list.append(msgs)
+                            positions_list.append(val_x)
+                        states_M_1[seed-1]  = np.asarray(states_list, dtype=int)
+                        quorum_M_1[seed-1]  = np.asarray(quorum_list, dtype=int)
+                        msgs_M_1[seed-1]    = np.asarray(msgs_list, dtype=int)
+                        positions_M[seed-1] = np.asarray(positions_list, dtype=float)
                     if len(msgs_M_1[seed-1])<max_steps:
                         missing = max_steps - len(msgs_M_1[seed-1])
                         pad = np.full(missing, 0, dtype=int)
@@ -159,32 +168,33 @@ class Results:
 ##########################################################################################################
     def dump_distance(self, file_name, data):
         header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
-        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "pos_data", file_name))
-        
-        if not os.path.exists(os.path.join(os.path.abspath(""), "pos_data")):
-            os.mkdir(os.path.join(os.path.abspath(""), "pos_data"))
-        
-        with open(os.path.join(os.path.abspath(""), "pos_data", file_name), mode='a', newline='\n') as fw:
-            fwriter = csv.writer(fw, delimiter='\t')
+        out_dir = os.path.join(os.path.abspath(""), "pos_data")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, file_name)
+        write_header = not os.path.exists(out_path)
+        row = [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-1]]
+        with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
             if write_header:
-                fwriter.writerow(header)
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-1]])
+                fw.write("\t".join(header) + "\n")
+            fw.write("\t".join(map(str, row)) + "\n")
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
         header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
-        write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
-        
-        if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
-            os.mkdir(os.path.join(os.path.abspath(""), "msgs_data"))
-        
-        with open(os.path.join(os.path.abspath(""), "msgs_data", file_name), mode='a', newline='\n') as fw:
-            fwriter = csv.writer(fw, delimiter='\t')
+        out_dir = os.path.join(os.path.abspath(""), "msgs_data")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, file_name)
+        write_header = not os.path.exists(out_path)
+        rows = [
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-3]],
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"commit_average",data[-2]],
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"uncommit_average",data[-1]],
+        ]
+        with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
             if write_header:
-                fwriter.writerow(header)
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-3]])
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"commit_average",data[-2]])
-            fwriter.writerow([data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"uncommit_average",data[-1]])
+                fw.write("\t".join(header) + "\n")
+            for row in rows:
+                fw.write("\t".join(map(str, row)) + "\n")
 
 ##########################################################################################################
     def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,n_runs):    
@@ -228,12 +238,11 @@ class Results:
             values.append("rebroadcast_msg")
         values.append(data_in)
         values.append(data_std)
-        fw = open(os.path.abspath("")+"/proc_data/"+file_name,mode='a',newline='\n')
-        fwriter = csv.writer(fw,delimiter='\t')
-        if write_header == 1:
-            fwriter.writerow(name_fields)
-        fwriter.writerow(values)
-        fw.close()
+        out_path = os.path.abspath("")+"/proc_data/"+file_name
+        with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
+            if write_header == 1:
+                fw.write("\t".join(name_fields) + "\n")
+            fw.write("\t".join(map(str, values)) + "\n")
 
 ##########################################################################################################
     def dump_msg_freq(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,n_agents):

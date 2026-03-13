@@ -1,4 +1,4 @@
-import os, csv, logging
+import os, logging, re
 import numpy as np
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
@@ -8,6 +8,21 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 
 class Data:
+    _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
+
+##########################################################################################################
+    @staticmethod
+    def _parse_float_list(raw, allow_dash=False):
+        raw = raw.strip()
+        if allow_dash and raw == "-":
+            return [-1.0]
+        if raw and raw[0] == "[" and raw[-1] == "]":
+            raw = raw[1:-1]
+        if "[" in raw or "]" in raw:
+            raw = raw.replace("[", "").replace("]", "")
+        if not raw:
+            return []
+        return [float(x) for x in Data._FLOAT_RE.findall(raw)]
 
 ##########################################################################################################
     def __init__(self) -> None:
@@ -20,102 +35,50 @@ class Data:
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
-        lc = 0
-        labels = []
-        with open(path,newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if lc == 0:
-                    labels =row[0].split()
-                    lc = 1
-                else:
-                    keys = []
-                    array_val=[]
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval))
-                            if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7],keys[8]):array_val})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    keys.append(tval)
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            header_cols = header.rstrip('\n').split('\t')
+            try:
+                data_idx = header_cols.index("data")
+            except ValueError:
+                data_idx = max(len(header_cols) - 1, 0)
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= data_idx:
+                    continue
+                keys = cols[:data_idx]
+                array_val = self._parse_float_list(cols[data_idx])
+                if len(keys) >= 9:
+                    data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7],keys[8]):array_val})
         return data #,labels
 
 ##########################################################################################################
     def read_csv(self,path,algo,n_runs):
-        lc = 0
-        keys = []
         data = {}
-        with open(path, newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                change = 0
-                if lc == 0:
-                    for val in row:
-                        keys=val.split('\t')
-                else:
-                    array_val = []
-                    std_val = []
-                    data_val = {}
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval)) if change==0 else std_val.append(float(tval))
-                            if ']' in val:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[10]),data_val.get(keys[11]))})
-                        elif len(split_val)==2:
-                            lval = ""
-                            rval = ""
-                            change = 1
-                            for c in split_val[0]:
-                                if c != ']':
-                                    lval += c
-                            for c in split_val[1]:
-                                if c != '[':
-                                    rval += c
-                            if rval == '-':
-                                rval = -1
-                            array_val.append(float(lval))
-                            std_val.append(float(rval))
-                            if rval == -1:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[9])):(data_val.get(keys[10]),data_val.get(keys[11]))})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    data_val.update({keys[k]:tval})
-                lc += 1
+        with open(path, newline='', buffering=1024 * 1024) as f:
+            header = f.readline()
+            if not header:
+                return data
+            keys = header.rstrip('\n').split('\t')
+            use_legacy_idx = len(keys) > 11
+            type_idx = 9 if use_legacy_idx else max(len(keys) - 3, 0)
+            data_idx = 10 if use_legacy_idx else max(len(keys) - 2, 0)
+            std_idx = 11 if use_legacy_idx else max(len(keys) - 1, 0)
+            for line in f:
+                line = line.strip('\n')
+                if not line:
+                    continue
+                cols = line.split('\t')
+                if len(cols) <= max(type_idx, data_idx, std_idx, 7):
+                    continue
+                array_val = self._parse_float_list(cols[data_idx])
+                std_val = self._parse_float_list(cols[std_idx], allow_dash=True)
+                data.update({(algo,n_runs,cols[0],cols[1],cols[2],cols[3],cols[4],cols[5],cols[6],cols[7],cols[type_idx]):(array_val,std_val)})
         return data
 
 ##########################################################################################################
