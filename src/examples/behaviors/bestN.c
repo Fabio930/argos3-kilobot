@@ -75,6 +75,7 @@ void talk(){
                 if(p<0.5){
                     selected_msg_indx = select_message_by_fifo_buffer(msg_n_hops);
                     if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                    else broadcast();                
                 }
                 else broadcast();                
                 break;
