@@ -9,6 +9,7 @@ plt.rcParams.update({"font.size": 30})
 
 class Data:
     _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
+    _NP_FLOAT_RE = re.compile(r"(?i)np\.float\d*\(([^)]+)\)")
 
 ##########################################################################################################
     @staticmethod
@@ -16,6 +17,8 @@ class Data:
         raw = raw.strip()
         if allow_dash and raw == "-":
             return [-1.0]
+        if "np.float" in raw:
+            raw = Data._NP_FLOAT_RE.sub(r"\1", raw)
         if raw and raw[0] == "[" and raw[-1] == "]":
             raw = raw[1:-1]
         if "[" in raw or "]" in raw:
