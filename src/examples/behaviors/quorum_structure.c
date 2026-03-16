@@ -94,16 +94,20 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     out=1;
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
-            out=0;
-            if((*Myquorum)->agent_state!=received_state){
-                out=2;
+            if(Msg_n_hops < (*Myquorum)->msg_n_hops){
                 (*Myquorum)->counter=expiring_time;
                 (*Myquorum)->agent_state=received_state;
                 (*Myquorum)->delivered=0;
                 (*Myquorum)->msg_n_hops=Msg_n_hops;
+                out=2;
+            }
+            else{
+                out=0;
             }
         }
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
+        else{
+            if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
+        }
     }
     else{
         (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
@@ -120,6 +124,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         else (*Myquorum)->prev=NULL;
         (*Myquorum)->next=NULL;
         (*Array)[num_quorum_items-1] = *Myquorum;
+        out=1;
     }
     return out;
 }

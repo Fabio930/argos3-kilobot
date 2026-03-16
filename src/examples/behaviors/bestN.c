@@ -84,7 +84,6 @@ void talk(){
                             }
                             uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
                             if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < hop_limit){
-                                quorum_array[selected_msg_indx]->msg_n_hops += 1;
                                 rebroadcast();
                             }
                             else broadcast();
@@ -112,7 +111,6 @@ void talk(){
 
 void broadcast(){
     sa_type = 0;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -122,8 +120,7 @@ void broadcast(){
 }
 
 void rebroadcast(){
-    sa_type = 0;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
+    sa_type = quorum_array[selected_msg_indx]->msg_n_hops + 1;
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -238,7 +235,7 @@ static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
         if(item == NULL || item->delivered != 0){
             continue;
         }
-        if(check_4_hops != 0 && item->msg_n_hops == 0){
+        if(check_4_hops != 0 && item->msg_n_hops >= check_4_hops){
             continue;
         }
         return idx;
