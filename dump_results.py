@@ -3,189 +3,171 @@ import pandas as pd
 import data_extractor as dex
 from multiprocessing import Process, Manager
 
-# Setup logging
+# Configurazione Logging
 def setup_logging():
     logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s %(message)s',
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
-# Check command line inputs
 def check_inputs():
     ticks = 10
-    if len(sys.argv) > 3:
-        logging.error("Too many arguments --EXIT--")
-        sys.exit()
     if len(sys.argv) > 1:
         for i in range(len(sys.argv)):
             if sys.argv[i] == '-t':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    sys.exit()
                 try:
                     ticks = int(sys.argv[i + 1])
                 except:
-                    logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
-                    sys.exit()
-    if ticks <= 0:
-        logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
-        sys.exit()
+                    logging.error("Il parametro -t deve essere un intero positivo.")
+                    sys.exit(1)
     return ticks
 
-# Process folder with retries and memory management
+def get_processed_keys():
+    """
+    Scansiona i file elaborati per identificare cosa è già stato fatto.
+    Ritorna un set di tuple (chiavi univoche).
+    """
+    done_keys = set()
+    msgs_path = "./msgs_data/messages_resume.csv"
+    proc_dir = "./proc_data/"
+    
+    # 1. Controllo dal file dei messaggi
+    if os.path.exists(msgs_path):
+        try:
+            df = pd.read_csv(msgs_path, sep="\t" if "\t" in open(msgs_path).readline() else ",")
+            key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops']
+            for _, row in df.iterrows():
+                # Creiamo una chiave normalizzata
+                key = (str(row['ArenaSize']), str(row['algo']), float(row['threshold']), 
+                       float(row['GT']), int(row['broadcast']), int(row['n_agents']), 
+                       int(row['buff_dim']), int(row['msg_hops']))
+                done_keys.add(key)
+        except Exception as e:
+            logging.warning(f"Errore lettura {msgs_path}: {e}")
+
+    # 2. Controllo incrociato con i file in proc_data (opzionale ma consigliato)
+    # Se un esperimento è in messages_resume ma manca il relativo file in proc_data, 
+    # potresti volerlo ricalcolare. Qui aggiungiamo logica se necessario.
+    
+    return done_keys
+
 def process_folder(task):
     base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
         results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path)
-    except KeyError as e:
-        logging.error(f"KeyError processing {msg_exp_path}: {e}")
     except Exception as e:
-        logging.error(f"Error processing {msg_exp_path}: {e}")
-        logging.debug(f"Exception details: {e}", exc_info=True)
+        logging.error(f"Errore critico su {msg_exp_path}: {e}")
     finally:
-        del results,base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec
+        del results
+        gc.collect()
 
 def main():
     setup_logging()
     ticks_per_sec = check_inputs()
-
-    # === 1. Carica chiavi già eseguite ===
-    resume_path = "./msgs_data/messages_resume.csv"
-    done_keys = set()
-    if os.path.exists(resume_path):
-        try:
-            df_done = pd.read_csv(resume_path, sep="\t" if "\t" in open(resume_path).readline() else ",")
-            key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops']
-            for _, row in df_done.iterrows():
-                key = tuple(row[col] for col in key_cols)
-                done_keys.add(key)
-            logging.info(f"Loaded {len(done_keys)} completed keys from {resume_path}")
-        except Exception as e:
-            logging.error(f"Failed to read {resume_path}: {e}")
-    else:
-        logging.warning(f"No messages_resume.csv found at {resume_path}")
-
+    
+    logging.info("Analisi dati processati esistenti...")
+    done_keys = get_processed_keys()
+    
     manager = Manager()
     queue = manager.Queue()
+    tasks_count = 0
 
-    for base in dex.Results().bases:
+    # Scansione Gerarchica dei dati grezzi (Raw Data)
+    results_obj = dex.Results()
+    for base in results_obj.bases:
+        algo = "O" if "Oresults" in base else "P"
+        if not os.path.exists(base): continue
+        
         for exp_l_dir in sorted(os.listdir(base)):
-            if '.' not in exp_l_dir and '#' in exp_l_dir:
-                exp_l_path = os.path.join(base, exp_l_dir)
-                exp_length = int(exp_l_dir.split('#')[1])
-                for arena_dir in sorted(os.listdir(exp_l_path)):
-                    if '.' not in arena_dir and '#' in arena_dir:
-                        arena_path = os.path.join(exp_l_path, arena_dir)
-                        arena_size = arena_dir.split('#')[1]
-                        for comm_dir in sorted(os.listdir(arena_path)):
-                            if '.' not in comm_dir and '#' in comm_dir:
-                                comm_path = os.path.join(arena_path, comm_dir)
-                                communication = int(comm_dir.split('#')[1])
-                                for agents_dir in sorted(os.listdir(comm_path)):
-                                    if '.' not in agents_dir and '#' in agents_dir:
-                                        n_agents = int(agents_dir.split('#')[1])
-                                        agents_path = os.path.join(comm_path, agents_dir)
-                                        for thr_dir in sorted(os.listdir(agents_path)):
-                                            if '.' not in thr_dir and '#' in thr_dir:
-                                                thr_path = os.path.join(agents_path, thr_dir)
-                                                threshold = float(thr_dir.split('#')[1].replace('_', '.'))
-                                                for Dgt_dir in sorted(os.listdir(thr_path)):
-                                                    if '.' not in Dgt_dir and '#' in Dgt_dir:
-                                                        Dgt_path = os.path.join(thr_path, Dgt_dir)
-                                                        delta_str = Dgt_dir.split('#')[1].replace('_', '.')
-                                                        for msg_hop_dir in sorted(os.listdir(Dgt_path)):
-                                                            if '.' not in msg_hop_dir and '#' in msg_hop_dir:
-                                                                msg_hops = int(msg_hop_dir.split('#')[-1])
-                                                                msg_hop_path = os.path.join(Dgt_path, msg_hop_dir)
-                                                                for msg_exp_dir in sorted(os.listdir(msg_hop_path)):
-                                                                    if '.' not in msg_exp_dir and '#' in msg_exp_dir:
-                                                                        msg_exp_time = int(msg_exp_dir.split('#')[-1])
-                                                                        msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
-                                                                        algo = "O" if "Ores" in base else "P"
-                                                                        # === Costruisci la chiave del task ===
-                                                                        key = (arena_size, algo, threshold, float(delta_str),
-                                                                               communication, n_agents, msg_exp_time, msg_hops)
-                                                                        # === Verifica se già completato ===
-                                                                        if key not in done_keys:
-                                                                            queue.put((base, exp_length, communication,
-                                                                                       n_agents, threshold, delta_str,
-                                                                                       msg_hops, msg_exp_time,
-                                                                                       msg_exp_path, ticks_per_sec))
-                                                                        else:
-                                                                            logging.debug(f"Skipping completed task {key}")
+            if '#' not in exp_l_dir: continue
+            exp_l_path = os.path.join(base, exp_l_dir)
+            exp_length = int(exp_l_dir.split('#')[1])
+            
+            for arena_dir in sorted(os.listdir(exp_l_path)):
+                if '#' not in arena_dir: continue
+                arena_size = arena_dir.split('#')[1]
+                arena_path = os.path.join(exp_l_path, arena_dir)
+                
+                for comm_dir in sorted(os.listdir(arena_path)):
+                    if '#' not in comm_dir: continue
+                    communication = int(comm_dir.split('#')[1])
+                    comm_path = os.path.join(arena_path, comm_dir)
+                    
+                    for agents_dir in sorted(os.listdir(comm_path)):
+                        if '#' not in agents_dir: continue
+                        n_agents = int(agents_dir.split('#')[1])
+                        agents_path = os.path.join(comm_path, agents_dir)
+                        
+                        for thr_dir in sorted(os.listdir(agents_path)):
+                            if '#' not in thr_dir: continue
+                            threshold = float(thr_dir.split('#')[1].replace('_', '.'))
+                            thr_path = os.path.join(agents_path, thr_dir)
+                            
+                            for Dgt_dir in sorted(os.listdir(thr_path)):
+                                if '#' not in Dgt_dir: continue
+                                delta_str = Dgt_dir.split('#')[1].replace('_', '.')
+                                Dgt_path = os.path.join(thr_path, Dgt_dir)
+                                
+                                for msg_hop_dir in sorted(os.listdir(Dgt_path)):
+                                    if '#' not in msg_hop_dir: continue
+                                    msg_hops = int(msg_hop_dir.split('#')[-1])
+                                    msg_hop_path = os.path.join(Dgt_path, msg_hop_dir)
+                                    
+                                    for msg_exp_dir in sorted(os.listdir(msg_hop_path)):
+                                        if '#' not in msg_exp_dir: continue
+                                        msg_exp_time = int(msg_exp_dir.split('#')[-1])
+                                        msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
+                                        
+                                        # Identificatore univoco del task
+                                        current_key = (str(arena_size), str(algo), float(threshold), 
+                                                       float(delta_str), int(communication), int(n_agents), 
+                                                       int(msg_exp_time), int(msg_hops))
+                                        
+                                        if current_key not in done_keys:
+                                            queue.put((base, exp_length, communication, n_agents, 
+                                                       threshold, delta_str, msg_hops, msg_exp_time, 
+                                                       msg_exp_path, ticks_per_sec))
+                                            tasks_count += 1
+                                        else:
+                                            logging.debug(f"Saltato: {current_key}")
 
-    gc.collect()
-    logging.info(f"Starting {queue.qsize()} tasks")
+    logging.info(f"Task totali da elaborare: {tasks_count}")
 
-    # Active processes dictionary
+    # Gestione Processi e Memoria (Logic Loop)
     active_processes = {}
-    iteration = 0
-
-    while len(active_processes) > 0 or queue.qsize() > 0:
-        iteration += 1
-
-        memory_used_by_processes = []
-        to_remove = []
-        # Calculate the memory used by each process
-        active_keys = active_processes.keys()
-        available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        for key in active_keys:
-            try:
-                proc = psutil.Process(key)
-                memory_info = proc.memory_info().rss / (1024 * 1024)
-                memory_used_by_processes.append(memory_info)
-                if proc.status() != psutil.STATUS_RUNNING and proc.status() != psutil.STATUS_DISK_SLEEP:
-                    process = active_processes.get(key)
-                    process[0].terminate()
-                    process[0].join()
-                    if process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(key)
-            except psutil.NoSuchProcess:
-                to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-2]} not found")
-        max_memory_used = max(memory_used_by_processes, default=0)
+    while active_processes or queue.qsize() > 0:
+        available_mem = psutil.virtual_memory().available / (1024**2)
         cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
-        # Kill the last process and put it back in the queue
-        if available_memory <= 3024 and len(active_processes) > 0:
-            for i in range(1, len(active_keys) + 1):
-                last_pid = list(active_keys)[-i]
-                if last_pid not in to_remove:
-                    last_process = active_processes.get(last_pid)
-                    last_process[0].terminate()
-                    last_process[0].join()
-                    if last_process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1][-2]} terminated due to low memory")
-                        # Requeue the task
-                        queue.put(last_process[1])
-                        break
-        for key in to_remove:
-            process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {process[1][-2]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
-            try:
-                task = queue.get(block=False)
-                p = Process(target=process_folder, args=(task,))
-                p.start()
-                active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {task[-2]}")
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 300 == 0 or len(to_remove) > 0:
-            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
-            gc.collect()
-        time.sleep(1)  # Avoid busy-waiting
+        idle_cpus = sum(1 for u in cpu_usage if u < 60)
 
-    logging.info("All tasks completed.")
+        # Pulizia processi terminati
+        finished = []
+        for pid, (p, task) in active_processes.items():
+            if not p.is_alive():
+                p.join()
+                finished.append(pid)
+        for pid in finished:
+            active_processes.pop(pid)
+
+        # Avvio nuovi task se c'è risorse
+        if queue.qsize() > 0 and idle_cpus > 0 and available_mem > 4000:
+            task = queue.get()
+            p = Process(target=process_folder, args=(task,))
+            p.start()
+            active_processes[p.pid] = (p, task)
+            logging.info(f"Avviato PID {p.pid} - Task rimanenti: {queue.qsize()}")
+
+        # Salvaguardia memoria: se scende troppo, non avviare e logga
+        if available_mem < 2000:
+            logging.warning(f"Memoria RAM critica ({available_mem:.0f}MB). Attesa rilascio...")
+            time.sleep(5)
+
+        time.sleep(1)
+
+    logging.info("Elaborazione completata con successo.")
 
 if __name__ == "__main__":
     main()

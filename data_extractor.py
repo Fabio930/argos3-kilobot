@@ -144,8 +144,8 @@ class Results:
         quorums = np.transpose(quorum_bigM_1, (1,0,2))
         self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
         self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
-        avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
-        self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
+        # avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
+        # self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
         del avg_messages,commit_avg_msgs,uncommit_avg_msgs, quorums, states, statescpy, positions, states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,positions_M,positions_bigM
 
 ##########################################################################################################
