@@ -1,5 +1,5 @@
 import os, csv, sys, logging, gc, time, psutil
-import csv_results as CSVres
+import static_data.csv_results as CSVres
 from multiprocessing import Process, Manager
 
 # Setup logging
