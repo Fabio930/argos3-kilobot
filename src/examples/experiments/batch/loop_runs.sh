@@ -28,10 +28,10 @@ experiment_length="1200"
 variation_start_time="600"
 variation_end_time="0"
 RUNS=100
-msg_hops="0"
-rebroadcast="2"
+msg_hops="0 1"
+rebroadcast="1"
 msg_expiring_sec="60 120 180 300 600"
-numrobots="25"
+numrobots="25 100"
 threshold="0.8"
 delta="0.68;0.92 0.92;0.68"
 
