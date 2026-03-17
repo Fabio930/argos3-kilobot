@@ -202,7 +202,7 @@ uint16_t select_a_random_message(){
     uint8_t start = priority_sampling_k;
     if(start >= num_quorum_items) return 0b1111111111111111;
     uint8_t eligible = (uint8_t)(num_quorum_items - start);
-    return (uint16_t)(start + (rand_soft() % eligible));
+    return (uint16_t)(start + (rand_hard() % eligible));
 }
 
 uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops){
