@@ -1,4 +1,4 @@
-import os, csv, logging, re
+import os, csv, logging, re, json
 import numpy as np
 import pandas as pd
 import matplotlib.colors as colors
@@ -46,6 +46,135 @@ class Data:
         for elem in sorted(os.listdir(self.base)):
             if elem == "msgs_data" or elem == "proc_data" or elem == "rec_data" or elem=="dec_data":
                 self.bases.append(os.path.join(self.base, elem))
+        self.plot_config = self._load_plot_config()
+        self.protocols = self.plot_config.get("protocols", [])
+        self.protocols_by_id = {p.get("id"): p for p in self.protocols if p.get("id") is not None}
+
+###################################################
+    def _default_plot_config(self):
+        return {
+            "protocols": [
+                {"id": "P.0", "label": r"$AN$", "color": "red"},
+                {"id": "P.1.0", "label": r"$AN_{t}$", "color": "viridis:0"},
+                {"id": "P.1.1", "label": r"$AN_{t}^{1}$", "color": "orange"},
+                {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
+                {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
+                {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
+                {"id": "O.1.0", "label": r"$ID+R_{\\infty}$", "color": "viridis:4"},
+            ],
+            "plots": {
+                "messages": {"exclude_protocols": [], "exclude_tm": []},
+                "decisions": {"exclude_protocols": [], "exclude_tm": []},
+                "active": {"exclude_protocols": [], "exclude_tm": []},
+                "recovery": {"exclude_protocols": [], "exclude_tm": []},
+            },
+        }
+
+###################################################
+    def _merge_plot_config(self, base_cfg, user_cfg):
+        cfg = dict(base_cfg)
+        cfg["plots"] = dict(base_cfg.get("plots", {}))
+        if isinstance(user_cfg, dict):
+            if "protocols" in user_cfg:
+                cfg["protocols"] = user_cfg.get("protocols") or []
+            if "plots" in user_cfg and isinstance(user_cfg.get("plots"), dict):
+                for plot_name, plot_cfg in user_cfg["plots"].items():
+                    if plot_name not in cfg["plots"]:
+                        cfg["plots"][plot_name] = {}
+                    if isinstance(plot_cfg, dict):
+                        cfg["plots"][plot_name].update(plot_cfg)
+        return cfg
+
+###################################################
+    def _load_plot_config(self):
+        cfg = self._default_plot_config()
+        path = os.path.join(self.base, "plot_config.json")
+        if not os.path.exists(path):
+            return cfg
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                user_cfg = json.load(f)
+            return self._merge_plot_config(cfg, user_cfg)
+        except Exception as exc:
+            logging.warning("Failed to load plot_config.json (%s). Using defaults.", exc)
+            return cfg
+
+###################################################
+    def apply_plot_overrides(self, plot_names, exclude_protocols=None, exclude_tm=None):
+        if not plot_names:
+            return
+        for plot_name in plot_names:
+            plot_cfg = self.plot_config.setdefault("plots", {}).setdefault(plot_name, {})
+            if exclude_protocols is not None:
+                plot_cfg["exclude_protocols"] = exclude_protocols
+            if exclude_tm is not None:
+                plot_cfg["exclude_tm"] = exclude_tm
+
+###################################################
+    def _normalize_tm(self, val):
+        if isinstance(val, bool):
+            return None
+        if isinstance(val, np.integer):
+            return int(val)
+        if isinstance(val, np.floating) and float(val).is_integer():
+            return int(val)
+        if isinstance(val, (int, float)):
+            if isinstance(val, float) and not val.is_integer():
+                return None
+            return int(val)
+        if isinstance(val, str):
+            s = val.strip()
+            if s.isdigit():
+                return int(s)
+        return None
+
+###################################################
+    def _plot_tm_values(self, plot_name, values):
+        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+        exclude = plot_cfg.get("exclude_tm") or []
+        exclude_set = set()
+        for v in exclude:
+            norm = self._normalize_tm(v)
+            if norm is not None:
+                exclude_set.add(norm)
+        out = []
+        for v in values:
+            nv = self._normalize_tm(v) if not isinstance(v, int) else v
+            if nv is None or nv in exclude_set:
+                continue
+            out.append(v)
+        return out
+
+###################################################
+    def _protocol_matches(self, protocol, selector):
+        if protocol is None:
+            return False
+        if selector is None:
+            return False
+        sel = str(selector).strip()
+        return sel == protocol.get("id") or sel == protocol.get("label")
+
+###################################################
+    def _protocol_enabled(self, plot_name, protocol_id):
+        protocol = self.protocols_by_id.get(protocol_id)
+        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+        exclude = plot_cfg.get("exclude_protocols") or []
+        if any(self._protocol_matches(protocol, sel) for sel in exclude):
+            return False
+        return True
+
+###################################################
+    def _protocol_color(self, protocol, scalarMap):
+        if protocol is None:
+            return "black"
+        color = protocol.get("color")
+        if isinstance(color, str) and color.startswith("viridis:"):
+            try:
+                idx = int(color.split(":", 1)[1])
+                return scalarMap.to_rgba(idx)
+            except Exception:
+                return "black"
+        return color if color else "black"
 
 ###################################################
     def wb_get_mean_and_std(self, wf:WeibullFitter):
@@ -375,15 +504,13 @@ class Data:
         # Mappa varianti -> label e colore
         norm = colors.Normalize(vmin=0, vmax=6)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
-        variant_map = {
-            'P.0': (r'$AN$', 'red'),
-            'P.1.0': (r'$AN_{t}$', scalarMap.to_rgba(0)),
-            'P.1.1': (r'$AN_{t}^{1}$', 'orange'),
-            'O.0.0': (r'$ID+B$', scalarMap.to_rgba(1)),
-            'O.2.0': (r'$ID+R_{f}$', scalarMap.to_rgba(2)),
-            'O.1.1': (r'$ID+R_{1}$', scalarMap.to_rgba(3)),
-            'O.1.0': (r'$ID+R_{\infty}$', scalarMap.to_rgba(4)),
-        }
+        variant_map = {}
+        for p in self.protocols:
+            pid = p.get("id")
+            if not pid:
+                continue
+            variant_map[pid] = (p.get("label", pid), self._protocol_color(p, scalarMap))
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
 
         # Ricostruzione DataFrame
         rows = []
@@ -407,6 +534,8 @@ class Data:
             elif variant_key.startswith('P.1'):
                 variant_key = 'P.1.0'
 
+            if not self._protocol_enabled("recovery", variant_key):
+                continue
             label, color = variant_map.get(variant_key, ('UNK', 'black'))
             rows.append({
                 'Arena': arena,
@@ -432,12 +561,18 @@ class Data:
 
         # Ricostruisci msg_list e metti 60 come prima colonna se presente
         msg_list = sorted(df['Msgs_exp_time'].unique())
+        msg_list = self._plot_tm_values("recovery", msg_list)
+        if not msg_list:
+            return
         if 60 in msg_list:
             msg_list = [60] + [m for m in msg_list if m != 60]
         col_labels = [f"$T_m$={m}" for m in msg_list]
 
         # Etichette varianti e mappa label->colore
-        labels = [v[0] for v in variant_map.values()]
+        labels = []
+        for pid in protocols_order:
+            if pid in variant_map and self._protocol_enabled("recovery", pid):
+                labels.append(variant_map[pid][0])
         label_color_map = {label: color for label, color in variant_map.values()}
 
         # Funzione per salvare boxplot con gestione dei label/overlap
@@ -856,18 +991,42 @@ class Data:
         dict_park,dict_park_t1,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         std_dict_park,std_dict_park_t1,std_dict_adam,std_dict_fifo, std_dict_rnd, std_dict_rnd_inf,std_dict_park_real_fifo = data_std[0], data_std[1], data_std[2], data_std[3], data_std[4], data_std[5], data_std[6]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
-        anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
-        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}$')
-        anonymous_t1        = mlines.Line2D([], [], color='orange', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}^{1}$')
-        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+B$')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous_real_fifo,anonymous,anonymous_t1,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
+        handles_r = []
+        for pid in protocols_order:
+            if not self._protocol_enabled("messages", pid):
+                continue
+            protocol = self.protocols_by_id.get(pid)
+            handles_r.append(
+                mlines.Line2D(
+                    [], [],
+                    color=protocol_colors.get(pid, "black"),
+                    marker='_',
+                    linestyle='None',
+                    markeredgewidth=18,
+                    markersize=18,
+                    label=protocol.get("label", pid) if protocol else pid,
+                )
+            )
+        handles_r.append(min_dim)
+        all_cols = set()
+        for dct in (dict_park_real_fifo, dict_park, dict_park_t1, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf):
+            for k in dct.keys():
+                try:
+                    all_cols.add(int(k[2]))
+                except Exception:
+                    continue
+        columns = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
+        columns = self._plot_tm_values("messages", columns)
+        if not columns:
+            return
+        col_index = {str(c): i for i, c in enumerate(columns)}
+        ncols = len(columns)
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -932,187 +1091,149 @@ class Data:
             dict_rnd_inf.update({k:tmp})
 
         for k in dict_park_real_fifo.keys():
+            if not self._protocol_enabled("messages", "P.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_park_real_fifo.get(k),color=protocol_colors.get("P.0","red"),lw=6)
         for k in dict_park.keys():
+            if not self._protocol_enabled("messages", "P.1.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
+            col = col_index.get(k[2])
+            if col is None:
+                continue
             min_buf = []
             val = 5/(int(k[1])-1)
             for i in range(900):
                 min_buf.append(val)
             ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
-            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            ax[row][col].plot(dict_park.get(k),color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
         for k in dict_park_t1.keys():
+            if not self._protocol_enabled("messages", "P.1.1"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_t1.get(k),color='orange',lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_park_t1.get(k),color=protocol_colors.get("P.1.1","orange"),lw=6)
         for k in dict_adam.keys():
+            if not self._protocol_enabled("messages", "O.0.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_adam.get(k),color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
            
         for k in dict_fifo.keys():
+            if not self._protocol_enabled("messages", "O.2.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_fifo.get(k),color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
             
         for k in dict_rnd.keys():
+            if not self._protocol_enabled("messages", "O.1.1"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_rnd.get(k),color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
             
         for k in dict_rnd_inf.keys():
+            if not self._protocol_enabled("messages", "O.1.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_rnd_inf.get(k),color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
             
         for x in range(2):
-            for y in range(5):
+            for y in range(ncols):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                 ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
-            for y in range(1,5):
+            for y in range(1,ncols):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
-        for y in range(5):
+        for y in range(ncols):
             ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
             ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-        axt0=ax[0][0].twiny()
-        axt1=ax[0][1].twiny()
-        axt2=ax[0][2].twiny()
-        axt3=ax[0][3].twiny()
-        axt4=ax[0][4].twiny()
-        labels = [item.get_text() for item in axt0.get_xticklabels()]
-        empty_string_labels = ['']*len(labels)
-        axt0.set_xticklabels(empty_string_labels)
-        axt1.set_xticklabels(empty_string_labels)
-        axt2.set_xticklabels(empty_string_labels)
-        axt3.set_xticklabels(empty_string_labels)
-        axt4.set_xticklabels(empty_string_labels)
-        axt0.set_xlabel(r"$T_m = 60\, s$")
-        axt1.set_xlabel(r"$T_m = 120\, s$")
-        axt2.set_xlabel(r"$T_m = 180\, s$")
-        axt3.set_xlabel(r"$T_m = 300\, s$")
-        axt4.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][4].twinx()
-        ayt1=ax[1][4].twinx()
-        ayt2=ax[2][4].twinx()
-        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        for idx, col_val in enumerate(columns):
+            axt=ax[0][idx].twiny()
+            labels = [item.get_text() for item in axt.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            axt.set_xticklabels(empty_string_labels)
+            axt.set_xlabel(rf"$T_m = {int(col_val)}\, s$")
+        last_col = ncols - 1
+        ayt0=ax[0][last_col].twinx()
+        ayt1=ax[1][last_col].twinx()
+        ayt2=ax[2][last_col].twinx()
+        labels = [item.get_text() for item in ayt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
         ayt1.set_yticklabels(empty_string_labels)
@@ -1123,20 +1244,18 @@ class Data:
         ax[0][0].set_ylabel(r"$M$")
         ax[1][0].set_ylabel(r"$M$")
         ax[2][0].set_ylabel(r"$M$")
-        ax[2][0].set_xlabel(r"$T\, (s)$")
-        ax[2][1].set_xlabel(r"$T\, (s)$")
-        ax[2][2].set_xlabel(r"$T\, (s)$")
-        ax[2][3].set_xlabel(r"$T\, (s)$")
-        ax[2][4].set_xlabel(r"$T\, (s)$")
+        for y in range(ncols):
+            ax[2][y].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(5):
+            for y in range(ncols):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
                 ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
+        if handles_r:
+            fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0)
         # fig_path = self.base+"/msgs_data/images/messages.png"
         # fig.savefig(fig_path, bbox_inches='tight')
         fig_path = self.base+"/msgs_data/images/messages.pdf"
@@ -1150,18 +1269,42 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_park_t1,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
-        anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
-        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}$')
-        anonymous_t1        = mlines.Line2D([], [], color='orange', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}^{1}$')
-        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+B$')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
-        handles_r   = [anonymous_real_fifo,anonymous,anonymous_t1,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf,min_dim]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
+        handles_r = []
+        for pid in protocols_order:
+            if not self._protocol_enabled("decisions", pid):
+                continue
+            protocol = self.protocols_by_id.get(pid)
+            handles_r.append(
+                mlines.Line2D(
+                    [], [],
+                    color=protocol_colors.get(pid, "black"),
+                    marker='_',
+                    linestyle='None',
+                    markeredgewidth=18,
+                    markersize=18,
+                    label=protocol.get("label", pid) if protocol else pid,
+                )
+            )
+        handles_r.append(min_dim)
+        all_cols = set()
+        for dct in (dict_park_real_fifo, dict_park, dict_park_t1, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf):
+            for k in dct.keys():
+                try:
+                    all_cols.add(int(k[2]))
+                except Exception:
+                    continue
+        columns = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
+        columns = self._plot_tm_values("decisions", columns)
+        if not columns:
+            return
+        col_index = {str(c): i for i, c in enumerate(columns)}
+        ncols = len(columns)
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1171,182 +1314,145 @@ class Data:
                 else:
                     void_x_ticks.append('')
         for k in dict_park_real_fifo.keys():
+            if not self._protocol_enabled("decisions", "P.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_real_fifo.get(k),color="red",lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_park_real_fifo.get(k),color=protocol_colors.get("P.0","red"),lw=6)
         for k in dict_park.keys():
+            if not self._protocol_enabled("decisions", "P.1.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
+            col = col_index.get(k[2])
+            if col is None:
+                continue
             min_buf = []
             val = 5/(int(k[1])-1)
             for i in range(900):
                 min_buf.append(val)
-            ax[row][col].plot(dict_park.get(k),color=scalarMap.to_rgba(typo[0]),lw=6)
+            ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
+            ax[row][col].plot(dict_park.get(k),color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
         for k in dict_park_t1.keys():
+            if not self._protocol_enabled("decisions", "P.1.1"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_park_t1.get(k),color='orange',lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_park_t1.get(k),color=protocol_colors.get("P.1.1","orange"),lw=6)
         for k in dict_adam.keys():
+            if not self._protocol_enabled("decisions", "O.0.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_adam.get(k),color=scalarMap.to_rgba(typo[1]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_adam.get(k),color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
         for k in dict_fifo.keys():
+            if not self._protocol_enabled("decisions", "O.2.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_fifo.get(k),color=scalarMap.to_rgba(typo[2]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_fifo.get(k),color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
         for k in dict_rnd.keys():
+            if not self._protocol_enabled("decisions", "O.1.1"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_rnd.get(k),color=scalarMap.to_rgba(typo[3]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_rnd.get(k),color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
         for k in dict_rnd_inf.keys():
+            if not self._protocol_enabled("decisions", "O.1.0"):
+                continue
+            if k[2] not in col_index:
+                continue
             row = 0
-            col = 0
             if k[0]=='big' and k[1]=='25':
                 row = 0
             elif k[0]=='big' and k[1]=='100':
                 row = 2
             elif k[0]=='small':
                 row = 1
-            if k[2] == '60':
-                col = 0
-            elif k[2] == '120':
-                col = 1
-            elif k[2] == '180':
-                col = 2
-            elif k[2] == '300':
-                col = 3
-            elif k[2] == '600':
-                col = 4
-            ax[row][col].plot(dict_rnd_inf.get(k),color=scalarMap.to_rgba(typo[4]),lw=6)
+            col = col_index.get(k[2])
+            if col is None:
+                continue
+            ax[row][col].plot(dict_rnd_inf.get(k),color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
         for x in range(2):
-            for y in range(5):
+            for y in range(ncols):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                 ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
         for x in range(3):
-            for y in range(1,5):
+            for y in range(1,ncols):
                 labels = [item.get_text() for item in ax[x][y].get_yticklabels()]
                 empty_string_labels = ['']*len(labels)
                 ax[x][y].set_yticklabels(empty_string_labels)
-        for y in range(5):
+        for y in range(ncols):
             ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
             ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-        axt0=ax[0][0].twiny()
-        axt1=ax[0][1].twiny()
-        axt2=ax[0][2].twiny()
-        axt3=ax[0][3].twiny()
-        axt4=ax[0][4].twiny()
-        labels = [item.get_text() for item in axt0.get_xticklabels()]
-        empty_string_labels = ['']*len(labels)
-        axt0.set_xticklabels(empty_string_labels)
-        axt1.set_xticklabels(empty_string_labels)
-        axt2.set_xticklabels(empty_string_labels)
-        axt3.set_xticklabels(empty_string_labels)
-        axt4.set_xticklabels(empty_string_labels)
-        axt0.set_xlabel(r"$T_m = 60\, s$")
-        axt1.set_xlabel(r"$T_m = 120\, s$")
-        axt2.set_xlabel(r"$T_m = 180\, s$")
-        axt3.set_xlabel(r"$T_m = 300\, s$")
-        axt4.set_xlabel(r"$T_m = 600\, s$")
-        ayt0=ax[0][4].twinx()
-        ayt1=ax[1][4].twinx()
-        ayt2=ax[2][4].twinx()
-        labels = [item.get_text() for item in axt0.get_yticklabels()]
+        for idx, col_val in enumerate(columns):
+            axt=ax[0][idx].twiny()
+            labels = [item.get_text() for item in axt.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            axt.set_xticklabels(empty_string_labels)
+            axt.set_xlabel(rf"$T_m = {int(col_val)}\, s$")
+        last_col = ncols - 1
+        ayt0=ax[0][last_col].twinx()
+        ayt1=ax[1][last_col].twinx()
+        ayt2=ax[2][last_col].twinx()
+        labels = [item.get_text() for item in ayt0.get_yticklabels()]
         empty_string_labels = ['']*len(labels)
         ayt0.set_yticklabels(empty_string_labels)
         ayt1.set_yticklabels(empty_string_labels)
@@ -1357,13 +1463,10 @@ class Data:
         ax[0][0].set_ylabel(r"$D$")
         ax[1][0].set_ylabel(r"$D$")
         ax[2][0].set_ylabel(r"$D$")
-        ax[2][0].set_xlabel(r"$T\, (s)$")
-        ax[2][1].set_xlabel(r"$T\, (s)$")
-        ax[2][2].set_xlabel(r"$T\, (s)$")
-        ax[2][3].set_xlabel(r"$T\, (s)$")
-        ax[2][4].set_xlabel(r"$T\, (s)$")
+        for y in range(ncols):
+            ax[2][y].set_xlabel(r"$T\, (s)$")
         for x in range(3):
-            for y in range(5):
+            for y in range(ncols):
                 ax[x][y].grid(True)
                 ax[x][y].set_xlim(0,900)
                 if x==0 or x==1:
@@ -1375,7 +1478,8 @@ class Data:
             os.mkdir(self.base+"/dec_data/images/")
         # fig_path = self.base+"/dec_data/images/decisions.png"
         fig_path = self.base+"/dec_data/images/decisions.pdf"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=8, loc='upper right',framealpha=0.7,borderaxespad=0)
+        if handles_r:
+            fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
     
@@ -1390,23 +1494,37 @@ class Data:
         o_k = []
         for x in range(len(po_k)):
             o_k.append(int(po_k[x]))
-        o_k = np.sort(o_k)
+        o_k = sorted(set(o_k))
+        o_k = self._plot_tm_values("active", o_k)
+        if not o_k:
+            return
+        ncols = len(o_k)
         arena = more_k[0]
 
         low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
         high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
-        anonymous_real_fifo = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN$')
-        anonymous           = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}$')
-        anonymous_t1        = mlines.Line2D([], [], color='orange', marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$AN_{t}^{1}$')
-        id_broad            = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[1]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+B$')
-        id_rebroad_fifo     = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[2]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{f}$')
-        id_rebroad_rnd      = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[3]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{1}$')
-        id_rebroad_rnd_inf  = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[4]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r'$ID+R_{\infty}$')
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
 
         handles_c   = [high_bound,low_bound]
-        handles_r   = [anonymous_real_fifo,anonymous,anonymous_t1,id_broad,id_rebroad_fifo,id_rebroad_rnd,id_rebroad_rnd_inf]
-        fig, ax     = plt.subplots(nrows=3, ncols=5,figsize=(40,22))
-        tfig, tax   = plt.subplots(nrows=3, ncols=5,figsize=(26,18))
+        handles_r = []
+        for pid in protocols_order:
+            if not self._protocol_enabled("active", pid):
+                continue
+            protocol = self.protocols_by_id.get(pid)
+            handles_r.append(
+                mlines.Line2D(
+                    [], [],
+                    color=protocol_colors.get(pid, "black"),
+                    marker='_',
+                    linestyle='None',
+                    markeredgewidth=18,
+                    markersize=18,
+                    label=protocol.get("label", pid) if protocol else pid,
+                )
+            )
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols,22), squeeze=False)
+        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -1746,29 +1864,34 @@ class Data:
                         tvalsri[k][th] = ri_valst
 
                     ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    ax[row][k].plot(vals2pr[k],color="red",lw=6,ls='--')
-                    ax[row][k].plot(vals8pr[k],color="red",lw=6,ls='-')
-
-                    ax[row][k].plot(vals2p1[k],color='orange',lw=6,ls='--')
-                    ax[row][k].plot(vals8p1[k],color='orange',lw=6,ls='-')
-                    ax[row][k].plot(vals2p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='--')
-                    ax[row][k].plot(vals8p[k],color=scalarMap.to_rgba(typo[0]),lw=6,ls='-')
-                    ax[row][k].plot(vals2a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='--')
-                    ax[row][k].plot(vals8a[k],color=scalarMap.to_rgba(typo[1]),lw=6,ls='-')
-                    ax[row][k].plot(vals2f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='--')
-                    ax[row][k].plot(vals8f[k],color=scalarMap.to_rgba(typo[2]),lw=6,ls='-')
-                    ax[row][k].plot(vals2r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='--')
-                    ax[row][k].plot(vals8r[k],color=scalarMap.to_rgba(typo[3]),lw=6,ls='-')
-                    ax[row][k].plot(vals2ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='--')
-                    ax[row][k].plot(vals8ri[k],color=scalarMap.to_rgba(typo[4]),lw=6,ls='-')
-
-                    tax[row][k].plot(tvalspr[k],color="red",lw=6)
-                    tax[row][k].plot(tvalsp1[k],color='orange',lw=6)
-                    tax[row][k].plot(tvalsp[k],color=scalarMap.to_rgba(typo[0]),lw=6)
-                    tax[row][k].plot(tvalsa[k],color=scalarMap.to_rgba(typo[1]),lw=6)
-                    tax[row][k].plot(tvalsf[k],color=scalarMap.to_rgba(typo[2]),lw=6)
-                    tax[row][k].plot(tvalsr[k],color=scalarMap.to_rgba(typo[3]),lw=6)
-                    tax[row][k].plot(tvalsri[k],color=scalarMap.to_rgba(typo[4]),lw=6)
+                    if self._protocol_enabled("active", "P.0"):
+                        ax[row][k].plot(vals2pr[k],color=protocol_colors.get("P.0","red"),lw=6,ls='--')
+                        ax[row][k].plot(vals8pr[k],color=protocol_colors.get("P.0","red"),lw=6,ls='-')
+                        tax[row][k].plot(tvalspr[k],color=protocol_colors.get("P.0","red"),lw=6)
+                    if self._protocol_enabled("active", "P.1.1"):
+                        ax[row][k].plot(vals2p1[k],color=protocol_colors.get("P.1.1","orange"),lw=6,ls='--')
+                        ax[row][k].plot(vals8p1[k],color=protocol_colors.get("P.1.1","orange"),lw=6,ls='-')
+                        tax[row][k].plot(tvalsp1[k],color=protocol_colors.get("P.1.1","orange"),lw=6)
+                    if self._protocol_enabled("active", "P.1.0"):
+                        ax[row][k].plot(vals2p[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6,ls='--')
+                        ax[row][k].plot(vals8p[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6,ls='-')
+                        tax[row][k].plot(tvalsp[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
+                    if self._protocol_enabled("active", "O.0.0"):
+                        ax[row][k].plot(vals2a[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6,ls='--')
+                        ax[row][k].plot(vals8a[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6,ls='-')
+                        tax[row][k].plot(tvalsa[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
+                    if self._protocol_enabled("active", "O.2.0"):
+                        ax[row][k].plot(vals2f[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6,ls='--')
+                        ax[row][k].plot(vals8f[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6,ls='-')
+                        tax[row][k].plot(tvalsf[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
+                    if self._protocol_enabled("active", "O.1.1"):
+                        ax[row][k].plot(vals2r[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6,ls='--')
+                        ax[row][k].plot(vals8r[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6,ls='-')
+                        tax[row][k].plot(tvalsr[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
+                    if self._protocol_enabled("active", "O.1.0"):
+                        ax[row][k].plot(vals2ri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6,ls='--')
+                        ax[row][k].plot(vals8ri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6,ls='-')
+                        tax[row][k].plot(tvalsri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
                     if len(str_threshlds)==0:
                         for x in threshlds:
                             if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
@@ -1805,21 +1928,8 @@ class Data:
                         empty_string_labels = ['']*len(labels)
                         axt.set_xticklabels(empty_string_labels)
                         taxt.set_xticklabels(empty_string_labels)
-                        if k==0:
-                            axt.set_xlabel(r"$T_m = 60\, s$")
-                            taxt.set_xlabel(r"$T_m = 60\, s$")
-                        elif k==1:
-                            axt.set_xlabel(r"$T_m = 120\, s$")
-                            taxt.set_xlabel(r"$T_m = 120\, s$")
-                        elif k==2:
-                            axt.set_xlabel(r"$T_m = 180\, s$")
-                            taxt.set_xlabel(r"$T_m = 180\, s$")
-                        elif k==3:
-                            axt.set_xlabel(r"$T_m = 300\, s$")
-                            taxt.set_xlabel(r"$T_m = 300\, s$")
-                        elif k==4:
-                            axt.set_xlabel(r"$T_m = 600\, s$")
-                            taxt.set_xlabel(r"$T_m = 600\, s$")
+                        axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
+                        taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
                     elif row==2:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
                         tax[row][k].set_xticks(np.arange(0,41,10),labels=str_threshlds_y)
@@ -1839,7 +1949,7 @@ class Data:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
                         ax[row][k].set_ylabel(r"$G$")
                         tax[row][k].set_ylabel(r"$T_c$")
-                    elif k==4:
+                    elif k==ncols-1:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
                         axt = ax[row][k].twinx()
