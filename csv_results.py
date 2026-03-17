@@ -34,12 +34,10 @@ class Data:
             "plots": {
                 "activation": {
                     "exclude_protocols": [],
-                    "include_protocols": [],
                     "columns": [60, 120, 180, 300, 600],
                 },
                 "messages": {
                     "exclude_protocols": [],
-                    "include_protocols": [],
                     "columns": [60, 120, 180, 300, 600],
                 },
             },
@@ -119,12 +117,7 @@ class Data:
     def _protocol_enabled(self, plot_name, protocol_key):
         protocol = self.protocols_by_key.get(protocol_key)
         plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
-        include = plot_cfg.get("include_protocols") or []
         exclude = plot_cfg.get("exclude_protocols") or []
-        if include:
-            allowed = any(self._protocol_matches(protocol, sel) for sel in include)
-            if not allowed:
-                return False
         if exclude and any(self._protocol_matches(protocol, sel) for sel in exclude):
             return False
         return True

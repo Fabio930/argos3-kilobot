@@ -11,12 +11,10 @@
   "plots": {
     "activation": {
       "exclude_protocols": [],
-      "include_protocols": [],
       "columns": [60, 120, 180, 300, 600]
     },
     "messages": {
       "exclude_protocols": [],
-      "include_protocols": [],
       "columns": [60, 120, 180, 300, 600]
     }
   }
