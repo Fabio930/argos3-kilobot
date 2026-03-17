@@ -11,6 +11,10 @@ static uint8_t buffer_skip_prefix();
 static uint8_t eligible_quorum_items();
 static uint8_t is_buffer_index_eligible(uint16_t idx);
 
+static uint8_t sat_inc_u8(const uint8_t value){
+    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
+}
+
 static void update_arena_from_received_bounds(){
     if(the_arena == NULL){
         return;
@@ -123,11 +127,11 @@ void broadcast(){
 }
 
 void rebroadcast(){
-    sa_type = quorum_array[selected_msg_indx]->msg_n_hops + 1;
+    sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = quorum_array[selected_msg_indx]->delivered + 1;
+    quorum_array[selected_msg_indx]->delivered = 1;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
