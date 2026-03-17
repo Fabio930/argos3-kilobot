@@ -51,8 +51,8 @@
 
         <hierarchicStruct
             rebroadcast = "1"
-            msgs_n_hops = "1"
-            expiring_quorum_sec = "300"
+            msgs_n_hops = "0"
+            expiring_quorum_sec = "120"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
             start_commitment_variation_time = "450"

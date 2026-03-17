@@ -7,6 +7,10 @@ static void fifo_enqueue(const uint8_t agent_id);
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
 static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
 
+static uint8_t sat_inc_u8(const uint8_t value){
+    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
+}
+
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
         switch( new_motion_type ) {
@@ -60,10 +64,7 @@ void talk(){
                             else broadcast();
                             break;
                         default:
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops){
-                                quorum_array[selected_msg_indx]->msg_n_hops += 1;
-                                rebroadcast();
-                            }
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops) rebroadcast();
                             else broadcast();
                             break;
                     }
@@ -88,11 +89,8 @@ void talk(){
 }
 
 void broadcast(){
-    // frequency log
-    num_own_info += 1;
     // message
     sa_type = 0;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = msg_n_hops;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -102,15 +100,12 @@ void broadcast(){
 }
 
 void rebroadcast(){
-    // frequency log
-    num_other_info +=1;
     // message
-    sa_type = 0;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
+    sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = quorum_array[selected_msg_indx]->delivered + 1;
+    quorum_array[selected_msg_indx]->delivered = 1;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
@@ -147,7 +142,7 @@ static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
         if(item == NULL || item->delivered != 0){
             continue;
         }
-        if(check_4_hops != 0 && item->msg_n_hops == 0){
+        if(check_4_hops != 0 && item->msg_n_hops >= check_4_hops){
             continue;
         }
         return idx;
@@ -290,17 +285,6 @@ void update_messages(const uint8_t Msg_n_hops){
         fifo_enqueue(received_id);
     }
     sort_q(&quorum_array);
-    switch (result){
-        case 0:
-            buffer_neglect += 1;
-            break;
-        case 1:
-            buffer_insertion += 1;
-            break;
-        case 2:
-            buffer_update +=1;
-            break;
-    }
 }
 
 void check_quorum(quorum_a **Array[]){
