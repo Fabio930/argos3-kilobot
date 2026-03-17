@@ -5,6 +5,10 @@
 uint32_t expiring_ticks_quorum = 10000;
 uint8_t min_quorum_length;
 uint8_t num_quorum_items;
+uint8_t true_quorum_items;
+uint8_t buffer_length = 128;
+uint8_t priority_sampling_k = 0;
+uint8_t id_aware = 1;
 
 typedef struct quorum_structure{
     uint32_t counter;
@@ -19,7 +23,7 @@ void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_lengt
 
 void sort_q(quorum_a **Array[]);
 
-void init_array_qrm(quorum_a **Array[]);
+void init_array_qrm(quorum_a **Array[], uint8_t N);
 
 void print_q(quorum_a **Array[], uint8_t id);
 

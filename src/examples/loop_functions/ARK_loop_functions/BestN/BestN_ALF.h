@@ -55,6 +55,8 @@ public:
     /** Used to communicate gps position and angle*/
     void SendInformationGPS(CKilobotEntity &c_kilobot_entity);
 
+    void SendBufferInitInformation(CKilobotEntity &c_kilobot_entity);
+
     void SendStateInformation(CKilobotEntity &c_kilobot_entity);
 
     // void UpdateLog(UInt16 Time);
@@ -77,6 +79,8 @@ private:
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
     UInt8                   adaptive_comm;
+    UInt8                   m_unIdAware;
+    UInt8                   m_unPrioritySamplingK;
     UInt8                   m_unControlMode;
     UInt8                   m_unControlParameterQ;
     UInt16                  m_unFloorSeed;

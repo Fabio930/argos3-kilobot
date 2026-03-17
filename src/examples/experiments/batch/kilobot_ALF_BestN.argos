@@ -55,6 +55,8 @@
             adaptive_comm = "__ADAPTIVE_COMM__"
             msgs_n_hops = "__MSGS_HOPS__"
             msgs_timeout = "__MSG_EXPIRING_SECONDS__"
+            id_aware = "__ID_AWARE__"
+            priority_sampling_k = "__PRIORITY_K__"
             options = "__N_OPTIONS__"
             eta = "__ETA__"
             init_distr = "__INIT_DISTR__"

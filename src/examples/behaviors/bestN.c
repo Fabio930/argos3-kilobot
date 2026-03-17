@@ -7,6 +7,9 @@ static void fifo_enqueue(const uint8_t agent_id);
 static void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state);
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
 static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
+static uint8_t buffer_skip_prefix();
+static uint8_t eligible_quorum_items();
+static uint8_t is_buffer_index_eligible(uint16_t idx);
 
 static void update_arena_from_received_bounds(){
     if(the_arena == NULL){
@@ -174,6 +177,18 @@ static void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
         vote_fifo_head = vote_fifo_tail;
     }
 
+    if(!id_aware){
+        if(vote_fifo_count >= capacity){
+            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+            vote_fifo_count--;
+        }
+        vote_fifo_ids[vote_fifo_tail] = 0;
+        vote_fifo_states[vote_fifo_tail] = agent_state;
+        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count++;
+        return;
+    }
+
     int16_t found = -1;
     for(uint8_t i = 0; i < vote_fifo_count; ++i){
         uint8_t idx = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
@@ -214,7 +229,11 @@ static void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
 }
 
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
-    for(uint8_t i = 0; i < num_quorum_items; ++i){
+    if(!id_aware){
+        return 0b1111111111111111;
+    }
+    uint8_t start = buffer_skip_prefix();
+    for(uint8_t i = start; i < num_quorum_items; ++i){
         if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
             return i;
         }
@@ -223,12 +242,18 @@ static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
 }
 
 static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
+    if(!id_aware){
+        return select_message_by_fifo(&quorum_array, check_4_hops);
+    }
     while(fifo_count > 0){
         uint8_t agent_id = fifo_ids[fifo_head];
         fifo_head = (uint8_t)((fifo_head + 1) % FIFO_BUFFER_SIZE);
         fifo_count--;
         uint16_t idx = find_quorum_index_by_id(agent_id);
         if(idx == 0b1111111111111111){
+            continue;
+        }
+        if(!is_buffer_index_eligible(idx)){
             continue;
         }
         quorum_a *item = quorum_array[idx];
@@ -241,6 +266,26 @@ static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
         return idx;
     }
     return 0b1111111111111111;
+}
+
+static uint8_t buffer_skip_prefix(){
+    if(priority_sampling_k == 0){
+        return 0;
+    }
+    if(priority_sampling_k >= num_quorum_items){
+        return num_quorum_items;
+    }
+    return priority_sampling_k;
+}
+
+static uint8_t eligible_quorum_items(){
+    uint8_t start = buffer_skip_prefix();
+    return (num_quorum_items > start) ? (num_quorum_items - start) : 0;
+}
+
+static uint8_t is_buffer_index_eligible(uint16_t idx){
+    uint8_t start = buffer_skip_prefix();
+    return (idx >= start && idx < num_quorum_items) ? 1 : 0;
 }
 
 float random_in_range(float min, float max){
@@ -259,14 +304,16 @@ static float clamp01(float value){
 }
 
 float compute_quorum_value(){
-    if(quorum_array == NULL || num_quorum_items < min_quorum_length) return 2.0f;
+    uint8_t eligible = eligible_quorum_items();
+    if(quorum_array == NULL || eligible < min_quorum_length) return 2.0f;
     uint16_t agreeing = 1; /* include own opinion */
-    for(uint8_t i = 0; i < num_quorum_items; ++i){
+    uint8_t start = buffer_skip_prefix();
+    for(uint8_t i = start; i < num_quorum_items; ++i){
         if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
             ++agreeing;
         }
     }
-    return (float)agreeing / (float)(num_quorum_items + 1);
+    return (float)agreeing / (float)(eligible + 1);
 }
 
 float compute_r_threshold(float quorum_value){
@@ -390,6 +437,10 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 if(kb_index == 0){
                     msg_n_hops = (uint8_t)(sa_payload & 0x1F);
                     msg_n_hops_rnd = msg_n_hops;
+                    if(!id_aware){
+                        msg_n_hops = 0;
+                        msg_n_hops_rnd = 0;
+                    }
                     init_received_B = true;
                 }
                 else if(kb_index == 1){
@@ -416,7 +467,7 @@ void update_messages(const uint8_t Msg_n_hops){
         buffer_update_rng += 1;
     }
     vote_fifo_update(received_id, received_committed);
-    if(broadcasting_flag == 2 && (result == 1 || result == 2)){
+    if(id_aware && broadcasting_flag == 2 && (result == 1 || result == 2)){
         fifo_enqueue(received_id);
     }
     sort_q(&quorum_array);
@@ -452,16 +503,29 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                     }
                     update_arena_from_received_bounds();
                     uint32_t msg_timeout = sa_payload;
-                    if(msg_timeout == 0){
-                        msg_timeout = received_arena_diagonal_cm();
-                        if(msg_timeout == 0){
-                            msg_timeout = 1;
-                        }
-                    }
                     adaptive_comm = (uint8_t)((packet_data >> 5) & 0x01);
                     broadcasting_flag = (uint8_t)(packet_data & 0x1F);
+                    if(broadcasting_flag == 0){
+                        adaptive_comm = 0;
+                    }
                     set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
                     init_received_A = true;
+                }
+                else if(packet_type == 2){
+                    priority_sampling_k = (uint8_t)(sa_payload & 0x7F);
+                    id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
+                    if(priority_sampling_k > buffer_length){
+                        priority_sampling_k = buffer_length;
+                    }
+                    if(!id_aware){
+                        broadcasting_flag = 0;
+                        msg_n_hops = 0;
+                        msg_n_hops_rnd = 0;
+                        adaptive_comm = 0;
+                    }
+                    if(broadcasting_flag == 0){
+                        adaptive_comm = 0;
+                    }
                 }
                 else if(packet_type == 3){
                     gps_max_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
@@ -615,7 +679,7 @@ int majority_vote() {
     if (vote_fifo_count == 0 || voting_msgs == 0) return my_state;
     uint8_t sample_target = voting_msgs;
     if(sample_target > FIFO_BUFFER_SIZE) sample_target = FIFO_BUFFER_SIZE;
-    if(sample_target > vote_fifo_count) sample_target = vote_fifo_count;
+    if(vote_fifo_count < sample_target) return my_state;
     uint8_t buffer[6] = {0};
     uint8_t start_offset = (uint8_t)(vote_fifo_count - sample_target);
     uint8_t idx = (uint8_t)((vote_fifo_head + start_offset) % FIFO_BUFFER_SIZE);
@@ -648,7 +712,9 @@ void setup(){
     my_state = 255;
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
-    init_array_qrm(&quorum_array);
+    init_array_qrm(&quorum_array, FIFO_BUFFER_SIZE);
+    id_aware = 1;
+    priority_sampling_k = 0;
 
     uint8_t seed = rand_hard();
     rand_seed(seed);
@@ -675,7 +741,7 @@ void loop(){
         decision();
         talk();
     }
-    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,num_quorum_items,quorum_value,control_value);
+    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,true_quorum_items,quorum_value,control_value);
 }
 
 void deallocate_memory(){

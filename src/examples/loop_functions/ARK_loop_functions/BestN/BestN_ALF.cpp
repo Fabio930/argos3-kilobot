@@ -27,7 +27,9 @@ UInt8 ControlModeFromString(const std::string& strControl) {
 /****************************************/
 
 CBestN_ALF::CBestN_ALF() :
-    m_unDataAcquisitionFrequency(10){
+    m_unDataAcquisitionFrequency(10),
+    m_unIdAware(1),
+    m_unPrioritySamplingK(0){
         c_rng = CRandom::CreateRNG("argos");
 }
 
@@ -137,6 +139,8 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"id_aware",m_unIdAware,static_cast<UInt8>(1));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"priority_sampling_k",m_unPrioritySamplingK,static_cast<UInt8>(0));
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
@@ -145,6 +149,16 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     rebroadcast = Min<UInt8>(31, rebroadcast);
     msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
     adaptive_comm = Min<UInt8>(1, adaptive_comm);
+    m_unIdAware = Min<UInt8>(1, m_unIdAware);
+    m_unPrioritySamplingK = Min<UInt8>(127, m_unPrioritySamplingK);
+    if(m_unIdAware == 0){
+        rebroadcast = 0;
+        msgs_n_hops = 0;
+        adaptive_comm = 0;
+    }
+    if(rebroadcast == 0){
+        adaptive_comm = 0;
+    }
     voting_msgs = Min<UInt8>(127, voting_msgs);
     control_parameter = Min<Real>(1.0, Max<Real>(0.0, control_parameter));
     m_unControlMode = ControlModeFromString(control);
@@ -266,24 +280,28 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 case 1:
                     m_vecStart_experiment[unKilobotID]=2;
-                    SendEnvironmentInitInformation(c_kilobot_entity);
+                    SendBufferInitInformation(c_kilobot_entity);
                     break;
                 case 2:
                     m_vecStart_experiment[unKilobotID]=3;
-                    SendBoundsInitInformation(c_kilobot_entity);
+                    SendEnvironmentInitInformation(c_kilobot_entity);
                     break;
                 case 3:
                     m_vecStart_experiment[unKilobotID]=4;
-                    SendStateInformation(c_kilobot_entity);
+                    SendBoundsInitInformation(c_kilobot_entity);
                     break;
                 case 4:
                     m_vecStart_experiment[unKilobotID]=5;
+                    SendStateInformation(c_kilobot_entity);
+                    break;
+                case 5:
+                    m_vecStart_experiment[unKilobotID]=6;
                     SendInformationGPS(c_kilobot_entity);
                     break;
             }
             start_experiment=1;
             for(size_t i = 0; i < m_vecStart_experiment.size(); ++i){
-                if(m_vecStart_experiment[i]!=5){
+                if(m_vecStart_experiment[i]!=6){
                     start_experiment=0;
                     break;
                 }
@@ -309,6 +327,23 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
     const UInt8 unPacketData = static_cast<UInt8>(((adaptive_comm & 0x01u) << 5) | (rebroadcast & 0x1Fu));
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (unPacketData & 0x3Fu));
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendBufferInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
+    m_tMessages[unKilobotID].type = 0;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = static_cast<UInt16>(
+        (m_unPrioritySamplingK & 0x7Fu) |
+        ((m_unIdAware & 0x01u) << 7));
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(2u << 6);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 

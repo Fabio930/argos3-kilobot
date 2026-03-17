@@ -132,7 +132,7 @@ class Results:
 
 ##########################################################################################################
     def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,communication:int,
-                       adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
+                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float) -> None:
         max_steps = exp_length * ticks_per_sec
         num_runs = int(len(os.listdir(path))/n_agents)
@@ -211,6 +211,9 @@ class Results:
                 exp_length=exp_length,
                 communication=communication,
                 adaptive_com=adaptive_com,
+                comm_type=comm_type,
+                id_aware=id_aware,
+                priority_k=priority_k,
                 n_agents=n_agents,
                 msg_exp_time=msg_exp_time,
                 msg_hops=msg_hops,
@@ -233,6 +236,9 @@ class Results:
             exp_length=exp_length,
             communication=communication,
             adaptive_com=adaptive_com,
+            comm_type=comm_type,
+            id_aware=id_aware,
+            priority_k=priority_k,
             n_agents=n_agents,
             msg_exp_time=msg_exp_time,
             msg_hops=msg_hops,
@@ -255,6 +261,9 @@ class Results:
             exp_length=exp_length,
             communication=communication,
             adaptive_com=adaptive_com,
+            comm_type=comm_type,
+            id_aware=id_aware,
+            priority_k=priority_k,
             n_agents=n_agents,
             msg_exp_time=msg_exp_time,
             msg_hops=msg_hops,
@@ -271,10 +280,10 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_per_opt_csv(self,data_in,data_std,exp_length:int,communication:int,
-                       adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
+                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,option_id:int,data_type:str):    
-        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
-        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
+        static_fields=["communication","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
+        static_values=[communication,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
         os.makedirs(os.path.abspath("")+f"/proc_data/{data_type}", exist_ok=True)
         output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
         write_header = 0
@@ -302,10 +311,10 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
-                       adaptive_com:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
+                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str):    
-        static_fields=["communication","adaptive_com","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
-        static_values=[communication,adaptive_com,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
+        static_fields=["communication","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","eta","init_distr","function","vote_msg","control_par"]
+        static_values=[communication,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,eta,init_distr,function,vote_msg,ctrl_par]
         os.makedirs(os.path.abspath("")+f"/proc_data/{data_type}", exist_ok=True)
         output_path = os.path.abspath("")+f"/proc_data/{data_type}/"
         write_header = 0
