@@ -404,16 +404,23 @@ class Data:
         real_x_ticks    = []
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
+                size_per_plot = 6.0
+                fig_width = size_per_plot * ncols
+                fig_height = size_per_plot * 3
+                fig, ax = plt.subplots(
+                    nrows=3, 
+                    ncols=ncols, 
+                    figsize=(fig_width, fig_height), 
+                    squeeze=False, 
+                    layout="constrained"
+                )
                 for a in arena:
-                    if a=="smallA":
-                        row = 1
-                        agents = ["25"]
-                    else:
-                        row = 0
-                        agents = more_k[1]
+                    agents = more_k[1]
                     for ag in agents:
-                        if int(ag)==100: row = 2
+                        row = 0
+                        if a=="smallA":
+                            row = 1
+                        elif int(ag)==100: row = 2
                         for col_val in columns:
                             col = col_index[col_val]
                             key = (a,ag,str(col_val),gt,thr)
@@ -474,11 +481,23 @@ class Data:
                                     axt.set_ylabel("HD25")
                                 elif row==2:
                                     axt.set_ylabel("HD100")
-                            ax[row][col].grid(which='major')
+                
+                for x in range(3):
+                    for y in range(ncols):
+                        ax[x][y].grid(which='major')
+
                 fig.tight_layout()
                 fig_path = path+thr+"_"+gt.replace(';','_')+"_activation.pdf"
                 if handles_r:
-                    fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=len(handles_r),loc='upper right',framealpha=0.7,borderaxespad=0)
+                    leg_cols = min(len(handles_r), max(2, ncols))
+                    fig.legend(
+                        handles=handles_r,
+                        ncols=leg_cols,
+                        loc='upper center',
+                        bbox_to_anchor=(0.5, 0.0), # Centrata sotto la figura
+                        framealpha=0.7,
+                        fontsize=24 # Leggermente più piccola del font principale se serve
+                    )
                 fig.savefig(fig_path, bbox_inches='tight')
                 plt.close(fig)
 
@@ -516,7 +535,7 @@ class Data:
             os.makedirs(self.base+"/proc_data/images/", exist_ok=True)
 
         for thr in threshlds:
-            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(19,16))
+            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(19,16), squeeze=False, layout="constrained")
             # rows mapping same as other methods
             for a in arena:
                 if a=="smallA":
@@ -663,7 +682,17 @@ class Data:
                     real_x_ticks.append(str(int(np.round(x,0))))
                 else:
                     void_x_ticks.append('')
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
+        size_per_plot = 6.0
+        fig_width = size_per_plot * ncols
+        fig_height = size_per_plot * 3
+
+        fig, ax = plt.subplots(
+            nrows=3, 
+            ncols=ncols, 
+            figsize=(fig_width, fig_height), 
+            squeeze=False, 
+            layout="constrained"
+        )
         for k in dict_park_real.keys():
             tmp =[]
             res = dict_park_real.get(k)
@@ -876,6 +905,14 @@ class Data:
             os.mkdir(self.base+"/msgs_data/images/")
         fig_path = self.base+"/msgs_data/images/messages.pdf"
         if handles_r:
-            fig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0)
+            leg_cols = min(len(handles_r), max(2, ncols))
+            fig.legend(
+                handles=handles_r,
+                ncols=leg_cols,
+                loc='upper center',
+                bbox_to_anchor=(0.5, 0.0),
+                framealpha=0.7,
+                fontsize=24
+            )
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)

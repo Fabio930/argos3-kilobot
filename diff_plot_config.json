@@ -1,4 +1,8 @@
 {
+  "folders": [
+    {"root": "./", "label": "Gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_f","ID+R_a"]},
+    {"root": "./dynamic_data/", "label": "State-change", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_f"]}
+  ],
   "protocols": [
     {"key": "AN", "id": 0, "label": "$AN$", "color": "red", "legend": false},
     {"key": "AN_t", "id": 1, "label": "$AN_{t}$", "color": "viridis:0", "legend": true},
@@ -10,11 +14,9 @@
   ],
   "plots": {
     "activation": {
-      "exclude_protocols": ["ID+R_a"],
       "columns": [60, 180, 600]
     },
     "messages": {
-      "exclude_protocols": ["ID+R_a"],
       "columns": [60, 180, 600]
     }
   }
