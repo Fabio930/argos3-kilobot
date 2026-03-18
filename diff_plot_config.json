@@ -1,7 +1,7 @@
 {
   "folders": [
     {"root": "./", "label": "Gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_f","ID+R_a"]},
-    {"root": "./dynamic_data/", "label": "State-change", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_f"]}
+    {"root": "./dynamic_data/", "label": "State-change", "line_style": "--","exclude_protocols": []}
   ],
   "protocols": [
     {"key": "AN", "id": 0, "label": "$AN$", "color": "red", "legend": false},
