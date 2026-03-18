@@ -9,9 +9,8 @@
     {"id": "O.1.0", "label": "$ID+R_{\\infty}$", "color": "viridis:4"}
   ],
   "plots": {
-    "messages": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
-    "decisions": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
-    "active": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
+    "messages": {"exclude_protocols": [], "exclude_tm": []},
+    "active": {"exclude_protocols": [], "exclude_tm": []},
     "recovery": {"exclude_protocols": [], "exclude_tm": []}
   }
 }

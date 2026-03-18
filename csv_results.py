@@ -1020,7 +1020,7 @@ class Data:
                     all_cols.add(int(k[2]))
                 except Exception:
                     continue
-        columns = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
+        columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values("messages", columns)
         if not columns:
             return
@@ -1298,7 +1298,7 @@ class Data:
                     all_cols.add(int(k[2]))
                 except Exception:
                     continue
-        columns = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
+        columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values("decisions", columns)
         if not columns:
             return
@@ -2078,3 +2078,12 @@ class Data:
                 # fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.png", bbox_inches='tight')
                 fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.pdf", bbox_inches='tight')
                 plt.close(fig)
+
+###################################################
+    def plot_compressed_tables(self,tot_st,tot_times,tot_msgs):
+        
+        return
+    
+###################################################
+    def plot_compressed_recovery(self):
+        return
