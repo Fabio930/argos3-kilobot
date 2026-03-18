@@ -1026,7 +1026,8 @@ class Data:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
+        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
+        
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1089,7 +1090,11 @@ class Data:
             for xi in res:
                 tmp.append(xi/norm)
             dict_rnd_inf.update({k:tmp})
-
+        for k in range(3):
+            for z in range(ncols):
+                den = 100 if k==2 else 25
+                val_min_buf = 5 / den
+                ax[k][z].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
         for k in dict_park_real_fifo.keys():
             if not self._protocol_enabled("messages", "P.0"):
                 continue
@@ -1304,7 +1309,7 @@ class Data:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1523,8 +1528,8 @@ class Data:
                     label=protocol.get("label", pid) if protocol else pid,
                 )
             )
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols,22), squeeze=False)
-        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False)
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols,22), squeeze=False, layout="constrained")
+        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -2080,10 +2085,188 @@ class Data:
                 plt.close(fig)
 
 ###################################################
-    def plot_compressed_tables(self,tot_st,tot_times,tot_msgs):
+    def plot_compressed_table(self, tot_states, tot_times, tot_msgs):
+        if not os.path.exists(self.base+"/compressed/images/"):
+            os.makedirs(self.base+"/compressed/images/")
+        path = self.base+"/compressed/images/"
+
+        # Setup Figure: 3 Righe (LD25, HD25, HD100) x 3 Colonne (Msg, Act, Time)
+        fig, ax = plt.subplots(3, 3, figsize=(24, 18), constrained_layout=True)
         
-        return
-    
+        # Mapping Colori e Protocolli
+        typo = [0,1,2,3,4,5]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+
+        row_configs = [
+            {'arena': 'big',   'agents': '25',  'label': 'LD25'},
+            {'arena': 'small', 'agents': '25',  'label': 'HD25'},
+            {'arena': 'big',   'agents': '100', 'label': 'HD100'}
+        ]
+
+        # Estrazione corretta dei Tm (indice 4 nei messaggi)
+        all_tm = sorted(list(set(str(k[4]) for k in tot_msgs.keys())), key=int)
+        # Estrazione Ground Truth e Thresholds (indici 6 e 7 come da print_active)
+        # Usiamo i dati grezzi passati per trovare i valori univoci
+        all_gt = sorted(list(set(float(k[6]) for k in tot_states[0].keys())))
+        all_thr = sorted(list(set(float(k[7]) for k in tot_states[0].keys())))
+
+        for row_idx, config in enumerate(row_configs):
+            arena_type = config['arena']
+            agents_count = config['agents']
+            norm_factor = int(agents_count) - 1
+
+            # --- COLONNA 0: MESSAGES ---
+            for key, msg_series in tot_msgs.items():
+                if key[0] == arena_type and key[3] == agents_count:
+                    p_id = self._identify_protocol_from_key(key)
+                    if p_id and self._protocol_enabled("messages", p_id):
+                        try:
+                            # Gestione lunghezze diverse tra le run
+                            if isinstance(msg_series[0], (list, np.ndarray)):
+                                # Troviamo la lunghezza minima comune a tutte le run
+                                min_l = min(len(run) for run in msg_series)
+                                # Tagliamo ogni run alla lunghezza minima per renderle omogenee
+                                homogeneous_series = [run[:min_l] for run in msg_series]
+                                y_data = np.mean(homogeneous_series, axis=0)
+                            else:
+                                y_data = np.array(msg_series)
+                            
+                            # Plot con normalizzazione
+                            ax[row_idx][0].plot(y_data / norm_factor, 
+                                              color=protocol_colors.get(p_id, 'black'), 
+                                              lw=3, alpha=0.8)
+                        except Exception as e:
+                            print(f"Skipping key {key} due to error: {e}")
+                            continue
+            # --- COLONNA 1 & 2: ACTIVE & TIMES (Logica print_borders) ---
+            for p in self.protocols:
+                p_id = p.get("id")
+                if not self._protocol_enabled("active", p_id): continue
+                
+                # Per ogni protocollo in questa riga, calcoliamo le curve di confine
+                # Prepariamo liste per contenere i punti (x=thr, y=gt_interp)
+                curve_02, curve_08, curve_time = [], [], []
+
+                for th_val in all_thr:
+                    p_vals2, p_gt2 = [np.nan]*2, [np.nan]*2
+                    p_vals8, p_gt8 = [np.nan]*2, [np.nan]*2
+                    temp_times = []
+
+                    for gt_val in all_gt:
+                        # Ricostruiamo la chiave come in print_active/borders
+                        # Nota: o_k[k] nel tuo codice originale è il Tm (m_t)
+                        for m_t in all_tm:
+                            # Cerchiamo i dati in tutte le run caricate
+                            for i in range(len(tot_states)):
+                                # Struttura chiave print_borders: (algo, arena, run, time, comm, agents, gt, thr, buf, tm, hop)
+                                # Usiamo un filtro dinamico sulla chiave per trovare quella corrispondente
+                                for k_state, s_data in tot_states[i].items():
+                                    if (k_state[0] == p.get("algo") and k_state[1] == arena_type and 
+                                        k_state[5] == agents_count and k_state[6] == str(gt_val) and 
+                                        k_state[7] == str(th_val) and k_state[9] == m_t and 
+                                        k_state[4] == p.get("comm") and k_state[10] == p.get("hops")):
+                                        
+                                        val_q = np.median(s_data[0])
+                                        # Logica interpolazione 0.2 / 0.8
+                                        if val_q <= 0.2:
+                                            p_vals2 = [val_q, p_vals2[1]]; p_gt2 = [gt_val, p_gt2[1]]
+                                        elif val_q >= 0.8:
+                                            p_vals8 = [p_vals8[0], val_q]; p_gt8 = [p_gt8[0], gt_val]
+                                            # Tempo di convergenza
+                                            t_data = tot_times[i].get(k_state)
+                                            if t_data: temp_times.append(np.median(t_data[0]))
+
+                    # Calcolo punti interpolati
+                    v2 = np.interp(0.2, p_vals2, p_gt2, left=np.nan)
+                    v8 = np.interp(0.8, p_vals8, p_gt8, right=np.nan)
+                    if not np.isnan(v2): curve_02.append((th_val, v2))
+                    if not np.isnan(v8): curve_08.append((th_val, v8))
+                    if temp_times: curve_time.append((th_val, np.mean(temp_times)))
+
+                # Plot curve per il protocollo p
+                p_color = protocol_colors.get(p_id, 'black')
+                if curve_02:
+                    curve_02.sort(); x, y = zip(*curve_02)
+                    ax[row_idx][1].plot(x, y, color=p_color, ls='--', lw=2)
+                if curve_08:
+                    curve_08.sort(); x, y = zip(*curve_08)
+                    ax[row_idx][1].plot(x, y, color=p_color, ls='-', lw=2)
+                if curve_time:
+                    curve_time.sort(); x, y = zip(*curve_time)
+                    ax[row_idx][2].plot(x, y, color=p_color, marker='x', ms=4, alpha=0.6)
+
+            # Formattazione
+            ax[row_idx][0].set_ylabel(config['label'], fontweight='bold', fontsize=16)
+            ax[row_idx][1].set_ylim(0.5, 1.0); ax[row_idx][2].set_ylim(0, 200)
+
+        # Finalize (Legenda, Titoli, Save) come nel tuo codice...
+        self._finalize_compressed_plot(fig, ax, path, protocol_colors)
+
+    def _identify_protocol_from_key(self, k):
+        """Helper basato sulla logica di plot_messages"""
+        algo = k[1].strip().lower()
+        n_agents = int(k[3]); buff_dim = int(k[4])
+        if (algo == 'ps' or (algo == 'p' and buff_dim == max(0, n_agents - 2))) and buff_dim > 0: return "P.1.1"
+        if k[1] == 'P' and buff_dim > 0: return "P.1.0"
+        if k[1] == 'P' and buff_dim == 0: return "P.0"
+        if k[2] == "0": return "O.0.0"
+        if k[2] == "2": return "O.2.0"
+        if k[5] == "1": return "O.1.1"
+        return "O.1.0"
 ###################################################
+    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors):
+        """Gestisce l'estetica finale, la legenda e il salvataggio del plot compresso."""
+        
+        # Titoli delle Colonne
+        column_titles = ["Normalized Messages (M)", "Activation Boundaries", "Convergence Time (s)"]
+        for j in range(3):
+            ax[0][j].set_title(column_titles[j], fontsize=18, fontweight='bold', pad=20)
+            
+        # Etichette degli assi X (solo sull'ultima riga per non affollare)
+        ax[2][0].set_xlabel("Time (s)", fontsize=14)
+        ax[2][1].set_xlabel(r"Threshold $T_h$", fontsize=14)
+        ax[2][2].set_xlabel(r"Threshold $T_h$", fontsize=14)
+
+        # Pulizia Generale e Grid
+        for i in range(3):
+            for j in range(3):
+                ax[i][j].grid(True, ls=':', alpha=0.6)
+                ax[i][j].tick_params(axis='both', which='major', labelsize=11)
+                # Rimuove i bordi superflui per un look moderno
+                ax[i][j].spines['top'].set_visible(False)
+                ax[i][j].spines['right'].set_visible(False)
+
+        # Creazione Legenda Globale Personalizzata
+        from matplotlib.lines import Line2D
+        legend_elements = []
+        
+        # Aggiungiamo i protocolli definiti (solo se hanno un colore assegnato)
+        for p in self.protocols:
+            p_id = p.get("id")
+            label = p.get("label", p_id)
+            color = protocol_colors.get(p_id, 'black')
+            legend_elements.append(Line2D([0], [0], color=color, lw=4, label=label))
+        
+        # Aggiungiamo gli indicatori di confine (0.2 vs 0.8)
+        legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='--', label=r'Boundary $\hat{Q}=0.2$'))
+        legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='-', label=r'Boundary $\hat{Q}=0.8$'))
+
+        # Posizionamento della Legenda sotto il grafico
+        fig.legend(handles=legend_elements, 
+                   loc='lower center', 
+                   bbox_to_anchor=(0.5, -0.08),
+                   ncol=4, 
+                   fontsize=13, 
+                   frameon=True,
+                   edgecolor='0.8')
+
+        # Salvataggio
+        save_name = "compressed_summary_final.pdf"
+        plt.savefig(os.path.join(path, save_name), bbox_inches='tight', dpi=300)
+        plt.close(fig)
+        
+        print(f"--- Plot Compresso Creato: {os.path.join(path, save_name)} ---")
     def plot_compressed_recovery(self):
         return

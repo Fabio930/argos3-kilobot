@@ -8,7 +8,7 @@ def main():
     parser = argparse.ArgumentParser(description="Plot results with optional protocol/Tm exclusions.")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude (e.g. P.0,O.2.0)")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude (e.g. 60,120)")
-    parser.add_argument("--short", default="", help="Use 's' command")
+    parser.add_argument("--short", default="s", help="Use 's' command")
     args = parser.parse_args()
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
