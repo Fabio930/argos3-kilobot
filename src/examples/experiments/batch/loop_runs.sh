@@ -29,7 +29,7 @@ variation_start_time="600"
 variation_end_time="0"
 RUNS=100
 msg_hops="0"
-rebroadcast="2"
+rebroadcast="1 2"
 msg_expiring_sec="60 120 180 300 600"
 numrobots="25"
 threshold="0.8"
@@ -64,6 +64,11 @@ for exp_len_par in $experiment_length; do
                     comm_dir=$dlt_dir/"Rebroadcast#"$comm_par
                     if [[ ! -e $comm_dir ]]; then
                         mkdir $comm_dir
+                    fi
+                    if [[ $comm_par == "1" ]]; then
+                        msg_hops="0 1"
+                    else
+                        msg_hops="0"
                     fi
                     for msgh in $msg_hops; do
                         agents_dir=$comm_dir/"Robots#"$agents_par
