@@ -318,6 +318,7 @@ class Data:
 
 ###################################################
     def plot_decisions(self,data):
+        decisions_dict = {}
         dict_park, dict_park_t1, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{},{}
         for k in data.keys():
             algo = str(k[1]).strip().lower()
@@ -343,130 +344,111 @@ class Data:
                         dict_rnd.update({(k[0],k[3],k[4]):data.get(k)})
                     else:
                         dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)})
-        self.print_decisions([dict_park,dict_park_t1,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo])
+        decisions_dict.update({"P.0":dict_park_real_fifo})
+        decisions_dict.update({"P.1.0":dict_park})
+        decisions_dict.update({"P.1.1":dict_park_t1})
+        decisions_dict.update({"O.0.0":dict_adam})
+        decisions_dict.update({"O.2.0":dict_fifo})
+        decisions_dict.update({"O.1.0":dict_rnd})
+        decisions_dict.update({"O.1.1":dict_rnd_inf})
+        self.print_decisions(decisions_dict)
 
 ###################################################
-    def read_msgs_csv(self,path):
+    def read_msgs_csv(self, path):
         data = {}
-        with open(path, newline='', buffering=1024 * 1024) as f:
-            header = f.readline()
+        with open(path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter='\t')
+            header = next(reader, None)
             if not header:
                 return data
-            header_cols = header.rstrip('\n').split('\t')
             try:
-                data_idx = header_cols.index("data")
+                data_idx = header.index("data")
             except ValueError:
-                data_idx = max(len(header_cols) - 1, 0)
-            for line in f:
-                line = line.strip('\n')
-                if not line:
+                data_idx = len(header) - 1
+            parse_float = self._parse_float_list 
+            for row in reader:
+                if len(row) <= data_idx:
                     continue
-                cols = line.split('\t')
-                if len(cols) <= data_idx:
-                    continue
-                keys = cols[:data_idx]
-                array_val = self._parse_float_list(cols[data_idx])
-                if len(keys) >= 6:
-                    data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,[])})
+                data[tuple(row[:6])] = (parse_float(row[data_idx]), [])
         return data
     
 ###################################################
-    def read_msgs_csv_w_std(self,path):
+    def read_msgs_csv_w_std(self, path):
         data = {}
-        with open(path, newline='', buffering=1024 * 1024) as f:
-            header = f.readline()
+        with open(path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter='\t')
+            header = next(reader, None)
             if not header:
                 return data
-            header_cols = header.rstrip('\n').split('\t')
             try:
-                data_idx = header_cols.index("data")
+                data_idx = header.index("data")
             except ValueError:
-                data_idx = max(len(header_cols) - 2, 0)
+                data_idx = len(header) - 2
             try:
-                std_idx = header_cols.index("std")
+                std_idx = header.index("std")
             except ValueError:
                 std_idx = data_idx + 1
-            for line in f:
-                line = line.strip('\n')
-                if not line:
+            parse_float = self._parse_float_list
+            for row in reader:
+                if len(row) <= max(data_idx, std_idx):
                     continue
-                cols = line.split('\t')
-                if len(cols) <= max(data_idx, std_idx):
-                    continue
-                keys = cols[:data_idx]
-                array_val = self._parse_float_list(cols[data_idx])
-                std_val = self._parse_float_list(cols[std_idx], allow_dash=True)
-                if len(keys) >= 6:
-                    data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]):(array_val,std_val)})
+                data[tuple(row[:data_idx])] = (
+                    parse_float(row[data_idx]), 
+                    parse_float(row[std_idx], allow_dash=True)
+                )
         return data
 
 ###################################################
-    def read_recovery_csv(self,path,algo,arena):
+    def read_recovery_csv(self, path, algo, arena):
         data = {}
-        with open(path, newline='', buffering=1024 * 1024) as f:
-            header = f.readline()
+        with open(path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter='\t')
+            header = next(reader, None)
             if not header:
                 return data
-            header_cols = header.rstrip('\n').split('\t')
             try:
-                buff_idx = header_cols.index("buff_starts")
+                b_idx = header.index("buff_starts")
             except ValueError:
-                buff_idx = max(len(header_cols) - 3, 0)
-            try:
-                dur_idx = header_cols.index("durations")
-            except ValueError:
-                dur_idx = buff_idx + 1
-            try:
-                evt_idx = header_cols.index("events")
-            except ValueError:
-                evt_idx = buff_idx + 2
-            key_end = min(buff_idx, dur_idx, evt_idx)
-            for line in f:
-                line = line.strip('\n')
-                if not line:
+                b_idx = len(header) - 3
+            d_idx = b_idx + 1
+            e_idx = b_idx + 2
+            key_end = min(b_idx, d_idx, e_idx)
+            parse_int = self._parse_int_list
+            for row in reader:
+                if len(row) <= e_idx:
                     continue
-                cols = line.split('\t')
-                if len(cols) <= evt_idx:
-                    continue
-                buffer_start_dim = self._parse_int_list(cols[buff_idx])
-                durations = self._parse_int_list(cols[dur_idx])
-                event_observed = self._parse_int_list(cols[evt_idx])
-                key_cols = cols[:key_end]
-                if len(key_cols) >= 8:
-                    data.update({(algo,arena,key_cols[0],key_cols[1],key_cols[2],key_cols[3],key_cols[4],key_cols[5],key_cols[6],key_cols[7]):(buffer_start_dim,durations,event_observed)})
+                
+                key = (algo, arena, *row[:key_end])
+                data[key] = (
+                    parse_int(row[b_idx]),
+                    parse_int(row[d_idx]),
+                    parse_int(row[e_idx])
+                )
         return data
 
 ###################################################
-    def read_csv(self,path,algo,n_runs,arena):
+    def read_csv(self, path, algo, n_runs, arena):
         data = {}
-        with open(path, newline='', buffering=1024 * 1024) as f:
-            header = f.readline()
+        with open(path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter='\t')
+            header = next(reader, None)
             if not header:
                 return data
-            header_cols = header.rstrip('\n').split('\t')
             try:
-                type_idx = header_cols.index("type")
+                t_idx = header.index("type")
             except ValueError:
-                type_idx = max(len(header_cols) - 3, 0)
-            try:
-                data_idx = header_cols.index("data")
-            except ValueError:
-                data_idx = max(len(header_cols) - 2, 0)
-            try:
-                std_idx = header_cols.index("std")
-            except ValueError:
-                std_idx = max(len(header_cols) - 1, 0)
-            for line in f:
-                line = line.strip('\n')
-                if not line:
+                t_idx = len(header) - 3
+            d_idx = t_idx + 1
+            s_idx = t_idx + 2
+            parse_float = self._parse_float_list
+            for row in reader:
+                if len(row) <= s_idx:
                     continue
-                cols = line.split('\t')
-                if len(cols) <= max(type_idx, data_idx, std_idx):
-                    continue
-                array_val = self._parse_float_list(cols[data_idx])
-                std_val = self._parse_float_list(cols[std_idx], allow_dash=True)
-                key_cols = cols[:type_idx + 1]
-                data.update({(algo,arena,n_runs,*key_cols):(array_val,std_val)})
+                key = (algo, arena, n_runs, *row[:t_idx + 1])
+                data[key] = (
+                    parse_float(row[d_idx]),
+                    parse_float(row[s_idx], allow_dash=True)
+                )
         return data
 
 ###################################################
@@ -1219,7 +1201,6 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park,dict_park_t1,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
@@ -1244,7 +1225,8 @@ class Data:
             )
         handles_r.append(min_dim)
         all_cols = set()
-        for dct in (dict_park_real_fifo, dict_park, dict_park_t1, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf):
+        for dk in data_in.keys():
+            dct = data_in.get(dk)
             for k in dct.keys():
                 try:
                     all_cols.add(int(k[2]))
@@ -1265,123 +1247,24 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in dict_park_real_fifo.keys():
-            if not self._protocol_enabled("decisions", "P.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
+        for dk in data_in.keys():
+            dct = data_in.get(dk)
+            for k in dct.keys():
+                if not self._protocol_enabled("decisions", dk):
+                    continue
+                if k[2] not in col_index:
+                    continue
                 row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_park_real_fifo.get(k),color=protocol_colors.get("P.0","red"),lw=6)
-        for k in dict_park.keys():
-            if not self._protocol_enabled("decisions", "P.1.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            min_buf = []
-            val = 5/(int(k[1])-1)
-            for i in range(900):
-                min_buf.append(val)
-            ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
-            ax[row][col].plot(dict_park.get(k),color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
-        for k in dict_park_t1.keys():
-            if not self._protocol_enabled("decisions", "P.1.1"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_park_t1.get(k),color=protocol_colors.get("P.1.1","orange"),lw=6)
-        for k in dict_adam.keys():
-            if not self._protocol_enabled("decisions", "O.0.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_adam.get(k),color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
-        for k in dict_fifo.keys():
-            if not self._protocol_enabled("decisions", "O.2.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_fifo.get(k),color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
-        for k in dict_rnd.keys():
-            if not self._protocol_enabled("decisions", "O.1.1"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_rnd.get(k),color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
-        for k in dict_rnd_inf.keys():
-            if not self._protocol_enabled("decisions", "O.1.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_rnd_inf.get(k),color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
+                if k[0]=='big' and k[1]=='25':
+                    row = 0
+                elif k[0]=='big' and k[1]=='100':
+                    row = 2
+                elif k[0]=='small':
+                    row = 1
+                col = col_index.get(k[2])
+                if col is None:
+                    continue
+                ax[row][col].plot(dct.get(k),color=protocol_colors.get(dk,"gray"),lw=6)
         for x in range(2):
             for y in range(ncols):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
@@ -1440,8 +1323,6 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park,dict_park_t1,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
-        tdict_park,tdict_park_t1,tdict_adam,tdict_fifo,tdict_rnd,tdict_rnd_inf,tdict_park_real_fifo = times_in[0], times_in[1], times_in[2], times_in[3], times_in[4], times_in[5], times_in[6]
         po_k = keys
         o_k = []
         for x in range(len(po_k)):
@@ -1452,12 +1333,10 @@ class Data:
             return
         ncols = len(o_k)
         arena = more_k[0]
-
         low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
         high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
-
         handles_c   = [high_bound,low_bound]
         handles_r = []
         for pid in protocols_order:
@@ -1479,6 +1358,7 @@ class Data:
         border_font = border_font + 4 if border_font is not None else 20    
         fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols + ncols*0.75,8*ncols), squeeze=False, layout="constrained")
         tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
+        attributes_row_col = np.zeros((3,ncols))
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -1487,7 +1367,26 @@ class Data:
         svoid_str_threshlds_y = []
         void_str_gt = []
         void_str_tim = []
-        vals_dict = {}
+        for x in threshlds:
+            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
+                str_threshlds.append(str(x))
+                void_str_threshlds.append('')
+                svoid_str_threshlds.append('')
+            else:
+                void_str_threshlds.append('')
+        for x in threshlds:
+            if x>.9: break
+            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
+                str_threshlds_y.append(str(x))
+                void_str_threshlds_y.append('')
+                svoid_str_threshlds_y.append('')
+            else:
+                void_str_threshlds_y.append('')
+        for x in range(5,11,1):
+            void_str_gt.append('')
+        for x in range(0,61,5):
+            void_str_tim.append('')
+        prot_tables_vals_dict = {}
         for a in arena:
             if a=="smallA":
                 agents = ["25"]
@@ -1496,444 +1395,75 @@ class Data:
             for ag in agents:
                 row = 1  if a=="smallA" else 0
                 if int(ag)==100: row = 2
-                vals8p  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2p  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8p1 = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2p1 = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8pr = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2pr = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8a  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2a  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8f  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2f  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8r  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2r  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals8ri = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                vals2ri = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                flag_vals8p  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2p  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8p1 = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2p1 = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8pr = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2pr = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8a  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2a  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8f  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2f  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8r  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2r  = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals8ri = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-                flag_vals2ri = [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ]
-
-                tvalsp  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalspr = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalsp1 = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalsa  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalsf  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalsr  = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
-                tvalsri = [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))]
+                vals_dict = {}
+                for dk in data_in.keys():
+                    vals_dict.update({dk:([[0 for _ in range(len(threshlds))] for _ in range(len(o_k))], [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))],
+                                          [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ], [ [ [[0,0],[0,0]] for _ in range(len(threshlds)) ] for _ in range(len(o_k)) ],
+                                          [[0 for _ in range(len(threshlds))] for _ in range(len(o_k))])})
                 for k in range(len(o_k)):
-                    for th in range(len(threshlds)):
-                        p_vals2,pr_vals2,p1_vals2,a_vals2,f_vals2,r_vals2,ri_vals2 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_vals8,pr_vals8,p1_vals8,a_vals8,f_vals8,r_vals8,ri_vals8 = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt2,pr_gt2,p1_gt2,a_gt2,f_gt2,r_gt2,ri_gt2             = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_gt8,pr_gt8,p1_gt8,a_gt8,f_gt8,r_gt8,ri_gt8             = [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
-                        p_valst,pr_valst,p1_valst,a_valst,f_valst,r_valst,ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
-                        lim_p_valst,lim_pr_valst,lim_p1_valst,lim_a_valst,lim_f_valst,lim_r_valst,lim_ri_valst = np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
-                        for pt in range(len(ground_T)):
-                            pval    = dict_park.get((a,ag,str(o_k[k])))[pt][th] if dict_park.get((a,ag,str(o_k[k]))) is not None else None
-                            tpval   = tdict_park.get((a,ag,str(o_k[k])))[pt][th] if dict_park.get((a,ag,str(o_k[k]))) is not None else None
-                            p1val   = dict_park_t1.get((a,ag,str(o_k[k])))[pt][th] if dict_park_t1.get((a,ag,str(o_k[k]))) is not None else None
-                            tp1val  = tdict_park_t1.get((a,ag,str(o_k[k])))[pt][th] if dict_park_t1.get((a,ag,str(o_k[k]))) is not None else None
-                            prval   = dict_park_real_fifo.get((a,ag,str(o_k[k])))[pt][th] if dict_park_real_fifo.get((a,ag,str(o_k[k]))) is not None else None
-                            trpval  = tdict_park_real_fifo.get((a,ag,str(o_k[k])))[pt][th] if dict_park_real_fifo.get((a,ag,str(o_k[k]))) is not None else None
-                            aval    = dict_adam.get((a,ag,str(o_k[k])))[pt][th] if dict_adam.get((a,ag,str(o_k[k]))) is not None else None
-                            taval   = tdict_adam.get((a,ag,str(o_k[k])))[pt][th] if dict_adam.get((a,ag,str(o_k[k]))) is not None else None
-                            fval    = dict_fifo.get((a,ag,str(o_k[k])))[pt][th] if dict_fifo.get((a,ag,str(o_k[k]))) is not None else None
-                            tfval   = tdict_fifo.get((a,ag,str(o_k[k])))[pt][th] if dict_fifo.get((a,ag,str(o_k[k]))) is not None else None
-                            rval    = dict_rnd.get((a,ag,str(o_k[k])))[pt][th] if dict_rnd.get((a,ag,str(o_k[k]))) is not None else None
-                            trval   = tdict_rnd.get((a,ag,str(o_k[k])))[pt][th] if dict_rnd.get((a,ag,str(o_k[k]))) is not None else None
-                            rival   = dict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th] if dict_rnd_inf.get((a,ag,str(o_k[k]))) is not None else None
-                            trival  = tdict_rnd_inf.get((a,ag,str(o_k[k])))[pt][th] if dict_rnd_inf.get((a,ag,str(o_k[k]))) is not None else None
-                            if pval is not None:
-                                if pval>=0.8:
-                                    temp_tval = tpval
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (p_valst is np.nan or ground_T[pt]-threshlds[th]<lim_p_valst):
-                                        p_valst = temp_tval
-                                        lim_p_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (p_vals8[1] is np.nan or pval<p_vals8[1]):
-                                        p_vals8[1]  = pval
-                                        p_gt8[1]    = ground_T[pt]
-                                elif pval<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (p_vals2[0] is np.nan or pval>=p_vals2[0]):
-                                        p_vals2[0]  = pval
-                                        p_gt2[0]    = ground_T[pt]
-                                else:
-                                    if p_vals8[0] is np.nan or pval>p_vals8[0]:
-                                        p_vals8[0]  = pval
-                                        p_gt8[0]    = ground_T[pt]
-                                    if p_vals2[1] is np.nan or pval<p_vals2[1]:
-                                        p_vals2[1]  = pval
-                                        p_gt2[1]    = ground_T[pt]
-                            if p1val is not None:
-                                if p1val>=0.8:
-                                    temp_tval = tp1val
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (p1_valst is np.nan or ground_T[pt]-threshlds[th]<lim_p1_valst):
-                                        p1_valst = temp_tval
-                                        lim_p1_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (p1_vals8[1] is np.nan or p1val<p1_vals8[1]):
-                                        p1_vals8[1]  = p1val
-                                        p1_gt8[1]    = ground_T[pt]
-                                elif p1val<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (p1_vals2[0] is np.nan or p1val>=p1_vals2[0]):
-                                        p1_vals2[0]  = p1val
-                                        p1_gt2[0]    = ground_T[pt]
-                                else:
-                                    if p1_vals8[0] is np.nan or p1val>p1_vals8[0]:
-                                        p1_vals8[0]  = p1val
-                                        p1_gt8[0]    = ground_T[pt]
-                                    if p1_vals2[1] is np.nan or p1val<p1_vals2[1]:
-                                        p1_vals2[1]  = p1val
-                                        p1_gt2[1]    = ground_T[pt]
-                            if prval is not None:
-                                if prval>=0.8:
-                                    temp_tval = trpval
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (pr_valst is np.nan or ground_T[pt]-threshlds[th]<lim_pr_valst):
-                                        pr_valst = temp_tval
-                                        lim_pr_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (pr_vals8[1] is np.nan or prval<pr_vals8[1]):
-                                        pr_vals8[1]  = prval
-                                        pr_gt8[1]    = ground_T[pt]
-                                elif prval<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (pr_vals2[0] is np.nan or prval>=pr_vals2[0]):
-                                        pr_vals2[0]  = prval
-                                        pr_gt2[0]    = ground_T[pt]
-                                else:
-                                    if pr_vals8[0] is np.nan or prval>pr_vals8[0]:
-                                        pr_vals8[0]  = prval
-                                        pr_gt8[0]    = ground_T[pt]
-                                    if pr_vals2[1] is np.nan or prval<pr_vals2[1]:
-                                        pr_vals2[1]  = prval
-                                        pr_gt2[1]    = ground_T[pt]
-                            if aval is not None:
-                                if aval>=0.8:
-                                    temp_aval = taval
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (a_valst is np.nan or ground_T[pt]-threshlds[th]<lim_a_valst):
-                                        a_valst = temp_aval
-                                        lim_a_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (a_vals8[1] is np.nan or aval<a_vals8[1]):
-                                        a_vals8[1]  = aval
-                                        a_gt8[1]    = ground_T[pt]
-                                elif aval<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (a_vals2[0] is np.nan or aval>=a_vals2[0]):
-                                        a_vals2[0]  = aval
-                                        a_gt2[0]    = ground_T[pt]
-                                else:
-                                    if a_vals8[0] is np.nan or aval>a_vals8[0]:
-                                        a_vals8[0]  = aval
-                                        a_gt8[0]    = ground_T[pt]
-                                    if a_vals2[1] is np.nan or aval<a_vals2[1]:
-                                        a_vals2[1]  = aval
-                                        a_gt2[1]    = ground_T[pt]
-                            if fval is not None:
-                                if fval>=0.8:
-                                    temp_fval = tfval
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (f_valst is np.nan or ground_T[pt]-threshlds[th]<lim_f_valst):
-                                        f_valst = temp_fval
-                                        lim_f_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (f_vals8[1] is np.nan or fval<f_vals8[1]):
-                                        f_vals8[1]  = fval
-                                        f_gt8[1]    = ground_T[pt]
-                                elif fval<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (f_vals2[0] is np.nan or fval>=f_vals2[0]):
-                                        f_vals2[0]  = fval
-                                        f_gt2[0]    = ground_T[pt]
-                                else:
-                                    if f_vals8[0] is np.nan or fval>f_vals8[0]:
-                                        f_vals8[0]  = fval
-                                        f_gt8[0]    = ground_T[pt]
-                                    if f_vals2[1] is np.nan or fval<f_vals2[1]:
-                                        f_vals2[1]  = fval
-                                        f_gt2[1]    = ground_T[pt]
-                            if rval is not None:
-                                if rval>=0.8:
-                                    temp_rval = trval
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (r_valst is np.nan or ground_T[pt]-threshlds[th]<lim_r_valst):
-                                        r_valst = temp_rval
-                                        lim_r_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (r_vals8[1] is np.nan or rval<r_vals8[1]):
-                                        r_vals8[1]  = rval
-                                        r_gt8[1]    = ground_T[pt]
-                                elif rval<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (r_vals2[0] is np.nan or rval>=r_vals2[0]):
-                                        r_vals2[0]  = rval
-                                        r_gt2[0]    = ground_T[pt]
-                                else:
-                                    if r_vals8[0] is np.nan or rval>r_vals8[0]:
-                                        r_vals8[0]  = rval
-                                        r_gt8[0]    = ground_T[pt]
-                                    if r_vals2[1] is np.nan or rval<r_vals2[1]:
-                                        r_vals2[1]  = rval
-                                        r_gt2[1]    = ground_T[pt]
-                            if rival is not None:
-                                if rival>=0.8:
-                                    temp_rival = trival
-                                    if ground_T[pt]-threshlds[th]  >= 0.09 and (ri_valst is np.nan or ground_T[pt]-threshlds[th]<lim_ri_valst):
-                                        ri_valst = temp_rival
-                                        lim_ri_valst = ground_T[pt]-threshlds[th]
-                                    if ground_T[pt]-threshlds[th] >=0 and (ri_vals8[1] is np.nan or rival<ri_vals8[1]):
-                                        ri_vals8[1]  = rival
-                                        ri_gt8[1]    = ground_T[pt]
-                                elif rival<=0.2:
-                                    if ground_T[pt]-threshlds[th] <=0 and (ri_vals2[0] is np.nan or rival>=ri_vals2[0]):
-                                        ri_vals2[0]  = rival
-                                        ri_gt2[0]    = ground_T[pt]
-                                else:
-                                    if ri_vals8[0] is np.nan or rival>ri_vals8[0]:
-                                        ri_vals8[0]  = rival
-                                        ri_gt8[0]    = ground_T[pt]
-                                    if ri_vals2[1] is np.nan or rival<ri_vals2[1]:
-                                        ri_vals2[1]  = rival
-                                        ri_gt2[1]    = ground_T[pt]
-
-                        if p_vals8[0] is np.nan:
-                            p_vals8[0] = p_vals8[1]
-                            p_gt8[0] = p_gt8[1]
-                        elif p_vals8[1] is np.nan:
-                            p_vals8[1] = p_vals8[0]
-                            p_gt8[1] = p_gt8[0]
-                        if p_vals2[0] is np.nan:
-                            p_vals2[0] = p_vals2[1]
-                            p_gt2[0] = p_gt2[1]
-                        elif p_vals2[1] is np.nan:
-                            p_vals2[1] = p_vals2[0]
-                            p_gt2[1] = p_gt2[0]
-                        if pr_vals8[0] is np.nan:
-                            pr_vals8[0] = pr_vals8[1]
-                            pr_gt8[0] = pr_gt8[1]
-                        elif pr_vals8[1] is np.nan:
-                            pr_vals8[1] = pr_vals8[0]
-                            pr_gt8[1] = pr_gt8[0]
-                        if p1_vals8[0] is np.nan:
-                            p1_vals8[0] = p1_vals8[1]
-                            p1_gt8[0] = p1_gt8[1]
-                        elif p1_vals8[1] is np.nan:
-                            p1_vals8[1] = p1_vals8[0]
-                            p1_gt8[1] = p1_gt8[0]
-                        if pr_vals2[0] is np.nan:
-                            pr_vals2[0] = pr_vals2[1]
-                            pr_gt2[0] = pr_gt2[1]
-                        elif pr_vals2[1] is np.nan:
-                            pr_vals2[1] = pr_vals2[0]
-                            pr_gt2[1] = pr_gt2[0]
-                        if p1_vals2[0] is np.nan:
-                            p1_vals2[0] = p1_vals2[1]
-                            p1_gt2[0] = p1_gt2[1]
-                        elif p1_vals2[1] is np.nan:
-                            p1_vals2[1] = p1_vals2[0]
-                            p1_gt2[1] = p1_gt2[0]
-                        if a_vals8[0] is np.nan:
-                            a_vals8[0] = a_vals8[1]
-                            a_gt8[0] = a_gt8[1]
-                        elif a_vals8[1] is np.nan:
-                            a_vals8[1] = a_vals8[0]
-                            a_gt8[1] = a_gt8[0]
-                        if a_vals2[0] is np.nan:
-                            a_vals2[0] = a_vals2[1]
-                            a_gt2[0] = a_gt2[1]
-                        elif a_vals2[1] is np.nan:
-                            a_vals2[1] = a_vals2[0]
-                            a_gt2[1] = a_gt2[0]
-                        if f_vals8[0] is np.nan:
-                            f_vals8[0] = f_vals8[1]
-                            f_gt8[0] = f_gt8[1]
-                        elif f_vals8[1] is np.nan:
-                            f_vals8[1] = f_vals8[0]
-                            f_gt8[1] = f_gt8[0]
-                        if f_vals2[0] is np.nan:
-                            f_vals2[0] = f_vals2[1]
-                            f_gt2[0] = f_gt2[1]
-                        elif f_vals2[1] is np.nan:
-                            f_vals2[1] = f_vals2[0]
-                            f_gt2[1] = f_gt2[0]
-                        if r_vals8[0] is np.nan:
-                            r_vals8[0] = r_vals8[1]
-                            r_gt8[0] = r_gt8[1]
-                        elif r_vals8[1] is np.nan:
-                            r_vals8[1] = r_vals8[0]
-                            r_gt8[1] = r_gt8[0]
-                        if r_vals2[0] is np.nan:
-                            r_vals2[0] = r_vals2[1]
-                            r_gt2[0] = r_gt2[1]
-                        elif r_vals2[1] is np.nan:
-                            r_vals2[1] = r_vals2[0]
-                            r_gt2[1] = r_gt2[0]
-                        if ri_vals8[0] is np.nan:
-                            ri_vals8[0] = ri_vals8[1]
-                            ri_gt8[0] = ri_gt8[1]
-                        elif ri_vals8[1] is np.nan:
-                            ri_vals8[1] = ri_vals8[0]
-                            ri_gt8[1] = ri_gt8[0]
-                        if ri_vals2[0] is np.nan:
-                            ri_vals2[0] = ri_vals2[1]
-                            ri_gt2[0] = ri_gt2[1]
-                        elif ri_vals2[1] is np.nan:
-                            ri_vals2[1] = ri_vals2[0]
-                            ri_gt2[1] = ri_gt2[0]
-
-                        vals2p[k][th]  = np.around(np.interp([0.2],p_vals2,p_gt2,left=np.nan),3)
-                        vals2pr[k][th] = np.around(np.interp([0.2],pr_vals2,pr_gt2,left=np.nan),3)
-                        vals2p1[k][th] = np.around(np.interp([0.2],p1_vals2,p1_gt2,left=np.nan),3)
-                        vals2a[k][th]  = np.around(np.interp([0.2],a_vals2,a_gt2,left=np.nan),3)
-                        vals2f[k][th]  = np.around(np.interp([0.2],f_vals2,f_gt2,left=np.nan),3)
-                        vals2r[k][th]  = np.around(np.interp([0.2],r_vals2,r_gt2,left=np.nan),3)
-                        vals2ri[k][th] = np.around(np.interp([0.2],ri_vals2,ri_gt2,left=np.nan),3)
-                        vals8p[k][th]  = np.around(np.interp([0.8],p_vals8,p_gt8,right=np.nan),3)
-                        vals8pr[k][th] = np.around(np.interp([0.8],pr_vals8,pr_gt8,right=np.nan),3)
-                        vals8p1[k][th] = np.around(np.interp([0.8],p1_vals8,p1_gt8,right=np.nan),3)
-                        vals8a[k][th]  = np.around(np.interp([0.8],a_vals8,a_gt8,right=np.nan),3)
-                        vals8f[k][th]  = np.around(np.interp([0.8],f_vals8,f_gt8,right=np.nan),3)
-                        vals8r[k][th]  = np.around(np.interp([0.8],r_vals8,r_gt8,right=np.nan),3)
-                        vals8ri[k][th] = np.around(np.interp([0.8],ri_vals8,ri_gt8,right=np.nan),3)
-                        flag_vals2p[k][th]  = [p_vals2,p_gt2]
-                        flag_vals2pr[k][th] = [pr_vals2,pr_gt2]
-                        flag_vals2p1[k][th] = [p1_vals2,p1_gt2]
-                        flag_vals2a[k][th]  = [a_vals2,a_gt2]
-                        flag_vals2f[k][th]  = [f_vals2,f_gt2]
-                        flag_vals2r[k][th]  = [r_vals2,r_gt2]
-                        flag_vals2ri[k][th] = [ri_vals2,ri_gt2]
-                        flag_vals8p[k][th]  = [p_vals8,p_gt8]
-                        flag_vals8pr[k][th] = [pr_vals8,pr_gt8]
-                        flag_vals8p1[k][th] = [p1_vals8,p1_gt8]
-                        flag_vals8a[k][th]  = [a_vals8,a_gt8]
-                        flag_vals8f[k][th]  = [f_vals8,f_gt8]
-                        flag_vals8r[k][th]  = [r_vals8,r_gt8]
-                        flag_vals8ri[k][th] = [ri_vals8,ri_gt8]
-                        tvalsp[k][th]  = p_valst
-                        tvalspr[k][th] = pr_valst
-                        tvalsp1[k][th] = p1_valst
-                        tvalsa[k][th]  = a_valst
-                        tvalsf[k][th]  = f_valst
-                        tvalsr[k][th]  = r_valst
-                        tvalsri[k][th] = ri_valst
-
-                    ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                    if self._protocol_enabled("active", "P.0"):
-                        ax[row][k].plot(vals2pr[k],color=protocol_colors.get("P.0","red"),lw=6,ls='--')
-                        ax[row][k].plot(vals8pr[k],color=protocol_colors.get("P.0","red"),lw=6,ls='-')
-                        tax[row][k].plot(tvalspr[k],color=protocol_colors.get("P.0","red"),lw=6)
-                    if self._protocol_enabled("active", "P.1.1"):
-                        ax[row][k].plot(vals2p1[k],color=protocol_colors.get("P.1.1","orange"),lw=6,ls='--')
-                        ax[row][k].plot(vals8p1[k],color=protocol_colors.get("P.1.1","orange"),lw=6,ls='-')
-                        tax[row][k].plot(tvalsp1[k],color=protocol_colors.get("P.1.1","orange"),lw=6)
-                    if self._protocol_enabled("active", "P.1.0"):
-                        ax[row][k].plot(vals2p[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6,ls='--')
-                        ax[row][k].plot(vals8p[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6,ls='-')
-                        tax[row][k].plot(tvalsp[k],color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
-                    if self._protocol_enabled("active", "O.0.0"):
-                        ax[row][k].plot(vals2a[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6,ls='--')
-                        ax[row][k].plot(vals8a[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6,ls='-')
-                        tax[row][k].plot(tvalsa[k],color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
-                    if self._protocol_enabled("active", "O.2.0"):
-                        ax[row][k].plot(vals2f[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6,ls='--')
-                        ax[row][k].plot(vals8f[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6,ls='-')
-                        tax[row][k].plot(tvalsf[k],color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
-                    if self._protocol_enabled("active", "O.1.1"):
-                        ax[row][k].plot(vals2r[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6,ls='--')
-                        ax[row][k].plot(vals8r[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6,ls='-')
-                        tax[row][k].plot(tvalsr[k],color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
-                    if self._protocol_enabled("active", "O.1.0"):
-                        ax[row][k].plot(vals2ri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6,ls='--')
-                        ax[row][k].plot(vals8ri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6,ls='-')
-                        tax[row][k].plot(tvalsri[k],color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
-                    if len(str_threshlds)==0:
-                        for x in threshlds:
-                            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
-                                str_threshlds.append(str(x))
-                                void_str_threshlds.append('')
-                                svoid_str_threshlds.append('')
-                            else:
-                                void_str_threshlds.append('')
-                        for x in threshlds:
-                            if x>.9: break
-                            if np.around(np.around(x,1)-np.around(x%10,2),2) == 0.0:
-                                str_threshlds_y.append(str(x))
-                                void_str_threshlds_y.append('')
-                                svoid_str_threshlds_y.append('')
-                            else:
-                                void_str_threshlds_y.append('')
-                        for x in range(5,11,1):
-                            void_str_gt.append('')
-                        for x in range(0,61,5):
-                            void_str_tim.append('')
-                    ax[row][k].set_xlim(0.5,1)
-                    tax[row][k].set_xlim(0.5,0.9)
-                    ax[row][k].set_ylim(0.5,1)
-                    tax[row][k].set_ylim(0,201)
-                    tax[row][k].yaxis.set_tick_params(labelleft=True) if k == 0 else tax[row][k].yaxis.set_tick_params(labelleft=False)
-                    if row==0:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
-                        axt = ax[row][k].twiny()
-                        taxt = tax[row][k].twiny()
-                        labels = [item.get_text() for item in axt.get_xticklabels()]
-                        empty_string_labels = ['']*len(labels)
-                        axt.set_xticklabels(empty_string_labels)
-                        taxt.set_xticklabels(empty_string_labels)
-                        axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font)
-                        taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
-                    elif row==2:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,41,10),labels=str_threshlds_y)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
-                        tax[row][k].set_ylim(0,80)
-                        ax[row][k].set_xlabel(r"$\tau$")
-                        tax[row][k].set_xlabel(r"$\tau$")
-                    else:
-                        ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
-                        tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
-                        ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
-                        tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
-                        tax[row][k].set_ylim(0,40)
-                    if k==0:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1))
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        ax[row][k].set_ylabel(r"$G$")
-                        tax[row][k].set_ylabel(r"$T_c$")
-                    elif k==ncols-1:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                        axt = ax[row][k].twinx()
-                        taxt = tax[row][k].twinx()
-                        labels = [item.get_text() for item in axt.get_yticklabels()]
-                        empty_string_labels = ['']*len(labels)
-                        axt.set_yticklabels(empty_string_labels)
-                        taxt.set_yticklabels(empty_string_labels)
-                        if row == 0:
-                            axt.set_ylabel("LD25", fontsize=border_font)
-                            taxt.set_ylabel("LD25")
-                        elif row == 1:
-                            axt.set_ylabel("HD25", fontsize=border_font)
-                            taxt.set_ylabel("HD25")
-                        else:
-                            axt.set_ylabel("HD100")
-                            taxt.set_ylabel("HD100", fontsize=border_font)
-                    else:
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
-                        ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-                    ax[row][k].grid(which='major')
-                    tax[row][k].grid(which='major')
+                    for dk in data_in.keys():
+                        for th in range(len(threshlds)):
+                            vals2, vals8, gt2, gt8= [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                            valst, lim_valst = np.nan, np.nan
+                            for pt in range(len(ground_T)):
+                                val    = data_in.get(dk).get((a,ag,str(o_k[k])))[pt][th] if data_in.get(dk).get((a,ag,str(o_k[k]))) is not None else None
+                                tval   = times_in.get(dk).get((a,ag,str(o_k[k])))[pt][th] if times_in.get(dk).get((a,ag,str(o_k[k]))) is not None else None
+                                if val is not None:
+                                    if val>=0.8:
+                                        temp_tval = tval
+                                        if ground_T[pt]-threshlds[th]  >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
+                                            valst = temp_tval
+                                            lim_valst = ground_T[pt]-threshlds[th]
+                                        if ground_T[pt]-threshlds[th] >=0 and (vals8[1] is np.nan or val<vals8[1]):
+                                            vals8[1]  = val
+                                            gt8[1]    = ground_T[pt]
+                                    elif val<=0.2:
+                                        if ground_T[pt]-threshlds[th] <=0 and (vals2[0] is np.nan or val>=vals2[0]):
+                                            vals2[0]  = val
+                                            gt2[0]    = ground_T[pt]
+                                    else:
+                                        if vals8[0] is np.nan or val>vals8[0]:
+                                            vals8[0]  = val
+                                            gt8[0]    = ground_T[pt]
+                                        if vals2[1] is np.nan or val<vals2[1]:
+                                            vals2[1]  = val
+                                            gt2[1]    = ground_T[pt]
+                            if vals8[0] is np.nan:
+                                vals8[0] = vals8[1]
+                                gt8[0] = gt8[1]
+                            elif vals8[1] is np.nan:
+                                vals8[1] = vals8[0]
+                                gt8[1] = gt8[0]
+                            if vals2[0] is np.nan:
+                                vals2[0] = vals2[1]
+                                gt2[0] = gt2[1]
+                            elif vals2[1] is np.nan:
+                                vals2[1] = vals2[0]
+                                gt2[1] = gt2[0]
+                            temp_vals = list(vals_dict.get(dk))
+                            temp_vals[0][k][th]  = np.around(np.interp([0.2],vals2,gt2,left=np.nan),3)
+                            temp_vals[1][k][th]  = np.around(np.interp([0.8],vals8,gt8,right=np.nan),3)
+                            temp_vals[2][k][th]  = [vals2,gt2]
+                            temp_vals[3][k][th]  = [vals8,gt8]
+                            temp_vals[4][k][th]  = valst
+                            vals_dict.update({dk:tuple(temp_vals)})
+                        ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
+                        if self._protocol_enabled("active", dk):
+                            ax[row][k].plot(vals_dict.get(dk)[0][k],color=protocol_colors.get(dk,"gray"),lw=6,ls='--')
+                            ax[row][k].plot(vals_dict.get(dk)[1][k],color=protocol_colors.get(dk,"gray"),lw=6,ls='-')
+                            tax[row][k].plot(vals_dict.get(dk)[4][k],color=protocol_colors.get(dk,"gray"),lw=6)
+                        if attributes_row_col[row][k] == 0:
+                            attributes_row_col[row][k] = 1
+                            self._borders_attributes(ax,tax,row,k,svoid_str_threshlds,svoid_str_threshlds_y,void_str_threshlds,void_str_threshlds_y,
+                                                        o_k,border_font,str_threshlds,str_threshlds_y,ncols,void_str_gt)
                 key= (a,ag)
-                vals_dict[key] = {
-                    "vals2p": flag_vals2p, "vals8p": flag_vals8p,
-                    "vals2pr": flag_vals2pr, "vals8pr": flag_vals8pr,
-                    "vals2a": flag_vals2a, "vals8a": flag_vals8a,
-                    "vals2f": flag_vals2f, "vals8f": flag_vals8f,
-                    "vals2r": flag_vals2r, "vals8r": flag_vals8r,
-                    "vals2ri": flag_vals2ri, "vals8ri": flag_vals8ri,
+                prot_tables_vals_dict[key] = {
+                    "vals2p": vals_dict.get("P.1.0")[0], "vals8p": vals_dict.get("P.1.0")[1],
+                    "vals2pr": vals_dict.get("P.0")[0], "vals8pr": vals_dict.get("P.0")[1],
+                    "vals2a": vals_dict.get("O.0.0")[0], "vals8a": vals_dict.get("O.0.0")[1],
+                    "vals2f": vals_dict.get("O.2.0")[0], "vals8f": vals_dict.get("O.2.0")[1],
+                    "vals2r": vals_dict.get("O.1.1")[0], "vals8r": vals_dict.get("O.1.1")[1],
+                    "vals2ri": vals_dict.get("O.1.0")[0], "vals8ri": vals_dict.get("O.1.0")[1],
                 }
         for axes in ax.flat:
             for label in (axes.get_xticklabels() + axes.get_yticklabels()):
@@ -1957,7 +1487,71 @@ class Data:
         tfig.savefig(tfig_path, bbox_inches='tight')
         plt.close(fig)
         plt.close(tfig)
-        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, vals_dict)
+        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, prot_tables_vals_dict)
+
+###################################################
+    def _borders_attributes(self,ax,tax,row,k,svoid_str_threshlds,svoid_str_threshlds_y,void_str_threshlds,void_str_threshlds_y,
+                            o_k,border_font,str_threshlds,str_threshlds_y,ncols,void_str_gt):
+        ax[row][k].set_xlim(0.5,1)
+        tax[row][k].set_xlim(0.5,0.9)
+        ax[row][k].set_ylim(0.5,1)
+        tax[row][k].set_ylim(0,201)
+        tax[row][k].yaxis.set_tick_params(labelleft=True) if k == 0 else tax[row][k].yaxis.set_tick_params(labelleft=False)
+        if row==0:
+            ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+            tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
+            ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+            tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
+            axt = ax[row][k].twiny()
+            taxt = tax[row][k].twiny()
+            labels = [item.get_text() for item in axt.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            axt.set_xticklabels(empty_string_labels)
+            taxt.set_xticklabels(empty_string_labels)
+            axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font)
+            taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
+        elif row==2:
+            ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
+            tax[row][k].set_xticks(np.arange(0,41,10),labels=str_threshlds_y)
+            ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+            tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
+            tax[row][k].set_ylim(0,80)
+            ax[row][k].set_xlabel(r"$\tau$")
+            tax[row][k].set_xlabel(r"$\tau$")
+        else:
+            ax[row][k].set_xticks(np.arange(0,51,10),labels=svoid_str_threshlds)
+            tax[row][k].set_xticks(np.arange(0,41,10),labels=svoid_str_threshlds_y)
+            ax[row][k].set_xticks(np.arange(0,51,1),labels=void_str_threshlds,minor=True)
+            tax[row][k].set_xticks(np.arange(0,41,1),labels=void_str_threshlds_y,minor=True)
+            tax[row][k].set_ylim(0,40)
+        if k==0:
+            ax[row][k].set_yticks(np.arange(.5,1.01,.1))
+            ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
+            ax[row][k].set_ylabel(r"$G$")
+            tax[row][k].set_ylabel(r"$T_c$")
+        elif k==ncols-1:
+            ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
+            ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
+            axt = ax[row][k].twinx()
+            taxt = tax[row][k].twinx()
+            labels = [item.get_text() for item in axt.get_yticklabels()]
+            empty_string_labels = ['']*len(labels)
+            axt.set_yticklabels(empty_string_labels)
+            taxt.set_yticklabels(empty_string_labels)
+            if row == 0:
+                axt.set_ylabel("LD25", fontsize=border_font)
+                taxt.set_ylabel("LD25")
+            elif row == 1:
+                axt.set_ylabel("HD25", fontsize=border_font)
+                taxt.set_ylabel("HD25")
+            else:
+                axt.set_ylabel("HD100")
+                taxt.set_ylabel("HD100", fontsize=border_font)
+        else:
+            ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
+            ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
+        ax[row][k].grid(which='major')
+        tax[row][k].grid(which='major')
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
@@ -1970,6 +1564,7 @@ class Data:
                     protocols = [
                         ("anonymous_real_fifo", "pr"),
                         ("anonymous", "p"),
+                        ("anonymous_ps", "ps"),
                         ("id_broad", "a"),
                         ("id_rebroad_fifo", "f"),
                         ("id_rebroad_rnd", "r"),
@@ -1978,6 +1573,7 @@ class Data:
                 else:
                     protocols = [
                         ("anonymous", "p"),
+                        ("anonymous_ps", "ps"),
                         ("id_broad", "a"),
                         ("id_rebroad_fifo", "f"),
                         ("id_rebroad_rnd", "r"),
