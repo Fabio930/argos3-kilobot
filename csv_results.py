@@ -990,7 +990,7 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park,dict_park_t1,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
         std_dict_park,std_dict_park_t1,std_dict_adam,std_dict_fifo, std_dict_rnd, std_dict_rnd_inf,std_dict_park_real_fifo = data_std[0], data_std[1], data_std[2], data_std[3], data_std[4], data_std[5], data_std[6]
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$min|B|$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
@@ -1026,7 +1026,7 @@ class Data:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
+        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
         
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1309,7 +1309,7 @@ class Data:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1528,8 +1528,10 @@ class Data:
                     label=protocol.get("label", pid) if protocol else pid,
                 )
             )
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols,22), squeeze=False, layout="constrained")
-        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols,18), squeeze=False, layout="constrained")
+        border_font = plt.rcParams.get("font.size")
+        border_font = border_font + 4 if border_font is not None else 20    
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols + ncols*0.75,8*ncols), squeeze=False, layout="constrained")
+        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
         str_threshlds = []
         void_str_threshlds = []
         svoid_str_threshlds = []
@@ -1933,7 +1935,7 @@ class Data:
                         empty_string_labels = ['']*len(labels)
                         axt.set_xticklabels(empty_string_labels)
                         taxt.set_xticklabels(empty_string_labels)
-                        axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
+                        axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font)
                         taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$")
                     elif row==2:
                         ax[row][k].set_xticks(np.arange(0,51,10),labels=str_threshlds)
@@ -1963,8 +1965,15 @@ class Data:
                         empty_string_labels = ['']*len(labels)
                         axt.set_yticklabels(empty_string_labels)
                         taxt.set_yticklabels(empty_string_labels)
-                        axt.set_ylabel("HD100")
-                        taxt.set_ylabel("HD100")
+                        if row == 0:
+                            axt.set_ylabel("LD25", fontsize=border_font)
+                            taxt.set_ylabel("LD25")
+                        elif row == 1:
+                            axt.set_ylabel("HD25", fontsize=border_font)
+                            taxt.set_ylabel("HD25")
+                        else:
+                            axt.set_ylabel("HD100")
+                            taxt.set_ylabel("HD100", fontsize=border_font)
                     else:
                         ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
                         ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
@@ -1979,14 +1988,23 @@ class Data:
                     "vals2r": flag_vals2r, "vals8r": flag_vals8r,
                     "vals2ri": flag_vals2ri, "vals8ri": flag_vals8ri,
                 }
-
+        for axes in ax.flat:
+            for label in (axes.get_xticklabels() + axes.get_yticklabels()):
+                label.set_fontsize(border_font)
+            if axes.get_xlabel():
+                axes.set_xlabel(axes.get_xlabel(), fontsize=border_font)
+            if axes.get_ylabel():
+                axes.set_ylabel(axes.get_ylabel(), fontsize=border_font)
+        legend = fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=9, loc='upper right',framealpha=0.7,borderaxespad=0)
+        if legend is not None:
+            for text in legend.get_texts():
+                text.set_fontsize(border_font)
         fig.tight_layout()
         tfig.tight_layout()
         fig_path = path+_type+"_activation.pdf"
         tfig_path = path+t_type+"_time.pdf"
         # fig_path = path+_type+"_activation.png"
         # tfig_path = path+t_type+"_time.png"
-        fig.legend(bbox_to_anchor=(1, 0),handles=handles_r+handles_c,ncols=9, loc='upper right',framealpha=0.7,borderaxespad=0)
         tfig.legend(bbox_to_anchor=(1, 0),handles=handles_r,ncols=7,loc='upper right',framealpha=0.7,borderaxespad=0)
         fig.savefig(fig_path, bbox_inches='tight')
         tfig.savefig(tfig_path, bbox_inches='tight')
@@ -2198,7 +2216,7 @@ class Data:
                     ax[row_idx][2].plot(x, y, color=p_color, marker='x', ms=4, alpha=0.6)
 
             # Formattazione
-            ax[row_idx][0].set_ylabel(config['label'], fontweight='bold', fontsize=16)
+            ax[row_idx][0].set_ylabel(config['label'])
             ax[row_idx][1].set_ylim(0.5, 1.0); ax[row_idx][2].set_ylim(0, 200)
 
         # Finalize (Legenda, Titoli, Save) come nel tuo codice...
@@ -2222,12 +2240,12 @@ class Data:
         # Titoli delle Colonne
         column_titles = ["Normalized Messages (M)", "Activation Boundaries", "Convergence Time (s)"]
         for j in range(3):
-            ax[0][j].set_title(column_titles[j], fontsize=18, fontweight='bold', pad=20)
+            ax[0][j].set_title(column_titles[j], pad=20)
             
         # Etichette degli assi X (solo sull'ultima riga per non affollare)
-        ax[2][0].set_xlabel("Time (s)", fontsize=14)
-        ax[2][1].set_xlabel(r"Threshold $T_h$", fontsize=14)
-        ax[2][2].set_xlabel(r"Threshold $T_h$", fontsize=14)
+        ax[2][0].set_xlabel("Time (s)")
+        ax[2][1].set_xlabel(r"Threshold $T_h$")
+        ax[2][2].set_xlabel(r"Threshold $T_h$")
 
         # Pulizia Generale e Grid
         for i in range(3):
@@ -2257,8 +2275,7 @@ class Data:
         fig.legend(handles=legend_elements, 
                    loc='lower center', 
                    bbox_to_anchor=(0.5, -0.08),
-                   ncol=4, 
-                   fontsize=13, 
+                   ncol=6, 
                    frameon=True,
                    edgecolor='0.8')
 
