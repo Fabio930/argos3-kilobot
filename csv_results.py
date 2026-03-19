@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 from matplotlib import pyplot as plt
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
@@ -178,12 +180,9 @@ class Data:
 
 ###################################################
     def wb_get_mean_and_std(self, wf:WeibullFitter):
-        # get the Weibull shape and scale parameter 
         scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
 
-        # calculate the mean time
         mean = scale*gamma(1 + 1/shape)
-        # calculate the standard deviation
         variance = (scale ** 2) * (gamma(1 + 2 / shape) - (gamma(1 + 1 / shape)) ** 2)
         std = np.sqrt(variance)
         
@@ -496,12 +495,9 @@ class Data:
         return data
     
 ###################################################
-    def plot_recovery(self, data_in):
-        # Impostazioni generali
+    def plot_recovery(self, data_in, side_by_side: bool = True):
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
-
-        # Mappa varianti -> label e colore
         norm = colors.Normalize(vmin=0, vmax=6)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
         variant_map = {}
@@ -511,8 +507,6 @@ class Data:
                 continue
             variant_map[pid] = (p.get("label", pid), self._protocol_color(p, scalarMap))
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
-
-        # Ricostruzione DataFrame
         rows = []
         for key, (mean, std, events) in data_in.items():
             k = [str(x) for x in key]
@@ -526,7 +520,6 @@ class Data:
             if alg_lower == 'ps':
                 variant_key = 'P.1.1'
             elif alg_lower == 'p':
-                # priority-sampling-like case: recovery with buffer = n_agents - 2
                 if buf == max(0, agents - 2):
                     variant_key = 'P.1.1'
                 else:
@@ -549,17 +542,10 @@ class Data:
                 'Color': color
             })
         df = pd.DataFrame(rows)
-
-        # prima sposto solo AN e AN_t su T_m=60, poi rimuovo T_m=0
-        # AN_t^1 deve invece restare nelle colonne corrispondenti al suo Msgs_exp_time originale.
         df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
         df = df[df['Msgs_exp_time'] != 0]
-
-        # Griglia righe/colonne
         grid = [("bigA", 25), ("smallA", 25), ("bigA", 100)]
         row_labels = ["LD25", "HD25", "HD100"]
-
-        # Ricostruisci msg_list e metti 60 come prima colonna se presente
         msg_list = sorted(df['Msgs_exp_time'].unique())
         msg_list = self._plot_tm_values("recovery", msg_list)
         if not msg_list:
@@ -567,25 +553,22 @@ class Data:
         if 60 in msg_list:
             msg_list = [60] + [m for m in msg_list if m != 60]
         col_labels = [f"$T_m$={m}" for m in msg_list]
-
-        # Etichette varianti e mappa label->colore
         labels = []
         for pid in protocols_order:
             if pid in variant_map and self._protocol_enabled("recovery", pid):
                 labels.append(variant_map[pid][0])
         label_color_map = {label: color for label, color in variant_map.values()}
 
-        # Funzione per salvare boxplot con gestione dei label/overlap
-        def save_box(subset, suffix, entry, global_max:int):
+        def save_box(subset, suffix, entry, global_max: int):
             nrows = len(grid)
             ncols = len(msg_list)
 
-            # non condividere l'asse y tra tutte le sottotrame: vogliamo limiti y
-            # diversi per ogni riga. Con sharey=True tutti gli assi avrebbero lo
-            # stesso limite e ciò impedisce lo zoom per riga.
-            fig, axes = plt.subplots(nrows, ncols, figsize=(max(ncols*8,20)+ncols*1.5,ncols*8), sharey=True, sharex=False)
+            fig, axes = plt.subplots(
+                nrows, ncols,
+                figsize=(ncols*8,nrows*8),
+                sharey=False, sharex=False
+            )
 
-            # assicurati che axes sia array 2D
             if nrows == 1 and ncols == 1:
                 axes = np.array([[axes]])
             elif nrows == 1:
@@ -593,148 +576,231 @@ class Data:
             elif ncols == 1:
                 axes = np.array([[ax] for ax in axes])
 
-            # Calcola il massimo per ogni riga (considerando tutti i column/Msg presenti
-            # nel `subset` passato a questa chiamata). Questo permette a ciascuna
-            # riga di avere un proprio limite y basato sui dati effettivi della
-            # singola invocazione di `save_box`.
-            row_maxs = []
-            for (arena_r, ag_r) in grid:
-                row_cell = subset[(subset['Arena'] == arena_r) & (subset['Agents'] == ag_r)]
-                if not row_cell.empty and row_cell[entry].count() > 0:
-                    row_maxs.append(float(row_cell[entry].max()))
-                else:
-                    row_maxs.append(float(global_max))
+            median_legend = Line2D([], [], color='orange', linewidth=8, label='Median')
+            mean_legend = Line2D([], [], color='red', linewidth=8, label='Average')
 
+            row_maxs = []
+
+            for (arena_r, ag_r) in grid:
+                max_val = None
+
+                for m in msg_list:
+                    cell = subset[
+                        (subset['Arena'] == arena_r) &
+                        (subset['Agents'] == ag_r) &
+                        (subset['Msgs_exp_time'] == m)
+                    ]
+
+                    for lbl in labels:
+                        d = cell[cell['Label'] == lbl][entry].values
+                        if len(d) == 0:
+                            continue
+
+                        q1 = np.percentile(d, 25)
+                        q3 = np.percentile(d, 75)
+                        iqr = q3 - q1
+
+                        whisker = np.max(d[d <= q3 + 1.5 * iqr]) if np.any(d <= q3 + 1.5 * iqr) else np.max(d)
+                        outliers = d[d > q3 + 1.5 * iqr]
+
+                        candidate = np.max(outliers) if len(outliers) > 0 else whisker
+
+                        if max_val is None or candidate > max_val:
+                            max_val = candidate
+
+                row_maxs.append(max_val if max_val is not None else float(global_max))
+
+            row_limits = []
+            row_ticks = []
+
+            for raw_top in row_maxs:
+
+                if entry == "Events":
+                    top_int = int(np.ceil(raw_top)) if raw_top > 0 else 1
+
+                    desired_ticks = 10
+                    step = max(1, int(np.ceil(top_int / desired_ticks)))
+
+                    top_rounded = int(np.ceil(top_int / step) * step)
+
+                    extra = max(1, int(0.05 * top_rounded))
+                    top_plot = top_rounded + extra
+
+                    ymin_plot = -0.03 * top_plot
+                    yticks = np.arange(0, top_rounded + step, step, dtype=int)
+
+                    row_limits.append((ymin_plot, top_plot))
+                    row_ticks.append(yticks)
+
+                else:
+                    ymin_plot = 0.95
+
+                    if raw_top <= ymin_plot:
+                        log_max = 1 
+                    else:
+                        log_max = int(np.ceil(np.log10(raw_top)))
+
+                    log_min = 0 
+
+                    log_ticks = np.logspace(log_min, log_max, log_max - log_min + 1)
+
+                    top_plot = 10 ** log_max
+
+                    row_limits.append((ymin_plot, top_plot))
+                    row_ticks.append(log_ticks)
             for i, (arena, ag) in enumerate(grid):
+
+                plot_labels_row = labels.copy()
+
                 for j, m in enumerate(msg_list):
                     ax = axes[i, j]
+
                     cell = subset[
                         (subset['Arena'] == arena) &
                         (subset['Agents'] == ag) &
                         (subset['Msgs_exp_time'] == m)
                     ]
+                    if side_by_side:
+                        if i == 0:
+                            ax.set_title(col_labels[j])
 
-                    # rimuovi AN dalle colonne successive alla prima
-                    # Escludi completamente le varianti P.0 (AN) e O.2.0 (ID+R_f)
-                    excluded_labels = []#[variant_map['P.0'][0],variant_map['O.2.0'][0]]
-                    plot_labels = [lbl for lbl in labels if lbl not in excluded_labels]
-                    # Mantieni la logica originale: rimuovi AN dalle colonne successive (ridondante se già escluso)
-                    if j > 0:
-                        plot_labels = [lbl for lbl in plot_labels if lbl != r'$AN$']
+                        cell_le = cell[cell['Error'] <= 0.05]
+                        cell_gt = cell[cell['Error'] > 0.05]
 
-                    # costruisci due liste: data_nonempty e labels_nonempty (boxplot non gradisce serie vuote)
-                    data_nonempty = []
-                    labels_nonempty = []
-                    for lbl in plot_labels:
-                        d = cell[cell['Label'] == lbl][entry].values
-                        if len(d) > 0:
-                            data_nonempty.append(d)
-                            labels_nonempty.append(lbl)
+                        pos = np.arange(1, len(plot_labels_row) + 1)
 
-                    # disegna solo se c'è almeno una serie non vuota
-                    if len(data_nonempty) > 0:
-                        bp = ax.boxplot(data_nonempty, labels=labels_nonempty, patch_artist=True,medianprops=dict(color='gray', linewidth=2))
-                        for patch, lbl in zip(bp['boxes'], labels_nonempty):
-                            patch.set_facecolor(label_color_map.get(lbl, 'black'))
-                        # migliora visibilità degli xticks: li ruotiamo (ma li mostriamo solo nella riga in basso)
-                        if i == nrows - 1:
-                            plt.setp(ax.get_xticklabels(), rotation=30, ha='center', fontsize=plt.rcParams.get("font.size")-5)
+                        for k, lbl in enumerate(plot_labels_row):
+                            d_le = cell_le[cell_le['Label'] == lbl][entry].values
+                            d_gt = cell_gt[cell_gt['Label'] == lbl][entry].values
+
+                            if len(d_le) > 0:
+                                bp = ax.boxplot(
+                                    d_le,
+                                    positions=[pos[k] - 0.2],
+                                    widths=0.35,
+                                    patch_artist=True,
+                                    medianprops=dict(color='orange', linewidth=2)
+                                )
+                                bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
+                                bp['boxes'][0].set_hatch('//')
+
+                                mean_val = np.mean(d_le)
+                                ax.plot([pos[k] - 0.33, pos[k] - 0.07],
+                                        [mean_val, mean_val], color='red', linewidth=2)
+
+                            if len(d_gt) > 0:
+                                bp = ax.boxplot(
+                                    d_gt,
+                                    positions=[pos[k] + 0.2],
+                                    widths=0.35,
+                                    patch_artist=True,
+                                    medianprops=dict(color='orange', linewidth=2)
+                                )
+                                bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
+                                bp['boxes'][0].set_hatch('xx')
+
+                                mean_val = np.mean(d_gt)
+                                ax.plot([pos[k] + 0.07, pos[k] + 0.33],
+                                        [mean_val, mean_val], color='red', linewidth=2)
+
+                        ax.set_xticks(pos)
+                        ax.set_xticklabels(plot_labels_row)
                     else:
-                        # niente dati -> togli label asse x per evitare "vuoti" visuali
-                        ax.set_xticks([])
-                        ax.set_xticklabels([])
+                        plot_labels = plot_labels_row if j == 0 else [l for l in labels if l != r'$AN$']
 
-                    # Titoli colonne (solo prima riga)
-                    if i == 0:
-                        ax.set_title(col_labels[j])
+                        data = []
+                        lbls = []
 
-                    # Asse y: scala lineare e limiti; calcola min/max dal subset se disponibile
-                    ax.set_yscale('linear')
+                        for lbl in plot_labels:
+                            d = cell[cell['Label'] == lbl][entry].values
+                            if len(d) > 0:
+                                data.append(d)
+                                lbls.append(lbl)
 
-                    # Usa il massimo calcolato per la riga; fallback su global_max
-                    raw_top = row_maxs[i] if (i < len(row_maxs)) else float(global_max)
-                    try:
-                        raw_top = float(raw_top)
-                    except Exception:
-                        raw_top = float(global_max if global_max is not None else 1.0)
-                    if raw_top <= 0:
-                        raw_top = 1.0
+                        if len(data) > 0:
+                            bp = ax.boxplot(
+                                data,
+                                labels=lbls,
+                                patch_artist=True,
+                                medianprops=dict(color='orange', linewidth=2)
+                            )
 
-                    # Vogliamo mantenere un numero di tick costante/attorno a desired_ticks
-                    # (es. ~11). Calcoliamo il passo target e scegliamo uno step "tondo"
-                    # dalla serie [1,2,2.5,5,10] * 10^exp più vicino al passo target.
-                    desired_ticks = 11.0
-                    target_step = raw_top / desired_ticks
-                    exp = np.floor(np.log10(target_step)) if target_step > 0 else 0
-                    magnitude = 10.0 ** exp
-                    base_candidates = np.array([1.0, 2.0, 2.5, 5.0, 10.0])
-                    candidates = magnitude * base_candidates
+                            for patch, lbl in zip(bp['boxes'], lbls):
+                                patch.set_facecolor(label_color_map.get(lbl, 'black'))
 
-                    # Scegli il candidato più vicino al target_step
-                    diffs = np.abs(candidates - target_step)
-                    best_idx = int(np.argmin(diffs))
-                    best_step = candidates[best_idx]
+                            for k, d in enumerate(data):
+                                mean_val = np.mean(d)
+                                ax.plot([k + 1 - 0.13, k + 1 + 0.13],
+                                        [mean_val, mean_val], color='red', linewidth=2)
 
-                    # Normalizza step a intero quando possibile (per yticks interi)
-                    if abs(best_step - round(best_step)) < 1e-8:
-                        step = int(round(best_step))
-                    else:
-                        # se il passo è frazionario (molto raro per eventi), mantienilo float
-                        step = float(best_step)
+                        if i == 0:
+                            ax.set_title(col_labels[j])
+                    ymin_plot, top_plot = row_limits[i]
+                    yticks = row_ticks[i]
 
-                    # Arrotonda il top al prossimo multiplo del passo scelto
-                    top_rounded = int(np.ceil(raw_top / best_step) * best_step)
-
-                    # Mantieni la vecchia logica di margine speciale per 60 (compatibilità)
-                    top_plot = top_rounded + 1 if top_rounded == 60 else top_rounded
-                    step = int(step)
-                    sstep = int(max(step,top_rounded/8))
-                    yticks = np.arange(0, top_rounded + step, sstep)
-
-                    # margini: se il minimo del subset è 0, partiamo da -1 (senza label)
-                    ymin = 0
-                    ymin_plot = ymin - 1
-
-                    if entry!="Time":
-                        ax.set_yticks(yticks)
-                        ax.set_ylim(ymin_plot, top_plot)
-                    else:
+                    if entry == "Time":
                         ax.set_yscale('log')
-                        ax.set_ylim(1,500)
-                    plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5)
+                        ax.set_ylim(ymin_plot, top_plot)
+                        ax.set_yticks(yticks)
+                        ax.set_yticklabels([f"$10^{{{int(np.log10(t))}}}$" for t in yticks])
+                    else:
+                        ax.set_yscale('linear')
+                        ax.set_ylim(ymin_plot, top_plot)
+                        ax.set_yticks(yticks)
+                        ax.set_yticklabels([str(int(t)) for t in yticks])
+                    if j > 0:
+                        ax.set_yticklabels([])
+
                     ax.grid(True)
 
-                    # nascondi xticks/label nelle righe non-bottom per evitare sovrapposizioni
                     if i != nrows - 1:
                         ax.set_xticklabels([])
+                axes[i, 0].annotate(
+                    r"$T_{r}$" if entry == "Time" else r"$E_{r}$",
+                    xy=(-.15, 0.5),
+                    xycoords='axes fraction',
+                    rotation=90,
+                    ha='left', va='center'
+                )
 
-                # annotazioni riga
-                if entry == "Time":
-                    axes[i, 0].annotate(r"$T_{r}$", xy=(-.15, 0.5), xycoords='axes fraction',
-                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
-                else:
-                    axes[i, 0].annotate(r"$E_{r}$", xy=(-.15, 0.5), xycoords='axes fraction',
-                                        fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
+                axes[i, -1].annotate(
+                    row_labels[i],
+                    xy=(1.05, 0.5),
+                    xycoords='axes fraction',
+                    rotation=90,
+                    ha='left', va='center'
+                )
+            if side_by_side:
+                legend_handles = [
+                    Patch(facecolor='gray', hatch='//', label=r'$|GT - \tau| \leq 0.05$'),
+                    Patch(facecolor='gray', hatch='xx', label=r'$|GT - \tau| > 0.05$'),
+                    median_legend,
+                    mean_legend
+                ]
+            else:
+                legend_handles = [median_legend, mean_legend]
 
-                axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-                                    fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
+            fig.legend(
+                handles=legend_handles,
+                loc='lower right',
+                ncol=len(legend_handles),
+                frameon=True
+            )
 
-            fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-            plt.grid(True)
-            # fig.savefig(os.path.join(images_dir, f"box_{suffix}.png"))
-            fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"))
+            fig.tight_layout(rect=[0, 0.03, 1, 0.98])
+            fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"),bbox_inches='tight')
             plt.close(fig)
 
-        # Salva i boxplot
         time_max = df["Time"].max()
         event_max = df["Events"].max()
-
-        # save_box(df, 'all_events', 'Events',event_max)
-        # save_box(df, 'all_time', 'Time',time_max)
-        save_box(df[df['Error'] <= 0.05], 'le05_events', 'Events',event_max)
-        save_box(df[df['Error'] <= 0.05], 'le05_time', 'Time',time_max)
-        save_box(df[df['Error'] > 0.05], 'gt05_events', 'Events',event_max)
-        save_box(df[df['Error'] > 0.05], 'gt05_time', 'Time',time_max)
+        if not side_by_side:
+            save_box(df[df['Error'] <= 0.05], 'le05_events', 'Events',event_max)
+            save_box(df[df['Error'] <= 0.05], 'le05_time', 'Time',time_max)
+            save_box(df[df['Error'] > 0.05], 'gt05_events', 'Events',event_max)
+            save_box(df[df['Error'] > 0.05], 'gt05_time', 'Time',time_max)
+        else:
+            save_box(df, 'sidebyside_events', 'Events', event_max)
+            save_box(df, 'sidebyside_time', 'Time', time_max)
 
         # # Istogrammi 2D per variante (Error vs Events)
         # xbins = np.linspace(0, 0.5, 30)
@@ -2048,17 +2114,14 @@ class Data:
                         for gt_idx, gt in enumerate(gt_unique):
                             v2_txt = ""
                             v8_txt = ""
-                            # Cerca il valore v2
                             if gt in vals2[idx][j][1]:
                                 pos = vals2[idx][j][1].index(gt)
                                 v2 = vals2[idx][j][0][pos]
                                 v2_txt = f"{v2:.2f}"
-                            # Cerca il valore v8
                             if gt in vals8[idx][j][1]:
                                 pos = vals8[idx][j][1].index(gt)
                                 v8 = vals8[idx][j][0][pos]
                                 v8_txt = f"{v8:.2f}"
-                            # Unisci i valori nella stessa cella
                             if v2_txt and v8_txt:
                                 if float(v2_txt) != float(v8_txt):
                                     cell_text[gt_idx].append("ERR")
@@ -2082,7 +2145,6 @@ class Data:
                     table.auto_set_font_size(False)
                     table.set_fontsize(plt.rcParams.get("font.size"))
                     table.scale(2.5, 4.0)
-                    # Colora le celle: rosso se v2 presente, verde se v8 presente
                     for (i, j), cell in table.get_celld().items():
                         if i == 0 or j == -1:
                             continue
@@ -2107,11 +2169,7 @@ class Data:
         if not os.path.exists(self.base+"/compressed/images/"):
             os.makedirs(self.base+"/compressed/images/")
         path = self.base+"/compressed/images/"
-
-        # Setup Figure: 3 Righe (LD25, HD25, HD100) x 3 Colonne (Msg, Act, Time)
         fig, ax = plt.subplots(3, 3, figsize=(24, 18), constrained_layout=True)
-        
-        # Mapping Colori e Protocolli
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -2123,10 +2181,7 @@ class Data:
             {'arena': 'big',   'agents': '100', 'label': 'HD100'}
         ]
 
-        # Estrazione corretta dei Tm (indice 4 nei messaggi)
         all_tm = sorted(list(set(str(k[4]) for k in tot_msgs.keys())), key=int)
-        # Estrazione Ground Truth e Thresholds (indici 6 e 7 come da print_active)
-        # Usiamo i dati grezzi passati per trovare i valori univoci
         all_gt = sorted(list(set(float(k[6]) for k in tot_states[0].keys())))
         all_thr = sorted(list(set(float(k[7]) for k in tot_states[0].keys())))
 
@@ -2141,17 +2196,12 @@ class Data:
                     p_id = self._identify_protocol_from_key(key)
                     if p_id and self._protocol_enabled("messages", p_id):
                         try:
-                            # Gestione lunghezze diverse tra le run
                             if isinstance(msg_series[0], (list, np.ndarray)):
-                                # Troviamo la lunghezza minima comune a tutte le run
                                 min_l = min(len(run) for run in msg_series)
-                                # Tagliamo ogni run alla lunghezza minima per renderle omogenee
                                 homogeneous_series = [run[:min_l] for run in msg_series]
                                 y_data = np.mean(homogeneous_series, axis=0)
                             else:
                                 y_data = np.array(msg_series)
-                            
-                            # Plot con normalizzazione
                             ax[row_idx][0].plot(y_data / norm_factor, 
                                               color=protocol_colors.get(p_id, 'black'), 
                                               lw=3, alpha=0.8)
@@ -2162,9 +2212,6 @@ class Data:
             for p in self.protocols:
                 p_id = p.get("id")
                 if not self._protocol_enabled("active", p_id): continue
-                
-                # Per ogni protocollo in questa riga, calcoliamo le curve di confine
-                # Prepariamo liste per contenere i punti (x=thr, y=gt_interp)
                 curve_02, curve_08, curve_time = [], [], []
 
                 for th_val in all_thr:
@@ -2173,37 +2220,27 @@ class Data:
                     temp_times = []
 
                     for gt_val in all_gt:
-                        # Ricostruiamo la chiave come in print_active/borders
-                        # Nota: o_k[k] nel tuo codice originale è il Tm (m_t)
                         for m_t in all_tm:
-                            # Cerchiamo i dati in tutte le run caricate
                             for i in range(len(tot_states)):
-                                # Struttura chiave print_borders: (algo, arena, run, time, comm, agents, gt, thr, buf, tm, hop)
-                                # Usiamo un filtro dinamico sulla chiave per trovare quella corrispondente
                                 for k_state, s_data in tot_states[i].items():
                                     if (k_state[0] == p.get("algo") and k_state[1] == arena_type and 
                                         k_state[5] == agents_count and k_state[6] == str(gt_val) and 
                                         k_state[7] == str(th_val) and k_state[9] == m_t and 
                                         k_state[4] == p.get("comm") and k_state[10] == p.get("hops")):
-                                        
                                         val_q = np.median(s_data[0])
-                                        # Logica interpolazione 0.2 / 0.8
                                         if val_q <= 0.2:
                                             p_vals2 = [val_q, p_vals2[1]]; p_gt2 = [gt_val, p_gt2[1]]
                                         elif val_q >= 0.8:
                                             p_vals8 = [p_vals8[0], val_q]; p_gt8 = [p_gt8[0], gt_val]
-                                            # Tempo di convergenza
                                             t_data = tot_times[i].get(k_state)
                                             if t_data: temp_times.append(np.median(t_data[0]))
 
-                    # Calcolo punti interpolati
                     v2 = np.interp(0.2, p_vals2, p_gt2, left=np.nan)
                     v8 = np.interp(0.8, p_vals8, p_gt8, right=np.nan)
                     if not np.isnan(v2): curve_02.append((th_val, v2))
                     if not np.isnan(v8): curve_08.append((th_val, v8))
                     if temp_times: curve_time.append((th_val, np.mean(temp_times)))
 
-                # Plot curve per il protocollo p
                 p_color = protocol_colors.get(p_id, 'black')
                 if curve_02:
                     curve_02.sort(); x, y = zip(*curve_02)
@@ -2215,11 +2252,9 @@ class Data:
                     curve_time.sort(); x, y = zip(*curve_time)
                     ax[row_idx][2].plot(x, y, color=p_color, marker='x', ms=4, alpha=0.6)
 
-            # Formattazione
             ax[row_idx][0].set_ylabel(config['label'])
             ax[row_idx][1].set_ylim(0.5, 1.0); ax[row_idx][2].set_ylim(0, 200)
 
-        # Finalize (Legenda, Titoli, Save) come nel tuo codice...
         self._finalize_compressed_plot(fig, ax, path, protocol_colors)
 
     def _identify_protocol_from_key(self, k):
@@ -2237,41 +2272,33 @@ class Data:
     def _finalize_compressed_plot(self, fig, ax, path, protocol_colors):
         """Gestisce l'estetica finale, la legenda e il salvataggio del plot compresso."""
         
-        # Titoli delle Colonne
         column_titles = ["Normalized Messages (M)", "Activation Boundaries", "Convergence Time (s)"]
         for j in range(3):
             ax[0][j].set_title(column_titles[j], pad=20)
             
-        # Etichette degli assi X (solo sull'ultima riga per non affollare)
         ax[2][0].set_xlabel("Time (s)")
         ax[2][1].set_xlabel(r"Threshold $T_h$")
         ax[2][2].set_xlabel(r"Threshold $T_h$")
 
-        # Pulizia Generale e Grid
         for i in range(3):
             for j in range(3):
                 ax[i][j].grid(True, ls=':', alpha=0.6)
                 ax[i][j].tick_params(axis='both', which='major', labelsize=11)
-                # Rimuove i bordi superflui per un look moderno
                 ax[i][j].spines['top'].set_visible(False)
                 ax[i][j].spines['right'].set_visible(False)
 
-        # Creazione Legenda Globale Personalizzata
         from matplotlib.lines import Line2D
         legend_elements = []
         
-        # Aggiungiamo i protocolli definiti (solo se hanno un colore assegnato)
         for p in self.protocols:
             p_id = p.get("id")
             label = p.get("label", p_id)
             color = protocol_colors.get(p_id, 'black')
             legend_elements.append(Line2D([0], [0], color=color, lw=4, label=label))
         
-        # Aggiungiamo gli indicatori di confine (0.2 vs 0.8)
         legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='--', label=r'Boundary $\hat{Q}=0.2$'))
         legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='-', label=r'Boundary $\hat{Q}=0.8$'))
 
-        # Posizionamento della Legenda sotto il grafico
         fig.legend(handles=legend_elements, 
                    loc='lower center', 
                    bbox_to_anchor=(0.5, -0.08),
@@ -2279,7 +2306,6 @@ class Data:
                    frameon=True,
                    edgecolor='0.8')
 
-        # Salvataggio
         save_name = "compressed_summary_final.pdf"
         plt.savefig(os.path.join(path, save_name), bbox_inches='tight', dpi=300)
         plt.close(fig)
