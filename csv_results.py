@@ -266,6 +266,7 @@ class Data:
 
 ###################################################
     def plot_messages(self,data):
+        messages_dict, stds_dict = {},{}
         dict_park, dict_park_t1, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{},{}
         std_dict_park, std_dict_park_t1, std_dict_park_real_fifo, std_dict_adam, std_dict_fifo,std_dict_rnd,std_dict_rnd_inf = {},{},{},{},{},{},{}
         for k in data.keys():
@@ -297,8 +298,22 @@ class Data:
                     else:
                         dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)[0]})
                         std_dict_rnd_inf.update({(k[0],k[3],k[4]):data.get(k)[1]})
+        messages_dict.update({"P.0":dict_park_real_fifo})
+        stds_dict.update({"P.0":std_dict_park_real_fifo})
+        messages_dict.update({"P.1.0":dict_park})
+        stds_dict.update({"P.1.0":std_dict_park})
+        messages_dict.update({"P.1.1":dict_park_t1})
+        stds_dict.update({"P.1.1":std_dict_park_t1})
+        messages_dict.update({"O.0.0":dict_adam})
+        stds_dict.update({"O.0.0":dict_adam})
+        messages_dict.update({"O.2.0":dict_fifo})
+        stds_dict.update({"O.2.0":std_dict_fifo})
+        messages_dict.update({"O.1.0":dict_rnd})
+        stds_dict.update({"O.1.0":std_dict_rnd})
+        messages_dict.update({"O.1.1":dict_rnd_inf})
+        stds_dict.update({"O.1.1":std_dict_rnd_inf})
 
-        self.print_messages([dict_park,dict_park_t1,dict_adam,dict_fifo,dict_rnd,dict_rnd_inf,dict_park_real_fifo],[std_dict_park,std_dict_park_t1,std_dict_adam,std_dict_fifo,std_dict_rnd,std_dict_rnd_inf,std_dict_park_real_fifo])
+        self.print_messages(messages_dict,stds_dict)
 
 
 ###################################################
@@ -968,6 +983,7 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
+        states_dict, times_dict = {}, {}
         dict_park_avg,dict_park_t1_avg,dict_park_avg_real_fifo,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg = {},{},{},{},{},{},{}
         dict_park_tmed,dict_park_t1_tmed,dict_park_tmed_real_fifo,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed = {},{},{},{},{},{},{}
         ground_T, threshlds , msg_time, msg_hop        = [],[],[],[]
@@ -1042,20 +1058,32 @@ class Data:
                                                             else:
                                                                 dict_rnd_inf_avg.update({(a_s,n_a,m_t):vals})
                                                                 dict_rnd_inf_tmed.update({(a_s,n_a,m_t):times_median})
+        states_dict.update({"P.0":dict_park_avg_real_fifo})
+        times_dict.update({"P.0":dict_park_tmed_real_fifo})
+        states_dict.update({"P.1.0":dict_park_avg})
+        times_dict.update({"P.1.0":dict_park_tmed})
+        states_dict.update({"P.1.1":dict_park_t1_avg})
+        times_dict.update({"P.1.1":dict_park_t1_tmed})
+        states_dict.update({"O.0.0":dict_adms_avg})
+        times_dict.update({"O.0.0":dict_adms_tmed})
+        states_dict.update({"O.2.0":dict_fifo_avg})
+        times_dict.update({"O.2.0":dict_fifo_tmed})
+        states_dict.update({"O.1.0":dict_rnd_avg})
+        times_dict.update({"O.1.0":dict_rnd_tmed})
+        states_dict.update({"O.1.1":dict_rnd_inf_avg})
+        times_dict.update({"O.1.1":dict_rnd_inf_tmed})
         tmp = []
         for x in o_k:
             if int(x)!=0:
                 tmp.append(x)
         o_k=tmp
-        self.print_borders(path,'avg','median',ground_T,threshlds,[dict_park_avg,dict_park_t1_avg,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg,dict_park_avg_real_fifo],[dict_park_tmed,dict_park_t1_tmed,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed,dict_park_tmed_real_fifo],o_k,[arena,agents])
+        self.print_borders(path,'avg','median',ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents])
         
 ###################################################
     def print_messages(self,data_in,data_std):
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park,dict_park_t1,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_park_real_fifo = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
-        std_dict_park,std_dict_park_t1,std_dict_adam,std_dict_fifo, std_dict_rnd, std_dict_rnd_inf,std_dict_park_real_fifo = data_std[0], data_std[1], data_std[2], data_std[3], data_std[4], data_std[5], data_std[6]
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$min|B|$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
@@ -1080,8 +1108,9 @@ class Data:
             )
         handles_r.append(min_dim)
         all_cols = set()
-        for dct in (dict_park_real_fifo, dict_park, dict_park_t1, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf):
-            for k in dct.keys():
+        for dk in data_in.keys():
+            dicts = data_in.get(dk)
+            for k in dicts.keys():
                 try:
                     all_cols.add(int(k[2]))
                 except Exception:
@@ -1102,186 +1131,38 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        for k in dict_park_real_fifo.keys():
-            tmp = []
-            res = dict_park_real_fifo.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_park_real_fifo.update({k:tmp})
-        for k in dict_park.keys():
-            tmp = []
-            res = dict_park.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_park.update({k:tmp})
-        for k in dict_park_t1.keys():
-            tmp = []
-            res = dict_park_t1.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_park_t1.update({k:tmp})
-
-        for k in dict_adam.keys():
-            tmp = []
-            res = dict_adam.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_adam.update({k:tmp})
-
-        for k in dict_fifo.keys():
-            tmp = []
-            res = dict_fifo.get(k)
-            restd = std_dict_fifo.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_fifo.update({k:tmp})
-
-        for k in dict_rnd.keys():
-            tmp = []
-            res = dict_rnd.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_rnd.update({k:tmp})
-
-        for k in dict_rnd_inf.keys():
-            tmp = []
-            res = dict_rnd_inf.get(k)
-            norm = int(k[1])-1
-            for xi in res:
-                tmp.append(xi/norm)
-            dict_rnd_inf.update({k:tmp})
+        for dk in data_in.keys():
+            dict_dk = data_in.get(dk)
+            for k in dict_dk.keys():
+                tmp = []
+                res = dict_dk.get(k)
+                norm = int(k[1])-1
+                for xi in res:
+                    tmp.append(xi/norm)
+                dict_dk.update({k:tmp})
         for k in range(3):
             for z in range(ncols):
                 den = 100 if k==2 else 25
                 val_min_buf = 5 / den
                 ax[k][z].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
-        for k in dict_park_real_fifo.keys():
-            if not self._protocol_enabled("messages", "P.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
+        for dk in data_in.keys():
+            dict_dk = data_in.get(dk)
+            for k in dict_dk.keys():
+                if not self._protocol_enabled("messages", dk):
+                    continue
+                if k[2] not in col_index:
+                    continue
                 row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_park_real_fifo.get(k),color=protocol_colors.get("P.0","red"),lw=6)
-        for k in dict_park.keys():
-            if not self._protocol_enabled("messages", "P.1.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            min_buf = []
-            val = 5/(int(k[1])-1)
-            for i in range(900):
-                min_buf.append(val)
-            ax[row][col].plot(min_buf,color="black",lw=4,ls="--")
-            ax[row][col].plot(dict_park.get(k),color=protocol_colors.get("P.1.0",scalarMap.to_rgba(typo[0])),lw=6)
-        for k in dict_park_t1.keys():
-            if not self._protocol_enabled("messages", "P.1.1"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_park_t1.get(k),color=protocol_colors.get("P.1.1","orange"),lw=6)
-        for k in dict_adam.keys():
-            if not self._protocol_enabled("messages", "O.0.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_adam.get(k),color=protocol_colors.get("O.0.0",scalarMap.to_rgba(typo[1])),lw=6)
-           
-        for k in dict_fifo.keys():
-            if not self._protocol_enabled("messages", "O.2.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_fifo.get(k),color=protocol_colors.get("O.2.0",scalarMap.to_rgba(typo[2])),lw=6)
-            
-        for k in dict_rnd.keys():
-            if not self._protocol_enabled("messages", "O.1.1"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_rnd.get(k),color=protocol_colors.get("O.1.1",scalarMap.to_rgba(typo[3])),lw=6)
-            
-        for k in dict_rnd_inf.keys():
-            if not self._protocol_enabled("messages", "O.1.0"):
-                continue
-            if k[2] not in col_index:
-                continue
-            row = 0
-            if k[0]=='big' and k[1]=='25':
-                row = 0
-            elif k[0]=='big' and k[1]=='100':
-                row = 2
-            elif k[0]=='small':
-                row = 1
-            col = col_index.get(k[2])
-            if col is None:
-                continue
-            ax[row][col].plot(dict_rnd_inf.get(k),color=protocol_colors.get("O.1.0",scalarMap.to_rgba(typo[4])),lw=6)
-            
+                if k[0]=='big' and k[1]=='25':
+                    row = 0
+                elif k[0]=='big' and k[1]=='100':
+                    row = 2
+                elif k[0]=='small':
+                    row = 1
+                col = col_index.get(k[2])
+                if col is None:
+                    continue
+                ax[row][col].plot(dict_dk.get(k),color=protocol_colors.get(dk,"gray"),lw=6)
         for x in range(2):
             for y in range(ncols):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
