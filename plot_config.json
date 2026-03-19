@@ -12,6 +12,6 @@
     "messages": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
     "decisions": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
     "active": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]},
-    "recovery": {"exclude_protocols": [], "exclude_tm": []}
+    "recovery": {"exclude_protocols": ["P.0","P.1.0","P.1.1"], "exclude_tm": [120,300]}
   }
 }

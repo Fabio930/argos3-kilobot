@@ -550,7 +550,7 @@ class Data:
             })
         df = pd.DataFrame(rows)
 
-        # --- CORREZIONE CRITICA: prima sposto solo AN e AN_t su T_m=60, poi rimuovo T_m=0
+        # prima sposto solo AN e AN_t su T_m=60, poi rimuovo T_m=0
         # AN_t^1 deve invece restare nelle colonne corrispondenti al suo Msgs_exp_time originale.
         df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
         df = df[df['Msgs_exp_time'] != 0]
@@ -583,7 +583,7 @@ class Data:
             # non condividere l'asse y tra tutte le sottotrame: vogliamo limiti y
             # diversi per ogni riga. Con sharey=True tutti gli assi avrebbero lo
             # stesso limite e ciò impedisce lo zoom per riga.
-            fig, axes = plt.subplots(nrows, ncols, figsize=(26, 18), sharey=True, sharex=False)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(max(ncols*8,20)+ncols*1.5,ncols*8), sharey=True, sharex=False)
 
             # assicurati che axes sia array 2D
             if nrows == 1 and ncols == 1:
@@ -710,10 +710,10 @@ class Data:
 
                 # annotazioni riga
                 if entry == "Time":
-                    axes[i, 0].annotate(r"$T_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
+                    axes[i, 0].annotate(r"$T_{r}$", xy=(-.15, 0.5), xycoords='axes fraction',
                                         fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
                 else:
-                    axes[i, 0].annotate(r"$E_{r}$", xy=(-.3, 0.5), xycoords='axes fraction',
+                    axes[i, 0].annotate(r"$E_{r}$", xy=(-.15, 0.5), xycoords='axes fraction',
                                         fontsize=plt.rcParams.get("font.size"), ha='left', va='center', rotation=90)
 
                 axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
