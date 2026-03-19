@@ -207,7 +207,7 @@ class Data:
         for root_name, list_of_dicts in dict_msgs.items():
             folder_cfg = self._get_diff_folder_cfg(root_name)
             l_style = folder_cfg.get("line_style", "-")
-            l_label = folder_cfg.get("label", "Gossip")
+            l_label = folder_cfg.get("label", "gossip + state")
             for dct in list_of_dicts:
                 for k, res in dct.items():
                     if k[3] != "0.68;0.92": continue
@@ -426,7 +426,7 @@ class Data:
                 for root_name, data_list in dict_st.items():
                     folder_cfg = self._get_diff_folder_cfg(root_name)
                     l_style = folder_cfg.get("line_style", "-")
-                    l_label = folder_cfg.get("label", "Gossip")
+                    l_label = folder_cfg.get("label", "gossip + state")
                     
                     for data_in in data_list:
                         for k, s_data in data_in.items():

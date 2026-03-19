@@ -1,7 +1,7 @@
 {
   "folders": [
-    {"root": "./", "label": "Gossip + state", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
-    {"root": "./new_data_hops/", "label": "Gossip", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
+    {"root": "./", "label": "", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
+    {"root": "./dynamic_data/", "label": "state", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
   ],
   "protocols": [
     {"key": "AN", "id": 0, "label": "$AN$", "color": "red", "legend": false},
