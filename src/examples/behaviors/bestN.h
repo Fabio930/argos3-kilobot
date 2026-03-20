@@ -110,6 +110,11 @@ uint8_t received_committed;
 /* map of the environment */
 arena_a *the_arena = NULL;
 
+uint64_t num_own_info=0;
+uint64_t num_other_info=0;
+uint64_t buffer_insertion=0;
+uint64_t buffer_update=0;
+uint64_t buffer_neglect=0;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
@@ -118,6 +123,7 @@ uint8_t fifo_ids[FIFO_BUFFER_SIZE];
 uint8_t fifo_head = 0;
 uint8_t fifo_tail = 0;
 uint8_t fifo_count = 0;
+// uint8_t quorum_reached = 0;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
 
