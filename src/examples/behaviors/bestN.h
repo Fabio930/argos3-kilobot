@@ -121,8 +121,8 @@ quorum_a **quorum_array;
 #define FIFO_MSG_SIZE 128
 typedef struct {
     uint8_t agent_id;
-    uint8_t last_msg_n_hops;
-    uint8_t last_agent_state;
+    uint8_t msg_n_hops;
+    uint8_t agent_state;
 } fifo_msg_t;
 
 typedef struct {
@@ -131,6 +131,15 @@ typedef struct {
     uint8_t tail;
     uint8_t count;
 } fifo_msg_buffer_t;
+
+void fifo_msg_init(fifo_msg_buffer_t* fifo);
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
+void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state);
 
 fifo_msg_buffer_t rebroadcast_fifo;
 uint8_t vote_fifo_ids[FIFO_BUFFER_SIZE];
@@ -177,7 +186,7 @@ void talk();
 
 void broadcast();
 
-void rebroadcast();
+void rnd_rebroadcast();
 
 void compute_msg_hops();
 
