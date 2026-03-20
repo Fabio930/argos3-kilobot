@@ -118,10 +118,21 @@ uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 #define FIFO_BUFFER_SIZE 128
-uint8_t fifo_ids[FIFO_BUFFER_SIZE];
-uint8_t fifo_head = 0;
-uint8_t fifo_tail = 0;
-uint8_t fifo_count = 0;
+#define FIFO_MSG_SIZE 128
+typedef struct {
+    uint8_t agent_id;
+    uint8_t last_msg_n_hops;
+    uint8_t last_agent_state;
+} fifo_msg_t;
+
+typedef struct {
+    fifo_msg_t buffer[FIFO_MSG_SIZE];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+} fifo_msg_buffer_t;
+
+fifo_msg_buffer_t rebroadcast_fifo;
 uint8_t vote_fifo_ids[FIFO_BUFFER_SIZE];
 uint8_t vote_fifo_states[FIFO_BUFFER_SIZE];
 uint8_t vote_fifo_head = 0;
