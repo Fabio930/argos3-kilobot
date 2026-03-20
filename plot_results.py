@@ -553,13 +553,13 @@ def main():
     if not df_time.empty:
         total_imgs += plot_time_df(df_time)
 
-    if not df_coh.empty and not df_acc.empty:
-        print("Generating Pareto: Cohesion vs Accuracy...")
-        total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
+    # if not df_coh.empty and not df_acc.empty:
+    #     print("Generating Pareto: Cohesion vs Accuracy...")
+    #     total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
         
-    if not df_coh.empty and not df_time.empty:
-        print("Generating Pareto: Cohesion vs Time...")
-        total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
+    # if not df_coh.empty and not df_time.empty:
+    #     print("Generating Pareto: Cohesion vs Time...")
+    #     total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
 
     print(f"\nExecution finished. Total images saved: {total_imgs}")
 
