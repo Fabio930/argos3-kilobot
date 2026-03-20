@@ -12,63 +12,71 @@ void fifo_msg_init(fifo_msg_buffer_t* fifo) {
     fifo->count = 0;
 }
 
-void fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
-    if (fifo->count < FIFO_MSG_SIZE) {
-        fifo->buffer[fifo->tail].agent_id = agent_id;
-        fifo->buffer[fifo->tail].last_msg_n_hops = Msg_n_hops;
-        fifo->buffer[fifo->tail].last_agent_state = agent_state;
-        fifo->tail = (fifo->tail + 1) % FIFO_MSG_SIZE;
-        fifo->count++;
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
+    for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
+        if (fifo->buffer[idx].agent_id == agent_id) return 0; // duplicato
     }
-}
-
-void fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id) {
-    uint8_t i = fifo->head, found = 0, n = fifo->count;
-    for (uint8_t j = 0; j < n; ++j) {
-        if (fifo->buffer[i].agent_id == agent_id && !found) {
-            found = 1;
-        }
-        if (found && j < n - 1) {
-            uint8_t next = (i + 1) % FIFO_MSG_SIZE;
-            fifo->buffer[i] = fifo->buffer[next];
-        }
-        i = (i + 1) % FIFO_MSG_SIZE;
-    }
-    if (found) {
-        fifo->tail = (fifo->tail + FIFO_MSG_SIZE - 1) % FIFO_MSG_SIZE;
+    if (fifo->count >= FIFO_MSG_SIZE) {
+        fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
         fifo->count--;
     }
+    fifo->buffer[fifo->tail].agent_id = agent_id;
+    fifo->buffer[fifo->tail].msg_n_hops = Msg_n_hops;
+    fifo->buffer[fifo->tail].agent_state = agent_state;
+    fifo->tail = (fifo->tail + 1) % FIFO_MSG_SIZE;
+    fifo->count++;
+    return 1;
 }
 
-void fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id,uint8_t Msg_n_hops, uint8_t agent_state) {
-    while (1) {
-        uint8_t found = 0;
-        for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-            if (fifo->buffer[idx].agent_id == agent_id) {
-                fifo_msg_remove(fifo, agent_id);
-                found = 1;
-                break;
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id) {
+    if (fifo->count == 0) return 0;
+    uint8_t idx = fifo->head;
+    for (uint8_t i = 0; i < fifo->count; ++i) {
+        if (fifo->buffer[idx].agent_id == agent_id) {
+            for (uint8_t j = i; j < fifo->count - 1; ++j) {
+                uint8_t from = (fifo->head + j + 1) % FIFO_MSG_SIZE;
+                uint8_t to = (fifo->head + j) % FIFO_MSG_SIZE;
+                fifo->buffer[to] = fifo->buffer[from];
             }
+            fifo->tail = (fifo->tail == 0) ? FIFO_MSG_SIZE - 1 : fifo->tail - 1;
+            fifo->count--;
+            return 1;
         }
-        if (!found) break;
+        idx = (idx + 1) % FIFO_MSG_SIZE;
     }
-    fifo_msg_enqueue(fifo, agent_id, Msg_n_hops, agent_state);
+    return 0;
 }
 
-int fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id) {
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state) {
+    if (fifo->count == 0) return 0;
+    uint8_t idx = fifo->head;
+    uint8_t found = 0;
+    for (uint8_t i = 0; i < fifo->count; ++i) {
+        if (fifo->buffer[idx].agent_id == agent_id) {
+            fifo->buffer[idx].msg_n_hops = msg_hops;
+            fifo->buffer[idx].agent_state = agent_state;
+            fifo_msg_remove(fifo, agent_id);
+            found = 1;
+            break;
+        }
+        idx = (idx + 1) % FIFO_MSG_SIZE;
+    }
+    if (!found) return 0;
+    return fifo_msg_enqueue(fifo, agent_id, msg_hops, agent_state);
+}
+
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id) {
     if (fifo->count == 0) return 0;
     *agent_id = fifo->buffer[fifo->head].agent_id;
     return 1;
 }
 
-void fifo_msg_dequeue(fifo_msg_buffer_t* fifo) {
-    if (fifo->count > 0) {
-        fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
-        fifo->count--;
-    }
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo) {
+    if (fifo->count == 0) return 0;
+    fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
+    fifo->count--;
+    return 1;
 }
-
-static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
 
 static uint8_t sat_inc_u8(const uint8_t value){
     return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
@@ -144,13 +152,13 @@ void talk(){
                         uint8_t agent_idx = 0;
                         for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
                             if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
-                                msg_n_hops = rebroadcast_fifo.buffer[idx].last_msg_n_hops;
-                                agent_state = rebroadcast_fifo.buffer[idx].last_agent_state;
+                                msg_n_hops = rebroadcast_fifo.buffer[idx].msg_n_hops;
+                                agent_state = rebroadcast_fifo.buffer[idx].agent_state;
                                 agent_id = idx;
                                 break;
                             }
                         }
-                        fifo_rebroadcast(agent_id,agent_state,msg_n_hops,agent_idx);
+                        fifo_rebroadcast(agent_id, agent_state, msg_n_hops, agent_idx);
                         fifo_msg_dequeue(&rebroadcast_fifo);
                     } else {
                         broadcast();
@@ -191,21 +199,22 @@ void rnd_rebroadcast(){
     my_message.data[2] = sa_payload;
 }
 
-void fifo_rebroadcast(uint8_t agent_id,uint8_t agent_state,uint8_t msg_hops,uint8_t agent_idx){
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
     // message
-    sa_type = sat_inc_u8(msg_n_hops);
-    sa_id = agent_id;
-    sa_payload = agent_state;
+    if (agent_idx >= FIFO_MSG_SIZE) return 0;
+    if (selected_msg_indx >= num_quorum_items) return 0;
+    uint8_t sa_type = sat_inc_u8(msg_hops);
+    uint8_t sa_id = agent_id;
+    uint8_t sa_payload = agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
     quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
-    rebroadcast_fifo.buffer[agent_idx].last_msg_n_hops = sa_type;
+    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
+    return 1;
 }
-
-// RIMOSSO: vecchia FIFO obsoleta
 
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
     for(uint8_t i = 0; i < num_quorum_items; ++i){

@@ -136,8 +136,8 @@ quorum_a **quorum_array;
 #define FIFO_MSG_SIZE 128
 typedef struct {
     uint8_t agent_id;
-    uint8_t last_msg_n_hops;
-    uint8_t last_agent_state;
+    uint8_t msg_n_hops;
+    uint8_t agent_state;
 } fifo_msg_t;
 
 typedef struct {
@@ -148,11 +148,13 @@ typedef struct {
 } fifo_msg_buffer_t;
 
 void fifo_msg_init(fifo_msg_buffer_t* fifo);
-void fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
-void fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
-void fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
-int fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
-void fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state); // 1=ok, 0=overflow/duplicato
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id); // 1=ok, 0=non trovato
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state); // 1=ok, 0=errore
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id); // 1=ok, 0=vuota
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo); // 1=ok, 0=vuota
+
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
 
 char log_title[30];
 uint8_t led;
@@ -180,8 +182,6 @@ void talk();
 void broadcast();
 
 void rnd_rebroadcast();
-
-void fifo_rebroadcast(uint8_t agent_id,uint8_t agent_state,uint8_t msg_hops);
 
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */

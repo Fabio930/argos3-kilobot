@@ -55,7 +55,7 @@
             expiring_quorum_sec = "60"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
-            start_commitment_variation_time = "400"
+            start_commitment_variation_time = "300"
             end_commitment_variation_time = "0"
             next_committed_percentage = "0.92"
         >
