@@ -90,7 +90,7 @@ void talk(){
                                 compute_msg_hops();
                             }
                             uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < hop_limit){
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < hop_limit){
                                 rebroadcast();
                             }
                             else broadcast();
@@ -131,7 +131,7 @@ void rebroadcast(){
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = 1;
+    quorum_array[selected_msg_indx]->delivered += 1;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
