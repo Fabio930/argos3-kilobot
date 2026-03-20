@@ -1,12 +1,15 @@
-import os, csv, logging, re, json
+import os, csv, logging, re, json, colorsys
 import numpy as np
 import pandas as pd
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from matplotlib import pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.legend_handler import HandlerBase
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
@@ -53,6 +56,10 @@ class Data:
         self.protocols_by_id = {p.get("id"): p for p in self.protocols if p.get("id") is not None}
 
 ###################################################
+    def _assign_config(self,config_name):
+        self.plot_config = self._load_plot_config(config_name)
+
+###################################################
     def _default_plot_config(self):
         return {
             "protocols": [
@@ -62,13 +69,29 @@ class Data:
                 {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
                 {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
-                {"id": "O.1.0", "label": r"$ID+R_{\\infty}$", "color": "viridis:4"},
+                {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
             ],
             "plots": {
                 "messages": {"exclude_protocols": [], "exclude_tm": []},
                 "decisions": {"exclude_protocols": [], "exclude_tm": []},
                 "active": {"exclude_protocols": [], "exclude_tm": []},
                 "recovery": {"exclude_protocols": [], "exclude_tm": []},
+            },
+        }
+###################################################
+    def _short_default_plot_config(self):
+        return {
+            "protocols": [
+                {"id": "P.0", "label": r"$AN$", "color": "red"},
+                {"id": "P.1.0", "label": r"$AN_{t}$", "color": "viridis:0"},
+                {"id": "P.1.1", "label": r"$AN_{t}^{1}$", "color": "orange"},
+                {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
+                {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
+                {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
+                {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
+            ],
+            "plots": {
+                "plot": {"exclude_protocols": [], "exclude_tm": []}
             },
         }
 
@@ -88,9 +111,9 @@ class Data:
         return cfg
 
 ###################################################
-    def _load_plot_config(self):
-        cfg = self._default_plot_config()
-        path = os.path.join(self.base, "plot_config.json")
+    def _load_plot_config(self,config_name="plot_config.json"):
+        cfg = self._default_plot_config() if "short" not in config_name else self._short_default_plot_config()
+        path = os.path.join(self.base, config_name)
         if not os.path.exists(path):
             return cfg
         try:
@@ -284,7 +307,7 @@ class Data:
             elif k[1]=='P' and int(k[4]) == 0:
                 dict_park_real_fifo.update({(k[0],k[3],k[4]):data.get(k)[0]})
                 std_dict_park_real_fifo.update({(k[0],k[3],k[4]):data.get(k)[1]})
-            else:
+            if k[1]=='O':
                 if k[2]=="0":
                     dict_adam.update({(k[0],k[3],k[4]):data.get(k)[0]})
                     std_dict_adam.update({(k[0],k[3],k[4]):data.get(k)[1]})
@@ -313,7 +336,7 @@ class Data:
         messages_dict.update({"O.1.1":dict_rnd_inf})
         stds_dict.update({"O.1.1":std_dict_rnd_inf})
 
-        self.print_messages(messages_dict,stds_dict)
+        return messages_dict,stds_dict
 
 
 ###################################################
@@ -1059,7 +1082,7 @@ class Data:
             if int(x)!=0:
                 tmp.append(x)
         o_k=tmp
-        self.print_borders(path,'avg','median',ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents])
+        return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
     def print_messages(self,data_in,data_std):
@@ -1642,151 +1665,231 @@ class Data:
                 plt.close(fig)
 
 ###################################################
-    def plot_compressed_table(self, tot_states, tot_times, tot_msgs):
+    def _group_tables(self, tot_states, tot_times, tot_msgs):
+        _,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents] = self.plot_active(tot_states,tot_times)
+        messages_dict, stds_dict = self.plot_messages(tot_msgs)
+        return ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents], messages_dict, stds_dict
+
+###################################################
+    def plot_compressed_table(self, tot_states_in, tot_times_in, tot_msgs_in):
         if not os.path.exists(self.base+"/compressed/images/"):
             os.makedirs(self.base+"/compressed/images/")
         path = self.base+"/compressed/images/"
-        fig, ax = plt.subplots(3, 3, figsize=(24, 18), constrained_layout=True)
+        ground_T,threshlds,dk_tot_states,dk_tot_times,o_k,[arena,agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        all_tm = sorted([int(x) for x in o_k if x is not None and int(x) > 0])
+        tm_norm = colors.LogNorm(vmin=min(all_tm), vmax=max(all_tm))
+        if not all_tm:
+            tm_norm = colors.Normalize(vmin=0, vmax=1)
+        all_gt = sorted(list(ground_T))
+        all_thr = sorted(list(threshlds))
+        fig, ax = plt.subplots(3, 3, figsize=(24, 20), constrained_layout=True, squeeze=False,gridspec_kw={'height_ratios': [1, 1, 1.4]})
+        min_buf = np.zeros(3)
+        mid_act = np.zeros(3)
+        to_plot_states_vals_dict = {}
+        max_time = 0
+        ref_x = np.arange(0.5, 1.01, 0.01)
+        for dk in dk_tot_msgs.keys():
+            if self._protocol_enabled("plot", dk):
+                for timer in all_tm:
+                    to_plot_states_vals_dict.update({(dk,timer):([0 for _ in range(len(threshlds))], [0 for _ in range(len(threshlds))],
+                                                    [ [[0,0],[0,0]] for _ in range(len(threshlds)) ], [ [[0,0],[0,0]] for _ in range(len(threshlds)) ],
+                                                    [0 for _ in range(len(threshlds))])})
+                tot_msgs = dk_tot_msgs.get(dk)
+                tot_states = dk_tot_states.get(dk)
+                tot_times = dk_tot_times.get(dk)
+                base_color = protocol_colors.get(dk, 'gray')
+                rgb_base = colors.to_rgb(base_color)
+                h, l, s = colorsys.rgb_to_hls(*rgb_base)
+                # --- ROW 0: MESSAGES ---
+                for key, msg_series in tot_msgs.items():
+                    try:
+                        current_tm = int(key[2])
+                        norm_val = tm_norm(current_tm)
+                        if current_tm <= 0:
+                            norm_val = tm_norm(max(all_tm))
+                        if np.ma.is_masked(norm_val):
+                            norm_val = 0.0
+                        if current_tm == max(all_tm):
+                            new_l = l
+                            new_s = s
+                        else:
+                            diff = (1.0 - float(norm_val))
+                            new_l = max(l, min(0.85, l + (diff * 0.4))) 
+                            new_s = s * (1.0 - (diff * 0.3))
 
-        row_configs = [
-            {'arena': 'big',   'agents': '25',  'label': 'LD25'},
-            {'arena': 'small', 'agents': '25',  'label': 'HD25'},
-            {'arena': 'big',   'agents': '100', 'label': 'HD100'}
-        ]
+                        raw_rgb = colorsys.hls_to_rgb(h, new_l, new_s)
+                        stepped_color = np.clip(raw_rgb, 0, 1)
+                        print(dk,key,stepped_color)
 
-        all_tm = sorted(list(set(str(k[4]) for k in tot_msgs.keys())), key=int)
-        all_gt = sorted(list(set(float(k[6]) for k in tot_states[0].keys())))
-        all_thr = sorted(list(set(float(k[7]) for k in tot_states[0].keys())))
+                        y_data = np.array(msg_series)
+                        num_agents = int(key[1])
+                        col_idx = 2 if num_agents == 100 else 1 if key[0] == "small" and num_agents == 25 else 0
+                        if min_buf[col_idx]==0:
+                            min_buf[col_idx]=1
+                            ax[0][col_idx].plot([5 / (num_agents - 1) for _ in range(901)], 
+                                            color="black", ls='-.',
+                                            lw=3)
 
-        for row_idx, config in enumerate(row_configs):
-            arena_type = config['arena']
-            agents_count = config['agents']
-            norm_factor = int(agents_count) - 1
+                        ax[0][col_idx].plot(y_data / (num_agents - 1),color=stepped_color,lw=4,alpha=0.75)
+                    except Exception as e:
+                        print(f"Skipping key {key} due to error: {e}")
+                        continue
+                # --- ROW 1 & 2: BORDERS & TIMES ---
+                for key, state_series in tot_states.items():
+                    time_series = tot_times.get(key)
+                    try:
+                        current_tm = int(key[2])
+                        norm_val = tm_norm(current_tm)
+                        if current_tm <= 0 or dk=="P.0":
+                            norm_val = tm_norm(max(all_tm))
+                        if np.ma.is_masked(norm_val):
+                            norm_val = 0.0
+                        if current_tm == max(all_tm):
+                            new_l = l
+                            new_s = s
+                        else:
+                            diff = (1.0 - float(norm_val))
+                            new_l = max(l, min(0.85, l + (diff * 0.4))) 
+                            new_s = s * (1.0 - (diff * 0.3))
 
-            # --- COLONNA 0: MESSAGES ---
-            for key, msg_series in tot_msgs.items():
-                if key[0] == arena_type and key[3] == agents_count:
-                    p_id = self._identify_protocol_from_key(key)
-                    if p_id and self._protocol_enabled("messages", p_id):
-                        try:
-                            if isinstance(msg_series[0], (list, np.ndarray)):
-                                min_l = min(len(run) for run in msg_series)
-                                homogeneous_series = [run[:min_l] for run in msg_series]
-                                y_data = np.mean(homogeneous_series, axis=0)
-                            else:
-                                y_data = np.array(msg_series)
-                            ax[row_idx][0].plot(y_data / norm_factor, 
-                                              color=protocol_colors.get(p_id, 'black'), 
-                                              lw=3, alpha=0.8)
-                        except Exception as e:
-                            print(f"Skipping key {key} due to error: {e}")
-                            continue
-            # --- COLONNA 1 & 2: ACTIVE & TIMES (Logica print_borders) ---
-            for p in self.protocols:
-                p_id = p.get("id")
-                if not self._protocol_enabled("active", p_id): continue
-                curve_02, curve_08, curve_time = [], [], []
+                        raw_rgb = colorsys.hls_to_rgb(h, new_l, new_s)
+                        stepped_color = np.clip(raw_rgb, 0, 1)
+                        for th in range(len(threshlds)):
+                            vals2, vals8, gt2, gt8= [np.nan]*2,[np.nan]*2,[np.nan]*2,[np.nan]*2
+                            valst, lim_valst = np.nan, np.nan
+                            for pt in range(len(ground_T)):
+                                val    = state_series[pt][th]
+                                tval   = time_series[pt][th]
+                                if val is not None:
+                                    if val>=0.8:
+                                        temp_tval = tval
+                                        if ground_T[pt]-threshlds[th]  >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
+                                            valst = temp_tval
+                                            lim_valst = ground_T[pt]-threshlds[th]
+                                        if ground_T[pt]-threshlds[th] >=0 and (vals8[1] is np.nan or val<vals8[1]):
+                                            vals8[1]  = val
+                                            gt8[1]    = ground_T[pt]
+                                    elif val<=0.2:
+                                        if ground_T[pt]-threshlds[th] <=0 and (vals2[0] is np.nan or val>=vals2[0]):
+                                            vals2[0]  = val
+                                            gt2[0]    = ground_T[pt]
+                                    else:
+                                        if vals8[0] is np.nan or val>vals8[0]:
+                                            vals8[0]  = val
+                                            gt8[0]    = ground_T[pt]
+                                        if vals2[1] is np.nan or val<vals2[1]:
+                                            vals2[1]  = val
+                                            gt2[1]    = ground_T[pt]
+                            if vals8[0] is np.nan:
+                                vals8[0] = vals8[1]
+                                gt8[0] = gt8[1]
+                            elif vals8[1] is np.nan:
+                                vals8[1] = vals8[0]
+                                gt8[1] = gt8[0]
+                            if vals2[0] is np.nan:
+                                vals2[0] = vals2[1]
+                                gt2[0] = gt2[1]
+                            elif vals2[1] is np.nan:
+                                vals2[1] = vals2[0]
+                                gt2[1] = gt2[0]
+                            temp_vals = list(to_plot_states_vals_dict.get((dk,current_tm)))
+                            temp_vals[0][th]  = np.around(np.interp([0.2],vals2,gt2,left=np.nan),3)
+                            temp_vals[1][th]  = np.around(np.interp([0.8],vals8,gt8,right=np.nan),3)
+                            temp_vals[2][th]  = [vals2,gt2]
+                            temp_vals[3][th]  = [vals8,gt8]
+                            temp_vals[4][th]  = valst
+                            if max_time < valst: max_time = valst
+                            to_plot_states_vals_dict.update({(dk,current_tm):tuple(temp_vals)})
+                        num_agents = int(key[1])
+                        col_idx = 2 if num_agents == 100 else 1 if key[0] == "smallA" and num_agents == 25 else 0
+                        if mid_act[col_idx] == 0:
+                            mid_act[col_idx] = 1
+                            ax[2][col_idx].plot(ref_x, ref_x, color='black', lw=3, ls=':')
+                        ax[2][col_idx].plot(threshlds,to_plot_states_vals_dict.get((dk,current_tm))[0],color=stepped_color,lw=4,alpha=0.75,ls='--')
+                        ax[2][col_idx].plot(threshlds,to_plot_states_vals_dict.get((dk,current_tm))[1],color=stepped_color,lw=4,alpha=0.75,ls='-')
+                        ax[1][col_idx].plot(threshlds,to_plot_states_vals_dict.get((dk,current_tm))[4],color=stepped_color,lw=4,alpha=0.75)
+                    except Exception as e:
+                        print(f"Skipping key {key} due to error: {e}")
+                        continue
 
-                for th_val in all_thr:
-                    p_vals2, p_gt2 = [np.nan]*2, [np.nan]*2
-                    p_vals8, p_gt8 = [np.nan]*2, [np.nan]*2
-                    temp_times = []
+        self._finalize_compressed_plot(fig, ax, path, protocol_colors,threshlds,max_time)
 
-                    for gt_val in all_gt:
-                        for m_t in all_tm:
-                            for i in range(len(tot_states)):
-                                for k_state, s_data in tot_states[i].items():
-                                    if (k_state[0] == p.get("algo") and k_state[1] == arena_type and 
-                                        k_state[5] == agents_count and k_state[6] == str(gt_val) and 
-                                        k_state[7] == str(th_val) and k_state[9] == m_t and 
-                                        k_state[4] == p.get("comm") and k_state[10] == p.get("hops")):
-                                        val_q = np.median(s_data[0])
-                                        if val_q <= 0.2:
-                                            p_vals2 = [val_q, p_vals2[1]]; p_gt2 = [gt_val, p_gt2[1]]
-                                        elif val_q >= 0.8:
-                                            p_vals8 = [p_vals8[0], val_q]; p_gt8 = [p_gt8[0], gt_val]
-                                            t_data = tot_times[i].get(k_state)
-                                            if t_data: temp_times.append(np.median(t_data[0]))
-
-                    v2 = np.interp(0.2, p_vals2, p_gt2, left=np.nan)
-                    v8 = np.interp(0.8, p_vals8, p_gt8, right=np.nan)
-                    if not np.isnan(v2): curve_02.append((th_val, v2))
-                    if not np.isnan(v8): curve_08.append((th_val, v8))
-                    if temp_times: curve_time.append((th_val, np.mean(temp_times)))
-
-                p_color = protocol_colors.get(p_id, 'black')
-                if curve_02:
-                    curve_02.sort(); x, y = zip(*curve_02)
-                    ax[row_idx][1].plot(x, y, color=p_color, ls='--', lw=2)
-                if curve_08:
-                    curve_08.sort(); x, y = zip(*curve_08)
-                    ax[row_idx][1].plot(x, y, color=p_color, ls='-', lw=2)
-                if curve_time:
-                    curve_time.sort(); x, y = zip(*curve_time)
-                    ax[row_idx][2].plot(x, y, color=p_color, marker='x', ms=4, alpha=0.6)
-
-            ax[row_idx][0].set_ylabel(config['label'])
-            ax[row_idx][1].set_ylim(0.5, 1.0); ax[row_idx][2].set_ylim(0, 200)
-
-        self._finalize_compressed_plot(fig, ax, path, protocol_colors)
-
-    def _identify_protocol_from_key(self, k):
-        """Helper basato sulla logica di plot_messages"""
-        algo = k[1].strip().lower()
-        n_agents = int(k[3]); buff_dim = int(k[4])
-        if (algo == 'ps' or (algo == 'p' and buff_dim == max(0, n_agents - 2))) and buff_dim > 0: return "P.1.1"
-        if k[1] == 'P' and buff_dim > 0: return "P.1.0"
-        if k[1] == 'P' and buff_dim == 0: return "P.0"
-        if k[2] == "0": return "O.0.0"
-        if k[2] == "2": return "O.2.0"
-        if k[5] == "1": return "O.1.1"
-        return "O.1.0"
 ###################################################
-    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors):
-        """Gestisce l'estetica finale, la legenda e il salvataggio del plot compresso."""
-        
-        column_titles = ["Normalized Messages (M)", "Activation Boundaries", "Convergence Time (s)"]
-        for j in range(3):
-            ax[0][j].set_title(column_titles[j], pad=20)
-            
-        ax[2][0].set_xlabel("Time (s)")
-        ax[2][1].set_xlabel(r"Threshold $T_h$")
-        ax[2][2].set_xlabel(r"Threshold $T_h$")
-
+    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors,tau_ticks,max_time):
+        class HandlerGradient(HandlerBase):
+            def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
+                n_steps = 5
+                cmap = colors.LinearSegmentedColormap.from_list("grey_grad", [ "#E0E0E0","#2D2D2D"])
+                artists = []
+                step_width = width / n_steps
+                for i in range(n_steps):
+                    color = cmap(i / n_steps)
+                    r = Rectangle((xdescent + i * step_width, ydescent), step_width, height, 
+                                  facecolor=color, edgecolor=color, transform=trans)
+                    artists.append(r)
+                return artists
+        column_titles = ["LD25","HD25","HD100"]
+        tau_values = [float(t) for t in tau_ticks]
         for i in range(3):
+            if i == 0:
+                for j in range(3):
+                    ax[i][j].set_title(column_titles[j], pad=20)
+                    ax[i][j].set_xlim((0, 901))
+                    ax[i][j].set_xticks([0, 300, 600, 900])
+                    ax[i][j].set_xlabel(r"$T\, (s)$")
             for j in range(3):
-                ax[i][j].grid(True, ls=':', alpha=0.6)
-                ax[i][j].tick_params(axis='both', which='major', labelsize=11)
+                if i == 1 or i == 2:
+                    ax[i][j].set_xlim((0.5, 1))
+                    ax[i][j].xaxis.set_major_locator(MultipleLocator(0.1))
+                    ax[i][j].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+                    ax[i][j].xaxis.set_minor_locator(MultipleLocator(0.05))
+                if i == 0:
+                    ax[i][j].set_ylim((-0.01, 1.01))
+                elif i == 1:
+                    ax[i][j].set_ylim((0, max_time + 10))
+                    ax[i][j].set_xticklabels(["" for _ in ax[i][j].get_xticks()])
+                elif i == 2:
+                    ax[i][j].set_ylim((0.5, 1))
+                    ax[i][j].set_xlabel(r"$\tau$")
+                ax[i][j].grid(True, ls=':', which='major', alpha=0.6)
+                ax[i][j].tick_params(axis='both', which='major')
                 ax[i][j].spines['top'].set_visible(False)
                 ax[i][j].spines['right'].set_visible(False)
-
-        from matplotlib.lines import Line2D
+                if j == 1 or j == 2:
+                    ax[i][j].set_yticklabels(["" for _ in ax[i][j].get_yticks()])
+        ax[0][0].set_ylabel(r"$M$")
+        ax[1][0].set_ylabel(r"$T\, (s)$")
+        ax[2][0].set_ylabel(r"$G$")
         legend_elements = []
-        
         for p in self.protocols:
             p_id = p.get("id")
-            label = p.get("label", p_id)
-            color = protocol_colors.get(p_id, 'black')
-            legend_elements.append(Line2D([0], [0], color=color, lw=4, label=label))
-        
-        legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='--', label=r'Boundary $\hat{Q}=0.2$'))
-        legend_elements.append(Line2D([0], [0], color='black', lw=2, ls='-', label=r'Boundary $\hat{Q}=0.8$'))
+            if self._protocol_enabled("plot", p_id):
+                label = p.get("label", p_id)
+                color = protocol_colors.get(p_id, 'gray')
+                legend_elements.append(Line2D([0], [0], color=color, linestyle='None', 
+                                              marker='s', markersize=16, label=label))
+        grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
+        legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|B|$'))
+        legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
+        legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
+        legend_elements.append(grad_rect)
 
         fig.legend(handles=legend_elements, 
-                   loc='lower center', 
-                   bbox_to_anchor=(0.5, -0.08),
-                   ncol=6, 
+                   handler_map={grad_rect: HandlerGradient()},
+                   loc='upper right',
+                   bbox_to_anchor=(1, 0),
+                   ncol=9, 
                    frameon=True,
                    edgecolor='0.8')
 
-        save_name = "compressed_summary_final.pdf"
+        save_name = "compressed_summary.pdf"
         plt.savefig(os.path.join(path, save_name), bbox_inches='tight', dpi=300)
         plt.close(fig)
-        
-        print(f"--- Plot Compresso Creato: {os.path.join(path, save_name)} ---")
+    
+###################################################
     def plot_compressed_recovery(self):
         return

@@ -15,6 +15,8 @@ def main():
     short = [s.strip() for s in args.short.split(",") if s.strip()]
 
     csv_res = CSVres.Data()
+    if short:
+        csv_res._assign_config("short_plot_config.json")
     if exclude_protocols or exclude_tm:
         csv_res.apply_plot_overrides(
             ["active", "messages", "decisions"],
@@ -22,10 +24,11 @@ def main():
             exclude_tm=exclude_tm or None,
         )
     if short:
+        tot_st          = []
+        tot_times       = []
+        tot_msgs        = None
         for base in csv_res.bases:
             if base.split('/')[-1] == "proc_data":
-                tot_st          = []
-                tot_times       = []
                 for file in sorted(os.listdir(base)):
                     n_runs=0
                     arena=''
@@ -85,13 +88,16 @@ def main():
                             else:
                                 tot_st      = np.append(tot_st,[states],axis=0)
                                 tot_times   = np.append(tot_times,[times],axis=0)
-                if len(tot_st) > 0: csv_res.plot_active(tot_st,tot_times)
+                if len(tot_st) > 0:
+                    path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents] = csv_res.plot_active(tot_st,tot_times)
+                    csv_res.print_borders(path,'avg','median',ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents])
             if base.split('/')[-1] == "msgs_data":
                 for file in sorted(os.listdir(base)):
                     if "images" not in file:
                         file_path=os.path.join(base, file)
                         tot_msgs = csv_res.read_msgs_csv(file_path)
-                        csv_res.plot_messages(tot_msgs)
+                        messages_dict,stds_dict = csv_res.plot_messages(tot_msgs)
+                        csv_res.print_messages(messages_dict,stds_dict)
             # if base.split('/')[-1] == "dec_data":
             #     for file in sorted(os.listdir(base)):
             #         if "images" not in file:
