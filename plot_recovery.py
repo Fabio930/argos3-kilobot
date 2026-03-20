@@ -27,7 +27,7 @@ def main():
                     file_path=os.path.join(base, file)
                     if "recovery_data" in file:
                         data = csv_res.read_fitted_recovery_csv(file_path)
-                        csv_res.plot_recovery(data) # plot the recovery data
+                        csv_res.plot_recovery(data)
                             
 ##################################################################################
 if __name__ == "__main__":

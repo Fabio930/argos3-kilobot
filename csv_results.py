@@ -71,30 +71,8 @@ class Data:
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
                 {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
             ],
-            "plots": {
-                "messages": {"exclude_protocols": [], "exclude_tm": []},
-                "decisions": {"exclude_protocols": [], "exclude_tm": []},
-                "active": {"exclude_protocols": [], "exclude_tm": []},
-                "recovery": {"exclude_protocols": [], "exclude_tm": []},
-            },
+            "plots": {"exclude_protocols": [], "exclude_tm": []},
         }
-###################################################
-    def _short_default_plot_config(self):
-        return {
-            "protocols": [
-                {"id": "P.0", "label": r"$AN$", "color": "red"},
-                {"id": "P.1.0", "label": r"$AN_{t}$", "color": "viridis:0"},
-                {"id": "P.1.1", "label": r"$AN_{t}^{1}$", "color": "orange"},
-                {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
-                {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
-                {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
-                {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
-            ],
-            "plots": {
-                "plot": {"exclude_protocols": [], "exclude_tm": []}
-            },
-        }
-
 ###################################################
     def _merge_plot_config(self, base_cfg, user_cfg):
         cfg = dict(base_cfg)
@@ -103,16 +81,13 @@ class Data:
             if "protocols" in user_cfg:
                 cfg["protocols"] = user_cfg.get("protocols") or []
             if "plots" in user_cfg and isinstance(user_cfg.get("plots"), dict):
-                for plot_name, plot_cfg in user_cfg["plots"].items():
-                    if plot_name not in cfg["plots"]:
-                        cfg["plots"][plot_name] = {}
-                    if isinstance(plot_cfg, dict):
-                        cfg["plots"][plot_name].update(plot_cfg)
+                if isinstance(user_cfg["plots"], dict):
+                    cfg["plots"].update(user_cfg["plots"])
         return cfg
 
 ###################################################
     def _load_plot_config(self,config_name="plot_config.json"):
-        cfg = self._default_plot_config() if "short" not in config_name else self._short_default_plot_config()
+        cfg = self._default_plot_config()
         path = os.path.join(self.base, config_name)
         if not os.path.exists(path):
             return cfg
@@ -128,12 +103,11 @@ class Data:
     def apply_plot_overrides(self, plot_names, exclude_protocols=None, exclude_tm=None):
         if not plot_names:
             return
-        for plot_name in plot_names:
-            plot_cfg = self.plot_config.setdefault("plots", {}).setdefault(plot_name, {})
-            if exclude_protocols is not None:
-                plot_cfg["exclude_protocols"] = exclude_protocols
-            if exclude_tm is not None:
-                plot_cfg["exclude_tm"] = exclude_tm
+        plot_cfg = self.plot_config.setdefault("plots", {})
+        if exclude_protocols is not None:
+            plot_cfg["exclude_protocols"] = exclude_protocols
+        if exclude_tm is not None:
+            plot_cfg["exclude_tm"] = exclude_tm
 
 ###################################################
     def _normalize_tm(self, val):
@@ -154,8 +128,8 @@ class Data:
         return None
 
 ###################################################
-    def _plot_tm_values(self, plot_name, values):
-        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+    def _plot_tm_values(self, values):
+        plot_cfg = self.plot_config.get("plots", {})
         exclude = plot_cfg.get("exclude_tm") or []
         exclude_set = set()
         for v in exclude:
@@ -180,9 +154,9 @@ class Data:
         return sel == protocol.get("id") or sel == protocol.get("label")
 
 ###################################################
-    def _protocol_enabled(self, plot_name, protocol_id):
+    def _protocol_enabled(self, protocol_id):
         protocol = self.protocols_by_id.get(protocol_id)
-        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+        plot_cfg = self.plot_config.get("plots", {})
         exclude = plot_cfg.get("exclude_protocols") or []
         if any(self._protocol_matches(protocol, sel) for sel in exclude):
             return False
@@ -515,7 +489,7 @@ class Data:
         return data
     
 ###################################################
-    def plot_recovery(self, data_in, side_by_side: bool = True):
+    def plot_recovery(self, data_in, side_by_side: bool = False):
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -547,7 +521,7 @@ class Data:
             elif variant_key.startswith('P.1'):
                 variant_key = 'P.1.0'
 
-            if not self._protocol_enabled("recovery", variant_key):
+            if not self._protocol_enabled( variant_key):
                 continue
             label, color = variant_map.get(variant_key, ('UNK', 'black'))
             rows.append({
@@ -567,7 +541,7 @@ class Data:
         grid = [("bigA", 25), ("smallA", 25), ("bigA", 100)]
         row_labels = ["LD25", "HD25", "HD100"]
         msg_list = sorted(df['Msgs_exp_time'].unique())
-        msg_list = self._plot_tm_values("recovery", msg_list)
+        msg_list = self._plot_tm_values( msg_list)
         if not msg_list:
             return
         if 60 in msg_list:
@@ -575,106 +549,77 @@ class Data:
         col_labels = [f"$T_m$={m}" for m in msg_list]
         labels = []
         for pid in protocols_order:
-            if pid in variant_map and self._protocol_enabled("recovery", pid):
+            if pid in variant_map and self._protocol_enabled( pid):
                 labels.append(variant_map[pid][0])
         label_color_map = {label: color for label, color in variant_map.values()}
 
         def save_box(subset, suffix, entry, global_max: int):
             nrows = len(grid)
             ncols = len(msg_list)
-
             fig, axes = plt.subplots(
                 nrows, ncols,
                 figsize=(ncols*8,nrows*8),
-                sharey=False, sharex=False
+                sharey=False, sharex=True
             )
-
             if nrows == 1 and ncols == 1:
                 axes = np.array([[axes]])
             elif nrows == 1:
                 axes = np.array([axes])
             elif ncols == 1:
                 axes = np.array([[ax] for ax in axes])
-
             median_legend = Line2D([], [], color='orange', linewidth=8, label='Median')
             mean_legend = Line2D([], [], color='red', linewidth=8, label='Average')
-
             row_maxs = []
-
             for (arena_r, ag_r) in grid:
                 max_val = None
-
                 for m in msg_list:
                     cell = subset[
                         (subset['Arena'] == arena_r) &
                         (subset['Agents'] == ag_r) &
                         (subset['Msgs_exp_time'] == m)
                     ]
-
                     for lbl in labels:
                         d = cell[cell['Label'] == lbl][entry].values
                         if len(d) == 0:
                             continue
-
                         q1 = np.percentile(d, 25)
                         q3 = np.percentile(d, 75)
                         iqr = q3 - q1
-
                         whisker = np.max(d[d <= q3 + 1.5 * iqr]) if np.any(d <= q3 + 1.5 * iqr) else np.max(d)
                         outliers = d[d > q3 + 1.5 * iqr]
-
                         candidate = np.max(outliers) if len(outliers) > 0 else whisker
-
                         if max_val is None or candidate > max_val:
                             max_val = candidate
-
                 row_maxs.append(max_val if max_val is not None else float(global_max))
-
             row_limits = []
             row_ticks = []
-
             for raw_top in row_maxs:
-
                 if entry == "Events":
                     top_int = int(np.ceil(raw_top)) if raw_top > 0 else 1
-
                     desired_ticks = 10
                     step = max(1, int(np.ceil(top_int / desired_ticks)))
-
                     top_rounded = int(np.ceil(top_int / step) * step)
-
                     extra = max(1, int(0.05 * top_rounded))
                     top_plot = top_rounded + extra
-
                     ymin_plot = -0.03 * top_plot
                     yticks = np.arange(0, top_rounded + step, step, dtype=int)
-
                     row_limits.append((ymin_plot, top_plot))
                     row_ticks.append(yticks)
-
                 else:
                     ymin_plot = 0.95
-
                     if raw_top <= ymin_plot:
                         log_max = 1 
                     else:
                         log_max = int(np.ceil(np.log10(raw_top)))
-
                     log_min = 0 
-
                     log_ticks = np.logspace(log_min, log_max, log_max - log_min + 1)
-
                     top_plot = 10 ** log_max
-
                     row_limits.append((ymin_plot, top_plot))
                     row_ticks.append(log_ticks)
             for i, (arena, ag) in enumerate(grid):
-
                 plot_labels_row = labels.copy()
-
                 for j, m in enumerate(msg_list):
                     ax = axes[i, j]
-
                     cell = subset[
                         (subset['Arena'] == arena) &
                         (subset['Agents'] == ag) &
@@ -683,16 +628,12 @@ class Data:
                     if side_by_side:
                         if i == 0:
                             ax.set_title(col_labels[j])
-
                         cell_le = cell[cell['Error'] <= 0.05]
                         cell_gt = cell[cell['Error'] > 0.05]
-
                         pos = np.arange(1, len(plot_labels_row) + 1)
-
                         for k, lbl in enumerate(plot_labels_row):
                             d_le = cell_le[cell_le['Label'] == lbl][entry].values
                             d_gt = cell_gt[cell_gt['Label'] == lbl][entry].values
-
                             if len(d_le) > 0:
                                 bp = ax.boxplot(
                                     d_le,
@@ -703,11 +644,9 @@ class Data:
                                 )
                                 bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
                                 bp['boxes'][0].set_hatch('//')
-
                                 mean_val = np.mean(d_le)
                                 ax.plot([pos[k] - 0.33, pos[k] - 0.07],
                                         [mean_val, mean_val], color='red', linewidth=2)
-
                             if len(d_gt) > 0:
                                 bp = ax.boxplot(
                                     d_gt,
@@ -718,25 +657,20 @@ class Data:
                                 )
                                 bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
                                 bp['boxes'][0].set_hatch('xx')
-
                                 mean_val = np.mean(d_gt)
                                 ax.plot([pos[k] + 0.07, pos[k] + 0.33],
                                         [mean_val, mean_val], color='red', linewidth=2)
-
                         ax.set_xticks(pos)
                         ax.set_xticklabels(plot_labels_row)
                     else:
                         plot_labels = plot_labels_row if j == 0 else [l for l in labels if l != r'$AN$']
-
                         data = []
                         lbls = []
-
                         for lbl in plot_labels:
                             d = cell[cell['Label'] == lbl][entry].values
                             if len(d) > 0:
                                 data.append(d)
                                 lbls.append(lbl)
-
                         if len(data) > 0:
                             bp = ax.boxplot(
                                 data,
@@ -744,20 +678,16 @@ class Data:
                                 patch_artist=True,
                                 medianprops=dict(color='orange', linewidth=2)
                             )
-
                             for patch, lbl in zip(bp['boxes'], lbls):
                                 patch.set_facecolor(label_color_map.get(lbl, 'black'))
-
                             for k, d in enumerate(data):
                                 mean_val = np.mean(d)
                                 ax.plot([k + 1 - 0.13, k + 1 + 0.13],
                                         [mean_val, mean_val], color='red', linewidth=2)
-
                         if i == 0:
                             ax.set_title(col_labels[j])
                     ymin_plot, top_plot = row_limits[i]
                     yticks = row_ticks[i]
-
                     if entry == "Time":
                         ax.set_yscale('log')
                         ax.set_ylim(ymin_plot, top_plot)
@@ -770,9 +700,7 @@ class Data:
                         ax.set_yticklabels([str(int(t)) for t in yticks])
                     if j > 0:
                         ax.set_yticklabels([])
-
-                    ax.grid(True)
-
+                    ax.grid(True,ls=':')
                     if i != nrows - 1:
                         ax.set_xticklabels([])
                 axes[i, 0].annotate(
@@ -782,7 +710,6 @@ class Data:
                     rotation=90,
                     ha='left', va='center'
                 )
-
                 axes[i, -1].annotate(
                     row_labels[i],
                     xy=(1.05, 0.5),
@@ -799,18 +726,15 @@ class Data:
                 ]
             else:
                 legend_handles = [median_legend, mean_legend]
-
             fig.legend(
                 handles=legend_handles,
                 loc='lower right',
                 ncol=len(legend_handles),
                 frameon=True
             )
-
             fig.tight_layout(rect=[0, 0.03, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"),bbox_inches='tight')
             plt.close(fig)
-
         time_max = df["Time"].max()
         event_max = df["Events"].max()
         if not side_by_side:
@@ -821,7 +745,6 @@ class Data:
         else:
             save_box(df, 'sidebyside_events', 'Events', event_max)
             save_box(df, 'sidebyside_time', 'Time', time_max)
-
         # # Istogrammi 2D per variante (Error vs Events)
         # xbins = np.linspace(0, 0.5, 30)
         # ybins = np.arange(0, event_max+5, 2)
@@ -855,7 +778,7 @@ class Data:
         #                 # imposta ticks a multipli di 10 e ylim basato su top_event
         #                 ax.set_ylim(0, top_event)
         #                 ax.set_yticks(np.arange(0, top_event + 1, 10))
-        #                 ax.grid(True)
+        #                 ax.grid(True,ls=':')
         #             if i == 0:
         #                 ax.set_title(col_labels[j])
         #             if i == len(grid) - 1:
@@ -868,7 +791,7 @@ class Data:
         #                 plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
         #             ax.set_ylim(0, top_event)
         #             # assicurati che ci sia la griglia anche quando non ci sono dati
-        #             ax.grid(True)
+        #             ax.grid(True,ls=':')
         #             if columns == 1: break
         #         axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
         #                         fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
@@ -914,7 +837,7 @@ class Data:
         #                 # imposta ticks a multipli di 50 e ylim basato su top_time
         #                 ax.set_ylim(0, top_time)
         #                 ax.set_yticks(np.arange(0, top_time + 1, 50))
-        #                 ax.grid(True)
+        #                 ax.grid(True,ls=':')
         #             if i == 0:
         #                 ax.set_title(col_labels[j])
         #             if i == len(grid) - 1:
@@ -1097,7 +1020,7 @@ class Data:
         svoid_x_ticks = []
         handles_r = []
         for pid in protocols_order:
-            if not self._protocol_enabled("messages", pid):
+            if not self._protocol_enabled( pid):
                 continue
             protocol = self.protocols_by_id.get(pid)
             handles_r.append(
@@ -1121,12 +1044,12 @@ class Data:
                 except Exception:
                     continue
         columns = [60, 120, 180, 300, 600]
-        columns = self._plot_tm_values("messages", columns)
+        columns = self._plot_tm_values( columns)
         if not columns:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
+        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5, 5.2*ncols + ncols*0.2),sharex=True, squeeze=False, layout="constrained")
         
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1153,7 +1076,7 @@ class Data:
         for dk in data_in.keys():
             dict_dk = data_in.get(dk)
             for k in dict_dk.keys():
-                if not self._protocol_enabled("messages", dk):
+                if not self._protocol_enabled( dk):
                     continue
                 if k[2] not in col_index:
                     continue
@@ -1205,7 +1128,7 @@ class Data:
             ax[2][y].set_xlabel(r"$T\, (s)$")
         for x in range(3):
             for y in range(ncols):
-                ax[x][y].grid(True)
+                ax[x][y].grid(True,ls=':')
                 ax[x][y].set_xlim(0,900)
                 ax[x][y].set_ylim(-0.03,1.03)
         fig.tight_layout()
@@ -1232,7 +1155,7 @@ class Data:
         svoid_x_ticks = []
         handles_r = []
         for pid in protocols_order:
-            if not self._protocol_enabled("decisions", pid):
+            if not self._protocol_enabled( pid):
                 continue
             protocol = self.protocols_by_id.get(pid)
             handles_r.append(
@@ -1256,12 +1179,12 @@ class Data:
                 except Exception:
                     continue
         columns = [60, 120, 180, 300, 600]
-        columns = self._plot_tm_values("decisions", columns)
+        columns = self._plot_tm_values( columns)
         if not columns:
             return
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5,5.2*ncols), squeeze=False, layout="constrained")
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
                 if x%300 == 0:
@@ -1273,7 +1196,7 @@ class Data:
         for dk in data_in.keys():
             dct = data_in.get(dk)
             for k in dct.keys():
-                if not self._protocol_enabled("decisions", dk):
+                if not self._protocol_enabled( dk):
                     continue
                 if k[2] not in col_index:
                     continue
@@ -1325,7 +1248,7 @@ class Data:
             ax[2][y].set_xlabel(r"$T\, (s)$")
         for x in range(3):
             for y in range(ncols):
-                ax[x][y].grid(True)
+                ax[x][y].grid(True,ls=':')
                 ax[x][y].set_xlim(0,900)
                 if x==0 or x==1:
                     ax[x][y].set_ylim(-0.03,1.03)
@@ -1351,7 +1274,7 @@ class Data:
         for x in range(len(po_k)):
             o_k.append(int(po_k[x]))
         o_k = sorted(set(o_k))
-        o_k = self._plot_tm_values("active", o_k)
+        o_k = self._plot_tm_values( o_k)
         if not o_k:
             return
         ncols = len(o_k)
@@ -1363,7 +1286,7 @@ class Data:
         handles_c   = [high_bound,low_bound]
         handles_r = []
         for pid in protocols_order:
-            if not self._protocol_enabled("active", pid):
+            if not self._protocol_enabled( pid):
                 continue
             protocol = self.protocols_by_id.get(pid)
             handles_r.append(
@@ -1379,8 +1302,8 @@ class Data:
             )
         border_font = plt.rcParams.get("font.size")
         border_font = border_font + 4 if border_font is not None else 20    
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols + ncols*0.75,8*ncols), squeeze=False, layout="constrained")
-        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*0.75,5.2*ncols), squeeze=False, layout="constrained")
+        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols + ncols*0.75,8*ncols),sharex=True, squeeze=False, layout="constrained")
+        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5,5.2*ncols),sharex=True, squeeze=False, layout="constrained")
         attributes_row_col = np.zeros((3,ncols))
         str_threshlds = []
         void_str_threshlds = []
@@ -1471,7 +1394,7 @@ class Data:
                             temp_vals[4][k][th]  = valst
                             vals_dict.update({dk:tuple(temp_vals)})
                         ax[row][k].plot(np.arange(0.5,1.01,0.01),color='black',lw=5,ls=':')
-                        if self._protocol_enabled("active", dk):
+                        if self._protocol_enabled( dk):
                             ax[row][k].plot(vals_dict.get(dk)[0][k],color=protocol_colors.get(dk,"gray"),lw=6,ls='--')
                             ax[row][k].plot(vals_dict.get(dk)[1][k],color=protocol_colors.get(dk,"gray"),lw=6,ls='-')
                             tax[row][k].plot(vals_dict.get(dk)[4][k],color=protocol_colors.get(dk,"gray"),lw=6)
@@ -1573,8 +1496,8 @@ class Data:
         else:
             ax[row][k].set_yticks(np.arange(.5,1.01,.1),labels=void_str_gt)
             ax[row][k].set_yticks(np.arange(.5,1.01,.01),labels=void_str_threshlds,minor=True)
-        ax[row][k].grid(which='major')
-        tax[row][k].grid(which='major')
+        ax[row][k].grid(which='major',ls=':')
+        tax[row][k].grid(which='major',ls=':')
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
@@ -1693,7 +1616,7 @@ class Data:
         max_time = 0
         ref_x = np.arange(0.5, 1.01, 0.01)
         for dk in dk_tot_msgs.keys():
-            if self._protocol_enabled("plot", dk):
+            if self._protocol_enabled( dk):
                 for timer in all_tm:
                     to_plot_states_vals_dict.update({(dk,timer):([0 for _ in range(len(threshlds))], [0 for _ in range(len(threshlds))],
                                                     [ [[0,0],[0,0]] for _ in range(len(threshlds)) ], [ [[0,0],[0,0]] for _ in range(len(threshlds)) ],
@@ -1723,7 +1646,6 @@ class Data:
 
                         raw_rgb = colorsys.hls_to_rgb(h, new_l, new_s)
                         stepped_color = np.clip(raw_rgb, 0, 1)
-                        print(dk,key,stepped_color)
 
                         y_data = np.array(msg_series)
                         num_agents = int(key[1])
@@ -1855,7 +1777,7 @@ class Data:
                 elif i == 2:
                     ax[i][j].set_ylim((0.5, 1))
                     ax[i][j].set_xlabel(r"$\tau$")
-                ax[i][j].grid(True, ls=':', which='major', alpha=0.6)
+                ax[i][j].grid(True, ls=':', which='major')
                 ax[i][j].tick_params(axis='both', which='major')
                 ax[i][j].spines['top'].set_visible(False)
                 ax[i][j].spines['right'].set_visible(False)
@@ -1867,7 +1789,7 @@ class Data:
         legend_elements = []
         for p in self.protocols:
             p_id = p.get("id")
-            if self._protocol_enabled("plot", p_id):
+            if self._protocol_enabled( p_id):
                 label = p.get("label", p_id)
                 color = protocol_colors.get(p_id, 'gray')
                 legend_elements.append(Line2D([0], [0], color=color, linestyle='None', 
