@@ -1,5 +1,11 @@
 #include "quorum_structure.h"
 
+uint32_t expiring_ticks_quorum = 10000;
+uint8_t min_quorum_length = 5;
+float quorum_threshold = 0;
+uint8_t num_quorum_items = 0;
+uint8_t quorum_reached = 0;
+
 void set_msg_life(const uint32_t Expiring_time){
     expiring_ticks_quorum = Expiring_time;
 }

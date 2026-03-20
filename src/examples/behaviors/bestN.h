@@ -131,13 +131,31 @@ arena_a *the_arena = NULL;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-#define FIFO_BUFFER_SIZE 128
-uint8_t fifo_ids[FIFO_BUFFER_SIZE];
-uint8_t fifo_head = 0;
-uint8_t fifo_tail = 0;
-uint8_t fifo_count = 0;
+
+// FIFO avanzato per rebroadcast==2
+#define FIFO_MSG_SIZE 128
+typedef struct {
+    uint8_t agent_id;
+    uint8_t last_msg_n_hops;
+    uint8_t last_agent_state;
+} fifo_msg_t;
+
+typedef struct {
+    fifo_msg_t buffer[FIFO_MSG_SIZE];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+} fifo_msg_buffer_t;
+
+void fifo_msg_init(fifo_msg_buffer_t* fifo);
+void fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
+void fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
+void fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
+int fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
+void fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
+
 char log_title[30];
-uint8_t led = RGB(0,0,0);
+uint8_t led;
 
 /*-------------------------------------------------------------------*/
 /*              Function for setting the motor speed                 */

@@ -50,12 +50,12 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
+            rebroadcast = "2"
             msgs_n_hops = "0"
-            expiring_quorum_sec = "600"
+            expiring_quorum_sec = "60"
             quorum_threshold = "0.8"
             committed_percentage = "0.68"
-            start_commitment_variation_time = "600"
+            start_commitment_variation_time = "400"
             end_commitment_variation_time = "0"
             next_committed_percentage = "0.92"
         >
