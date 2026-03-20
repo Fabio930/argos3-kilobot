@@ -131,20 +131,3 @@ uint16_t select_a_random_message(){
     if(num_quorum_items>0)return rand_soft()%num_quorum_items;
     else return 0b1111111111111111;
 }
-
-uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops){
-    if(num_quorum_items>0){
-        for(uint8_t i=num_quorum_items-1;i>=0;i--){
-            switch (check_4_hops){
-                case 0:
-                    if((*Array)[i]->delivered == 0) return i;
-                    break;
-                default:
-                    if((*Array)[i]->delivered == 0 && (*Array)[i]->msg_n_hops > 0) return i;
-                    break;
-            }
-            if(i==0) break;
-        }
-    }
-    return 0b1111111111111111;
-}
