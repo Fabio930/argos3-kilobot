@@ -98,7 +98,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
             out=0;
-            if( Msg_n_hops < (*Myquorum)->msg_n_hops){
+            if(received_state != (*Myquorum)->agent_state && Msg_n_hops < (*Myquorum)->msg_n_hops){
                 out=2;
                 (*Myquorum)->counter=expiring_time;
                 (*Myquorum)->agent_state=received_state;
@@ -128,6 +128,6 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
 }
 
 uint16_t select_a_random_message(){
-    if(num_quorum_items>0)return rand_soft()%num_quorum_items;
+    if(num_quorum_items>0)return rand_hard()%num_quorum_items;
     else return 0b1111111111111111;
 }

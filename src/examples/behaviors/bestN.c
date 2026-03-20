@@ -64,7 +64,7 @@ void talk(){
                             else broadcast();
                             break;
                         default:
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->msg_n_hops < msg_n_hops) rebroadcast();
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < msg_n_hops) rebroadcast();
                             else broadcast();
                             break;
                     }
@@ -105,7 +105,7 @@ void rebroadcast(){
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = 1;
+    quorum_array[selected_msg_indx]->delivered += 1;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
