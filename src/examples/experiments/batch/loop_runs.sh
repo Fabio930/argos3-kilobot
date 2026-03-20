@@ -26,10 +26,10 @@ fi
 #######################################
 experiment_length="900"
 RUNS=100
-rebroadcast="2"
-msg_expiring_sec="60 120 180 300 600"
+rebroadcast="1"
+msg_expiring_sec="600"
 numrobots="25"
-messages_hops="0"
+messages_hops="1"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -41,6 +41,11 @@ for exp_len_par in $experiment_length; do
             comm_dir=$exp_len_dir/"Rebroadcast#"$comm_par
             if [[ ! -e $comm_dir ]]; then
                 mkdir $comm_dir
+            fi
+            if [[ $comm_par == "1" ]]; then
+                messages_hops="0 1"
+            else
+                messages_hops="0"
             fi
             agents_dir=$comm_dir/"Robots#"$agents_par
             if [[ ! -e $agents_dir ]]; then
@@ -58,7 +63,7 @@ for exp_len_par in $experiment_length; do
                         mkdir $msgs_hop_dir
                     fi
                     for i in $(seq 1 $RUNS); do
-                        config=`printf 'config_nrobots%d_rebroad%d_MsgExpTime%d_run%d.argos' $agents_par $comm_par $msgs_par $i`
+                        config=`printf 'config_nrobots:%d_rebroad:%d_hops:%d_MsgExpTime:%d_run:%d.argos' $agents_par $comm_par $msgs_hop_par $msgs_par $i`
                         cp $base_config $config
                         sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                         sed -i "s|__NUMROBOTS__|$agents_par|g" $config

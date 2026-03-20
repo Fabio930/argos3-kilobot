@@ -1,4 +1,4 @@
-import os, csv, logging, re, json, colorsys
+import sys, os, csv, logging, re, json, colorsys
 import numpy as np
 import pandas as pd
 import matplotlib.colors as colors
@@ -14,7 +14,7 @@ from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
-
+csv.field_size_limit(sys.maxsize)
 ##########################################################################################################
 class Data:
     _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
