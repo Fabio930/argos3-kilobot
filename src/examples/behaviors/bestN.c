@@ -283,7 +283,6 @@ void select_new_point(bool force){
 }
 
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
-    // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
     sa_type = data[shift] & 0b00000001;
     sa_payload = ((uint16_t)(data[shift + 1]) << 8) | data[shift + 2];

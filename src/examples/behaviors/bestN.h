@@ -80,19 +80,16 @@ uint8_t avoid_tmmts;
 
 float goal_ticks_sec = TICKS_PER_SEC * 1.3;
 
-/* position and angle given from ARK */
 position_t gps_position={0,0};
 float gps_angle;
 float RotSpeed = 45.0;
 
-/* current state */
 state_t my_state;
 uint8_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
 
-/* Variables for Smart Arena messages */
 uint8_t sa_id = 0;
 uint8_t sa_type = 0;
 uint16_t sa_payload = 0;
@@ -112,27 +109,22 @@ uint32_t variation_rng_state = 0;
 uint32_t state_change_ticks[MAX_STATE_CHANGES];
 uint8_t next_state_change = 0;
 
-/* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
 uint8_t broadcasting_flag = 0;
 
-/* Flag for decision to send a word */
 bool sending_msg = false;
 message_t my_message;
 
-/* lists for decision handling */
 uint8_t received_id;
 uint8_t received_committed;
 
-/* map of the environment */
 arena_a *the_arena = NULL;
 
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 
-// FIFO avanzato per rebroadcast==2
 #define FIFO_MSG_SIZE 128
 typedef struct {
     uint8_t agent_id;
@@ -148,11 +140,11 @@ typedef struct {
 } fifo_msg_buffer_t;
 
 void fifo_msg_init(fifo_msg_buffer_t* fifo);
-uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state); // 1=ok, 0=overflow/duplicato
-uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id); // 1=ok, 0=non trovato
-uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state); // 1=ok, 0=errore
-uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id); // 1=ok, 0=vuota
-uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo); // 1=ok, 0=vuota
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
 
 uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
 
