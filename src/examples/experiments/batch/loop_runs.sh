@@ -87,7 +87,7 @@ for exp_len_par in $experiment_length; do
                             fi
                             for i in $(seq 1 $RUNS); do
                                 kilo_file="run#${i}.tsv"
-                                config=`printf 'config_nrobots%s_rebroad%s_MsgExpTime%s_Thr%s_Gt%s_run%s.argos' $agents_par $comm_par $msgs_par $thr_par $dlt_par $i`
+                                config=`printf 'config_nrobots#%s_rebroad#%s_MsgHop#%s_MsgExpTime#%s_Thr#%s_Gt#%s_run#%s.argos' $agents_par $comm_par $msgh $msgs_par $thr_par $dlt_par $i`
                                 cp $base_config $config
                                 sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
                                 sed -i "s|__NUMROBOTS__|$agents_par|g" $config
