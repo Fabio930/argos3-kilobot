@@ -249,17 +249,6 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
-    switch (result){
-        case 0:
-            buffer_neglect += 1;
-            break;
-        case 1:
-            buffer_insertion += 1;
-            break;
-        case 2:
-            buffer_update +=1;
-            break;
-    }
     if(broadcasting_flag == 2 && (result == 1 || result == 2)){
         fifo_enqueue(received_id);
     }
