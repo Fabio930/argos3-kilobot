@@ -179,7 +179,9 @@ void talk();
 
 void broadcast();
 
-void rebroadcast();
+void rnd_rebroadcast();
+
+void fifo_rebroadcast(uint8_t agent_id,uint8_t agent_state,uint8_t msg_hops);
 
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */

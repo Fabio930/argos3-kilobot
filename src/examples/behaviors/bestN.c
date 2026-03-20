@@ -123,11 +123,11 @@ void talk(){
                     selected_msg_indx = select_a_random_message();
                     switch(msg_n_hops){
                         case 0:
-                            if(selected_msg_indx != 0b1111111111111111) rebroadcast();
+                            if(selected_msg_indx != 0b1111111111111111) rnd_rebroadcast();
                             else broadcast();
                             break;
                         default:
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < msg_n_hops) rebroadcast();
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < msg_n_hops) rnd_rebroadcast();
                             else broadcast();
                             break;
                     }
@@ -141,20 +141,16 @@ void talk(){
                     if(fifo_msg_peek(&rebroadcast_fifo, &agent_id)) {
                         uint8_t msg_n_hops = 0;
                         uint8_t agent_state = 0;
+                        uint8_t agent_idx = 0;
                         for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
                             if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
                                 msg_n_hops = rebroadcast_fifo.buffer[idx].last_msg_n_hops;
                                 agent_state = rebroadcast_fifo.buffer[idx].last_agent_state;
+                                agent_id = idx;
                                 break;
                             }
                         }
-                        sa_type = msg_n_hops;
-                        sa_id = agent_id;
-                        sa_payload = agent_state;
-                        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-                        my_message.data[0] = sa_id;
-                        my_message.data[1] = sa_type;
-                        my_message.data[2] = sa_payload;
+                        fifo_rebroadcast(agent_id,agent_state,msg_n_hops,agent_idx);
                         fifo_msg_dequeue(&rebroadcast_fifo);
                     } else {
                         broadcast();
@@ -182,13 +178,28 @@ void broadcast(){
     my_message.data[2] = sa_payload;
 }
 
-void rebroadcast(){
+void rnd_rebroadcast(){
     // message
     sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered += 1;
+    quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
+    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
+    my_message.data[0] = sa_id;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = sa_payload;
+}
+
+void fifo_rebroadcast(uint8_t agent_id,uint8_t agent_state,uint8_t msg_hops,uint8_t agent_idx){
+    // message
+    sa_type = sat_inc_u8(msg_n_hops);
+    sa_id = agent_id;
+    sa_payload = agent_state;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
+    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
+    rebroadcast_fifo.buffer[agent_idx].last_msg_n_hops = sa_type;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
@@ -205,15 +216,12 @@ static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
     return 0b1111111111111111;
 }
 
-// RIMOSSO: selezione FIFO obsoleta
-
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 255.0;
     return min + (r*(max-min));
 }
 
 void select_new_point(bool force){
-    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
         if(!force){
             set_color(RGB(0,3,3));
