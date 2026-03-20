@@ -149,12 +149,11 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         quorum_a *cursor = *Myquorum;
         while(cursor != NULL){
             if(cursor->agent_id == Agent_id){
-                if(Msg_n_hops < cursor->msg_n_hops){
+                if(received_state != cursor->agent_state && Msg_n_hops < cursor->msg_n_hops){
                     cursor->counter = expiring_time;
                     cursor->agent_state = received_state;
                     cursor->delivered = 0;
                     cursor->msg_n_hops = Msg_n_hops;
-                    sort_q(Array);
                     return 2;
                 }
                 return 0;
@@ -193,7 +192,6 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         (*Array)[num_quorum_items] = node;
     }
     num_quorum_items++;
-    sort_q(Array);
     return 1;
 }
 

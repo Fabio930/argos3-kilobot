@@ -50,10 +50,10 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
+            rebroadcast = "2"
             adaptive_comm = "0"
             msgs_n_hops = "0"
-            msgs_timeout = "300"
+            msgs_timeout = "60"
             id_aware = "1"
             priority_sampling_k = "0"
             options = "2"

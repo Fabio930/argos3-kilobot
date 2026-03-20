@@ -470,11 +470,11 @@ void update_messages(const uint8_t Msg_n_hops){
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
         buffer_update_rng += 1;
     }
+    sort_q(&quorum_array);
     vote_fifo_update(received_id, received_committed);
     if(id_aware && broadcasting_flag == 2 && (result == 1 || result == 2)){
         fifo_enqueue(received_id);
     }
-    sort_q(&quorum_array);
 }
 
 void parse_kilo_message(uint8_t data[9]){
