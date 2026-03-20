@@ -138,6 +138,7 @@ typedef struct {
     uint8_t tail;
     uint8_t count;
 } fifo_msg_buffer_t;
+fifo_msg_buffer_t rebroadcast_fifo;
 
 void fifo_msg_init(fifo_msg_buffer_t* fifo);
 uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);

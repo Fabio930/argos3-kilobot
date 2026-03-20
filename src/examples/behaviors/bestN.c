@@ -3,8 +3,14 @@
  */
 #include "bestN.h"
 
-
-fifo_msg_buffer_t rebroadcast_fifo;
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
+    for(uint8_t i = 0; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
+            return i;
+        }
+    }
+    return 0b1111111111111111;
+}
 
 void fifo_msg_init(fifo_msg_buffer_t* fifo) {
     fifo->head = 0;
@@ -149,7 +155,7 @@ void talk(){
                     if(fifo_msg_peek(&rebroadcast_fifo, &agent_id)) {
                         uint8_t msg_n_hops = 0;
                         uint8_t agent_state = 0;
-                        uint8_t agent_idx = 0;
+                        uint8_t agent_idx = 0xFF;
                         for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
                             if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
                                 msg_n_hops = rebroadcast_fifo.buffer[idx].msg_n_hops;
@@ -158,8 +164,12 @@ void talk(){
                                 break;
                             }
                         }
-                        fifo_rebroadcast(agent_id, agent_state, msg_n_hops, agent_idx);
-                        fifo_msg_dequeue(&rebroadcast_fifo);
+                        if(agent_idx != 0xFF) {
+                            fifo_rebroadcast(agent_id, agent_state, msg_n_hops, agent_idx);
+                            fifo_msg_dequeue(&rebroadcast_fifo);
+                        } else {
+                            broadcast();
+                    }
                     } else {
                         broadcast();
                     }
@@ -200,29 +210,24 @@ void rnd_rebroadcast(){
 }
 
 uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
-    // message
     if (agent_idx >= FIFO_MSG_SIZE) return 0;
-    if (selected_msg_indx >= num_quorum_items) return 0;
-    uint8_t sa_type = sat_inc_u8(msg_hops);
-    uint8_t sa_id = agent_id;
-    uint8_t sa_payload = agent_state;
+    uint8_t sa_type_local = sat_inc_u8(msg_hops);
+    sa_type = sa_type_local;
+    sa_id = agent_id;
+    sa_payload = agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
-    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
-    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-    return 1;
-}
 
-static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
-    for(uint8_t i = 0; i < num_quorum_items; ++i){
-        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
-            return i;
-        }
+    uint16_t q_idx = find_quorum_index_by_id(agent_id);
+    if(q_idx != 0b1111111111111111){
+        quorum_array[q_idx]->delivered = sat_inc_u8(quorum_array[q_idx]->delivered);
+        quorum_array[q_idx]->msg_n_hops = sa_type_local;
     }
-    return 0b1111111111111111;
+
+    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type_local;
+    return 1;
 }
 
 float random_in_range(float min, float max){
