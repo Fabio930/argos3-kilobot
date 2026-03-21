@@ -51,7 +51,7 @@ void fifo_msg_init(fifo_msg_buffer_t* fifo) {
 
 uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
     for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-        if (fifo->buffer[idx].agent_id == agent_id) return 0;
+        if (fifo->buffer[idx].agent_id == agent_id) return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
     }
     if (fifo->count >= FIFO_MSG_SIZE) {
         fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
@@ -190,13 +190,9 @@ void talk(){
                             else broadcast();
                             break;
                         default:
-                            if(adaptive_comm == 1){
-                                compute_msg_hops();
-                            }
+                            if(adaptive_comm == 1) compute_msg_hops();
                             uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < hop_limit){
-                                rnd_rebroadcast();
-                            }
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < hop_limit) rnd_rebroadcast();
                             else broadcast();
                             break;
                     }
@@ -223,12 +219,8 @@ void talk(){
                             if(agent_idx != 0xFF) {
                                 fifo_rebroadcast(agent_id, agent_state, msg_n_hops_local, agent_idx);
                                 fifo_msg_dequeue(&rebroadcast_fifo);
-                            } else {
-                                broadcast();
-                            }
-                        } else {
-                            broadcast();
-                        }
+                            } else broadcast();
+                        } else broadcast();
                     }
                     else broadcast();
                 }
@@ -265,7 +257,6 @@ void rnd_rebroadcast(){
 }
 
 uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
-    if (agent_idx >= FIFO_MSG_SIZE) return 0;
     uint8_t sa_type_local = sat_inc_u8(msg_hops);
     sa_type = sa_type_local;
     sa_id = agent_id;
@@ -532,9 +523,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
-    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1){
-        buffer_update_rng += 1;
-    }
+    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
     sort_q(&quorum_array);
     vote_fifo_update(received_id, received_committed);
     if(id_aware && broadcasting_flag == 2){
@@ -634,9 +623,7 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             parse_smart_arena_broadcast(msg->data);
             break;
         case ARK_INDIVIDUAL_MSG:
-            if((msg->data[0] & 0x01) == MSG_A){
-                parse_smart_arena_message(msg->data, 0);
-            }
+            if((msg->data[0] & 0x01) == MSG_A) parse_smart_arena_message(msg->data, 0);
             else{
                 id1 = (msg->data[0] & 0b11111110) >> 1;
                 id2 = (msg->data[3] & 0b11111110) >> 1;
@@ -729,17 +716,13 @@ void decision(){
         quorum_value = compute_quorum_value();
         control_value = compute_r_threshold(quorum_value);
         float p = rand_hard()/255.0;
-        if(p < 0.01){
-            my_state = gps_floor_color;
-        }
+        if(p < 0.01) my_state = gps_floor_color;
         else{
             p = rand_hard()/255.0;
             if(p < control_value){
                 my_state = majority_vote();
             }
-            else{
-                my_state = gps_floor_color;
-            }
+            else my_state = gps_floor_color;
         }
         update_debug_led();
     }
