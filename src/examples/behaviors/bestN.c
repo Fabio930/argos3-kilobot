@@ -20,7 +20,9 @@ void fifo_msg_init(fifo_msg_buffer_t* fifo) {
 
 uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
     for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-        if (fifo->buffer[idx].agent_id == agent_id) return 0; // duplicato
+        if (fifo->buffer[idx].agent_id == agent_id){
+            return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
+        }
     }
     if (fifo->count >= FIFO_MSG_SIZE) {
         fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
@@ -167,12 +169,8 @@ void talk(){
                         if(agent_idx != 0xFF) {
                             fifo_rebroadcast(agent_id, agent_state, msg_n_hops, agent_idx);
                             fifo_msg_dequeue(&rebroadcast_fifo);
-                        } else {
-                            broadcast();
-                    }
-                    } else {
-                        broadcast();
-                    }
+                        } else broadcast();
+                    } else broadcast();
                 }
                 else broadcast();
                 break;
@@ -210,9 +208,8 @@ void rnd_rebroadcast(){
 }
 
 uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
-    if (agent_idx >= FIFO_MSG_SIZE) return 0;
-    uint8_t sa_type_local = sat_inc_u8(msg_hops);
-    sa_type = sa_type_local;
+    // message
+    sa_type = sat_inc_u8(msg_hops);
     sa_id = agent_id;
     sa_payload = agent_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
@@ -223,10 +220,10 @@ uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops
     uint16_t q_idx = find_quorum_index_by_id(agent_id);
     if(q_idx != 0b1111111111111111){
         quorum_array[q_idx]->delivered = sat_inc_u8(quorum_array[q_idx]->delivered);
-        quorum_array[q_idx]->msg_n_hops = sa_type_local;
+        quorum_array[q_idx]->msg_n_hops = sa_type;
     }
 
-    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type_local;
+    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type;
     return 1;
 }
 
