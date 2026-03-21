@@ -20,9 +20,7 @@ void fifo_msg_init(fifo_msg_buffer_t* fifo) {
 
 uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
     for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-        if (fifo->buffer[idx].agent_id == agent_id){
-            return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
-        }
+        if (fifo->buffer[idx].agent_id == agent_id) return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
     }
     if (fifo->count >= FIFO_MSG_SIZE) {
         fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
