@@ -1,6 +1,6 @@
 {
   "folders": [
-    {"root": "./", "label": "", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
+    {"root": "./", "label": "gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
     {"root": "./dynamic_data/", "label": "state", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
   ],
   "protocols": [
