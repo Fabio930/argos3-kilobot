@@ -104,7 +104,7 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
     if(*Myquorum!=NULL){
         if((*Myquorum)->agent_id==Agent_id){
             out=0;
-            if(received_state != (*Myquorum)->agent_state && Msg_n_hops < (*Myquorum)->msg_n_hops){
+            if(received_state != (*Myquorum)->agent_state && Msg_n_hops <= (*Myquorum)->msg_n_hops){
                 out=2;
                 (*Myquorum)->counter=expiring_time;
                 (*Myquorum)->agent_state=received_state;

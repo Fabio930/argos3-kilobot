@@ -30,10 +30,10 @@ variation_end_time="0"
 RUNS=100
 msg_hops="0"
 rebroadcast="1 2"
-msg_expiring_sec="60 120 180 300 600"
+msg_expiring_sec="600"
 numrobots="25"
 threshold="0.8"
-delta="0.68;0.92 0.92;0.68"
+delta="0.68;0.92"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
