@@ -24,8 +24,8 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-experiment_length="1000"
-RUNS=5
+experiment_length="500"
+RUNS=10
 numrobots="100"
 rebroadcast="0 1 2"
 adaptive_set="0"
@@ -73,7 +73,7 @@ for exp_len_par in $experiment_length; do
                 if [[ $comm_type == "anon" ]]; then
                     msgs_n_hops="0"
                 elif [[ $comm_par == "1" ]]; then
-                    msgs_n_hops="1" #"0 1"
+                    msgs_n_hops="1"
                 else
                     msgs_n_hops="0"
                 fi

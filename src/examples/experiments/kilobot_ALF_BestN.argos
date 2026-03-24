@@ -50,15 +50,15 @@
         </variables>
 
         <hierarchicStruct
-            rebroadcast = "1"
+            rebroadcast = "2"
             adaptive_comm = "0"
-            msgs_n_hops = "1"
-            msgs_timeout = "60"
+            msgs_n_hops = "0"
+            msgs_timeout = "180"
             id_aware = "1"
             priority_sampling_k = "0"
             options = "2"
             init_distr = "0.5"
-            eta = "0.4"
+            eta = "0.5"
             grid_rows = "20"
             grid_cols = "20"
             control = "polynomial"
