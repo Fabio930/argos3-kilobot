@@ -26,18 +26,18 @@ fi
 #######################################
 experiment_length="500"
 RUNS=10
-numrobots="100"
-rebroadcast="0 1 2"
+numrobots="25 100"
+rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
 msgs_n_hops=""
-msgs_timeout="300"
+msgs_timeout="60 180"
 options="2 5"
-eta="0.4 0.5"
+eta="0.4"
 init_distr="0.5"
-control="static polynomial"
-voting_msgs="3 5 9 15"
-control_parameter="0.5 0.8"
+control="polynomial"
+voting_msgs="5 9 15"
+control_parameter="0.5"
 comm_type_set="id_aware"
 
 for exp_len_par in $experiment_length; do
@@ -73,7 +73,7 @@ for exp_len_par in $experiment_length; do
                 if [[ $comm_type == "anon" ]]; then
                     msgs_n_hops="0"
                 elif [[ $comm_par == "1" ]]; then
-                    msgs_n_hops="1"
+                    msgs_n_hops="0"
                 else
                     msgs_n_hops="0"
                 fi
@@ -110,10 +110,10 @@ for exp_len_par in $experiment_length; do
                                         mkdir $options_dir
                                     fi
                                     if [[ $options_par == "2" ]]; then
-                                        eta="0.4 0.5"
+                                        eta="0.4"
                                         init_distr="0.5"
                                     else
-                                        eta="0.7 0.8"
+                                        eta="0.7"
                                         init_distr="0.2"
                                     fi
                                     for eta_par in $eta; do

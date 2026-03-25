@@ -58,8 +58,8 @@ class Results:
 
         # option_id = 0 -> coesione massima; option_id = 1 -> media delle altre opzioni
         for group in [winner_counts, other_counts]:
-            final_means.append(np.around(group.mean(axis=0), decimals=6).tolist())
-            final_stds.append(np.around(group.std(axis=0), decimals=6).tolist())
+            final_means.append(np.around(group.mean(axis=0), decimals=3).tolist())
+            final_stds.append(np.around(group.std(axis=0), decimals=3).tolist())
 
         return final_means, final_stds
 

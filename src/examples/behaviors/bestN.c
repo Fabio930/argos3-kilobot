@@ -301,9 +301,6 @@ void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
         vote_fifo_count = 0;
         return;
     }
-    if(capacity > FIFO_BUFFER_SIZE){
-        capacity = FIFO_BUFFER_SIZE;
-    }
     while(vote_fifo_count > capacity){
         vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
         vote_fifo_count--;
@@ -366,7 +363,7 @@ void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
 float compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
     if(quorum_array == NULL || eligible < min_quorum_length) return 2.0f;
-    uint16_t agreeing = 1; /* include own opinion */
+    uint16_t agreeing = 1;
     uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
         if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
@@ -688,15 +685,13 @@ void random_way_point_model(){
             switch(current_motion_type){
                 case TURN_LEFT:
                     if(kilo_ticks > last_motion_ticks + turning_ticks){
-                        /* start moving forward */
-                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        last_motion_ticks = kilo_ticks;
                         set_motion(FORWARD);
                     }
                     break;
                 case TURN_RIGHT:
                     if(kilo_ticks > last_motion_ticks + turning_ticks){
-                        /* start moving forward */
-                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        last_motion_ticks = kilo_ticks;
                         set_motion(FORWARD);
                     }
                     break;
@@ -731,7 +726,7 @@ void decision(){
 int majority_vote() {
     if (vote_fifo_count == 0 || voting_msgs == 0) return my_state;
     uint8_t sample_target = voting_msgs;
-    if(sample_target > FIFO_BUFFER_SIZE) sample_target = FIFO_BUFFER_SIZE;
+    if(sample_target > FIFO_BUFFER_SIZE) return my_state;
     if(vote_fifo_count < sample_target) return my_state;
     uint8_t buffer[6] = {0};
     uint8_t start_offset = (uint8_t)(vote_fifo_count - sample_target);
@@ -759,7 +754,6 @@ int majority_vote() {
 }
 
 void setup(){
-    snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     set_color(RGB(0,0,0));
     set_motors(0,0);
     my_state = 255;
@@ -768,12 +762,13 @@ void setup(){
     init_array_qrm(&quorum_array, FIFO_BUFFER_SIZE);
     id_aware = 1;
     priority_sampling_k = 0;
-
+    
     uint8_t seed = rand_hard();
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
-
+    
+    snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     fp = fopen(log_title,"a");
     set_motion(STOP);
     fifo_msg_init(&rebroadcast_fifo);
