@@ -34,7 +34,6 @@ public:
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
     void SetupFloorColorMap();
-    void SendEnvironmentInitInformation(CKilobotEntity &c_kilobot_entity);
     void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity);
 
     /** Get experiment variables */
@@ -68,7 +67,9 @@ private:
     /************************************/
     /* virtual environment struct*/
     // UInt8 minimum_quorum_length;
-    Real                    eta;
+    Real                    eta_init;
+    Real                    eta_stop;
+    UInt16                  variation_time;
     Real                    init_distr;
     Real                    control_parameter;
     UInt8                   options;

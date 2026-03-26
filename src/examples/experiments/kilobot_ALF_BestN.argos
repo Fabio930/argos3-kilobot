@@ -52,18 +52,20 @@
         <hierarchicStruct
             rebroadcast = "1"
             adaptive_comm = "0"
-            msgs_n_hops = "0"
+            msgs_n_hops = "1"
             msgs_timeout = "180"
             id_aware = "1"
             priority_sampling_k = "0"
-            options = "2"
-            init_distr = "0.5"
-            eta = "0.4"
+            options = "5"
+            init_distr = "0.2"
+            eta_init = "0.7"
+            eta_stop = "0.9"
+            variation_time = "500"
             grid_rows = "20"
             grid_cols = "20"
             control = "polynomial"
             voting_msgs = "5"
-            control_parameter = "0.5">
+            control_parameter = "0.7">
         </hierarchicStruct>
 
     </loop_functions>

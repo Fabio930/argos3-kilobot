@@ -62,6 +62,14 @@ void CBestN_ALF::Destroy(){
 /****************************************/
 
 void CBestN_ALF::PostStep(){
+    if(variation_time > 0){
+        m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
+        m_unEtaQ = static_cast<UInt8>(std::round(eta_stop * 127.0));
+        if(m_fTimeInSeconds >= variation_time){
+            SetupFloorColorMap();
+            variation_time = 0;
+        }
+    }
 }
 
 /****************************************/
@@ -125,7 +133,9 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     /* Get dimensions and quality scaling factor*/
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"options",options);
-    GetNodeAttribute(tHierarchicalStructNode,"eta",eta);
+    GetNodeAttribute(tHierarchicalStructNode,"variation_time",variation_time);
+    GetNodeAttribute(tHierarchicalStructNode,"eta_init",eta_init);
+    GetNodeAttribute(tHierarchicalStructNode,"eta_stop",eta_stop);
     std::string strInitDistr;
     GetNodeAttribute(tHierarchicalStructNode, "init_distr", strInitDistr);
     strInitDistr.erase(0, strInitDistr.find_first_not_of(" \t\r\n"));
@@ -144,7 +154,9 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
-    eta = Min<Real>(1.0, Max<Real>(0.0, eta));
+    eta_init = Min<Real>(1.0, Max<Real>(0.0, eta_init));
+    eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));
+    variation_time = Max<uint16_t>(0,variation_time);
     options = Max<UInt8>(1, options);
     rebroadcast = Min<UInt8>(31, rebroadcast);
     msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
@@ -163,7 +175,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     control_parameter = Min<Real>(1.0, Max<Real>(0.0, control_parameter));
     m_unControlMode = ControlModeFromString(control);
     m_unControlParameterQ = static_cast<UInt8>(std::round(control_parameter * 127.0));
-    m_unEtaQ = static_cast<UInt8>(std::round(eta * 127.0));
+    m_unEtaQ = static_cast<UInt8>(std::round(eta_init * 127.0));
     m_unFloorSeed = static_cast<UInt16>(m_random_seed & 0x0FFF);
     if(m_unFloorSeed == 0) {
         m_unFloorSeed = 1;
@@ -284,24 +296,20 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 case 2:
                     m_vecStart_experiment[unKilobotID]=3;
-                    SendEnvironmentInitInformation(c_kilobot_entity);
+                    SendBoundsInitInformation(c_kilobot_entity);
                     break;
                 case 3:
                     m_vecStart_experiment[unKilobotID]=4;
-                    SendBoundsInitInformation(c_kilobot_entity);
+                    SendStateInformation(c_kilobot_entity);
                     break;
                 case 4:
                     m_vecStart_experiment[unKilobotID]=5;
-                    SendStateInformation(c_kilobot_entity);
-                    break;
-                case 5:
-                    m_vecStart_experiment[unKilobotID]=6;
                     SendInformationGPS(c_kilobot_entity);
                     break;
             }
             start_experiment=1;
             for(size_t i = 0; i < m_vecStart_experiment.size(); ++i){
-                if(m_vecStart_experiment[i]!=6){
+                if(m_vecStart_experiment[i]!=5){
                     start_experiment=0;
                     break;
                 }
@@ -344,26 +352,6 @@ void CBestN_ALF::SendBufferInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(2u << 6);
-    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
-}
-
-/****************************************/
-/****************************************/
-
-void CBestN_ALF::SendEnvironmentInitInformation(CKilobotEntity &c_kilobot_entity){
-    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
-
-    m_tMessages[unKilobotID].type = 0;
-    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
-    const UInt16 unPayload = static_cast<UInt16>(((m_cGridFloor.Rows & 0x7Fu) << 7) | (m_cGridFloor.Cols & 0x7Fu));
-    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
-    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
-    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((1u << 6) | ((m_unFloorSeed >> 6) & 0x3Fu));
-    /* Extra bytes carry map params so grid+map are sent in one init message. */
-    m_tMessages[unKilobotID].data[3] = static_cast<UInt8>(m_unEtaQ & 0x7Fu);
-    m_tMessages[unKilobotID].data[4] = static_cast<UInt8>(options & 0x7Fu);
-    m_tMessages[unKilobotID].data[5] = static_cast<UInt8>(m_unFloorSeed & 0x3Fu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
@@ -429,7 +417,7 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
 
-    m_tMessages[unKilobotID].type = 1; // Cambiato a 1 per Individual Message
+    m_tMessages[unKilobotID].type = 1;
     for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
 
     const UInt8 unKilobotId7b = static_cast<UInt8>(unKilobotID & 0x7Fu);
