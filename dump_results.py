@@ -39,18 +39,18 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    ticks_per_sec,path,exp_length,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par = task
+    ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_data(ticks_per_sec,path,exp_length,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par)
+        results.extract_data(ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par)
     except KeyError as e:
         logging.error(f"KeyError processing {path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, ticks_per_sec,path,exp_length,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par
+        del results, ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par
 
 def convert_csv_results_to_pickle(output_dir="proc_data"):
     output_path = Path(os.path.abspath("")) / output_dir
@@ -90,76 +90,87 @@ def main():
 
     for base in dex.Results().bases:
         for exp_len_dir in sorted(os.listdir(base)):
-            if '#' in exp_len_dir:
-                exp_len_path = os.path.join(base, exp_len_dir)
-                exp_length = int(exp_len_dir.split('#')[1])
-                for comm_type_dir in sorted(os.listdir(exp_len_path)):
-                    if '#' not in comm_type_dir:
+            if '#' not in exp_len_dir:
+                continue
+            exp_len_path = os.path.join(base, exp_len_dir)
+            exp_length = int(exp_len_dir.split('#')[1])
+            for var_time_dir in sorted(os.listdir(exp_len_path)):
+                if '#' not in var_time_dir:
+                    continue
+                var_time_path = os.path.join(exp_len_path, var_time_dir)
+                variation_time = float(var_time_dir.split('#')[1])
+                for eta_dir in sorted(os.listdir(var_time_path)):
+                    if '#' not in eta_dir:
                         continue
-                    comm_type_path = os.path.join(exp_len_path, comm_type_dir)
-                    comm_type = comm_type_dir.split('#', 1)[1]
-                    id_aware = 0 if comm_type == "anon" else 1
-                    for priority_dir in sorted(os.listdir(comm_type_path)):
-                        if '#' not in priority_dir:
+                    eta_path = os.path.join(var_time_path, eta_dir)
+                    eta = float(eta_dir.split('#')[1])
+                    for eta_stop_dir in sorted(os.listdir(eta_path)):
+                        if '#' not in eta_stop_dir:
                             continue
-                        priority_path = os.path.join(comm_type_path, priority_dir)
-                        priority_k = int(priority_dir.split('#')[1])
-                        for comm_dir in sorted(os.listdir(priority_path)):
-                            if '#' not in comm_dir:
+                        eta_stop_path = os.path.join(eta_path, eta_stop_dir)
+                        eta_stop = float(eta_stop_dir.split('#')[1])
+                        for agents_dir in sorted(os.listdir(eta_stop_path)):
+                            if '#' not in agents_dir:
                                 continue
-                            comm_path = os.path.join(priority_path, comm_dir)
-                            communication = int(comm_dir.split('#')[1])
-                            for adpt_dir in sorted(os.listdir(comm_path)):
-                                if '#' not in adpt_dir:
+                            agents_path = os.path.join(eta_stop_path, agents_dir)
+                            n_agents = int(agents_dir.split('#')[1])
+                            for options_dir in sorted(os.listdir(agents_path)):
+                                if '#' not in options_dir:
                                     continue
-                                adpt_path = os.path.join(comm_path, adpt_dir)
-                                adaptive_com = int(adpt_dir.split('#')[1])
-                                for agents_dir in sorted(os.listdir(adpt_path)):
-                                    if '#' not in agents_dir:
+                                options_path = os.path.join(agents_path, options_dir)
+                                n_options = int(options_dir.split('#')[1])
+                                for comm_type_dir in sorted(os.listdir(options_path)):
+                                    if '#' not in comm_type_dir:
                                         continue
-                                    agents_path = os.path.join(adpt_path, agents_dir)
-                                    n_agents = int(agents_dir.split('#')[1])
-                                    for msg_exp_time_dir in sorted(os.listdir(agents_path)):
-                                        if '#' not in msg_exp_time_dir:
+                                    comm_type_path = os.path.join(options_path, comm_type_dir)
+                                    comm_type = comm_type_dir.split('#', 1)[1]
+                                    id_aware = 0 if comm_type == "anon" else 1
+                                    for comm_dir in sorted(os.listdir(comm_type_path)):
+                                        if '#' not in comm_dir:
                                             continue
-                                        msg_exp_time_path = os.path.join(agents_path,msg_exp_time_dir)
-                                        msg_exp_time = int(msg_exp_time_dir.split('#')[-1])
-                                        for hops_dir in sorted(os.listdir(msg_exp_time_path)):
-                                            if '#' not in hops_dir:
+                                        comm_path = os.path.join(comm_type_path, comm_dir)
+                                        communication = int(comm_dir.split('#')[1])
+                                        for adpt_dir in sorted(os.listdir(comm_path)):
+                                            if '#' not in adpt_dir:
                                                 continue
-                                            hops_path = os.path.join(msg_exp_time_path,hops_dir)
-                                            msg_hops = int(hops_dir.split('#')[-1])
-                                            for options_dir in sorted(os.listdir(hops_path)):
-                                                if '#' not in options_dir:
+                                            adpt_path = os.path.join(comm_path, adpt_dir)
+                                            adaptive_com = int(adpt_dir.split('#')[1])
+                                            for priority_dir in sorted(os.listdir(adpt_path)):
+                                                if '#' not in priority_dir:
                                                     continue
-                                                options_path = os.path.join(hops_path,options_dir)
-                                                n_options = int(options_dir.split('#')[-1])
-                                                for eta_dir in sorted(os.listdir(options_path)):
-                                                    if '#' not in eta_dir:
+                                                priority_path = os.path.join(adpt_path, priority_dir)
+                                                priority_k = int(priority_dir.split('#')[1])
+                                                for msg_exp_time_dir in sorted(os.listdir(priority_path)):
+                                                    if '#' not in msg_exp_time_dir:
                                                         continue
-                                                    eta_path = os.path.join(options_path,eta_dir)
-                                                    eta = float(eta_dir.split('#')[-1])
-                                                    for init_dir in sorted(os.listdir(eta_path)):
-                                                        if '#' not in init_dir:
+                                                    msg_exp_time_path = os.path.join(priority_path, msg_exp_time_dir)
+                                                    msg_exp_time = int(msg_exp_time_dir.split('#')[1])
+                                                    for hops_dir in sorted(os.listdir(msg_exp_time_path)):
+                                                        if '#' not in hops_dir:
                                                             continue
-                                                        init_path = os.path.join(eta_path,init_dir)
-                                                        init_distr = float(init_dir.split('#')[-1])
-                                                        for functn_dir in sorted(os.listdir(init_path)):
-                                                            if '#' not in functn_dir:
+                                                        hops_path = os.path.join(msg_exp_time_path, hops_dir)
+                                                        msg_hops = int(hops_dir.split('#')[1])
+                                                        for init_dir in sorted(os.listdir(hops_path)):
+                                                            if '#' not in init_dir:
                                                                 continue
-                                                            functn_path = os.path.join(init_path,functn_dir)
-                                                            function = str(functn_dir.split('#')[-1])
-                                                            for vote_msg_dir in sorted(os.listdir(functn_path)):
-                                                                if '#' not in vote_msg_dir:
+                                                            init_path = os.path.join(hops_path, init_dir)
+                                                            init_distr = float(init_dir.split('#')[1])
+                                                            for functn_dir in sorted(os.listdir(init_path)):
+                                                                if '#' not in functn_dir:
                                                                     continue
-                                                                vote_msg_path = os.path.join(functn_path,vote_msg_dir)
-                                                                vote_msg = int(vote_msg_dir.split('#')[-1])
-                                                                for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
-                                                                    if '#' not in ctrl_par_dir:
+                                                                functn_path = os.path.join(init_path, functn_dir)
+                                                                function = str(functn_dir.split('#')[1])
+                                                                for vote_msg_dir in sorted(os.listdir(functn_path)):
+                                                                    if '#' not in vote_msg_dir:
                                                                         continue
-                                                                    ctrl_par_path = os.path.join(vote_msg_path,ctrl_par_dir)
-                                                                    ctrl_par = float(ctrl_par_dir.split('#')[-1])
-                                                                    queue.put((ticks_per_sec,ctrl_par_path,exp_length,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,init_distr,function,vote_msg,ctrl_par))
+                                                                    vote_msg_path = os.path.join(functn_path, vote_msg_dir)
+                                                                    vote_msg = int(vote_msg_dir.split('#')[1])
+                                                                    for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
+                                                                        if '#' not in ctrl_par_dir:
+                                                                            continue
+                                                                        ctrl_par_path = os.path.join(vote_msg_path, ctrl_par_dir)
+                                                                        ctrl_par = float(ctrl_par_dir.split('#')[1])
+                                                                        queue.put((ticks_per_sec,ctrl_par_path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
@@ -209,19 +220,19 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][3] == 100: h_counter -= 1
-            elif process[1][3] == 25: h_counter -= 1
+            if process[1][9] == 100: h_counter -= 1
+            elif process[1][9] == 25: h_counter -= 1
             logging.info(f"Process {key} for task {process[1][1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 start = True
-                if task[3] == 100:
+                if task[9] == 100:
                     if h_counter < 15 : h_counter += 1
                     else:
                         queue.put(task)
                         start = False
-                elif task[3] == 25:
+                elif task[9] == 25:
                     if h_counter < 18 : h_counter += 1
                     else:
                         queue.put(task)

@@ -24,23 +24,23 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
+msgs_n_hops=""
+eta_init=""
+eta_stop=""
+init_distr=""
 experiment_length="600"
+variation_time="0"
 RUNS=10
+options="2 5"
 numrobots="25 100"
+comm_type_set="id_aware"
 rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
-msgs_n_hops=""
 msgs_timeout="60 180"
-options="2 5"
-eta_init="0.4"
-eta_stop="0.4"
-variation_time="0"
-init_distr="0.5"
 control="polynomial"
 voting_msgs="5 9 15"
 control_parameter="0.5 0.6 0.7"
-comm_type_set="id_aware"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -53,6 +53,10 @@ for exp_len_par in $experiment_length; do
             mkdir $var_time_dir
         fi
         for options_par in $options; do
+            options_dir=$var_time_dir/"Options#"$options_par
+            if [[ ! -e $options_dir ]]; then
+                mkdir $options_dir
+            fi
             if [[ $options_par == "2" ]]; then
                 eta_init="0.4"
                 init_distr="0.5"
@@ -73,7 +77,7 @@ for exp_len_par in $experiment_length; do
                 else
                     eta_s_par=${eta_stop_list[$idx]}
                 fi
-                eta_dir=$var_time_dir/"Eta#"$eta_i_par
+                eta_dir=$options_dir/"Eta#"$eta_i_par
                 if [[ ! -e $eta_dir ]]; then
                     mkdir $eta_dir
                 fi
@@ -86,13 +90,9 @@ for exp_len_par in $experiment_length; do
                     if [[ ! -e $robots_dir ]]; then
                         mkdir $robots_dir
                     fi
-                    options_dir=$robots_dir/"Options#"$options_par
-                    if [[ ! -e $options_dir ]]; then
-                        mkdir $options_dir
-                    fi
                     last_id=`expr $agents_par - 1`
                     for comm_type in $comm_type_set; do
-                        comm_type_dir=$options_dir/"CommType#"$comm_type
+                        comm_type_dir=$robots_dir/"CommType#"$comm_type
                         if [[ ! -e $comm_type_dir ]]; then
                             mkdir $comm_type_dir
                         fi

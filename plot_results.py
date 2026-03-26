@@ -43,14 +43,14 @@ def _safe_filename_from_params(values: dict) -> str:
     # Define which keys are actually parameters we want in the filename
     allowed_params = {
         "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "eta", "control_par", "agents", "options", "arena", "runs", "time"
+        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "arena", "runs", "time"
     }
     
     safe_parts = []
     # Use priority order for a consistent look
     priority_order = [
         "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "eta", "control_par", "agents", "options", "arena", "runs", "time"
+        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "arena", "runs", "time"
     ]
     
     for key in priority_order:
