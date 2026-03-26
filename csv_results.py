@@ -863,6 +863,271 @@ class Data:
         #     plt.close(fig)
 
 ###################################################
+    def plot_recovery_short(self, data_in, side_by_side: bool = True):
+        images_dir = os.path.join(self.base, "compressed", "images")
+        os.makedirs(images_dir, exist_ok=True)
+        norm = colors.Normalize(vmin=0, vmax=6)
+        scalarMap = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
+        variant_map = {}
+        for p in self.protocols:
+            pid = p.get("id")
+            if not pid:
+                continue
+            variant_map[pid] = (p.get("label", pid), self._protocol_color(p, scalarMap))
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
+
+        rows = []
+        for key, (mean, std, events) in data_in.items():
+            k = [str(x) for x in key]
+            alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k
+            broadcast = int(broadcast); hops = int(hops)
+            agents = int(agents); msgs = int(msgs); buf = int(buf)
+            gt = float(gt); th = float(th)
+            variant_key = f"{alg}.{broadcast}.{hops}"
+
+            alg_lower = str(alg).strip().lower()
+            if alg_lower == 'ps':
+                variant_key = 'P.1.1'
+            elif alg_lower == 'p':
+                if buf == max(0, agents - 2):
+                    variant_key = 'P.1.1'
+                else:
+                    variant_key = 'P.1.0' if msgs > 0 else 'P.0'
+            elif variant_key.startswith('P.1'):
+                variant_key = 'P.1.0'
+
+            if not self._protocol_enabled( variant_key):
+                continue
+            label, color = variant_map.get(variant_key, ('UNK', 'black'))
+            rows.append({
+                'Arena': arena,
+                'Agents': agents,
+                'Msgs_exp_time': msgs,
+                'Error': abs(gt - th),
+                'Events': int(events) / (100 * agents),
+                'Time': float(mean),
+                'VariantKey': variant_key,
+                'Label': label,
+                'Color': color
+            })
+
+        df = pd.DataFrame(rows)
+        if df.empty:
+            return
+        df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
+        df = df[df['Msgs_exp_time'] != 0]
+
+        msg_list = sorted(df['Msgs_exp_time'].unique())
+        msg_list = self._plot_tm_values( msg_list)
+        if not msg_list:
+            return
+        df = df[df['Msgs_exp_time'].isin(msg_list)]
+        if 60 in msg_list:
+            msg_list = [60] + [m for m in msg_list if m != 60]
+
+        labels = []
+        for pid in protocols_order:
+            if pid in variant_map and self._protocol_enabled( pid):
+                labels.append(variant_map[pid][0])
+        if not labels:
+            return
+
+        base_color_by_label = {variant_map[pid][0]: variant_map[pid][1] for pid in protocols_order if pid in variant_map}
+
+        tm_vals = [int(m) for m in msg_list]
+        if len(tm_vals) > 1:
+            tm_norm = colors.LogNorm(vmin=min(tm_vals), vmax=max(tm_vals))
+        else:
+            tm_norm = colors.Normalize(vmin=0, vmax=1)
+        tm_max = max(tm_vals) if tm_vals else 1
+
+        def tm_color(base_color, current_tm):
+            rgb_base = colors.to_rgb(base_color)
+            h, l, s = colorsys.rgb_to_hls(*rgb_base)
+            norm_val = tm_norm(current_tm)
+            if current_tm <= 0:
+                norm_val = tm_norm(tm_max)
+            if np.ma.is_masked(norm_val):
+                norm_val = 0.0
+            if current_tm == tm_max:
+                new_l, new_s = l, s
+            else:
+                diff = (1.0 - float(norm_val))
+                new_l = max(l, min(0.85, l + (diff * 0.4)))
+                new_s = s * (1.0 - (diff * 0.3))
+            raw_rgb = colorsys.hls_to_rgb(h, new_l, new_s)
+            return np.clip(raw_rgb, 0, 1)
+
+        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+
+        def event_axis_limits(max_val):
+            top_int = int(np.ceil(max_val)) if max_val and max_val > 0 else 1
+            desired_ticks = 10
+            step = max(1, int(np.ceil(top_int / desired_ticks)))
+            top_rounded = int(np.ceil(top_int / step) * step)
+            extra = max(1, int(0.05 * top_rounded))
+            top_plot = top_rounded + extra
+            ymin_plot = -0.03 * top_plot
+            yticks = np.arange(0, top_rounded + step, step, dtype=int)
+            return ymin_plot, top_plot, yticks
+
+        def time_axis_limits(max_val):
+            ymin_plot = 0.95
+            if max_val <= ymin_plot:
+                log_max = 1
+            else:
+                log_max = int(np.ceil(np.log10(max_val)))
+            log_ticks = np.logspace(0, log_max, log_max + 1)
+            top_plot = 10 ** log_max
+            return ymin_plot, top_plot, log_ticks
+
+        def save_short(subset, suffix, side_by_side_mode: bool):
+            if subset.empty:
+                return
+            event_max = subset["Events"].max()
+            time_max = subset["Time"].max()
+            fig, axes = plt.subplots(
+                2, 3,
+                figsize=(24, 14),
+                sharex=False, sharey=False
+            )
+            if axes.ndim == 1:
+                axes = np.array([axes])
+
+            n_labels = len(labels)
+            n_tm = len(msg_list)
+            group_width = 0.8
+            tm_chunk = group_width / max(1, n_tm)
+            if side_by_side_mode:
+                box_width = tm_chunk * 0.5
+                err_offset = tm_chunk * 0.25
+            else:
+                box_width = tm_chunk * 0.7
+                err_offset = 0
+
+            base_positions = np.arange(1, n_labels + 1)
+
+            for col_idx, (dens_label, arena, ag) in enumerate(densities):
+                cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
+                for row_idx, entry in enumerate(["Events", "Time"]):
+                    ax = axes[row_idx, col_idx]
+                    if row_idx == 0:
+                        ax.set_title(dens_label)
+                    for t_idx, tm in enumerate(msg_list):
+                        tm_offset = (t_idx - (n_tm - 1) / 2.0) * tm_chunk
+                        tm_positions = base_positions + tm_offset
+                        for k, lbl in enumerate(labels):
+                            base_color = base_color_by_label.get(lbl, 'black')
+                            color = tm_color(base_color, int(tm))
+                            if side_by_side_mode:
+                                d_le = cell[(cell['Label'] == lbl) & (cell['Msgs_exp_time'] == tm) & (cell['Error'] <= 0.05)][entry].values
+                                d_gt = cell[(cell['Label'] == lbl) & (cell['Msgs_exp_time'] == tm) & (cell['Error'] > 0.05)][entry].values
+                                if len(d_le) > 0:
+                                    bp = ax.boxplot(
+                                        d_le,
+                                        positions=[tm_positions[k] - err_offset],
+                                        widths=box_width,
+                                        patch_artist=True,
+                                        medianprops=dict(color='orange', linewidth=2)
+                                    )
+                                    bp['boxes'][0].set_facecolor(color)
+                                    bp['boxes'][0].set_hatch('//')
+                                    mean_val = np.mean(d_le)
+                                    ax.plot([tm_positions[k] - err_offset - box_width / 2, tm_positions[k] - err_offset + box_width / 2],
+                                            [mean_val, mean_val], color='red', linewidth=2)
+                                if len(d_gt) > 0:
+                                    bp = ax.boxplot(
+                                        d_gt,
+                                        positions=[tm_positions[k] + err_offset],
+                                        widths=box_width,
+                                        patch_artist=True,
+                                        medianprops=dict(color='orange', linewidth=2)
+                                    )
+                                    bp['boxes'][0].set_facecolor(color)
+                                    bp['boxes'][0].set_hatch('xx')
+                                    mean_val = np.mean(d_gt)
+                                    ax.plot([tm_positions[k] + err_offset - box_width / 2, tm_positions[k] + err_offset + box_width / 2],
+                                            [mean_val, mean_val], color='red', linewidth=2)
+                            else:
+                                d = cell[(cell['Label'] == lbl) & (cell['Msgs_exp_time'] == tm)][entry].values
+                                if len(d) == 0:
+                                    continue
+                                bp = ax.boxplot(
+                                    d,
+                                    positions=[tm_positions[k]],
+                                    widths=box_width,
+                                    patch_artist=True,
+                                    medianprops=dict(color='orange', linewidth=2)
+                                )
+                                bp['boxes'][0].set_facecolor(color)
+                                mean_val = np.mean(d)
+                                ax.plot([tm_positions[k] - box_width / 2, tm_positions[k] + box_width / 2],
+                                        [mean_val, mean_val], color='red', linewidth=2)
+
+                    ax.set_xticks(base_positions)
+                    ax.set_xticklabels(labels if row_idx == 1 else ['' for _ in labels])
+                    if row_idx == 0:
+                        ymin_plot, top_plot, yticks = event_axis_limits(event_max)
+                        ax.set_yscale('linear')
+                        ax.set_ylim(ymin_plot, top_plot)
+                        ax.set_yticks(yticks)
+                        ax.set_yticklabels([str(int(t)) for t in yticks])
+                        ax.set_ylabel(r"$E_{r}$" if col_idx == 0 else "")
+                    else:
+                        ymin_plot, top_plot, yticks = time_axis_limits(time_max)
+                        ax.set_yscale('log')
+                        ax.set_ylim(ymin_plot, top_plot)
+                        ax.set_yticks(yticks)
+                        ax.set_yticklabels([f"$10^{{{int(np.log10(t))}}}$" for t in yticks])
+                        ax.set_ylabel(r"$T_{r}$" if col_idx == 0 else "")
+                    if col_idx > 0:
+                        ax.set_yticklabels([])
+                    ax.grid(True, ls=':')
+
+            class HandlerGradient(HandlerBase):
+                def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
+                    n_steps = 5
+                    cmap = colors.LinearSegmentedColormap.from_list("grey_grad", ["#E0E0E0", "#2D2D2D"])
+                    artists = []
+                    step_width = width / n_steps
+                    for i in range(n_steps):
+                        color = cmap(i / n_steps)
+                        r = Rectangle((xdescent + i * step_width, ydescent), step_width, height,
+                                      facecolor=color, edgecolor=color, transform=trans)
+                        artists.append(r)
+                    return artists
+
+            median_legend = Line2D([], [], color='orange', linewidth=6, label='Median')
+            mean_legend = Line2D([], [], color='red', linewidth=6, label='Average')
+            grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
+            if side_by_side_mode:
+                legend_handles = [
+                    Patch(facecolor='gray', hatch='//', label=r'$|GT - \tau| \leq 0.05$'),
+                    Patch(facecolor='gray', hatch='xx', label=r'$|GT - \tau| > 0.05$'),
+                    median_legend,
+                    mean_legend,
+                    grad_rect
+                ]
+            else:
+                legend_handles = [median_legend, mean_legend, grad_rect]
+            fig.legend(
+                handles=legend_handles,
+                handler_map={grad_rect: HandlerGradient()},
+                loc='lower right',
+                ncol=len(legend_handles),
+                frameon=True
+            )
+            fig.tight_layout(rect=[0, 0.05, 1, 0.98])
+            fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
+            plt.close(fig)
+
+        if side_by_side:
+            save_short(df, "sidebyside", True)
+        else:
+            save_short(df[df['Error'] <= 0.05], "le05", False)
+            save_short(df[df['Error'] > 0.05], "gt05", False)
+
+###################################################
     def store_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/"):
             os.mkdir(self.base+"/rec_data/")
@@ -1604,9 +1869,11 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         all_tm = sorted([int(x) for x in o_k if x is not None and int(x) > 0])
-        tm_norm = colors.LogNorm(vmin=min(all_tm), vmax=max(all_tm))
+        all_tm = self._plot_tm_values(all_tm)
         if not all_tm:
-            tm_norm = colors.Normalize(vmin=0, vmax=1)
+            return
+        tm_set = set(int(x) for x in all_tm)
+        tm_norm = colors.LogNorm(vmin=min(all_tm), vmax=max(all_tm))
         all_gt = sorted(list(ground_T))
         all_thr = sorted(list(threshlds))
         fig, ax = plt.subplots(3, 3, figsize=(24, 20), constrained_layout=True, squeeze=False,gridspec_kw={'height_ratios': [1, 1, 1.4]})
@@ -1631,6 +1898,8 @@ class Data:
                 for key, msg_series in tot_msgs.items():
                     try:
                         current_tm = int(key[2])
+                        if current_tm not in tm_set:
+                            continue
                         norm_val = tm_norm(current_tm)
                         if current_tm <= 0:
                             norm_val = tm_norm(max(all_tm))
@@ -1665,6 +1934,8 @@ class Data:
                     time_series = tot_times.get(key)
                     try:
                         current_tm = int(key[2])
+                        if current_tm not in tm_set:
+                            continue
                         norm_val = tm_norm(current_tm)
                         if current_tm <= 0 or dk=="P.0":
                             norm_val = tm_norm(max(all_tm))

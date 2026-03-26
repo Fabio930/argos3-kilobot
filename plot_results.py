@@ -13,9 +13,10 @@ def main():
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
     short = [s.strip() for s in args.short.split(",") if s.strip()]
+    use_short = "s" in short
 
     csv_res = CSVres.Data()
-    if short:
+    if use_short:
         csv_res._assign_config("short_plot_config.json")
     if exclude_protocols or exclude_tm:
         csv_res.apply_plot_overrides(
@@ -23,7 +24,7 @@ def main():
             exclude_protocols=exclude_protocols or None,
             exclude_tm=exclude_tm or None,
         )
-    if short:
+    if use_short:
         tot_st          = []
         tot_times       = []
         tot_msgs        = None
