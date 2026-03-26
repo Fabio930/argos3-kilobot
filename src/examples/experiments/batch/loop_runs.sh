@@ -29,8 +29,8 @@ eta_init=""
 eta_stop=""
 init_distr=""
 control_parameter=""
-experiment_length="600"
-variation_time="0"
+experiment_length="1200"
+variation_time="600"
 RUNS=10
 options="2 5"
 numrobots="25 100"
@@ -59,10 +59,12 @@ for exp_len_par in $experiment_length; do
             fi
             if [[ $options_par == "2" ]]; then
                 eta_init="0.4"
+                eta_stop="0.5"
                 init_distr="0.5"
                 control_parameter="0.5"
             else
                 eta_init="0.7"
+                eta_stop="0.9"
                 init_distr="0.2"
                 control_parameter="0.7"
             fi

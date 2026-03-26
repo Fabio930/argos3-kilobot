@@ -135,13 +135,26 @@ class Results:
                        adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,eta_stop:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float) -> None:
         max_steps = exp_length * ticks_per_sec
-        num_runs = int(len(os.listdir(path))/n_agents)
         info_vec    = path.split('/')
         arenaS  = ""
         for iv in info_vec:
-            if "results_loop" in iv:
-                arenaS      = iv.split('_')[-1][:-1]
+            if iv.startswith("results_"):
+                arenaS = iv.split("results_", 1)[1]
                 break
+            if iv.startswith("results"):
+                arenaS = iv[len("results"):].lstrip("_")
+                break
+
+        files = sorted(Path(path).glob("*.tsv"))
+        if not files:
+            raise ValueError(f"Nessun file .tsv trovato in {path}")
+        if len(files) % n_agents != 0:
+            raise ValueError(f"Numero file non multiplo di n_agents ({n_agents}) in {path}: {len(files)}")
+        num_runs = int(len(files) / n_agents)
+        expected_files = num_runs * n_agents
+        if len(files) != expected_files:
+            raise ValueError(f"Attesi {expected_files} file, trovati {len(files)}")
+
         shape = (num_runs, n_agents, max_steps)
 
         # 4 matrici [run][agent][time]
@@ -149,11 +162,6 @@ class Results:
         msgs_m = np.full(shape, 0, dtype=np.int32)
         quorum_m = np.full(shape, 0.0, dtype=np.float32)
         ctrl_m = np.full(shape, 0.0, dtype=np.float32)
-
-        files = sorted(Path(path).glob("*.tsv"))
-        expected_files = num_runs * n_agents
-        if len(files) != expected_files:
-            raise ValueError(f"Attesi {expected_files} file, trovati {len(files)}")
 
         loaded = np.zeros((num_runs, n_agents), dtype=bool)
         agents_loaded_per_run = np.zeros(num_runs, dtype=np.int16)

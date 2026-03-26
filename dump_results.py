@@ -88,89 +88,76 @@ def main():
     manager = Manager()
     queue = manager.Queue()
 
+    prefix_map = {
+        "ExperimentLength": ("exp_length", int),
+        "VariationTime": ("variation_time", float),
+        "Options": ("n_options", int),
+        "Eta": ("eta", float),
+        "EtaStop": ("eta_stop", float),
+        "Robots": ("n_agents", int),
+        "CommType": ("comm_type", str),
+        "Rebroadcast": ("communication", int),
+        "Adaptive": ("adaptive_com", int),
+        "PriorityK": ("priority_k", int),
+        "MsgExpTime": ("msg_exp_time", int),
+        "MsgHops": ("msg_hops", int),
+        "InitDistr": ("init_distr", float),
+        "Control": ("function", str),
+        "VotingMsgs": ("vote_msg", int),
+        "ControlParameter": ("ctrl_par", float),
+    }
+    required_keys = {v[0] for v in prefix_map.values()}
+
     for base in dex.Results().bases:
-        for exp_len_dir in sorted(os.listdir(base)):
-            if '#' not in exp_len_dir:
-                continue
-            exp_len_path = os.path.join(base, exp_len_dir)
-            exp_length = int(exp_len_dir.split('#')[1])
-            for var_time_dir in sorted(os.listdir(exp_len_path)):
-                if '#' not in var_time_dir:
+        leaf_dirs = set()
+        for root, _dirs, files in os.walk(base):
+            if any(f.endswith(".tsv") for f in files):
+                leaf_dirs.add(root)
+
+        for leaf in sorted(leaf_dirs):
+            rel_parts = Path(leaf).relative_to(base).parts
+            meta = {}
+            for part in rel_parts:
+                if "#" not in part:
                     continue
-                var_time_path = os.path.join(exp_len_path, var_time_dir)
-                variation_time = float(var_time_dir.split('#')[1])
-                for eta_dir in sorted(os.listdir(var_time_path)):
-                    if '#' not in eta_dir:
-                        continue
-                    eta_path = os.path.join(var_time_path, eta_dir)
-                    eta = float(eta_dir.split('#')[1])
-                    for eta_stop_dir in sorted(os.listdir(eta_path)):
-                        if '#' not in eta_stop_dir:
-                            continue
-                        eta_stop_path = os.path.join(eta_path, eta_stop_dir)
-                        eta_stop = float(eta_stop_dir.split('#')[1])
-                        for agents_dir in sorted(os.listdir(eta_stop_path)):
-                            if '#' not in agents_dir:
-                                continue
-                            agents_path = os.path.join(eta_stop_path, agents_dir)
-                            n_agents = int(agents_dir.split('#')[1])
-                            for options_dir in sorted(os.listdir(agents_path)):
-                                if '#' not in options_dir:
-                                    continue
-                                options_path = os.path.join(agents_path, options_dir)
-                                n_options = int(options_dir.split('#')[1])
-                                for comm_type_dir in sorted(os.listdir(options_path)):
-                                    if '#' not in comm_type_dir:
-                                        continue
-                                    comm_type_path = os.path.join(options_path, comm_type_dir)
-                                    comm_type = comm_type_dir.split('#', 1)[1]
-                                    id_aware = 0 if comm_type == "anon" else 1
-                                    for comm_dir in sorted(os.listdir(comm_type_path)):
-                                        if '#' not in comm_dir:
-                                            continue
-                                        comm_path = os.path.join(comm_type_path, comm_dir)
-                                        communication = int(comm_dir.split('#')[1])
-                                        for adpt_dir in sorted(os.listdir(comm_path)):
-                                            if '#' not in adpt_dir:
-                                                continue
-                                            adpt_path = os.path.join(comm_path, adpt_dir)
-                                            adaptive_com = int(adpt_dir.split('#')[1])
-                                            for priority_dir in sorted(os.listdir(adpt_path)):
-                                                if '#' not in priority_dir:
-                                                    continue
-                                                priority_path = os.path.join(adpt_path, priority_dir)
-                                                priority_k = int(priority_dir.split('#')[1])
-                                                for msg_exp_time_dir in sorted(os.listdir(priority_path)):
-                                                    if '#' not in msg_exp_time_dir:
-                                                        continue
-                                                    msg_exp_time_path = os.path.join(priority_path, msg_exp_time_dir)
-                                                    msg_exp_time = int(msg_exp_time_dir.split('#')[1])
-                                                    for hops_dir in sorted(os.listdir(msg_exp_time_path)):
-                                                        if '#' not in hops_dir:
-                                                            continue
-                                                        hops_path = os.path.join(msg_exp_time_path, hops_dir)
-                                                        msg_hops = int(hops_dir.split('#')[1])
-                                                        for init_dir in sorted(os.listdir(hops_path)):
-                                                            if '#' not in init_dir:
-                                                                continue
-                                                            init_path = os.path.join(hops_path, init_dir)
-                                                            init_distr = float(init_dir.split('#')[1])
-                                                            for functn_dir in sorted(os.listdir(init_path)):
-                                                                if '#' not in functn_dir:
-                                                                    continue
-                                                                functn_path = os.path.join(init_path, functn_dir)
-                                                                function = str(functn_dir.split('#')[1])
-                                                                for vote_msg_dir in sorted(os.listdir(functn_path)):
-                                                                    if '#' not in vote_msg_dir:
-                                                                        continue
-                                                                    vote_msg_path = os.path.join(functn_path, vote_msg_dir)
-                                                                    vote_msg = int(vote_msg_dir.split('#')[1])
-                                                                    for ctrl_par_dir in sorted(os.listdir(vote_msg_path)):
-                                                                        if '#' not in ctrl_par_dir:
-                                                                            continue
-                                                                        ctrl_par_path = os.path.join(vote_msg_path, ctrl_par_dir)
-                                                                        ctrl_par = float(ctrl_par_dir.split('#')[1])
-                                                                        queue.put((ticks_per_sec,ctrl_par_path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par))
+                prefix, raw_val = part.split("#", 1)
+                if prefix in prefix_map:
+                    key, caster = prefix_map[prefix]
+                    try:
+                        meta[key] = caster(raw_val)
+                    except ValueError:
+                        logging.error(f"Bad value for {prefix} in {part} (path: {leaf})")
+                        meta[key] = None
+
+            missing = sorted(required_keys.difference(meta.keys()))
+            if missing:
+                logging.warning(f"Skipping {leaf}, missing keys: {missing}")
+                continue
+
+            comm_type = meta["comm_type"]
+            id_aware = 0 if comm_type == "anon" else 1
+
+            queue.put((
+                ticks_per_sec,
+                leaf,
+                meta["exp_length"],
+                meta["variation_time"],
+                meta["communication"],
+                meta["adaptive_com"],
+                comm_type,
+                id_aware,
+                meta["priority_k"],
+                meta["n_agents"],
+                meta["msg_exp_time"],
+                meta["msg_hops"],
+                meta["n_options"],
+                meta["eta"],
+                meta["eta_stop"],
+                meta["init_distr"],
+                meta["function"],
+                meta["vote_msg"],
+                meta["ctrl_par"],
+            ))
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")
