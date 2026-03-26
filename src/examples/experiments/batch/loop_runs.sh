@@ -28,6 +28,7 @@ msgs_n_hops=""
 eta_init=""
 eta_stop=""
 init_distr=""
+control_parameter=""
 experiment_length="600"
 variation_time="0"
 RUNS=10
@@ -40,7 +41,6 @@ priority_k_set="0"
 msgs_timeout="60 180"
 control="polynomial"
 voting_msgs="5 9 15"
-control_parameter="0.5 0.6 0.7"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -60,9 +60,11 @@ for exp_len_par in $experiment_length; do
             if [[ $options_par == "2" ]]; then
                 eta_init="0.4"
                 init_distr="0.5"
+                control_parameter="0.5"
             else
                 eta_init="0.7"
                 init_distr="0.2"
+                control_parameter="0.7"
             fi
             eta_init_list=($eta_init)
             eta_stop_list=($eta_stop)
@@ -113,7 +115,7 @@ for exp_len_par in $experiment_length; do
                             if [[ $comm_type == "anon" ]]; then
                                 msgs_n_hops="0"
                             elif [[ $comm_par == "1" ]]; then
-                                msgs_n_hops="0"
+                                msgs_n_hops="0 1"
                             else
                                 msgs_n_hops="0"
                             fi
