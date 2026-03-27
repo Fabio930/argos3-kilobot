@@ -53,17 +53,17 @@
             id_aware = "1"
             rebroadcast = "1"
             msgs_n_hops = "0"
-            msgs_timeout = "60"
+            msgs_timeout = "180"
             adaptive_comm = "0"
             priority_sampling_k = "0"
-            init_distr = "0.5"
-            options = "2"
-            eta_init = "0.4"
+            init_distr = "0.2"
+            options = "5"
+            eta_init = "0.7"
             eta_stop = "0.6"
-            variation_time = "500"
-            grid_rows = "20"
-            grid_cols = "20"
-            options_distribution = "ordered"
+            variation_time = "0"
+            grid_rows = "10"
+            grid_cols = "10"
+            options_distribution = "random"
             control = "static"
             voting_msgs = "5"
             control_parameter = "0.8">
@@ -153,8 +153,8 @@
         <qt-opengl>
             <camera>
                 <placements>
-                    <placement index="0" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="43" />
-                    <placement index="1" position="0,0,1" up="-1,0,0" look_at="0,0,0" lens_focal_length="23" />
+                    <placement index="0" position="0,0,1" up="0,1,0" look_at="0,0,0" lens_focal_length="43" />
+                    <placement index="1" position="0,0,1" up="0,1,0" look_at="0,0,0" lens_focal_length="23" />
                 </placements>
             </camera>
         </qt-opengl>

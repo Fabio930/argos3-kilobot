@@ -33,12 +33,13 @@ experiment_length="600"
 variation_time="0"
 RUNS=10
 options="2 5"
-numrobots="25 100"
+options_distrib="random"
+numrobots="100"
 comm_type_set="id_aware"
 rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
-msgs_timeout="60 180"
+msgs_timeout="180"
 control="static polynomial"
 voting_msgs="3 5 9 15"
 
@@ -67,9 +68,6 @@ for exp_len_par in $experiment_length; do
                 eta_stop="0.9"
                 init_distr="0.2"
                 control_parameter="0.7"
-            fi
-            if [[ $control_par == "static" ]]; then
-                control_parameter="0.8"
             fi
             eta_init_list=($eta_init)
             eta_stop_list=($eta_stop)
@@ -160,6 +158,9 @@ for exp_len_par in $experiment_length; do
                                                     if [[ ! -e $control_dir ]]; then
                                                         mkdir $control_dir
                                                     fi
+                                                    if [[ $control_par == "static" ]]; then
+                                                        control_parameter="0.8"
+                                                    fi
                                                     for voting_msgs_par in $voting_msgs; do
                                                         voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
                                                         if [[ ! -e $voting_dir ]]; then
@@ -188,6 +189,7 @@ for exp_len_par in $experiment_length; do
                                                                 sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                                                 sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
                                                                 sed -i "s|__N_OPTIONS__|$options_par|g" $config
+                                                                sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
                                                                 sed -i "s|__ETA_INIT__|$eta_i_par|g" $config
                                                                 sed -i "s|__ETA_STOP__|$eta_s_par|g" $config
                                                                 sed -i "s|__VAR_TIME__|$var_time_par|g" $config
