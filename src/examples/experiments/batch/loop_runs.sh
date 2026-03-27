@@ -40,7 +40,7 @@ rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="180"
-control="static polynomial"
+control="polynomial"
 voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
@@ -62,12 +62,10 @@ for exp_len_par in $experiment_length; do
                 eta_init="0.4"
                 eta_stop="0.6"
                 init_distr="0.5"
-                control_parameter="0.5"
             else
                 eta_init="0.7"
                 eta_stop="0.9"
                 init_distr="0.2"
-                control_parameter="0.7"
             fi
             eta_init_list=($eta_init)
             eta_stop_list=($eta_stop)
@@ -160,6 +158,12 @@ for exp_len_par in $experiment_length; do
                                                     fi
                                                     if [[ $control_par == "static" ]]; then
                                                         control_parameter="0.8"
+                                                    else
+                                                        if [[ $options_par == "2" ]]; then
+                                                            control_parameter="0.5"
+                                                        else
+                                                            control_parameter="0.7"
+                                                        fi
                                                     fi
                                                     for voting_msgs_par in $voting_msgs; do
                                                         voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
