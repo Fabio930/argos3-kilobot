@@ -71,7 +71,7 @@ class Data:
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
                 {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
             ],
-            "plots": {"exclude_protocols": [], "exclude_tm": []},
+            "plots": {"exclude_protocols": [], "exclude_tm": [], "insert":[]},
         }
 ###################################################
     def _merge_plot_config(self, base_cfg, user_cfg):
@@ -847,7 +847,7 @@ class Data:
 
 ###################################################
     def plot_recovery_short(self, data_in, side_by_side: bool = False):
-        images_dir = os.path.join(self.base, "compressed", "images")
+        images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
@@ -1827,9 +1827,9 @@ class Data:
 
 ###################################################
     def plot_compressed_table(self, tot_states_in, tot_times_in, tot_msgs_in):
-        if not os.path.exists(self.base+"/compressed/images/"):
-            os.makedirs(self.base+"/compressed/images/")
-        path = self.base+"/compressed/images/"
+        if not os.path.exists(self.base+"/compressed_data/images/"):
+            os.makedirs(self.base+"/compressed_data/images/")
+        path = self.base+"/compressed_data/images/"
         ground_T,threshlds,dk_tot_states,dk_tot_times,o_k,[arena,agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -1976,7 +1976,7 @@ class Data:
                         print(f"Skipping key {key} due to error: {e}")
                         continue
 
-        self._finalize_compressed_plot(fig, ax, path, protocol_colors,threshlds,max_time)
+        self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, inset_tm_values, msg_data_dict, all_tm, tm_norm, dk_tot_msgs.keys())
 
 ###################################################
     def _finalize_compressed_plot(self, fig, ax, path, protocol_colors,tau_ticks,max_time):
@@ -2049,7 +2049,3 @@ class Data:
         save_name = "compressed_summary.pdf"
         plt.savefig(os.path.join(path, save_name), bbox_inches='tight', dpi=300)
         plt.close(fig)
-    
-###################################################
-    def plot_compressed_recovery(self):
-        return

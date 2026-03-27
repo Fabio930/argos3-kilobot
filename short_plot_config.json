@@ -10,6 +10,7 @@
   ],
   "plots": {
     "exclude_protocols": ["P.1.1","O.0.0","O.2.0","O.1.1","O.1.0"],
-    "exclude_tm": []
+    "exclude_tm": [120,180,300,600],
+    "insert": [600]
   }
 }
