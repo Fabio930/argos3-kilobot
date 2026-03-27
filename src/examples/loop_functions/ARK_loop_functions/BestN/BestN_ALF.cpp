@@ -79,14 +79,12 @@ void CBestN_ALF::Destroy(){
 void CBestN_ALF::PostStep(){
     if(variation_time > 0){
         m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
-        const Real fAlpha = Min<Real>(1.0, Max<Real>(0.0, m_fTimeInSeconds / variation_time));
-        const Real fEtaNow = eta_init + (eta_stop - eta_init) * fAlpha;
-        const UInt8 unEtaQNow = static_cast<UInt8>(std::round(fEtaNow * 127.0));
-        if(unEtaQNow != m_unEtaQ){
-            m_unEtaQ = unEtaQNow;
-            SetupFloorColorMap();
-        }
         if(m_fTimeInSeconds >= variation_time){
+            const UInt8 unEtaQNow = static_cast<UInt8>(std::round(eta_stop * 127.0));
+            if(unEtaQNow != m_unEtaQ){
+                m_unEtaQ = unEtaQNow;
+                SetupFloorColorMap();
+            }
             variation_time = 0;
         }
     }
