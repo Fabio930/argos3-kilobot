@@ -711,14 +711,8 @@ void decision(){
         quorum_value = compute_quorum_value();
         control_value = compute_r_threshold(quorum_value);
         float p = rand_hard()/255.0;
-        if(p < 0.01) my_state = gps_floor_color;
-        else{
-            p = rand_hard()/255.0;
-            if(p < control_value){
-                my_state = majority_vote();
-            }
-            else my_state = gps_floor_color;
-        }
+        if(p < control_value) my_state = majority_vote();
+        else my_state = gps_floor_color;
         update_debug_led();
     }
 }
