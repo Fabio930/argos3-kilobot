@@ -52,20 +52,21 @@
         <hierarchicStruct
             id_aware = "1"
             rebroadcast = "1"
-            msgs_n_hops = "1"
-            msgs_timeout = "180"
+            msgs_n_hops = "0"
+            msgs_timeout = "60"
             adaptive_comm = "0"
             priority_sampling_k = "0"
             init_distr = "0.5"
             options = "2"
-            eta_init = "0.45"
-            eta_stop = "0.55"
+            eta_init = "0.4"
+            eta_stop = "0.6"
             variation_time = "500"
             grid_rows = "20"
             grid_cols = "20"
-            control = "polynomial"
+            options_distribution = "ordered"
+            control = "static"
             voting_msgs = "5"
-            control_parameter = "0.5">
+            control_parameter = "0.8">
         </hierarchicStruct>
 
     </loop_functions>
@@ -91,7 +92,7 @@
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="25" max_trials="200">
+            <entity quantity="100" max_trials="200">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>

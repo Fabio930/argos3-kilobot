@@ -29,8 +29,8 @@ eta_init=""
 eta_stop=""
 init_distr=""
 control_parameter=""
-experiment_length="1200"
-variation_time="600"
+experiment_length="600"
+variation_time="0"
 RUNS=10
 options="2 5"
 numrobots="25 100"
@@ -39,8 +39,8 @@ rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="60 180"
-control="polynomial"
-voting_msgs="5 9 15"
+control="static polynomial"
+voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -59,7 +59,7 @@ for exp_len_par in $experiment_length; do
             fi
             if [[ $options_par == "2" ]]; then
                 eta_init="0.4"
-                eta_stop="0.5"
+                eta_stop="0.6"
                 init_distr="0.5"
                 control_parameter="0.5"
             else
@@ -67,6 +67,9 @@ for exp_len_par in $experiment_length; do
                 eta_stop="0.9"
                 init_distr="0.2"
                 control_parameter="0.7"
+            fi
+            if [[ $control_par == "static" ]]; then
+                control_parameter="0.8"
             fi
             eta_init_list=($eta_init)
             eta_stop_list=($eta_stop)

@@ -4,6 +4,7 @@
 
 #include "BestN_ALF.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 namespace {
@@ -21,6 +22,20 @@ UInt8 ControlModeFromString(const std::string& strControl) {
     if(strControl == "polynomial") return 3;
     return 0;
 }
+
+std::string NormalizeDistributionString(const std::string& strValue) {
+    std::string strOut = strValue;
+    strOut.erase(0, strOut.find_first_not_of(" \t\r\n"));
+    strOut.erase(strOut.find_last_not_of(" \t\r\n") + 1);
+    std::transform(strOut.begin(), strOut.end(), strOut.begin(),
+                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    if(strOut.empty()) {
+        return "random";
+    }
+    return strOut;
+}
+
+std::string g_strOptionsDistribution = "random";
 }
 
 /****************************************/
@@ -64,9 +79,14 @@ void CBestN_ALF::Destroy(){
 void CBestN_ALF::PostStep(){
     if(variation_time > 0){
         m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
-        m_unEtaQ = static_cast<UInt8>(std::round(eta_stop * 127.0));
-        if(m_fTimeInSeconds >= variation_time){
+        const Real fAlpha = Min<Real>(1.0, Max<Real>(0.0, m_fTimeInSeconds / variation_time));
+        const Real fEtaNow = eta_init + (eta_stop - eta_init) * fAlpha;
+        const UInt8 unEtaQNow = static_cast<UInt8>(std::round(fEtaNow * 127.0));
+        if(unEtaQNow != m_unEtaQ){
+            m_unEtaQ = unEtaQNow;
             SetupFloorColorMap();
+        }
+        if(m_fTimeInSeconds >= variation_time){
             variation_time = 0;
         }
     }
@@ -154,6 +174,10 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
+    std::string strOptionsDistribution = "random";
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "options_distribution",
+                              strOptionsDistribution, strOptionsDistribution);
+    g_strOptionsDistribution = NormalizeDistributionString(strOptionsDistribution);
     eta_init = Min<Real>(1.0, Max<Real>(0.0, eta_init));
     eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));
     variation_time = Max<uint16_t>(0,variation_time);
@@ -229,7 +253,96 @@ void CBestN_ALF::SetupFloorColorMap() {
         return;
     }
 
+    const std::string strDistribution = NormalizeDistributionString(g_strOptionsDistribution);
+    const bool bOrdered = (strDistribution == "ordered");
     const UInt8 unWorseOptions = options - 1;
+
+    if(bOrdered && options >= 2 && options <= 5) {
+        const UInt32 unRows = m_cGridFloor.Rows;
+        const UInt32 unCols = m_cGridFloor.Cols;
+        const UInt32 unBestCells = unTotalCells - unWorseCells;
+
+        auto SetRegion = [&](UInt32 unRowStart, UInt32 unRowEnd,
+                             UInt32 unColStart, UInt32 unColEnd,
+                             UInt8 unColorId) {
+            if(unRowStart >= unRowEnd || unColStart >= unColEnd) {
+                return;
+            }
+            for(UInt32 r = unRowStart; r < unRowEnd; ++r) {
+                const UInt32 unBase = r * unCols;
+                for(UInt32 c = unColStart; c < unColEnd; ++c) {
+                    m_cGridFloor.ColorId[unBase + c] = unColorId;
+                }
+            }
+        };
+
+        auto BestColsFromCells = [&](UInt32 unCells, UInt32 unRowsCount, UInt32 unColsCount) {
+            if(unRowsCount == 0) {
+                return static_cast<UInt32>(0);
+            }
+            const double fCols = static_cast<double>(unCells) / static_cast<double>(unRowsCount);
+            UInt32 unColsBest = static_cast<UInt32>(std::round(fCols));
+            if(unCells > 0 && unColsBest == 0) {
+                unColsBest = 1;
+            }
+            if(unColsBest > unColsCount) {
+                unColsBest = unColsCount;
+            }
+            return unColsBest;
+        };
+
+        if(options == 2) {
+            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
+            SetRegion(0, unRows, unBestCols, unCols, 2);
+            return;
+        }
+
+        if(options == 3) {
+            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
+            const UInt32 unLeftCols = (unCols - unBestCols) / 2;
+            const UInt32 unCenterStart = unLeftCols;
+            const UInt32 unCenterEnd = unLeftCols + unBestCols;
+            SetRegion(0, unRows, 0, unCenterStart, 2);
+            SetRegion(0, unRows, unCenterEnd, unCols, 3);
+            return;
+        }
+
+        if(options == 4) {
+            const double fBestRatio =
+                (unTotalCells > 0) ? static_cast<double>(unBestCells) / static_cast<double>(unTotalCells) : 0.0;
+            const double fSplitRatio = std::sqrt(Max<Real>(0.0, Min<Real>(1.0, fBestRatio)));
+            UInt32 unBestCols = static_cast<UInt32>(std::round(fSplitRatio * unCols));
+            UInt32 unBestRows = static_cast<UInt32>(std::round(fSplitRatio * unRows));
+            if(unBestCells > 0) {
+                if(unBestCols == 0) unBestCols = 1;
+                if(unBestRows == 0) unBestRows = 1;
+            }
+            if(unBestCols > unCols) unBestCols = unCols;
+            if(unBestRows > unRows) unBestRows = unRows;
+            const UInt32 unTopStart = (unBestRows > unRows) ? 0 : (unRows - unBestRows);
+            SetRegion(unTopStart, unRows, 0, unBestCols, 1);
+            SetRegion(unTopStart, unRows, unBestCols, unCols, 2);
+            SetRegion(0, unTopStart, 0, unBestCols, 3);
+            SetRegion(0, unTopStart, unBestCols, unCols, 4);
+            return;
+        }
+
+        if(options == 5) {
+            UInt32 unCenterCols = BestColsFromCells(unBestCells, unRows, unCols);
+            UInt32 unSideCols = (unCols > unCenterCols) ? (unCols - unCenterCols) / 2 : 0;
+            unCenterCols = (unCols > 2 * unSideCols) ? (unCols - 2 * unSideCols) : 0;
+            const UInt32 unLeftEnd = unSideCols;
+            const UInt32 unRightStart = (unCols >= unSideCols) ? (unCols - unSideCols) : unCols;
+            const UInt32 unBottomRows = unRows / 2;
+            const UInt32 unTopStart = unRows - (unRows - unBottomRows);
+            SetRegion(unTopStart, unRows, 0, unLeftEnd, 2);
+            SetRegion(0, unTopStart, 0, unLeftEnd, 3);
+            SetRegion(unTopStart, unRows, unRightStart, unCols, 4);
+            SetRegion(0, unTopStart, unRightStart, unCols, 5);
+            return;
+        }
+    }
+
     const UInt32 unBaseCount = unWorseCells / unWorseOptions;
     const UInt32 unRemainder = unWorseCells % unWorseOptions;
 

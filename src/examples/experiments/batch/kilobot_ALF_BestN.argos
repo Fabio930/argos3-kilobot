@@ -64,6 +64,7 @@
             init_distr = "__INIT_DISTR__"
             grid_rows = "20"
             grid_cols = "20"
+            options_distribution = "ordered"
             control = "__CONTROL_TYPE__"
             voting_msgs = "__VOTING_MSGS__"
             control_parameter = "__CONTROL_PARAMETER__"
