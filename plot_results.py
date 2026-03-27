@@ -144,9 +144,10 @@ def _vote_color_map(vote_values):
 def plot_cohesion_df(result_df: pd.DataFrame) -> int:
     """
     Cohesion line plots with std shadow.
-    Produces one image per metadata group with two panels: option_id 0 and 1.
+    Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
-    required_cols = {"option_id", "vote_msg", "data", "std"}
+    # Ensure control_par and function are present for our custom masking
+    required_cols = {"option_id", "vote_msg", "data", "std", "function", "control_par"}
     missing = required_cols.difference(result_df.columns)
     if missing:
         raise ValueError(f"plot_cohesion_df missing required columns: {sorted(missing)}")
@@ -154,83 +155,109 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    exclude_cols = {"option_id", "vote_msg", "function", "data", "std"}
+    # Exclude control_par from the base grouping so we can pair different control_par values together
+    exclude_cols = {"option_id", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
 
+    # Explicitly set the colormaps as requested
+    function_cmaps = {
+        "static": plt.get_cmap("Reds"),
+        "polynomial": plt.get_cmap("Blues")
+    }
+
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
-        option_1_df = gdf[gdf["option_id"] == 0]
-        option_2_df = gdf[gdf["option_id"] == 1]
-        if option_1_df.empty and option_2_df.empty:
-            continue
+        
+        # Identify the distinct control_par values used by 'polynomial' in this group
+        poly_df = gdf[gdf["function"] == "polynomial"]
+        if poly_df.empty:
+            poly_ctrl_vals = [None] # Fallback if no polynomial data is found
+        else:
+            poly_ctrl_vals = sorted(poly_df["control_par"].dropna().unique().tolist())
 
-        function_values = sorted(gdf["function"].astype(str).unique().tolist()) if "function" in gdf.columns else []
-        function_cmaps = _function_colormap(function_values)
+        for ctrl_val in poly_ctrl_vals:
+            # Mask and combine polynomial (at current ctrl_val) with static (at 0.8)
+            if ctrl_val is not None:
+                mask_poly = (gdf["function"] == "polynomial") & (np.isclose(gdf["control_par"].astype(float), float(ctrl_val)))
+                mask_static = (gdf["function"] == "static") & (np.isclose(gdf["control_par"].astype(float), 0.8))
+                
+                plot_df = gdf[mask_poly | mask_static]
+                # Inject the polynomial's control_par into the metadata so filenames remain unique
+                curr_meta = {**group_meta, "control_par": ctrl_val}
+            else:
+                plot_df = gdf
+                curr_meta = dict(group_meta)
 
-        fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
-        panel_data = [(1, option_1_df, axes[0]), (2, option_2_df, axes[1])]
-
-        for option_id, opt_df, ax in panel_data:
-            if opt_df.empty:
-                ax.set_title(f"Option {option_id} (no data)")
-                ax.set_xlabel("step")
-                ax.grid(alpha=0.25)
+            option_1_df = plot_df[plot_df["option_id"] == 0]
+            option_2_df = plot_df[plot_df["option_id"] == 1]
+            
+            if option_1_df.empty and option_2_df.empty:
                 continue
 
-            for function_name in sorted(opt_df["function"].astype(str).unique().tolist()):
-                fn_df = opt_df[opt_df["function"].astype(str) == function_name]
-                votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
-                cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
-                vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
-                vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
+            fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+            panel_data = [(1, option_1_df, axes[0]), (2, option_2_df, axes[1])]
 
-                for _, row in fn_df.iterrows():
-                    data_arr = m_array_from_cell(row["data"])
-                    std_arr = m_array_from_cell(row["std"])
-                    n_steps = min(len(data_arr), len(std_arr))
-                    if n_steps == 0:
-                        continue
+            for option_id, opt_df, ax in panel_data:
+                if opt_df.empty:
+                    ax.set_title(f"Option {option_id} (no data)")
+                    ax.set_xlabel("step")
+                    ax.grid(alpha=0.25)
+                    continue
 
-                    x = np.arange(n_steps)
-                    y = data_arr[:n_steps]
-                    s = std_arr[:n_steps]
-                    vote = row["vote_msg"]
-                    color = vote_to_color.get(vote, cmap(0.7))
-                    label = f"f:{function_name} | m:{vote}"
+                for function_name in sorted(opt_df["function"].astype(str).unique().tolist()):
+                    fn_df = opt_df[opt_df["function"].astype(str) == function_name]
+                    votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
+                    
+                    # Apply Red/Blue maps, defaulting to Greys if another function sneaks in
+                    cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
+                    vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
+                    vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
 
-                    ax.plot(x, y, color=color, linewidth=2.0, label=label)
-                    ax.fill_between(x, y - s, y + s, color=color, alpha=0.18)
-            ax.set_ylim(-0.03,1.03)
-            ax.set_title(f"Option {option_id}")
-            ax.set_xlabel("step")
-            ax.grid(alpha=0.25)
-            handles, labels = ax.get_legend_handles_labels()
-            if handles:
-                uniq = dict(zip(labels, handles))
-                ax.legend(uniq.values(), uniq.keys(), loc="best", frameon=False, fontsize=8)
+                    for _, row in fn_df.iterrows():
+                        data_arr = m_array_from_cell(row["data"])
+                        std_arr = m_array_from_cell(row["std"])
+                        n_steps = min(len(data_arr), len(std_arr))
+                        if n_steps == 0:
+                            continue
 
-        axes[0].set_ylabel("cohesion")
-        fig.suptitle("Cohesion")
+                        x = np.arange(n_steps)
+                        y = data_arr[:n_steps]
+                        s = std_arr[:n_steps]
+                        vote = row["vote_msg"]
+                        color = vote_to_color.get(vote, cmap(0.7))
+                        label = f"f:{function_name} | m:{vote}"
 
-        file_name = f"cohesion_{_safe_filename_from_metadata(dict(group_meta))}.png"
-        fig.tight_layout()
-        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
-        plt.close(fig)
-        image_count += 1
+                        ax.plot(x, y, color=color, linewidth=2.0, label=label)
+                        ax.fill_between(x, y - s, y + s, color=color, alpha=0.18)
+                        
+                ax.set_ylim(-0.03, 1.03)
+                ax.set_title(f"Option {option_id}")
+                ax.set_xlabel("step")
+                ax.grid(alpha=0.25)
+                handles, labels = ax.get_legend_handles_labels()
+                if handles:
+                    uniq = dict(zip(labels, handles))
+                    ax.legend(uniq.values(), uniq.keys(), loc="best", frameon=False, fontsize=8)
+
+            axes[0].set_ylabel("cohesion")
+            
+            # Optional: Add context to the title
+            title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8)" if ctrl_val is not None else ""
+            fig.suptitle(f"Cohesion{title_suffix}")
+
+            file_name = f"cohesion_{_safe_filename_from_metadata(curr_meta)}.png"
+            fig.tight_layout()
+            fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
+            plt.close(fig)
+            image_count += 1
 
     return image_count
 
-
 def plot_accuracy_df(result_df: pd.DataFrame) -> int:
     """Accuracy bar plot with eta on x-axis.
-
-    Colors are now chosen exactly the same way as in :func:`plot_cohesion_df`:
-    each *function* gets its own base colormap and each distinct ``vote_msg``
-    receives a different shade from that colormap.  This keeps the color
-    classification consistent across cohesion, accuracy and time figures so
-    that different functions can be compared by the number of messages used.
+    Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
-    required_cols = {"eta", "vote_msg", "data"}
+    required_cols = {"eta", "vote_msg", "data", "function", "control_par"}
     missing = required_cols.difference(result_df.columns)
     if missing:
         raise ValueError(f"plot_accuracy_df missing required columns: {sorted(missing)}")
@@ -238,92 +265,110 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "accuracy"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    exclude_cols = {"eta", "vote_msg", "function", "data", "std"}
+    # Exclude control_par from base grouping
+    exclude_cols = {"eta", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
 
+    function_cmaps = {
+        "static": plt.get_cmap("Reds"),
+        "polynomial": plt.get_cmap("Blues")
+    }
+
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
-        work = gdf.copy()
-        work["metric"] = work["data"].apply(lambda x: float(np.mean(m_array_from_cell(x))))
-        # if there is no function column we still want the code to run, so
-        # introduce a dummy placeholder; this keeps the grouping logic
-        # uniform with the cohesion plots.
-        if "function" not in work.columns:
-            work["function"] = ""
-        # preserve the function column so we can colour by it
-        agg = work.groupby(["eta", "vote_msg", "function"], dropna=False)["metric"].agg(["mean", "std"]).reset_index()
-        if agg.empty:
-            continue
-
-        eta_values = np.array(sorted(agg["eta"].dropna().unique().tolist()), dtype=float)
-        if eta_values.size == 0:
-            continue
-
-        # build colour maps per function and list of (function,vote_msg) pairs
-        funcs = sorted(agg["function"].dropna().unique().tolist())
-        f_cmaps = _function_colormap(funcs)
-        pairs = agg[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
-        pairs.sort()
-        total_series = len(pairs)
-
-        if eta_values.size > 1:
-            min_gap = float(np.min(np.diff(eta_values)))
+        
+        poly_df = gdf[gdf["function"] == "polynomial"]
+        if poly_df.empty:
+            poly_ctrl_vals = [None]
         else:
-            min_gap = 0.1
-        cluster_w = min_gap * 0.8
-        bar_w = cluster_w / max(1, total_series)
+            poly_ctrl_vals = sorted(poly_df["control_par"].dropna().unique().tolist())
 
-        pair_colors = {}
-        for f in funcs:
-            votes_for_f = sorted(agg[agg["function"] == f]["vote_msg"].dropna().unique().tolist())
-            cmap = f_cmaps[f]
-            shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
-            for idx, v in enumerate(votes_for_f):
-                pair_colors[(f, v)] = cmap(shades[idx])
+        for ctrl_val in poly_ctrl_vals:
+            if ctrl_val is not None:
+                mask_poly = (gdf["function"] == "polynomial") & (np.isclose(gdf["control_par"].astype(float), float(ctrl_val)))
+                mask_static = (gdf["function"] == "static") & (np.isclose(gdf["control_par"].astype(float), 0.8))
+                
+                work = gdf[mask_poly | mask_static].copy()
+                curr_meta = {**group_meta, "control_par": ctrl_val}
+            else:
+                work = gdf.copy()
+                curr_meta = dict(group_meta)
 
-        fig, ax = plt.subplots(figsize=(11, 6))
-        for j, (f, v) in enumerate(pairs):
-            sub = agg[(agg["function"] == f) & (agg["vote_msg"] == v)]
-            means = sub.set_index("eta")["mean"].reindex(eta_values).to_numpy(dtype=float)
-            stds = sub.set_index("eta")["std"].reindex(eta_values).to_numpy(dtype=float)
-            stds = np.nan_to_num(stds, nan=0.0)
+            if work.empty:
+                continue
 
-            pos = eta_values - (cluster_w / 2.0) + (j + 0.5) * bar_w
-            ax.bar(pos, means, width=bar_w, yerr=stds, capsize=3,
-                   label=f"{f} m:{v}", color=pair_colors.get((f, v), "gray"), alpha=0.85)
+            work["metric"] = work["data"].apply(lambda x: float(np.mean(m_array_from_cell(x))))
+            if "function" not in work.columns:
+                work["function"] = ""
+                
+            agg = work.groupby(["eta", "vote_msg", "function"], dropna=False)["metric"].agg(["mean", "std"]).reset_index()
+            if agg.empty:
+                continue
 
-        ax.set_xticks(eta_values)
-        ax.set_xticklabels([str(e) for e in eta_values])
-        ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
-        ax.set_xlabel(r"$\eta$")
-        ax.set_ylabel("accuracy (%)")
-        ax.set_ylim(-0.03,103)
-        ax.set_title("Accuracy by eta")
-        ax.grid(axis="y", alpha=0.25)
-        handles, labels = ax.get_legend_handles_labels()
-        if handles:
-            uniq = dict(zip(labels, handles))
-            ax.legend(uniq.values(), uniq.keys(), frameon=False, loc="best")
+            eta_values = np.array(sorted(agg["eta"].dropna().unique().tolist()), dtype=float)
+            if eta_values.size == 0:
+                continue
 
-        file_name = f"accuracy_{_safe_filename_from_params(dict(group_meta))}.png"
-        fig.tight_layout()
-        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
-        plt.close(fig)
-        image_count += 1
+            funcs = sorted(agg["function"].dropna().unique().tolist())
+            pairs = agg[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
+            pairs.sort()
+            total_series = len(pairs)
+
+            if eta_values.size > 1:
+                min_gap = float(np.min(np.diff(eta_values)))
+            else:
+                min_gap = 0.1
+            cluster_w = min_gap * 0.8
+            bar_w = cluster_w / max(1, total_series)
+
+            pair_colors = {}
+            for f in funcs:
+                votes_for_f = sorted(agg[agg["function"] == f]["vote_msg"].dropna().unique().tolist())
+                cmap = function_cmaps.get(f, plt.get_cmap("Greys"))
+                shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
+                for idx, v in enumerate(votes_for_f):
+                    pair_colors[(f, v)] = cmap(shades[idx])
+
+            fig, ax = plt.subplots(figsize=(11, 6))
+            for j, (f, v) in enumerate(pairs):
+                sub = agg[(agg["function"] == f) & (agg["vote_msg"] == v)]
+                means = sub.set_index("eta")["mean"].reindex(eta_values).to_numpy(dtype=float)
+                stds = sub.set_index("eta")["std"].reindex(eta_values).to_numpy(dtype=float)
+                stds = np.nan_to_num(stds, nan=0.0)
+
+                pos = eta_values - (cluster_w / 2.0) + (j + 0.5) * bar_w
+                ax.bar(pos, means, width=bar_w, yerr=stds, capsize=3,
+                       label=f"{f} m:{v}", color=pair_colors.get((f, v), "gray"), alpha=0.85)
+
+            ax.set_xticks(eta_values)
+            ax.set_xticklabels([str(e) for e in eta_values])
+            ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
+            ax.set_xlabel(r"$\eta$")
+            ax.set_ylabel("accuracy (%)")
+            ax.set_ylim(-0.03,103)
+            
+            title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8)" if ctrl_val is not None else ""
+            ax.set_title(f"Accuracy by eta{title_suffix}")
+            ax.grid(axis="y", alpha=0.25)
+            handles, labels = ax.get_legend_handles_labels()
+            if handles:
+                uniq = dict(zip(labels, handles))
+                ax.legend(uniq.values(), uniq.keys(), frameon=False, loc="best")
+
+            file_name = f"accuracy_{_safe_filename_from_params(curr_meta)}.png"
+            fig.tight_layout()
+            fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
+            plt.close(fig)
+            image_count += 1
 
     return image_count
 
 
 def plot_time_df(result_df: pd.DataFrame) -> int:
     """Time box plot with eta on x-axis.
-
-    Uses the same colour classification as the cohesion plots: each
-    ``function`` has its own colormap and each ``vote_msg`` is assigned a
-    different shade.  This makes it possible to visually match bars and boxes
-    across the various figure types when comparing functions with different
-    message counts.
+    Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
-    required_cols = {"eta", "vote_msg", "data"}
+    required_cols = {"eta", "vote_msg", "data", "function", "control_par"}
     missing = required_cols.difference(result_df.columns)
     if missing:
         raise ValueError(f"plot_time_df missing required columns: {sorted(missing)}")
@@ -331,108 +376,132 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "time"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    exclude_cols = {"eta", "vote_msg", "function", "data", "std"}
+    # Exclude control_par from base grouping
+    exclude_cols = {"eta", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
 
-    for group_meta, gdf in _iter_groups(result_df, grouping_cols):
-        eta_values = np.array(sorted(gdf["eta"].dropna().unique().tolist()), dtype=float)
-        if eta_values.size == 0:
-            continue
+    function_cmaps = {
+        "static": plt.get_cmap("Reds"),
+        "polynomial": plt.get_cmap("Blues")
+    }
 
-        # if function column is missing add empty placeholder so that downstream
-        # routines can operate without KeyError
-        if "function" not in gdf.columns:
-            gdf = gdf.copy()
-            gdf["function"] = ""
-
-        # build list of (function,vote) pairs and colour map
-        funcs = sorted(gdf["function"].dropna().unique().tolist())
-        f_cmaps = _function_colormap(funcs)
-        pairs = gdf[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
-        pairs.sort()
-        total_series = len(pairs)
-
-        if eta_values.size > 1:
-            min_gap = float(np.min(np.diff(eta_values)))
+    for group_meta, base_gdf in _iter_groups(result_df, grouping_cols):
+        
+        poly_df = base_gdf[base_gdf["function"] == "polynomial"]
+        if poly_df.empty:
+            poly_ctrl_vals = [None]
         else:
-            min_gap = 0.1
-        cluster_w = min_gap * 0.7
-        box_w = cluster_w / max(1, total_series)
+            poly_ctrl_vals = sorted(poly_df["control_par"].dropna().unique().tolist())
 
-        # compute colours for each combination
-        pair_colors = {}
-        for f in funcs:
-            votes_for_f = sorted(gdf[gdf["function"] == f]["vote_msg"].dropna().unique().tolist())
-            cmap = f_cmaps[f]
-            shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
-            for idx, v in enumerate(votes_for_f):
-                pair_colors[(f, v)] = cmap(shades[idx])
+        for ctrl_val in poly_ctrl_vals:
+            if ctrl_val is not None:
+                mask_poly = (base_gdf["function"] == "polynomial") & (np.isclose(base_gdf["control_par"].astype(float), float(ctrl_val)))
+                mask_static = (base_gdf["function"] == "static") & (np.isclose(base_gdf["control_par"].astype(float), 0.8))
+                
+                gdf = base_gdf[mask_poly | mask_static].copy()
+                curr_meta = {**group_meta, "control_par": ctrl_val}
+            else:
+                gdf = base_gdf.copy()
+                curr_meta = dict(group_meta)
 
-        fig, ax = plt.subplots(figsize=(11, 6))
-        has_boxes = False
-
-        for j, (f, v) in enumerate(pairs):
-            series_data = []
-            positions = []
-            for eta in eta_values:
-                subset = gdf[
-                    np.isclose(gdf["eta"].astype(float), eta)
-                    & (gdf["vote_msg"] == v)
-                    & (gdf["function"] == f)
-                ]
-                merged = []
-                for cell in subset["data"].tolist():
-                    merged.extend(m_array_from_cell(cell).tolist())
-                if not merged:
-                    continue
-                series_data.append(merged)
-                positions.append(float(eta - (cluster_w / 2.0) + (j + 0.5) * box_w))
-
-            if not series_data:
+            if gdf.empty:
                 continue
 
-            bp = ax.boxplot(
-                series_data,
-                positions=positions,
-                widths=box_w * 0.9,
-                patch_artist=True,
-                manage_ticks=False,
-                showfliers=False,
-            )
-            for patch in bp["boxes"]:
-                patch.set_facecolor(pair_colors.get((f, v), "gray"))
-                patch.set_alpha(0.55)
-            for median in bp["medians"]:
-                median.set_color("black")
-                median.set_linewidth(1.3)
-            has_boxes = True
+            eta_values = np.array(sorted(gdf["eta"].dropna().unique().tolist()), dtype=float)
+            if eta_values.size == 0:
+                continue
 
-        if not has_boxes:
+            if "function" not in gdf.columns:
+                gdf["function"] = ""
+
+            funcs = sorted(gdf["function"].dropna().unique().tolist())
+            pairs = gdf[["function", "vote_msg"]].drop_duplicates().apply(tuple, axis=1).tolist()
+            pairs.sort()
+            total_series = len(pairs)
+
+            if eta_values.size > 1:
+                min_gap = float(np.min(np.diff(eta_values)))
+            else:
+                min_gap = 0.1
+            cluster_w = min_gap * 0.7
+            box_w = cluster_w / max(1, total_series)
+
+            pair_colors = {}
+            for f in funcs:
+                votes_for_f = sorted(gdf[gdf["function"] == f]["vote_msg"].dropna().unique().tolist())
+                cmap = function_cmaps.get(f, plt.get_cmap("Greys"))
+                shades = np.linspace(0.45, 0.9, max(1, len(votes_for_f)))
+                for idx, v in enumerate(votes_for_f):
+                    pair_colors[(f, v)] = cmap(shades[idx])
+
+            fig, ax = plt.subplots(figsize=(11, 6))
+            has_boxes = False
+
+            for j, (f, v) in enumerate(pairs):
+                series_data = []
+                positions = []
+                for eta in eta_values:
+                    subset = gdf[
+                        np.isclose(gdf["eta"].astype(float), eta)
+                        & (gdf["vote_msg"] == v)
+                        & (gdf["function"] == f)
+                    ]
+                    merged = []
+                    for cell in subset["data"].tolist():
+                        merged.extend(m_array_from_cell(cell).tolist())
+                    if not merged:
+                        continue
+                    series_data.append(merged)
+                    positions.append(float(eta - (cluster_w / 2.0) + (j + 0.5) * box_w))
+
+                if not series_data:
+                    continue
+
+                bp = ax.boxplot(
+                    series_data,
+                    positions=positions,
+                    widths=box_w * 0.9,
+                    patch_artist=True,
+                    manage_ticks=False,
+                    showfliers=False,
+                )
+                for patch in bp["boxes"]:
+                    patch.set_facecolor(pair_colors.get((f, v), "gray"))
+                    patch.set_alpha(0.55)
+                for median in bp["medians"]:
+                    median.set_color("black")
+                    median.set_linewidth(1.3)
+                has_boxes = True
+
+            if not has_boxes:
+                plt.close(fig)
+                continue
+
+            ax.set_xticks(eta_values)
+            ax.set_xticklabels([str(e) for e in eta_values])
+            ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
+            ax.set_xlabel(r"$\eta$")
+            ax.set_ylabel("exit time (ticks)")
+            
+            title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8)" if ctrl_val is not None else ""
+            ax.set_title(f"Exit Time by eta{title_suffix}")
+            ax.set_ylim(1,10000)
+            ax.set_yscale("log")
+            ax.grid(axis="y", alpha=0.25)
+
+            legend_items = [
+                Line2D([0], [0], color=pair_colors[p], lw=0, marker='o', markersize=8, label=f"{p[0]} m:{p[1]}")
+                for p in pair_colors
+            ]
+            if legend_items:
+                ax.legend(handles=legend_items, frameon=False, loc="best")
+
+            file_name = f"time_{_safe_filename_from_params(curr_meta)}.png"
+            fig.tight_layout()
+            fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
             plt.close(fig)
-            continue
-
-        ax.set_xticks(eta_values)
-        ax.set_xticklabels([str(e) for e in eta_values])
-        ax.set_xlim(eta_values.min() - cluster_w * 0.6, eta_values.max() + cluster_w * 0.6)
-        ax.set_xlabel(r"$\eta$")
-        ax.set_ylabel("exit time (ticks)")
-        ax.set_title("Exit Time by eta")
-        ax.set_ylim(0,10000)
-        ax.grid(axis="y", alpha=0.25)
-
-        legend_items = [
-            Line2D([0], [0], color=pair_colors[p], lw=0, marker='o', markersize=8, label=f"{p[0]} m:{p[1]}")
-            for p in pair_colors
-        ]
-        if legend_items:
-            ax.legend(handles=legend_items, frameon=False, loc="best")
-
-        file_name = f"time_{_safe_filename_from_params(dict(group_meta))}.png"
-        fig.tight_layout()
-        fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
-        plt.close(fig)
-        image_count += 1
+            image_count += 1
 
     return image_count
 
