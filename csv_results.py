@@ -489,7 +489,7 @@ class Data:
         return data
     
 ###################################################
-    def plot_recovery(self, data_in, side_by_side: bool = False):
+    def plot_recovery(self, data_in, side_by_side: bool = True):
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -567,8 +567,6 @@ class Data:
                 axes = np.array([axes])
             elif ncols == 1:
                 axes = np.array([[ax] for ax in axes])
-            median_legend = Line2D([], [], color='orange', linewidth=8, label='Median')
-            mean_legend = Line2D([], [], color='red', linewidth=8, label='Average')
             row_maxs = []
             for (arena_r, ag_r) in grid:
                 max_val = None
@@ -644,9 +642,6 @@ class Data:
                                 )
                                 bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
                                 bp['boxes'][0].set_hatch('//')
-                                mean_val = np.mean(d_le)
-                                ax.plot([pos[k] - 0.33, pos[k] - 0.07],
-                                        [mean_val, mean_val], color='red', linewidth=2)
                             if len(d_gt) > 0:
                                 bp = ax.boxplot(
                                     d_gt,
@@ -656,10 +651,6 @@ class Data:
                                     medianprops=dict(color='orange', linewidth=2)
                                 )
                                 bp['boxes'][0].set_facecolor(label_color_map.get(lbl, 'black'))
-                                bp['boxes'][0].set_hatch('xx')
-                                mean_val = np.mean(d_gt)
-                                ax.plot([pos[k] + 0.07, pos[k] + 0.33],
-                                        [mean_val, mean_val], color='red', linewidth=2)
                         ax.set_xticks(pos)
                         ax.set_xticklabels(plot_labels_row)
                     else:
@@ -680,10 +671,6 @@ class Data:
                             )
                             for patch, lbl in zip(bp['boxes'], lbls):
                                 patch.set_facecolor(label_color_map.get(lbl, 'black'))
-                            for k, d in enumerate(data):
-                                mean_val = np.mean(d)
-                                ax.plot([k + 1 - 0.13, k + 1 + 0.13],
-                                        [mean_val, mean_val], color='red', linewidth=2)
                         if i == 0:
                             ax.set_title(col_labels[j])
                     ymin_plot, top_plot = row_limits[i]
@@ -720,18 +707,14 @@ class Data:
             if side_by_side:
                 legend_handles = [
                     Patch(facecolor='gray', hatch='//', label=r'$|GT - \tau| \leq 0.05$'),
-                    Patch(facecolor='gray', hatch='xx', label=r'$|GT - \tau| > 0.05$'),
-                    median_legend,
-                    mean_legend
+                    Patch(facecolor='gray', label=r'$|GT - \tau| > 0.05$')
                 ]
-            else:
-                legend_handles = [median_legend, mean_legend]
-            fig.legend(
-                handles=legend_handles,
-                loc='lower right',
-                ncol=len(legend_handles),
-                frameon=True
-            )
+                fig.legend(
+                    handles=legend_handles,
+                    loc='lower right',
+                    ncol=len(legend_handles),
+                    frameon=True
+                )
             fig.tight_layout(rect=[0, 0.03, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_{suffix}.pdf"),bbox_inches='tight')
             plt.close(fig)
@@ -863,7 +846,7 @@ class Data:
         #     plt.close(fig)
 
 ###################################################
-    def plot_recovery_short(self, data_in, side_by_side: bool = True):
+    def plot_recovery_short(self, data_in, side_by_side: bool = False):
         images_dir = os.path.join(self.base, "compressed", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -1032,9 +1015,6 @@ class Data:
                                     )
                                     bp['boxes'][0].set_facecolor(color)
                                     bp['boxes'][0].set_hatch('//')
-                                    mean_val = np.mean(d_le)
-                                    ax.plot([tm_positions[k] - err_offset - box_width / 2, tm_positions[k] - err_offset + box_width / 2],
-                                            [mean_val, mean_val], color='red', linewidth=2)
                                 if len(d_gt) > 0:
                                     bp = ax.boxplot(
                                         d_gt,
@@ -1044,10 +1024,6 @@ class Data:
                                         medianprops=dict(color='orange', linewidth=2)
                                     )
                                     bp['boxes'][0].set_facecolor(color)
-                                    bp['boxes'][0].set_hatch('xx')
-                                    mean_val = np.mean(d_gt)
-                                    ax.plot([tm_positions[k] + err_offset - box_width / 2, tm_positions[k] + err_offset + box_width / 2],
-                                            [mean_val, mean_val], color='red', linewidth=2)
                             else:
                                 d = cell[(cell['Label'] == lbl) & (cell['Msgs_exp_time'] == tm)][entry].values
                                 if len(d) == 0:
@@ -1060,10 +1036,6 @@ class Data:
                                     medianprops=dict(color='orange', linewidth=2)
                                 )
                                 bp['boxes'][0].set_facecolor(color)
-                                mean_val = np.mean(d)
-                                ax.plot([tm_positions[k] - box_width / 2, tm_positions[k] + box_width / 2],
-                                        [mean_val, mean_val], color='red', linewidth=2)
-
                     ax.set_xticks(base_positions)
                     ax.set_xticklabels(labels if row_idx == 1 else ['' for _ in labels])
                     if row_idx == 0:
@@ -1083,7 +1055,6 @@ class Data:
                     if col_idx > 0:
                         ax.set_yticklabels([])
                     ax.grid(True, ls=':')
-
             class HandlerGradient(HandlerBase):
                 def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
                     n_steps = 5
@@ -1097,19 +1068,15 @@ class Data:
                         artists.append(r)
                     return artists
 
-            median_legend = Line2D([], [], color='orange', linewidth=6, label='Median')
-            mean_legend = Line2D([], [], color='red', linewidth=6, label='Average')
             grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
             if side_by_side_mode:
                 legend_handles = [
                     Patch(facecolor='gray', hatch='//', label=r'$|GT - \tau| \leq 0.05$'),
-                    Patch(facecolor='gray', hatch='xx', label=r'$|GT - \tau| > 0.05$'),
-                    median_legend,
-                    mean_legend,
+                    Patch(facecolor='gray', label=r'$|GT - \tau| > 0.05$'),
                     grad_rect
                 ]
             else:
-                legend_handles = [median_legend, mean_legend, grad_rect]
+                legend_handles = [grad_rect]
             fig.legend(
                 handles=legend_handles,
                 handler_map={grad_rect: HandlerGradient()},
