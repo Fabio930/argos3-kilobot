@@ -8,22 +8,29 @@ def main():
     parser = argparse.ArgumentParser(description="Plot results with optional protocol/Tm exclusions.")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude (e.g. P.0,O.2.0)")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude (e.g. 60,120)")
+    parser.add_argument("--insert", default="", help="Comma-separated Tm values to insert in inset panel (e.g. 600)")
     parser.add_argument("--short", default="", help="Use 's' command")
     args = parser.parse_args()
+    
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
+    insert_tm = [s.strip() for s in args.insert.split(",") if s.strip()]
     short = [s.strip() for s in args.short.split(",") if s.strip()]
     use_short = "s" in short
 
     csv_res = CSVres.Data()
     if use_short:
         csv_res._assign_config("short_plot_config.json")
-    if exclude_protocols or exclude_tm:
+        
+    # Aggiornata la condizione e la chiamata a funzione
+    if exclude_protocols or exclude_tm or insert_tm:
         csv_res.apply_plot_overrides(
             ["active", "messages", "decisions"],
             exclude_protocols=exclude_protocols or None,
             exclude_tm=exclude_tm or None,
+            insert=insert_tm or None,
         )
+        
     if use_short:
         tot_st          = []
         tot_times       = []

@@ -9,8 +9,8 @@
     {"id": "O.1.0", "label": "$ID+R_{\\infty}$", "color": "viridis:4"}
   ],
   "plots": {
-    "exclude_protocols": ["P.1.1","O.0.0","O.2.0","O.1.1","O.1.0"],
-    "exclude_tm": [120,180,300,600],
-    "insert": [600]
+    "exclude_protocols": ["P.1.1"],
+    "exclude_tm": [60,120,300,600],
+    "insert": [60]
   }
 }
