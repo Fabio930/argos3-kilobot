@@ -1,9 +1,10 @@
 import numpy as np
-import os, csv, logging, json, re
+import os, csv, logging, json, re, colorsys
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.lines as mlines
+from matplotlib.ticker import MultipleLocator
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 class Data:
@@ -160,7 +161,6 @@ class Data:
 
 ##########################################################################################################
     def _get_diff_folder_cfg(self, dict_key):
-        """Robust match on root_name or label"""
         for folder_cfg in self.bases_diff:
             if folder_cfg.get("root_name") == dict_key or folder_cfg.get("label") == dict_key:
                 return folder_cfg
@@ -169,28 +169,356 @@ class Data:
 ##########################################################################################################
     def _protocol_enabled_diff(self, protocol_key, root_name, diff_protocols_by_key=None):
         folder_cfg = self._get_diff_folder_cfg(root_name)
-        
-        # 1. Evaluate explicit folder exclusions first
         if folder_cfg and "exclude_protocols" in folder_cfg:
             exclude = folder_cfg.get("exclude_protocols", [])
             if diff_protocols_by_key is None:
                 diff_protocols_by_key = self.protocols_by_key
-            
             protocol = diff_protocols_by_key.get(protocol_key)
             if any(self._protocol_matches(protocol, sel) for sel in exclude):
                 return False
             return True
-            
-        # 2. Fallback to generic plot_config.json logic
         return self._protocol_enabled(protocol_key)
     
+##########################################################################################################
+    def find_emptiest_inset_position(self, ax, width=0.35, height=0.35, margin=0.03):
+        candidates = {
+            "top_left": [margin, 1.0 - height - margin, width, height],
+            "top_right": [1.0 - width - margin, 1.0 - height - margin, width, height],
+            "bottom_left": [margin, margin, width, height],
+            "bottom_right": [1.0 - width - margin, margin, width, height]
+        }
+        counts = {key: 0 for key in candidates}
+        points_axes = []
+        try:
+            ax.figure.canvas.draw_idle()
+        except Exception:
+            pass
+
+        for line in ax.lines:
+            xdata = line.get_xdata()
+            ydata = line.get_ydata()
+            valid = ~(np.isnan(xdata) | np.isnan(ydata))
+            if np.any(valid):
+                xy = np.column_stack((xdata[valid], ydata[valid]))
+                try:
+                    disp_xy = line.get_transform().transform(xy)
+                    ax_xy = ax.transAxes.inverted().transform(disp_xy)
+                    ls = line.get_linestyle()
+                    if ls not in ['None', 'none', '', ' ', False, None]:
+                        interpolated_points = []
+                        for i in range(len(ax_xy) - 1):
+                            p1, p2 = ax_xy[i], ax_xy[i+1]
+                            num_pts = max(2, int(np.linalg.norm(p2 - p1) * 30))
+                            x_interp = np.linspace(p1[0], p2[0], num_pts)
+                            y_interp = np.linspace(p1[1], p2[1], num_pts)
+                            interpolated_points.append(np.column_stack((x_interp, y_interp)))
+                        if interpolated_points:
+                            points_axes.append(np.vstack(interpolated_points))
+                        else:
+                            points_axes.append(ax_xy)
+                    else:
+                        points_axes.append(ax_xy)
+                except Exception:
+                    pass
+
+        for patch in ax.patches:
+            try:
+                verts = patch.get_path().vertices
+                disp_verts = patch.get_transform().transform(verts)
+                ax_verts = ax.transAxes.inverted().transform(disp_verts)
+                xmin, ymin = np.min(ax_verts, axis=0)
+                xmax, ymax = np.max(ax_verts, axis=0)
+                xx, yy = np.meshgrid(np.linspace(xmin, xmax, 10), np.linspace(ymin, ymax, 10))
+                grid_points = np.column_stack((xx.ravel(), yy.ravel()))
+                points_axes.append(grid_points)
+            except Exception:
+                pass
+
+        for collection in ax.collections:
+            try:
+                offsets = collection.get_offsets()
+                if len(offsets) > 0:
+                    disp_offsets = collection.get_transform().transform(offsets)
+                    ax_offsets = ax.transAxes.inverted().transform(disp_offsets)
+                    points_axes.append(ax_offsets)
+            except Exception:
+                pass
+
+        if not points_axes:
+            return candidates["top_left"]
+            
+        all_points_axes = np.vstack(points_axes)
+        x_ax, y_ax = all_points_axes[:, 0], all_points_axes[:, 1]
+        
+        for key, box in candidates.items():
+            x0, y0, w, h = box
+            in_box = (x_ax >= x0) & (x_ax <= x0 + w) & (y_ax >= y0) & (y_ax <= y0 + h)
+            counts[key] += np.sum(in_box)
+            
+        best_position_key = min(counts, key=counts.get)
+        return candidates[best_position_key]
+
+##########################################################################################################
+    def _extract_short_data(self, tot_st, tot_msgs):
+        msgs_dict = {}
+        st_dict = {}
+        
+        for k, res in tot_msgs.items():
+            if k[3] == "0.68;0.92":
+                p_key = self._identify_protocol_key_msgs(k)
+                if p_key:
+                    arena = k[0]
+                    agents = k[6]
+                    tm = k[7]
+                    msgs_dict[(p_key, arena, str(agents), str(tm))] = res
+                    
+        for states in tot_st:
+            for k, res in states.items():
+                p_key = self._identify_protocol_key(k)
+                if p_key:
+                    arena = k[1]
+                    thr = k[4]
+                    gt = k[5]
+                    agents = k[7]
+                    tm = k[9]
+                    s_key = (p_key, arena, str(agents), str(tm), gt, thr)
+                    if s_key not in st_dict:
+                        st_dict[s_key] = []
+                    st_dict[s_key].append(res[0])
+                    
+        for s_key, lst in st_dict.items():
+            min_len = min(len(x) for x in lst)
+            arr = np.array([x[:min_len] for x in lst])
+            st_dict[s_key] = np.mean(arr, axis=0).tolist()
+            
+        return msgs_dict, st_dict
+
+##########################################################################################################
+    def plot_short(self, tot_st, tot_msgs):
+        if not os.path.exists(self.base + "/compressed_data/images/"):
+            os.makedirs(self.base + "/compressed_data/images/", exist_ok=True)
+        path = self.base + "/compressed_data/images/"
+        
+        msgs_dict, st_dict = self._extract_short_data(tot_st, tot_msgs)
+        
+        plot_cfg = self.plot_config.get("plots", {})
+        raw_columns = plot_cfg.get("columns", [60, 120, 180, 300, 600])
+        main_tm_list = self._plot_columns(raw_columns)
+        
+        insert_raw = plot_cfg.get("insert", [])
+        insert_tm_list = []
+        for v in insert_raw:
+            try: insert_tm_list.append(int(v))
+            except ValueError: pass
+            
+        use_gradient = len(main_tm_list) > 1 and not insert_tm_list
+        combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
+        if not combined_tm:
+            return
+            
+        if use_gradient:
+            tm_norm = colors.LogNorm(vmin=min(combined_tm), vmax=max(combined_tm))
+        else:
+            tm_norm = None
+            
+        typo = [0, 1, 2, 3, 4, 5]
+        cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        
+        def tm_color(base_color, current_tm, p_key):
+            if p_key == "AN":
+                return colors.to_rgb(base_color)
+            rgb_base = colors.to_rgb(base_color)
+            if not use_gradient:
+                return np.clip(rgb_base, 0, 1)
+            h, l, s = colorsys.rgb_to_hls(*rgb_base)
+            norm_val = tm_norm(current_tm)
+            if current_tm <= 0:
+                norm_val = tm_norm(max(combined_tm))
+            if np.ma.is_masked(norm_val):
+                norm_val = 0.0
+            if current_tm == max(combined_tm):
+                new_l, new_s = l, s
+            else:
+                diff = (1.0 - float(norm_val))
+                new_l = max(l, min(0.85, l + (diff * 0.4)))
+                new_s = s * (1.0 - (diff * 0.3))
+            raw_rgb = colorsys.hls_to_rgb(h, new_l, new_s)
+            return np.clip(raw_rgb, 0, 1)
+
+        threshlds = sorted(list(set(k[5] for k in st_dict.keys())))
+        gt_list = sorted(list(set(k[4] for k in st_dict.keys())))
+        
+        gt_068_092 = next((g for g in gt_list if "0.68" in g and "0.92" in g and g.startswith("0.68")), gt_list[0] if len(gt_list) > 0 else None)
+        gt_092_068 = next((g for g in gt_list if "0.92" in g and "0.68" in g and g.startswith("0.92")), gt_list[-1] if len(gt_list) > 1 else None)
+        
+        cols_config = [
+            {"label": "LD25", "msg_arena": "big", "st_arena": "bigA", "agents": "25"},
+            {"label": "HD25", "msg_arena": "small", "st_arena": "smallA", "agents": "25"},
+            {"label": "HD100", "msg_arena": "big", "st_arena": "bigA", "agents": "100"}
+        ]
+        
+        for thr in threshlds:
+            fig, ax = plt.subplots(3, 3, figsize=(24, 18), constrained_layout=True, squeeze=False)
+            inset_axes_dict = {}
+            
+            for col_idx, col_cfg in enumerate(cols_config):
+                ax[0][col_idx].set_title(col_cfg["label"])
+                min_buf_drawn = False
+                
+                # --- MESSAGES LOGIC ---
+                for p in self.protocols:
+                    p_key = p.get("key")
+                    if not self._protocol_enabled(p_key): continue
+                    base_color = self._protocol_color(p, scalarMap)
+                    
+                    is_p0 = (p_key == "AN")
+                    tms_to_iterate = ["60"] if is_p0 else combined_tm
+                    
+                    for tm in tms_to_iterate:
+                        if is_p0:
+                            is_main = True
+                            is_insert = bool(insert_tm_list)
+                        else:
+                            is_main = tm in main_tm_list
+                            is_insert = tm in insert_tm_list
+                            if not (is_main or is_insert): continue
+                        
+                        m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], str(tm)))
+                        if not m_data and is_p0:
+                            m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "60"))
+                            if not m_data:
+                                m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "0"))
+                            
+                        if m_data:
+                            c = tm_color(base_color, tm, p_key)
+                            y_data = np.array(m_data) / (int(col_cfg["agents"]) - 1)
+                            targets = []
+                            
+                            if is_main:
+                                targets.append(ax[0][col_idx])
+                                if not min_buf_drawn:
+                                    ax[0][col_idx].plot([5 / (int(col_cfg["agents"]) - 1)] * 1200, color="black", ls='--', lw=3)
+                                    min_buf_drawn = True
+                            
+                            if is_insert:
+                                if (0, col_idx) not in inset_axes_dict:
+                                    # ROW 0: FORCED TOP-RIGHT
+                                    best_box = [0.62, 0.62, 0.35, 0.35]
+                                    ins_ax = ax[0][col_idx].inset_axes(best_box)
+                                    ins_ax.set_xlim(0, 1201)
+                                    ins_ax.set_ylim(-0.03, 1.03)
+                                    ins_ax.set_xticks([0, 300, 600, 900, 1200])
+                                    ins_ax.tick_params(labelbottom=False, labelleft=False)
+                                    ins_ax.grid(True, ls=':', color='silver')
+                                    ins_ax.plot([5 / (int(col_cfg["agents"]) - 1)] * 1200, color="black", ls='--', lw=2)
+                                    inset_axes_dict[(0, col_idx)] = ins_ax
+                                targets.append(inset_axes_dict[(0, col_idx)])
+                                
+                            for t_ax in targets:
+                                t_ax.plot(y_data, color=c, lw=4, alpha=0.9)
+                
+                # --- STATE LOGIC ---
+                for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=1):
+                    if not gt_val: continue
+                    for p in self.protocols:
+                        p_key = p.get("key")
+                        if not self._protocol_enabled(p_key): continue
+                        base_color = self._protocol_color(p, scalarMap)
+                        
+                        is_p0 = (p_key == "AN")
+                        tms_to_iterate = ["60"] if is_p0 else combined_tm
+                        
+                        for tm in tms_to_iterate:
+                            if is_p0:
+                                is_main = True
+                                is_insert = bool(insert_tm_list)
+                            else:
+                                is_main = tm in main_tm_list
+                                is_insert = tm in insert_tm_list
+                                if not (is_main or is_insert): continue
+                            
+                            s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], str(tm), gt_val, thr))
+                            if not s_data and is_p0:
+                                s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "60", gt_val, thr))
+                                if not s_data:
+                                    s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "0", gt_val, thr))
+                                
+                            if s_data is not None:
+                                c = tm_color(base_color, tm, p_key)
+                                targets = []
+                                if is_main:
+                                    targets.append(ax[row_idx][col_idx])
+                                if is_insert:
+                                    if (row_idx, col_idx) not in inset_axes_dict:
+                                        # ROW 2: FORCED TOP-RIGHT, ROW 1: DYNAMIC
+                                        if row_idx == 2:
+                                            best_box = [0.62, 0.62, 0.35, 0.35]
+                                        else:
+                                            best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx])
+                                        ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
+                                        ins_ax.set_xlim(0, 1201)
+                                        ins_ax.set_ylim(-0.03, 1.03)
+                                        ins_ax.set_xticks([0, 300, 600, 900, 1200])
+                                        ins_ax.tick_params(labelbottom=False, labelleft=False)
+                                        ins_ax.grid(True, ls=':', color='silver')
+                                        inset_axes_dict[(row_idx, col_idx)] = ins_ax
+                                    targets.append(inset_axes_dict[(row_idx, col_idx)])
+                                
+                                for t_ax in targets:
+                                    t_ax.plot(s_data, color=c, lw=4, alpha=0.9)
+                                    
+            for i in range(3):
+                for j in range(3):
+                    ax[i][j].grid(True)
+                    ax[i][j].set_xlim(0, 1201)
+                    ax[i][j].set_ylim(-0.03, 1.03)
+                    ax[i][j].set_xticks([0, 300, 600, 900, 1200])
+                    if i < 2:
+                        ax[i][j].set_xticklabels([])
+                    else:
+                        ax[i][j].set_xlabel(r"$T\, (s)$")
+                    if j > 0:
+                        ax[i][j].set_yticklabels([])
+            
+            ax[0][0].set_ylabel(r"$M$")
+            ax[1][0].set_ylabel(r"$Q(G,\tau)$")
+            ax[2][0].set_ylabel(r"$Q(G,\tau)$")
+            
+            ax_right1 = ax[1][2].twinx()
+            ax_right1.set_yticks([])
+            lab1 = str(gt_068_092).replace('_','.').replace(';', r' \rightarrow ')
+            ax_right1.set_ylabel(r"$G: " + lab1 + r"$", rotation=270, labelpad=30)
+            
+            ax_right2 = ax[2][2].twinx()
+            ax_right2.set_yticks([])
+            lab2 = str(gt_092_068).replace('_','.').replace(';', r' \rightarrow ')
+            ax_right2.set_ylabel(r"$G: " + lab2 + r"$", rotation=270, labelpad=30)
+            
+            handles_r = []
+            if main_tm_list:
+                main_str = ", ".join(map(str, main_tm_list))
+                handles_r.append(mlines.Line2D([], [], marker='', linestyle='', label="Main: $T_m=" + main_str + "$"))
+            
+            if insert_tm_list:
+                handles_r.append(mlines.Line2D([], [], marker='', linestyle='', label="Inset: $T_m=" + str(insert_tm_list[0]) + "$"))
+
+            for p in self.protocols:
+                p_key = p.get("key")
+                if self._protocol_enabled(p_key) and p.get("legend", True):
+                    color = self._protocol_color(p, scalarMap)
+                    handles_r.append(mlines.Line2D([], [], color=color, marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", p_key)))
+                    
+            fig.legend(handles=handles_r, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24, ncol=4)
+            fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
+            plt.close(fig)
+
 ##########################################################################################################
     def plot_messages_diff(self, dict_msgs):
         if not os.path.exists(self.base + "/msgs_data/images/"):
             os.makedirs(self.base + "/msgs_data/images/", exist_ok=True)
         path = self.base + "/msgs_data/images/"
 
-        # Dynamically inject the diff protocol configs to prioritize them over the global plot_config.json
         diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
 
@@ -204,7 +532,7 @@ class Data:
             for dct in list_of_dicts:
                 for k in dct.keys():
                     if k[3] == "0.68;0.92":
-                        try: all_cols.add(int(k[-1])) # Tm
+                        try: all_cols.add(int(k[-1]))
                         except: continue
         
         columns = self._plot_columns(sorted(list(all_cols)))
@@ -219,11 +547,8 @@ class Data:
             else:
                 void_x_ticks.append('')
 
-        fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), 
-                               squeeze=False, layout="constrained")
-        
+        fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), squeeze=False, layout="constrained")
         min_buf_line = np.zeros((3, ncols), int)
-        
         used_protocols = set()
         used_roots = {}
 
@@ -282,17 +607,13 @@ class Data:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
                 lbl = p.get("label", pk)
-                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk),
-                                 marker='_', linestyle='None', markeredgewidth=18, markersize=18,
-                                 label=lbl))
+                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
         
         for r_name, (r_label, r_style) in used_roots.items():
-            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style,
-                             lw=2, label=r_label))
+            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
         if handles_r:
-            fig.legend(handles=handles_r, ncols=min(len(handles_r), 6), loc='upper center', 
-                       bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, ncols=min(len(handles_r), 6), loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
 
         fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
@@ -364,16 +685,24 @@ class Data:
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         return cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis')), typo
 
+##########################################################################################################
+    # FIX: Corretto l'ordine per interpretare perfettamente i dati "O" dai messaggi
     def _identify_protocol_key_msgs(self, k):
-        algo, hops, real_an = k[1], str(k[6]), str(k[7])
+        algo = k[1]
         if algo == 'P':
+            real_an = str(k[7])
             return "AN" if real_an == "0" else "AN_t"
         if algo == 'O':
-            if hops == "0": return "ID+B"
-            if hops == "2": return "ID+R_f"
-            if hops == "1": return "ID+R_1"
-            if hops == "31": return "ID+R_a"
-            return "ID+R_inf"
+            try:
+                val_proto = int(k[4])
+                if val_proto == 0: return "ID+B"
+                if val_proto == 2: return "ID+R_f"
+                hops = str(k[5])
+                if hops == "0": return "ID+R_inf"
+                if hops == "31": return "ID+R_a"
+                return "ID+R_1"
+            except Exception:
+                return None
         return None
     
     def _apply_plot_style(self, ax, ncols, columns, is_messages=False):
@@ -417,8 +746,7 @@ class Data:
 
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), 
-                                       squeeze=False, layout="constrained")
+                fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), squeeze=False, layout="constrained")
                 
                 used_protocol_keys = set()
                 used_roots = {}
@@ -459,20 +787,14 @@ class Data:
                 for p in diff_protocols:
                     pk = p.get("key")
                     if pk in used_protocol_keys and p.get("legend", True):
-                        handles_r.append(mlines.Line2D([], [], 
-                                         color=self._protocol_color(p, scalarMap),
-                                         marker='_', linestyle='None', 
-                                         markeredgewidth=18, markersize=18,
-                                         label=p.get("label", pk)))
+                        handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
                 
                 for r_name, (r_label, r_style) in used_roots.items():
-                    handles_r.append(mlines.Line2D([], [], color='black', 
-                                     linestyle=r_style, lw=2, label=r_label))
+                    handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
                 if handles_r:
                     leg_cols = min(len(handles_r), max(4, ncols))
-                    fig.legend(handles=handles_r, ncols=leg_cols, loc='upper center', 
-                               bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, ncols=leg_cols, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -637,7 +959,6 @@ class Data:
         o_k                                                                                 = []
 
         def add_or_merge(dct, key, series):
-            """store a new time series or average with an existing one"""
             if key in dct:
                 old = dct[key]
                 if len(old) == len(series):
@@ -722,10 +1043,8 @@ class Data:
 
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), 
-                                       squeeze=False, layout="constrained")
-                
-                used_protocols = set() # Tracciamento locale per questo specifico plot
+                fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), squeeze=False, layout="constrained")
+                used_protocols = set()
 
                 for a in arena:
                     agents = more_k[1]
@@ -735,7 +1054,6 @@ class Data:
                             col = col_index[col_val]
                             key = (a, ag, str(col_val), gt, thr)
                             
-                            # Mapping tra condizione e protocol_key per il ciclo
                             mapping = [
                                 ("AN", dict_park_real), ("AN_t", dict_park), ("ID+B", dict_adam),
                                 ("ID+R_f", dict_fifo), ("ID+R_1", dict_rnd), 
@@ -749,18 +1067,14 @@ class Data:
 
                 self._apply_plot_style(ax, ncols, columns, is_messages=False)
 
-                # Costruzione handles solo per i protocolli usati
                 handles_r = []
                 for p in self.protocols:
                     pk = p.get("key")
                     if pk in used_protocols and p.get("legend", True):
-                        handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk),
-                                         marker='_', linestyle='None', markeredgewidth=18, 
-                                         markersize=18, label=p.get("label", pk)))
+                        handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
 
                 if handles_r:
-                    fig.legend(handles=handles_r, ncols=min(len(handles_r), ncols), loc='upper center', 
-                               bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, ncols=min(len(handles_r), ncols), loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -882,17 +1196,13 @@ class Data:
         dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt, dict_park_real = data_in
         
         protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in self.protocols}
-        
-        # Set per tracciare i protocolli effettivamente disegnati
         used_protocols = set()
 
         all_cols = set()
         for dct in (dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt):
             for k in dct.keys():
-                try:
-                    all_cols.add(int(k[5]))
-                except Exception:
-                    continue
+                try: all_cols.add(int(k[5]))
+                except Exception: continue
         
         default_cols = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
         columns = self._plot_columns(default_cols)
@@ -903,33 +1213,24 @@ class Data:
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
 
-        svoid_x_ticks = []
-        void_x_ticks = []
-        real_x_ticks = []
+        svoid_x_ticks, void_x_ticks, real_x_ticks = [], [], []
         for x in range(0, 1201, 50):
             if x % 300 == 0:
-                svoid_x_ticks.append('')
-                void_x_ticks.append('')
+                svoid_x_ticks.append(''); void_x_ticks.append('')
                 real_x_ticks.append(str(int(np.round(x, 0))))
             else:
                 void_x_ticks.append('')
 
         size_per_plot = 6.0
         min_buf_line = np.zeros((3, ncols), int)
-        fig, ax = plt.subplots(
-            nrows=3, ncols=ncols, 
-            figsize=(size_per_plot * ncols, size_per_plot * 3), 
-            squeeze=False, layout="constrained"
-        )
+        fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(size_per_plot * ncols, size_per_plot * 3), squeeze=False, layout="constrained")
 
-        # Normalizzazione dati
         dicts_to_norm = [dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt]
         for dct in dicts_to_norm:
             for k in dct.keys():
                 norm = int(k[4]) - 1
                 dct[k] = [xi / norm for xi in dct[k]]
 
-        # Mapping per i cicli di plot
         plot_map = [
             ("AN", dict_park_real), ("AN_t", dict_park), ("ID+B", dict_adam),
             ("ID+R_f", dict_fifo), ("ID+R_1", dict_rnd), 
@@ -937,14 +1238,11 @@ class Data:
         ]
 
         for p_key, dct in plot_map:
-            if not self._protocol_enabled(p_key):
-                continue
+            if not self._protocol_enabled(p_key): continue
             
             for k, data in dct.items():
-                if k[5] not in col_index:
-                    continue
+                if k[5] not in col_index: continue
                 
-                # Determinazione riga
                 if k[0] == 'big' and k[4] == '25': row = 0
                 elif k[0] == 'big' and k[4] == '100': row = 2
                 elif k[0] == 'small': row = 1
@@ -957,11 +1255,9 @@ class Data:
                     ax[row][col].plot([val]*1200, color="black", lw=4, ls="--")
                     min_buf_line[row][col] = 1
                 
-                # Plot protocollo
                 ax[row][col].plot(data, color=protocol_colors.get(p_key, "red"), lw=6)
                 used_protocols.add(p_key)
 
-        # --- Stilizzazione assi ---
         for x in range(2):
             for y in range(ncols):
                 ax[x][y].set_xticks(np.arange(0, 1201, 300), labels=svoid_x_ticks)
@@ -980,7 +1276,6 @@ class Data:
             axt.set_xticklabels([''] * len(axt.get_xticklabels()))
             axt.set_xlabel(rf"$T_m = {int(col_val)}\, s$")
 
-        # Label laterali e griglia
         last_col = ncols - 1
         for r, lab in enumerate(["LD25", "HD25", "HD100"]):
             ayt = ax[r][last_col].twinx()
@@ -995,24 +1290,16 @@ class Data:
                 ax[x][y].set_xlim(0, 1201)
                 ax[x][y].set_ylim(-0.03, 1.03)
 
-        # --- Costruzione Legenda Dinamica ---
         handles_r = []
         for p in self.protocols:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
-                handles_r.append(
-                    mlines.Line2D([], [], color=protocol_colors.get(pk),
-                                  marker='_', linestyle='None', 
-                                  markeredgewidth=18, markersize=18,
-                                  label=p.get("label", pk))
-                )
+                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
 
         if handles_r:
             leg_cols = min(len(handles_r), max(2, ncols))
-            fig.legend(handles=handles_r, ncols=leg_cols, loc='upper center', 
-                       bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, ncols=leg_cols, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
 
-        # Salvataggio
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
         fig.savefig(os.path.join(dest_dir, "messages.pdf"), bbox_inches='tight')
