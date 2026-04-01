@@ -13,11 +13,6 @@
     {"key": "ID+R_a", "id": 6, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
   ],
   "plots": {
-    "activation": {
       "columns": [60, 180, 600]
-    },
-    "messages": {
-      "columns": [60, 180, 600]
-    }
   }
 }

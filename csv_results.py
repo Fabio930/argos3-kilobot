@@ -1,5 +1,5 @@
 import numpy as np
-import os, csv, logging, json
+import os, csv, logging, json, re
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
@@ -21,6 +21,13 @@ class Data:
         self.protocols = self.plot_config.get("protocols", [])
         self.protocols_by_key = {p.get("key"): p for p in self.protocols if p.get("key") is not None}
 
+    def _read_json_robust(self, path):
+        """Reads JSON safely by stripping illegal trailing commas."""
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = re.sub(r',\s*([\]}])', r'\1', content)
+        return json.loads(content)
+
     def _load_diff_bases(self):
         self.bases_diff = []
         self.diff_plot_config = {}
@@ -28,15 +35,16 @@ class Data:
         if not os.path.exists(json_path):
             return
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
+            cfg = self._read_json_robust(json_path)
             self.diff_plot_config = cfg
             for folder in cfg.get("folders", []):
                 root = folder.get("root")
                 if not root:
                     continue
+                root_name = os.path.basename(root.rstrip(os.sep))
                 root_path = os.path.abspath(os.path.join(self.base, root)) if not os.path.isabs(root) else root
                 self.bases_diff.append({
+                    "root_name": root_name,
                     "root": root_path,
                     "proc_data": os.path.join(root_path, "proc_data"),
                     "msgs_data": os.path.join(root_path, "msgs_data"),
@@ -57,19 +65,10 @@ class Data:
                 {"key": "ID+B", "id": 2, "label": r"$ID+B$", "color": "viridis:1", "legend": True},
                 {"key": "ID+R_f", "id": 3, "label": r"$ID+R_{f}$", "color": "viridis:2", "legend": True},
                 {"key": "ID+R_1", "id": 4, "label": r"$ID+R_{1}$", "color": "viridis:3", "legend": True},
-                {"key": "ID+R_inf", "id": 5, "label": r"$ID+R_{\\infty}$", "color": "viridis:4", "legend": True},
+                {"key": "ID+R_inf", "id": 5, "label": r"$ID+R_{\infty}$", "color": "viridis:4", "legend": True},
                 {"key": "ID+R_a", "id": 6, "label": r"$ID+R_{a}$", "color": "viridis:5", "legend": True},
             ],
-            "plots": {
-                "activation": {
-                    "exclude_protocols": [],
-                    "columns": [60, 120, 180, 300, 600],
-                },
-                "messages": {
-                    "exclude_protocols": [],
-                    "columns": [60, 120, 180, 300, 600],
-                },
-            },
+            "plots": { "exclude_protocols": [], "columns": [60, 120, 180, 300, 600] },
         }
 
 ##########################################################################################################
@@ -80,11 +79,7 @@ class Data:
             if "protocols" in user_cfg:
                 cfg["protocols"] = user_cfg.get("protocols") or []
             if "plots" in user_cfg and isinstance(user_cfg.get("plots"), dict):
-                for plot_name, plot_cfg in user_cfg["plots"].items():
-                    if plot_name not in cfg["plots"]:
-                        cfg["plots"][plot_name] = {}
-                    if isinstance(plot_cfg, dict):
-                        cfg["plots"][plot_name].update(plot_cfg)
+                cfg["plots"].update(user_cfg["plots"])
         return cfg
 
 ##########################################################################################################
@@ -94,16 +89,15 @@ class Data:
         if not os.path.exists(path):
             return cfg
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                user_cfg = json.load(f)
+            user_cfg = self._read_json_robust(path)
             return self._merge_plot_config(cfg, user_cfg)
         except Exception as exc:
             logging.warning("Failed to load plot_config.json (%s). Using defaults.", exc)
             return cfg
 
 ##########################################################################################################
-    def _plot_columns(self, plot_name, default_cols):
-        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+    def _plot_columns(self, default_cols):
+        plot_cfg = self.plot_config.get("plots", {})
         cols = plot_cfg.get("columns")
         if not cols:
             return list(default_cols)
@@ -143,9 +137,9 @@ class Data:
         return False
 
 ##########################################################################################################
-    def _protocol_enabled(self, plot_name, protocol_key):
+    def _protocol_enabled(self, protocol_key):
         protocol = self.protocols_by_key.get(protocol_key)
-        plot_cfg = self.plot_config.get("plots", {}).get(plot_name, {})
+        plot_cfg = self.plot_config.get("plots", {})
         exclude = plot_cfg.get("exclude_protocols") or []
         if exclude and any(self._protocol_matches(protocol, sel) for sel in exclude):
             return False
@@ -163,6 +157,32 @@ class Data:
             except Exception:
                 return "black"
         return color if color else "black"
+
+##########################################################################################################
+    def _get_diff_folder_cfg(self, dict_key):
+        """Robust match on root_name or label"""
+        for folder_cfg in self.bases_diff:
+            if folder_cfg.get("root_name") == dict_key or folder_cfg.get("label") == dict_key:
+                return folder_cfg
+        return {}
+
+##########################################################################################################
+    def _protocol_enabled_diff(self, protocol_key, root_name, diff_protocols_by_key=None):
+        folder_cfg = self._get_diff_folder_cfg(root_name)
+        
+        # 1. Evaluate explicit folder exclusions first
+        if folder_cfg and "exclude_protocols" in folder_cfg:
+            exclude = folder_cfg.get("exclude_protocols", [])
+            if diff_protocols_by_key is None:
+                diff_protocols_by_key = self.protocols_by_key
+            
+            protocol = diff_protocols_by_key.get(protocol_key)
+            if any(self._protocol_matches(protocol, sel) for sel in exclude):
+                return False
+            return True
+            
+        # 2. Fallback to generic plot_config.json logic
+        return self._protocol_enabled(protocol_key)
     
 ##########################################################################################################
     def plot_messages_diff(self, dict_msgs):
@@ -170,10 +190,14 @@ class Data:
             os.makedirs(self.base + "/msgs_data/images/", exist_ok=True)
         path = self.base + "/msgs_data/images/"
 
+        # Dynamically inject the diff protocol configs to prioritize them over the global plot_config.json
+        diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
+        diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
+
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in diff_protocols}
 
         all_cols = set()
         for list_of_dicts in dict_msgs.values():
@@ -183,7 +207,7 @@ class Data:
                         try: all_cols.add(int(k[-1])) # Tm
                         except: continue
         
-        columns = self._plot_columns("messages", sorted(list(all_cols)))
+        columns = self._plot_columns(sorted(list(all_cols)))
         col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
 
@@ -200,14 +224,14 @@ class Data:
         
         min_buf_line = np.zeros((3, ncols), int)
         
-        # --- LOGICA LEGENDA DINAMICA ---
-        used_protocols = {} # p_key -> label
-        used_roots = {}     # root_name -> (label, l_style)
+        used_protocols = set()
+        used_roots = {}
 
         for root_name, list_of_dicts in dict_msgs.items():
             folder_cfg = self._get_diff_folder_cfg(root_name)
             l_style = folder_cfg.get("line_style", "-")
-            l_label = folder_cfg.get("label", "gossip + state")
+            l_label = folder_cfg.get("label", str(root_name) if root_name else "default")
+            
             for dct in list_of_dicts:
                 for k, res in dct.items():
                     if k[3] != "0.68;0.92": continue
@@ -227,12 +251,8 @@ class Data:
                                 else: p_key = "ID+R_1"
                         except: continue
 
-                    if p_key and self._protocol_enabled_diff("messages", p_key, root_name):
-                        # Se plottiamo, salviamo le info per la legenda
-                        if p_key not in used_protocols:
-                            p_cfg = self.protocols_by_key.get(p_key, {})
-                            used_protocols[p_key] = p_cfg.get("label", p_key)
-                        
+                    if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                        used_protocols.add(p_key)
                         if root_name not in used_roots:
                             used_roots[root_name] = (l_label, l_style)
 
@@ -257,16 +277,15 @@ class Data:
 
         self._apply_messages_style(ax, ncols, columns, svoid_x_ticks, void_x_ticks, real_x_ticks)
 
-        # --- COSTRUZIONE HANDLES LEGENDA ---
         handles_r = []
+        for p in diff_protocols:
+            pk = p.get("key")
+            if pk in used_protocols and p.get("legend", True):
+                lbl = p.get("label", pk)
+                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk),
+                                 marker='_', linestyle='None', markeredgewidth=18, markersize=18,
+                                 label=lbl))
         
-        # 1. Aggiungiamo i protocolli effettivamente usati (con marker _)
-        for pk, lbl in used_protocols.items():
-            handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk),
-                             marker='_', linestyle='None', markeredgewidth=18, markersize=18,
-                             label=lbl))
-        
-        # 2. Aggiungiamo le root effettivamente usate (con linea nera e stile corretto)
         for r_name, (r_label, r_style) in used_roots.items():
             handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style,
                              lw=2, label=r_label))
@@ -302,6 +321,7 @@ class Data:
             ayt = ax[r][ncols-1].twinx()
             ayt.set_yticklabels([])
             ayt.set_ylabel(labels_side[r], labelpad=20)
+
 ##########################################################################################################
     def plot_messages(self,data):
         dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt = {},{},{},{},{},{},{}
@@ -325,17 +345,7 @@ class Data:
                             dict_rnd.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
 
         self.print_messages([dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_rnd_adpt,dict_park_real])
-##########################################################################################################
-    def _get_diff_folder_cfg(self, root_name):
-        """
-        Recupera la configurazione specifica per una determinata cartella root 
-        dal dizionario bases_diff.
-        """
-        for folder_cfg in self.bases_diff:
-            if os.path.basename(folder_cfg["root"].rstrip(os.sep)) == root_name:
-                return folder_cfg
-        return {}
-    
+
 ##########################################################################################################
     def _identify_protocol_key(self, k):
         algo, c, m_t, m_h = k[0], int(k[6]), int(k[9]), k[10]
@@ -391,26 +401,17 @@ class Data:
             ax_right = ax[row][ncols-1].twinx()
             ax_right.set_yticks([])
             ax_right.set_ylabel(labels[row], rotation=270, labelpad=40)
-##########################################################################################################
-    def _protocol_enabled_diff(self, plot_name, protocol_key, root_name):
-        if not self._protocol_enabled(plot_name, protocol_key):
-            return False
-            
-        folder_cfg = self._get_diff_folder_cfg(root_name)
-        exclude = folder_cfg.get("exclude_protocols", [])
-        protocol = self.protocols_by_key.get(protocol_key)
-        
-        if exclude and any(self._protocol_matches(protocol, sel) for sel in exclude):
-            return False
-            
-        return True
+
 ##########################################################################################################
     def print_evolutions_diff(self, path, ground_T, threshlds, dict_st, dict_times, o_k, more_k):
+        diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
+        diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
+
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         
-        columns = self._plot_columns("activation", o_k)
+        columns = self._plot_columns(o_k)
         col_index = {c: i for i, c in enumerate(columns)}
         ncols = len(columns)
 
@@ -419,14 +420,13 @@ class Data:
                 fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(6.0 * ncols, 18), 
                                        squeeze=False, layout="constrained")
                 
-                # Tracciamento dei protocolli e delle root effettivamente disegnati in questo specifico grafico
                 used_protocol_keys = set()
-                used_roots = {} # root_name -> (label, l_style)
+                used_roots = {}
 
                 for root_name, data_list in dict_st.items():
                     folder_cfg = self._get_diff_folder_cfg(root_name)
                     l_style = folder_cfg.get("line_style", "-")
-                    l_label = folder_cfg.get("label", "gossip + state")
+                    l_label = folder_cfg.get("label", str(root_name) if root_name else "default")
                     
                     for data_in in data_list:
                         for k, s_data in data_in.items():
@@ -444,34 +444,29 @@ class Data:
                             except: continue
 
                             p_key = self._identify_protocol_key(k)
-                            if p_key and self._protocol_enabled_diff("activation", p_key, root_name):
-                                color = self._protocol_color(self.protocols_by_key.get(p_key), scalarMap)
+                            if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                                p_cfg = diff_protocols_by_key.get(p_key, {})
+                                color = self._protocol_color(p_cfg, scalarMap)
                                 ax[row][col].plot(s_data[0], color=color, lw=4, linestyle=l_style)
                                 
-                                # Segnamo il protocollo e la root come "usati"
                                 used_protocol_keys.add(p_key)
                                 if root_name not in used_roots:
                                     used_roots[root_name] = (l_label, l_style)
 
                 self._apply_plot_style(ax, ncols, columns, is_messages=False)
                 
-                # --- COSTRUZIONE LEGENDA DINAMICA ---
                 handles_r = []
-                
-                # 1. Aggiungiamo solo i protocolli presenti (usando i loro colori/label originali)
-                # Manteniamo l'ordine originale definito in self.protocols
-                for p in self.protocols:
+                for p in diff_protocols:
                     pk = p.get("key")
-                    if pk in used_protocol_keys:
+                    if pk in used_protocol_keys and p.get("legend", True):
                         handles_r.append(mlines.Line2D([], [], 
                                          color=self._protocol_color(p, scalarMap),
                                          marker='_', linestyle='None', 
                                          markeredgewidth=18, markersize=18,
                                          label=p.get("label", pk)))
                 
-                # 2. Aggiungiamo le linee che rappresentano le diverse cartelle/configurazioni (root)
                 for r_name, (r_label, r_style) in used_roots.items():
-                    handles_r.append(mlines.Line2D([], [], color='gray', 
+                    handles_r.append(mlines.Line2D([], [], color='black', 
                                      linestyle=r_style, lw=2, label=r_label))
 
                 if handles_r:
@@ -481,9 +476,9 @@ class Data:
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
+
 ##########################################################################################################
     def plot_active_w_gt_thr_diff(self, dict_st, dict_times):
-        """Punto di ingresso per il plot diff dei dati di attivazione."""
         if not os.path.exists(self.base + "/proc_data/images/"):
             os.makedirs(self.base + "/proc_data/images/", exist_ok=True)
         path = self.base + "/proc_data/images/"
@@ -507,6 +502,7 @@ class Data:
         more_k = [sorted(list(arenas)), sorted(list(agents))]
 
         self.print_evolutions_diff(path, ground_T, threshlds, dict_st, dict_times, o_k, more_k)
+
 ##########################################################################################################
     def read_msgs_csv(self,path):
         data = {}
@@ -709,18 +705,16 @@ class Data:
                                                                         add_or_merge(dict_rnd_inf_state, key, s_data[0])
                                                                         add_or_merge(dict_rnd_inf_time, key, t_data[0])
         self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
-        # self.print_evolutions_anonymous(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
 
 ##########################################################################################################
     def print_evolutions(self, path, ground_T, threshlds, data_in, times_in, keys, more_k):
-        # ... (inizializzazione esistente fino a protocol_colors) ...
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adapt, dict_park_real = data_in
         
         o_k = sorted(set([int(x) for x in keys]))
-        columns = self._plot_columns("activation", o_k)
+        columns = self._plot_columns(o_k)
         col_index = {c: i for i, c in enumerate(columns)}
         ncols = len(columns)
         arena = more_k[0]
@@ -749,7 +743,7 @@ class Data:
                             ]
 
                             for p_key, d_src in mapping:
-                                if self._protocol_enabled("activation", p_key) and d_src.get(key) is not None:
+                                if self._protocol_enabled(p_key) and d_src.get(key) is not None:
                                     ax[row][col].plot(d_src.get(key), color=protocol_colors.get(p_key, "red"), lw=6)
                                     used_protocols.add(p_key)
 
@@ -901,7 +895,7 @@ class Data:
                     continue
         
         default_cols = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
-        columns = self._plot_columns("messages", default_cols)
+        columns = self._plot_columns(default_cols)
         columns = [c for c in columns if c in default_cols]
         if not columns:
             columns = default_cols
@@ -943,7 +937,7 @@ class Data:
         ]
 
         for p_key, dct in plot_map:
-            if not self._protocol_enabled("messages", p_key):
+            if not self._protocol_enabled(p_key):
                 continue
             
             for k, data in dct.items():
