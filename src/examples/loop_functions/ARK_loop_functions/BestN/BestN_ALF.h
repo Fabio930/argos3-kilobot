@@ -76,6 +76,7 @@ private:
     UInt8                   voting_msgs;
     std::string             control;
     bool                    bTargetRandomWorse;
+    Real                    m_fSpatialCorrelation;
     UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;

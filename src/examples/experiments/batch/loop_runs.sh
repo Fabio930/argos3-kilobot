@@ -34,13 +34,17 @@ variation_time="0"
 RUNS=10
 options="2 5"
 options_distrib="random"
+spatial_correlation="0"
+if [[ $options_distrib == "random" ]]; then
+    spatial_correlation="0 1 2 5"
+fi
 numrobots="100"
 comm_type_set="id_aware"
 rebroadcast="0 1"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="180"
-control="polynomial"
+control="static polynomial"
 voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
@@ -88,128 +92,135 @@ for exp_len_par in $experiment_length; do
                 if [[ ! -e $eta_stop_dir ]]; then
                     mkdir $eta_stop_dir
                 fi
-                for agents_par in $numrobots; do
-                    robots_dir=$eta_stop_dir/"Robots#"$agents_par
-                    if [[ ! -e $robots_dir ]]; then
-                        mkdir $robots_dir
+                for spatial_correlation_par in $spatial_correlation; do
+                    spatial_correlation_dir=$eta_stop_dir/"Options#"$spatial_correlation_par
+                    if [[ ! -e $spatial_correlation_dir ]]; then
+                        mkdir $spatial_correlation_dir
                     fi
-                    last_id=`expr $agents_par - 1`
-                    for comm_type in $comm_type_set; do
-                        comm_type_dir=$robots_dir/"CommType#"$comm_type
-                        if [[ ! -e $comm_type_dir ]]; then
-                            mkdir $comm_type_dir
+                    for agents_par in $numrobots; do
+                        robots_dir=$spatial_correlation_dir/"Robots#"$agents_par
+                        if [[ ! -e $robots_dir ]]; then
+                            mkdir $robots_dir
                         fi
-                        if [[ $comm_type == "anon" ]]; then
-                            id_aware_val=0
-                            priority_k_list=$priority_k_set
-                            rebroadcast_list="0"
-                        else
-                            id_aware_val=1
-                            priority_k_list="0"
-                            rebroadcast_list=$rebroadcast
-                        fi
-                        for comm_par in $rebroadcast_list; do
-                            comm_dir=$comm_type_dir/"Rebroadcast#"$comm_par
-                            if [[ ! -e $comm_dir ]]; then
-                                mkdir $comm_dir
+                        last_id=`expr $agents_par - 1`
+                        for comm_type in $comm_type_set; do
+                            comm_type_dir=$robots_dir/"CommType#"$comm_type
+                            if [[ ! -e $comm_type_dir ]]; then
+                                mkdir $comm_type_dir
                             fi
                             if [[ $comm_type == "anon" ]]; then
-                                msgs_n_hops="0"
-                            elif [[ $comm_par == "1" ]]; then
-                                msgs_n_hops="0 1"
+                                id_aware_val=0
+                                priority_k_list=$priority_k_set
+                                rebroadcast_list="0"
                             else
-                                msgs_n_hops="0"
+                                id_aware_val=1
+                                priority_k_list="0"
+                                rebroadcast_list=$rebroadcast
                             fi
-                            for adaptive_par in $adaptive_set; do
-                                if [[ $comm_type == "anon" && $adaptive_par != "0" ]]; then
-                                    continue
+                            for comm_par in $rebroadcast_list; do
+                                comm_dir=$comm_type_dir/"Rebroadcast#"$comm_par
+                                if [[ ! -e $comm_dir ]]; then
+                                    mkdir $comm_dir
                                 fi
-                                if [[ $comm_type != "anon" && $comm_par == "0" && $adaptive_par != "0" ]]; then
-                                    continue
+                                if [[ $comm_type == "anon" ]]; then
+                                    msgs_n_hops="0"
+                                elif [[ $comm_par == "1" ]]; then
+                                    msgs_n_hops="0"
+                                else
+                                    msgs_n_hops="0"
                                 fi
-                                adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
-                                if [[ ! -e $adaptive_dir ]]; then
-                                    mkdir $adaptive_dir
-                                fi
-                                for priority_k_par in $priority_k_list; do
-                                    priority_dir=$adaptive_dir/"PriorityK#"$priority_k_par
-                                    if [[ ! -e $priority_dir ]]; then
-                                        mkdir $priority_dir
+                                for adaptive_par in $adaptive_set; do
+                                    if [[ $comm_type == "anon" && $adaptive_par != "0" ]]; then
+                                        continue
                                     fi
-                                    for msgs_par in $msgs_timeout; do
-                                        msgs_dir=$priority_dir/"MsgExpTime#"$msgs_par
-                                        if [[ ! -e $msgs_dir ]]; then
-                                            mkdir $msgs_dir
+                                    if [[ $comm_type != "anon" && $comm_par == "0" && $adaptive_par != "0" ]]; then
+                                        continue
+                                    fi
+                                    adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
+                                    if [[ ! -e $adaptive_dir ]]; then
+                                        mkdir $adaptive_dir
+                                    fi
+                                    for priority_k_par in $priority_k_list; do
+                                        priority_dir=$adaptive_dir/"PriorityK#"$priority_k_par
+                                        if [[ ! -e $priority_dir ]]; then
+                                            mkdir $priority_dir
                                         fi
-                                        for msgs_hop_par in $msgs_n_hops; do
-                                            msgs_hop_dir=$msgs_dir/"MsgHops#"$msgs_hop_par
-                                            if [[ ! -e $msgs_hop_dir ]]; then
-                                                mkdir $msgs_hop_dir
+                                        for msgs_par in $msgs_timeout; do
+                                            msgs_dir=$priority_dir/"MsgExpTime#"$msgs_par
+                                            if [[ ! -e $msgs_dir ]]; then
+                                                mkdir $msgs_dir
                                             fi
-                                            for init_par in $init_distr; do
-                                                init_dir=$msgs_hop_dir/"InitDistr#"$init_par
-                                                if [[ ! -e $init_dir ]]; then
-                                                    mkdir $init_dir
+                                            for msgs_hop_par in $msgs_n_hops; do
+                                                msgs_hop_dir=$msgs_dir/"MsgHops#"$msgs_hop_par
+                                                if [[ ! -e $msgs_hop_dir ]]; then
+                                                    mkdir $msgs_hop_dir
                                                 fi
-                                                for control_par in $control; do
-                                                    control_dir=$init_dir/"Control#"$control_par
-                                                    if [[ ! -e $control_dir ]]; then
-                                                        mkdir $control_dir
+                                                for init_par in $init_distr; do
+                                                    init_dir=$msgs_hop_dir/"InitDistr#"$init_par
+                                                    if [[ ! -e $init_dir ]]; then
+                                                        mkdir $init_dir
                                                     fi
-                                                    if [[ $control_par == "static" ]]; then
-                                                        control_parameter="0.8"
-                                                    else
-                                                        if [[ $options_par == "2" ]]; then
-                                                            control_parameter="0.5"
+                                                    for control_par in $control; do
+                                                        control_dir=$init_dir/"Control#"$control_par
+                                                        if [[ ! -e $control_dir ]]; then
+                                                            mkdir $control_dir
+                                                        fi
+                                                        if [[ $control_par == "static" ]]; then
+                                                            control_parameter="0.8"
                                                         else
-                                                            control_parameter="0.7"
-                                                        fi
-                                                    fi
-                                                    for voting_msgs_par in $voting_msgs; do
-                                                        voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
-                                                        if [[ ! -e $voting_dir ]]; then
-                                                            mkdir $voting_dir
-                                                        fi
-                                                        for control_parameter_par in $control_parameter; do
-                                                            ctrl_par_dir=$voting_dir/"ControlParameter#"$control_parameter_par
-                                                            if [[ ! -e $ctrl_par_dir ]]; then
-                                                                mkdir $ctrl_par_dir
+                                                            if [[ $options_par == "2" ]]; then
+                                                                control_parameter="0.5"
+                                                            else
+                                                                control_parameter="0.7"
                                                             fi
-                                                            if find "$ctrl_par_dir" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
-                                                                echo "Skipping non-empty results directory: $ctrl_par_dir"
-                                                                continue
+                                                        fi
+                                                        for voting_msgs_par in $voting_msgs; do
+                                                            voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
+                                                            if [[ ! -e $voting_dir ]]; then
+                                                                mkdir $voting_dir
                                                             fi
-                                                            for i in $(seq 1 $RUNS); do
-                                                                kilo_file="run#${i}.tsv"
-                                                                config=`printf 'config_nrobots%d_comm%s_rebroad%d_adap%d_priorityk%d_MsgExpTime%d_MsgHop%d_Opt%d_Eta%s_EtaStop%s_VarTime%s_InitDistr%s_Ctrl%s_Vote%d_CPar%s_run%d.argos' $agents_par $comm_type $comm_par $adaptive_par $priority_k_par $msgs_par $msgs_hop_par $options_par $eta_i_par $eta_s_par $var_time_par $init_par $control_par $voting_msgs_par $control_parameter_par $i`
-                                                                cp $base_config $config
-                                                                sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
-                                                                sed -i "s|__ADAPTIVE_COMM__|$adaptive_par|g" $config
-                                                                sed -i "s|__ID_AWARE__|$id_aware_val|g" $config
-                                                                sed -i "s|__PRIORITY_K__|$priority_k_par|g" $config
-                                                                sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                                                                sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
-                                                                sed -i "s|__SEED__|$i|g" $config
-                                                                sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                                                                sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
-                                                                sed -i "s|__N_OPTIONS__|$options_par|g" $config
-                                                                sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
-                                                                sed -i "s|__ETA_INIT__|$eta_i_par|g" $config
-                                                                sed -i "s|__ETA_STOP__|$eta_s_par|g" $config
-                                                                sed -i "s|__VAR_TIME__|$var_time_par|g" $config
-                                                                sed -i "s|__INIT_DISTR__|$init_par|g" $config
-                                                                sed -i "s|__CONTROL_TYPE__|$control_par|g" $config
-                                                                sed -i "s|__VOTING_MSGS__|$voting_msgs_par|g" $config
-                                                                sed -i "s|__CONTROL_PARAMETER__|$control_parameter_par|g" $config
-                                                                sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                                                                echo "Running next configuration -- $config"
-                                                                argos3 -c './'$config
-                                                                for j in $(seq 0 $last_id); do
-                                                                    rename="quorum_log_agent#$j"_"$kilo_file"
-                                                                    mv "quorum_log_agent#$j.tsv" $rename
-                                                                    mv $rename $ctrl_par_dir
+                                                            for control_parameter_par in $control_parameter; do
+                                                                ctrl_par_dir=$voting_dir/"ControlParameter#"$control_parameter_par
+                                                                if [[ ! -e $ctrl_par_dir ]]; then
+                                                                    mkdir $ctrl_par_dir
+                                                                fi
+                                                                if find "$ctrl_par_dir" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+                                                                    echo "Skipping non-empty results directory: $ctrl_par_dir"
+                                                                    continue
+                                                                fi
+                                                                for i in $(seq 1 $RUNS); do
+                                                                    kilo_file="run#${i}.tsv"
+                                                                    config=`printf 'config_nrobots%s_comm%s_rebroad%s_adap%s_priorityk%s_MsgExpTime%s_MsgHop%s_Opt%s_OptCorr%s_Eta%s_EtaStop%s_VarTime%s_InitDistr%s_Ctrl%s_Vote%s_CPar%s_run%s.argos' $agents_par $comm_type $comm_par $adaptive_par $priority_k_par $msgs_par $msgs_hop_par $options_par $spatial_correlation_par $eta_i_par $eta_s_par $var_time_par $init_par $control_par $voting_msgs_par $control_parameter_par $i`
+                                                                    cp $base_config $config
+                                                                    sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
+                                                                    sed -i "s|__ADAPTIVE_COMM__|$adaptive_par|g" $config
+                                                                    sed -i "s|__ID_AWARE__|$id_aware_val|g" $config
+                                                                    sed -i "s|__PRIORITY_K__|$priority_k_par|g" $config
+                                                                    sed -i "s|__NUMROBOTS__|$agents_par|g" $config
+                                                                    sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
+                                                                    sed -i "s|__SEED__|$i|g" $config
+                                                                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
+                                                                    sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
+                                                                    sed -i "s|__N_OPTIONS__|$options_par|g" $config
+                                                                    sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
+                                                                    sed -i "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" $config
+                                                                    sed -i "s|__ETA_INIT__|$eta_i_par|g" $config
+                                                                    sed -i "s|__ETA_STOP__|$eta_s_par|g" $config
+                                                                    sed -i "s|__VAR_TIME__|$var_time_par|g" $config
+                                                                    sed -i "s|__INIT_DISTR__|$init_par|g" $config
+                                                                    sed -i "s|__CONTROL_TYPE__|$control_par|g" $config
+                                                                    sed -i "s|__VOTING_MSGS__|$voting_msgs_par|g" $config
+                                                                    sed -i "s|__CONTROL_PARAMETER__|$control_parameter_par|g" $config
+                                                                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
+                                                                    echo "Running next configuration -- $config"
+                                                                    argos3 -c './'$config
+                                                                    for j in $(seq 0 $last_id); do
+                                                                        rename="quorum_log_agent#$j"_"$kilo_file"
+                                                                        mv "quorum_log_agent#$j.tsv" $rename
+                                                                        mv $rename $ctrl_par_dir
+                                                                    done
+                                                                    rm *.argos
                                                                 done
-                                                                rm *.argos
                                                             done
                                                         done
                                                     done

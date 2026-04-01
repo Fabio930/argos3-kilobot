@@ -173,9 +173,9 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
     std::string strOptionsDistribution = "random";
-    GetNodeAttributeOrDefault(tHierarchicalStructNode, "options_distribution",
-                              strOptionsDistribution, strOptionsDistribution);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "options_distribution",strOptionsDistribution, strOptionsDistribution);
     g_strOptionsDistribution = NormalizeDistributionString(strOptionsDistribution);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "spatial_correlation", m_fSpatialCorrelation, static_cast<Real>(0.0));
     eta_init = Min<Real>(1.0, Max<Real>(0.0, eta_init));
     eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));
     variation_time = Max<uint16_t>(0,variation_time);
@@ -343,7 +343,6 @@ void CBestN_ALF::SetupFloorColorMap() {
 
     const UInt32 unBaseCount = unWorseCells / unWorseOptions;
     const UInt32 unRemainder = unWorseCells % unWorseOptions;
-
     UInt32 unCursor = 0;
     for(UInt8 unOpt = 0; unOpt < unWorseOptions; ++unOpt) {
         const UInt32 unCellsForThisOption = unBaseCount + (unOpt < unRemainder ? 1 : 0);
@@ -353,10 +352,80 @@ void CBestN_ALF::SetupFloorColorMap() {
         }
     }
 
+    /* Assegnazione delle posizioni: Casuale vs Macchie (Cluster) */
     UInt32 unState = m_unFloorSeed;
-    for(UInt32 i = unTotalCells - 1; i > 0; --i) {
-        const UInt32 j = NextXorShift32(unState) % (i + 1);
-        std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
+
+    if (m_fSpatialCorrelation == 0) {
+        /* Comportamento originale: distribuzione completamente casuale */
+        for(UInt32 i = unTotalCells - 1; i > 0; --i) {
+            const UInt32 j = NextXorShift32(unState) % (i + 1);
+            std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
+        }
+    } else {
+        /* Nuovo comportamento: generazione di "macchie" continue con numeri reali */
+        std::vector<UInt8> vecExactColors = m_cGridFloor.ColorId;
+        std::vector<double> vecNoise(unTotalCells);
+
+        for(UInt32 i = 0; i < unTotalCells; ++i) {
+             vecNoise[i] = static_cast<double>(NextXorShift32(unState) % 10000) / 10000.0;
+        }
+
+        /* Creiamo una funzione di supporto (Lambda) per fare 1 singolo passaggio di sfumatura */
+        auto ApplySingleSmoothingPass = [&](const std::vector<double>& inputNoise) {
+            std::vector<double> outputNoise(unTotalCells, 0.0);
+            for(UInt32 r = 0; r < m_cGridFloor.Rows; ++r) {
+                for(UInt32 c = 0; c < m_cGridFloor.Cols; ++c) {
+                    double fSum = 0.0;
+                    int nCount = 0;
+                    for(int dr = -1; dr <= 1; ++dr) {
+                        for(int dc = -1; dc <= 1; ++dc) {
+                            int nr = r + dr;
+                            int nc = c + dc;
+                            if(nr >= 0 && nr < m_cGridFloor.Rows && nc >= 0 && nc < m_cGridFloor.Cols) {
+                                fSum += inputNoise[nr * m_cGridFloor.Cols + nc];
+                                nCount++;
+                            }
+                        }
+                    }
+                    outputNoise[r * m_cGridFloor.Cols + c] = fSum / nCount;
+                }
+            }
+            return outputNoise;
+        };
+
+        /* Dividiamo il parametro reale in parte intera e parte frazionaria */
+        UInt32 unFullIterations = static_cast<UInt32>(std::floor(m_fSpatialCorrelation));
+        double fFraction = static_cast<double>(m_fSpatialCorrelation - unFullIterations);
+
+        std::vector<double> vecSmoothedNoise = vecNoise;
+
+        /* 1. Applichiamo le iterazioni intere (es. 2 volte se correlation è 2.8) */
+        for(UInt32 iter = 0; iter < unFullIterations; ++iter) {
+            vecSmoothedNoise = ApplySingleSmoothingPass(vecSmoothedNoise);
+        }
+
+        /* 2. Se c'è un resto decimale, facciamo l'interpolazione! */
+        if(fFraction > 0.0) {
+            std::vector<double> vecNextSmoothed = ApplySingleSmoothingPass(vecSmoothedNoise);
+            for(UInt32 i = 0; i < unTotalCells; ++i) {
+                // Mescoliamo proporzionalmente i valori
+                vecSmoothedNoise[i] = (vecSmoothedNoise[i] * (1.0 - fFraction)) + (vecNextSmoothed[i] * fFraction);
+            }
+        }
+
+        /* 3. Ordiniamo e assegniamo (esattamente come prima) */
+        std::vector<UInt32> vecIndices(unTotalCells);
+        for(UInt32 i = 0; i < unTotalCells; ++i) vecIndices[i] = i;
+
+        std::sort(vecIndices.begin(), vecIndices.end(), [&](UInt32 a, UInt32 b) {
+            return vecSmoothedNoise[a] < vecSmoothedNoise[b];
+        });
+
+        std::sort(vecExactColors.begin(), vecExactColors.end());
+
+        for(UInt32 i = 0; i < unTotalCells; ++i) {
+            m_cGridFloor.ColorId[vecIndices[i]] = vecExactColors[i];
+        }
     }
 }
 

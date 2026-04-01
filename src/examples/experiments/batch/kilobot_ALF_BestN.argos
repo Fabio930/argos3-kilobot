@@ -65,6 +65,7 @@
             grid_rows = "20"
             grid_cols = "20"
             options_distribution = "__OPTS_DISTRIB__"
+            spatial_correlation = "__OPTS_SPTIL_CORR__"
             control = "__CONTROL_TYPE__"
             voting_msgs = "__VOTING_MSGS__"
             control_parameter = "__CONTROL_PARAMETER__"
