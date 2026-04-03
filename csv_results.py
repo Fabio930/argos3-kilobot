@@ -678,12 +678,10 @@ class Data:
         return candidates[best_position_key]
 
 ##########################################################################################################
-    ##########################################################################################################
     def plot_short(self, msgs_data, proc_data):
         path = os.path.join(self.base, "short_data", "images") + "/"
         os.makedirs(path, exist_ok=True)
         
-        # 1. Parsing dei dati dei messaggi
         sq_tot, rt_tot, sq_com, rt_com, sq_unc, rt_unc = [ {pid: {} for pid in list(self.protocols_by_id.keys()) + ["adp_rnd"]} for _ in range(6) ]
         arena, thr, gt, agents, buffer, msg_hop = set(), set(), set(), set(), set(), set()
 
@@ -693,7 +691,7 @@ class Data:
             g_val = float(g_m)
             b_val = int(b)
             
-            # NORMALIZZAZIONE: Trasforma 68.0 in 0.68 per far combaciare le chiavi!
+            # NORMALIZZAZIONE
             if g_val > 1: g_val = round(g_val / 100.0, 2)
             if t_val > 1: t_val = round(t_val / 100.0, 2)
             
@@ -710,7 +708,6 @@ class Data:
                 if norm > 0:
                     target[pid][(a, t_val, g_val, ag, b_val, mh)] = [x/norm for x in s_data]
 
-        # 2. Parsing dei dati degli stati
         sq_act, rt_act = {pid: {} for pid in list(self.protocols_by_id.keys()) + ["adp_rnd"]}, {pid: {} for pid in list(self.protocols_by_id.keys()) + ["adp_rnd"]}
         for s_data_dict in proc_data:
             for k, s_data in s_data_dict.items():
@@ -719,7 +716,7 @@ class Data:
                 g_val = float(gt_st)
                 b_val = int(m_t)
                 
-                # NORMALIZZAZIONE: Trasforma 68.0 in 0.68 per far combaciare le chiavi!
+                # NORMALIZZAZIONE
                 if g_val > 1: g_val = round(g_val / 100.0, 2)
                 if t_val > 1: t_val = round(t_val / 100.0, 2)
                 
@@ -829,7 +826,14 @@ class Data:
                                             targets.append(ax[r_idx][col])
                                         if is_insert or is_p0:
                                             if (r_idx, col) not in inset_axes_dict:
-                                                best_box = self.find_emptiest_inset_position(ax[r_idx][col])
+                                                # ---> LOGICA POSIZIONAMENTO INSET AGGIORNATA <---
+                                                if r_idx == 0:
+                                                    best_box = [0.62, 0.03, 0.35, 0.35] # Basso a destra
+                                                elif r_idx == 2 and g == 0.84:
+                                                    best_box = [0.62, 0.03, 0.35, 0.35] # Basso a destra
+                                                else:
+                                                    best_box = [0.62, 0.62, 0.35, 0.35] # Alto a destra (come ora)
+                                                
                                                 ins_ax = ax[r_idx][col].inset_axes(best_box)
                                                 ins_ax.set_xlim(0, 901)
                                                 if r_idx == 0 or r_idx == 2:
@@ -874,7 +878,7 @@ class Data:
             
             for y in range(3): ax[2][y].set_xlabel(r"$T\, (s)$")
 
-            legend_elements = handles_l
+            legend_elements = []
             if use_gradient:
                 class HandlerGradient(HandlerBase):
                     def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
@@ -889,16 +893,15 @@ class Data:
                         return artists
                 grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
                 legend_elements.append(grad_rect)
-                legend_elements.extend(handles_r)
-                fig.legend(handles=legend_elements, handler_map={grad_rect: HandlerGradient()}, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=6, frameon=True, edgecolor='0.8')
+                legend_elements.extend(handles_l+handles_r)
+                fig.legend(handles=legend_elements, handler_map={grad_rect: HandlerGradient()}, loc='lower left', bbox_to_anchor=(0.25, -0.08), ncol=5, frameon=True, edgecolor='0.8')
             else:
                 if main_tm_list and len(main_tm_list) == 1:
                     legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
                 if insert_tm_list and len(insert_tm_list) == 1:
                     legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
-                legend_elements.extend(handles_r)
-                fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=6, frameon=True, edgecolor='0.8')
+                legend_elements.extend(handles_l+handles_r)
+                fig.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(0.25, -0.08), ncol=5, frameon=True, edgecolor='0.8')
                 
-            # Ora che "g" è per forza 0.68, il replace produrrà sempre "0_68"!
             fig.savefig(path + f"short_G{str(g).replace('.','_')}.pdf", bbox_inches='tight')
             plt.close(fig)
