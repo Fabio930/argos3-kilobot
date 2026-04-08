@@ -10,6 +10,6 @@
   ],
   "plots": {
       "exclude_protocols": ["ID+R_a"],
-      "columns": [60, 180, 600]
+      "exclude_tm": [60, 180, 600]
   }
 }

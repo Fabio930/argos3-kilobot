@@ -1,7 +1,7 @@
 {
   "folders": [
-    {"root": "./gossip_dynamic_data/", "label": "gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
-    {"root": "./dynamic_data/", "label": "state", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
+    {"root": "../gossip_dynamic_data/", "label": "gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
+    {"root": "./", "label": "state", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
   ],
   "protocols": [
     {"key": "AN", "id": 0, "label": "$AN$", "color": "red", "legend": false},
@@ -13,6 +13,6 @@
     {"key": "ID+R_a", "id": 6, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
   ],
   "plots": {
-      "columns": [60, 180, 600]
+      "exclude_tm": [60, 180, 600]
   }
 }
