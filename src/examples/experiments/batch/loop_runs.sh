@@ -31,7 +31,7 @@ init_distr=""
 control_parameter=""
 experiment_length="600"
 variation_time="0"
-RUNS=10
+RUNS=100
 options="2 5"
 options_distrib="random"
 spatial_correlation="0"
@@ -93,7 +93,7 @@ for exp_len_par in $experiment_length; do
                     mkdir $eta_stop_dir
                 fi
                 for spatial_correlation_par in $spatial_correlation; do
-                    spatial_correlation_dir=$eta_stop_dir/"Options#"$spatial_correlation_par
+                    spatial_correlation_dir=$eta_stop_dir/"SpatCorr#"$spatial_correlation_par
                     if [[ ! -e $spatial_correlation_dir ]]; then
                         mkdir $spatial_correlation_dir
                     fi
