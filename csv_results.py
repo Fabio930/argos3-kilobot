@@ -870,7 +870,7 @@ class Data:
         #     plt.close(fig)
 
 ###################################################
-    def plot_recovery_short(self, data_in, side_by_side: bool = True):
+    def plot_recovery_short(self, data_in, side_by_side: bool = False):
         plt.rcParams.update({"font.size": 24})
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
@@ -1179,13 +1179,6 @@ class Data:
 
             # --- 4) LEGENDA ORGANIZZATA ---
             legend_handles = []
-            # Gruppo 2: Protocolli
-            for pid in protocols_order:
-                if self._protocol_enabled(pid):
-                    p_info = variant_map[pid]
-                    legend_handles.append(Line2D([0], [0], color=p_info[1], marker='s', linestyle='None', markersize=14, label=p_info[0]))
-
-            # Gruppo 3: Tm Info
             handler_map = {}
             if use_gradient:
                 grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
@@ -1193,14 +1186,22 @@ class Data:
             else:
                 if main_tm_list: legend_handles.append(Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
                 if insert_tm_list: legend_handles.append(Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
-            # Gruppo 1: Coppia stili errore
+
             if side_by_side_mode:
                 legend_handles.append(Patch(facecolor='white', edgecolor='gray', hatch='//', label=r'$|GT - \tau| \leq 0.05$'))
                 legend_handles.append(Patch(facecolor='white', edgecolor='gray', label=r'$|GT - \tau| > 0.05$'))
+            
+            for pid in protocols_order:
+                if self._protocol_enabled(pid):
+                    p_info = variant_map[pid]
+                    legend_handles.append(Line2D([0], [0], color=p_info[1], marker='s', linestyle='None', markersize=14, label=p_info[0]))
+
             # Incolonnamento: calcolo colonne basato su protocolli + errori
             n_cols = 5 if side_by_side_mode else 4
+            x_anchor = 0.65 if side_by_side_mode else 0.73
+            y_anchor = -0.03 if side_by_side_mode else -0.03
             fig.legend(handles=legend_handles, handler_map=handler_map if use_gradient else None,
-                       loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=n_cols, frameon=True)
+                       loc='lower center', bbox_to_anchor=(x_anchor,y_anchor), ncol=n_cols, frameon=True)
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
