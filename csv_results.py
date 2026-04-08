@@ -403,8 +403,7 @@ class Data:
                             
                             if is_insert:
                                 if (0, col_idx) not in inset_axes_dict:
-                                    # ROW 0: FORCED TOP-RIGHT
-                                    best_box = [0.62, 0.62, 0.35, 0.35]
+                                    best_box = [0.62, 0.03, 0.35, 0.35] # Basso a destra
                                     ins_ax = ax[0][col_idx].inset_axes(best_box)
                                     ins_ax.set_xlim(0, 1201)
                                     ins_ax.set_ylim(-0.03, 1.03)

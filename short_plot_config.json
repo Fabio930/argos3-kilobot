@@ -1,0 +1,16 @@
+{
+  "protocols": [
+    {"key": "AN", "id": 0, "label": "$AN$", "color": "red", "legend": false},
+    {"key": "AN_t", "id": 1, "label": "$AN_{t}$", "color": "viridis:0", "legend": true},
+    {"key": "ID+B", "id": 2, "label": "$ID+B$", "color": "viridis:1", "legend": true},
+    {"key": "ID+R_f", "id": 3, "label": "$ID+R_{f}$", "color": "viridis:2", "legend": true},
+    {"key": "ID+R_1", "id": 4, "label": "$ID+R_{1}$", "color": "viridis:3", "legend": true},
+    {"key": "ID+R_inf", "id": 5, "label": "$ID+R_{\\infty}$", "color": "viridis:4", "legend": true},
+    {"key": "ID+R_a", "id": 6, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
+  ],
+  "plots": {
+      "exclude_protocols": ["ID+R_a"],
+      "columns": [60, 120, 300, 600],
+      "insert": [60]
+  }
+}
