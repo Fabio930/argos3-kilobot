@@ -39,18 +39,18 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par = task
+    ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_data(ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par)
+        results.extract_data(ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par)
     except KeyError as e:
         logging.error(f"KeyError processing {path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, ticks_per_sec,path,exp_length,variation_time,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par
+        del results, ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par
 
 def convert_csv_results_to_pickle(output_dir="proc_data"):
     output_path = Path(os.path.abspath("")) / output_dir
@@ -91,6 +91,7 @@ def main():
     prefix_map = {
         "ExperimentLength": ("exp_length", int),
         "VariationTime": ("variation_time", float),
+        "SpatCorr": ("spat_corr", int),
         "Options": ("n_options", int),
         "Eta": ("eta", float),
         "EtaStop": ("eta_stop", float),
@@ -142,6 +143,7 @@ def main():
                 leaf,
                 meta["exp_length"],
                 meta["variation_time"],
+                meta["spat_corr"],
                 meta["communication"],
                 meta["adaptive_com"],
                 comm_type,
@@ -207,19 +209,19 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][9] == 100: h_counter -= 1
-            elif process[1][9] == 25: h_counter -= 1
+            if process[1][10] == 100: h_counter -= 1
+            elif process[1][10] == 25: h_counter -= 1
             logging.info(f"Process {key} for task {process[1][1]} joined and removed from active processes")
         if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
             try:
                 task = queue.get(block=False)
                 start = True
-                if task[9] == 100:
+                if task[10] == 100:
                     if h_counter < 15 : h_counter += 1
                     else:
                         queue.put(task)
                         start = False
-                elif task[9] == 25:
+                elif task[10] == 25:
                     if h_counter < 18 : h_counter += 1
                     else:
                         queue.put(task)

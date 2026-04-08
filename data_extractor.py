@@ -131,7 +131,7 @@ class Results:
         return exit_times_arr
 
 ##########################################################################################################
-    def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,variation_time:float,communication:int,
+    def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,variation_time:float,spat_corr:int,communication:int,
                        adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,n_options:int,
                        eta:float,eta_stop:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float) -> None:
         max_steps = exp_length * ticks_per_sec
@@ -226,6 +226,7 @@ class Results:
                 msg_exp_time=msg_exp_time,
                 msg_hops=msg_hops,
                 variation_time=variation_time,
+                spat_corr=spat_corr,
                 n_options=n_options,
                 eta=eta,
                 eta_stop=eta_stop,
@@ -253,6 +254,7 @@ class Results:
             msg_exp_time=msg_exp_time,
             msg_hops=msg_hops,
             variation_time=variation_time,
+            spat_corr=spat_corr,
             n_options=n_options,
             eta=eta,
             eta_stop=eta_stop,
@@ -280,6 +282,7 @@ class Results:
             msg_exp_time=msg_exp_time,
             msg_hops=msg_hops,
             variation_time=variation_time,
+            spat_corr=spat_corr,
             n_options=n_options,
             eta=eta,
             eta_stop=eta_stop,
@@ -294,7 +297,7 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_per_opt_csv(self,data_in,data_std,exp_length:int,communication:int,
-                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,n_options:int,
+                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,spat_corr:int,n_options:int,
                        eta:float,eta_stop:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,option_id:int,data_type:str):    
         static_fields=["communication","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","variation_time","eta","eta_stop","init_distr","function","vote_msg","control_par"]
         static_values=[communication,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,variation_time,eta,eta_stop,init_distr,function,vote_msg,ctrl_par]
@@ -303,7 +306,7 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_runs#{num_runs}_arena#{arenaS}.csv"
+        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_spatcorr#{spat_corr}_runs#{num_runs}_arena#{arenaS}.csv"
         if not os.path.exists(output_path+file_name):
             write_header = 1
         for i in range(len(static_fields)):
@@ -325,7 +328,7 @@ class Results:
 
 ##########################################################################################################
     def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
-                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,n_options:int,
+                       adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,spat_corr:int,n_options:int,
                        eta:float,eta_stop:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str):    
         static_fields=["communication","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","variation_time","eta","eta_stop","init_distr","function","vote_msg","control_par"]
         static_values=[communication,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,variation_time,eta,eta_stop,init_distr,function,vote_msg,ctrl_par]
@@ -334,7 +337,7 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_runs#{num_runs}_arena#{arenaS}.csv"
+        file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_spatcorr#{spat_corr}_runs#{num_runs}_arena#{arenaS}.csv"
         if not os.path.exists(output_path+file_name):
             write_header = 1
         for i in range(len(static_fields)):

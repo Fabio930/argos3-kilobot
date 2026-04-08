@@ -1,4 +1,5 @@
 import os, ast, re
+from typing import Optional
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -43,14 +44,14 @@ def _safe_filename_from_params(values: dict) -> str:
     # Define which keys are actually parameters we want in the filename
     allowed_params = {
         "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "arena", "runs", "time"
+        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "spatcorr", "arena", "runs", "time"
     }
     
     safe_parts = []
     # Use priority order for a consistent look
     priority_order = [
         "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "arena", "runs", "time"
+        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "spatcorr", "arena", "runs", "time"
     ]
     
     for key in priority_order:
@@ -88,23 +89,27 @@ def metadata_from_filename(file_name: str) -> dict:
         metadata[col_name] = _cast_metadata_value(col_value)
     return metadata
 
-def load_pickles_to_single_df(proc_dir: str) -> pd.DataFrame:
-    """Loads all .pkl files into a single DataFrame with integrated metadata."""
+def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
+    """Loads all .pkl files and returns list of (df, file_meta) tuples."""
     base_path = Path(os.path.abspath("")) / proc_dir
-    if not base_path.exists(): return pd.DataFrame()
+    if not base_path.exists():
+        return []
     all_files = sorted(base_path.glob("*resume_*.pkl"))
-    dataframes = []
+    datasets = []
     for file_path in all_files:
         try:
             file_df = pd.read_pickle(file_path)
-            if not isinstance(file_df, pd.DataFrame): file_df = pd.DataFrame(file_df)
+            if not isinstance(file_df, pd.DataFrame):
+                file_df = pd.DataFrame(file_df)
             metadata = metadata_from_filename(file_path.name)
-            for col_name, col_value in metadata.items():
+            df_meta = {k: v for k, v in metadata.items() if k not in file_meta_keys}
+            file_meta = {k: v for k, v in metadata.items() if k in file_meta_keys}
+            for col_name, col_value in df_meta.items():
                 file_df[col_name] = col_value
-            dataframes.append(file_df)
+            datasets.append((file_df, file_meta))
         except Exception as e:
             print(f"Error loading {file_path.name}: {e}")
-    return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
+    return datasets
 
 ##################################################################################
 # 3. VISUALIZATION UTILS
@@ -141,7 +146,7 @@ def _vote_color_map(vote_values):
     return {vote: cmap(idx % 10) for idx, vote in enumerate(sorted(vote_values))}
 
 
-def plot_cohesion_df(result_df: pd.DataFrame) -> int:
+def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
     """
     Cohesion line plots with std shadow.
     Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
@@ -166,6 +171,7 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
         "polynomial": plt.get_cmap("Blues")
     }
 
+    file_meta = file_meta or {}
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
         
         # Identify the distinct control_par values used by 'polynomial' in this group
@@ -183,10 +189,10 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
                 
                 plot_df = gdf[mask_poly | mask_static]
                 # Inject the polynomial's control_par into the metadata so filenames remain unique
-                curr_meta = {**group_meta, "control_par": ctrl_val}
+                curr_meta = {**group_meta, **file_meta, "control_par": ctrl_val}
             else:
                 plot_df = gdf
-                curr_meta = dict(group_meta)
+                curr_meta = {**group_meta, **file_meta}
 
             option_1_df = plot_df[plot_df["option_id"] == 0]
             option_2_df = plot_df[plot_df["option_id"] == 1]
@@ -253,7 +259,7 @@ def plot_cohesion_df(result_df: pd.DataFrame) -> int:
 
     return image_count
 
-def plot_accuracy_df(result_df: pd.DataFrame) -> int:
+def plot_accuracy_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
     """Accuracy bar plot with eta on x-axis.
     Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
@@ -275,6 +281,7 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
         "polynomial": plt.get_cmap("Blues")
     }
 
+    file_meta = file_meta or {}
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
         
         poly_df = gdf[gdf["function"] == "polynomial"]
@@ -289,10 +296,10 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
                 mask_static = (gdf["function"] == "static") & (np.isclose(gdf["control_par"].astype(float), 0.8))
                 
                 work = gdf[mask_poly | mask_static].copy()
-                curr_meta = {**group_meta, "control_par": ctrl_val}
+                curr_meta = {**group_meta, **file_meta, "control_par": ctrl_val}
             else:
                 work = gdf.copy()
-                curr_meta = dict(group_meta)
+                curr_meta = {**group_meta, **file_meta}
 
             if work.empty:
                 continue
@@ -364,7 +371,7 @@ def plot_accuracy_df(result_df: pd.DataFrame) -> int:
     return image_count
 
 
-def plot_time_df(result_df: pd.DataFrame) -> int:
+def plot_time_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
     """Time box plot with eta on x-axis.
     Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
@@ -386,6 +393,7 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
         "polynomial": plt.get_cmap("Blues")
     }
 
+    file_meta = file_meta or {}
     for group_meta, base_gdf in _iter_groups(result_df, grouping_cols):
         
         poly_df = base_gdf[base_gdf["function"] == "polynomial"]
@@ -400,10 +408,10 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
                 mask_static = (base_gdf["function"] == "static") & (np.isclose(base_gdf["control_par"].astype(float), 0.8))
                 
                 gdf = base_gdf[mask_poly | mask_static].copy()
-                curr_meta = {**group_meta, "control_par": ctrl_val}
+                curr_meta = {**group_meta, **file_meta, "control_par": ctrl_val}
             else:
                 gdf = base_gdf.copy()
-                curr_meta = dict(group_meta)
+                curr_meta = {**group_meta, **file_meta}
 
             if gdf.empty:
                 continue
@@ -509,7 +517,7 @@ def plot_time_df(result_df: pd.DataFrame) -> int:
 # 5. PARETO PLOTTING ENGINE
 ##################################################################################
 
-def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_label, sub_folder):
+def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_label, sub_folder, file_meta: Optional[dict] = None):
     """Generic Pareto plotter logic."""
     output_path = Path(os.path.abspath("")) / "proc_data" / "pareto" / sub_folder
     output_path.mkdir(parents=True, exist_ok=True)
@@ -522,6 +530,7 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
     image_count = 0
     markers = ['o', 's', '^', 'D', 'v', 'p', '*', 'h']
     
+    file_meta = file_meta or {}
     for group_key, base_df in merged_df.groupby(grouping_cols, dropna=False):
         # Create metadata dict for filename
         base_meta = dict(zip(grouping_cols, group_key)) if isinstance(group_key, tuple) else {grouping_cols[0]: group_key}
@@ -571,14 +580,14 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
                 ax.set_xlim(1,15000)
                 ax.set_xscale("log")
             # Use the new safe filename function
-            curr_meta = {**base_meta, "control_par": ctrl}
+            curr_meta = {**base_meta, **file_meta, "control_par": ctrl}
             filename = f"pareto_{_safe_filename_from_params(curr_meta)}.png"
             fig.savefig(output_path / filename, dpi=150, bbox_inches="tight")
             plt.close(fig); image_count += 1
             
     return image_count
 
-def plot_cohesion_accuracy_pareto(coh_df, acc_df):
+def plot_cohesion_accuracy_pareto(coh_df, acc_df, file_meta: Optional[dict] = None):
     """Prepares Cohesion vs Accuracy data."""
     c = coh_df[coh_df["option_id"] == 0].copy()
     c[["coh_f", "coh_s"]] = c.apply(lambda r: pd.Series([np.mean(m_array_from_cell(r["data"])[-100:]), np.mean(m_array_from_cell(r["std"])[-100:])]), axis=1)
@@ -590,9 +599,9 @@ def plot_cohesion_accuracy_pareto(coh_df, acc_df):
     merge_cols = [col for col in (set(c.columns) & set(a.columns)) if col not in ignore_cols]
     
     merged = pd.merge(c, a, on=merge_cols)
-    return plot_pareto_base(merged, "val_f", None, "coh_f", "coh_s", "Accuracy (%)", "Final Cohesion (Avg last 100)", "cohesion_accuracy")
+    return plot_pareto_base(merged, "val_f", None, "coh_f", "coh_s", "Accuracy (%)", "Final Cohesion (Avg last 100)", "cohesion_accuracy", file_meta=file_meta)
 
-def plot_cohesion_time_pareto(coh_df, time_df):
+def plot_cohesion_time_pareto(coh_df, time_df, file_meta: Optional[dict] = None):
     """Prepares Cohesion vs Time data."""
     c = coh_df[coh_df["option_id"] == 0].copy()
     c[["coh_f", "coh_s"]] = c.apply(lambda r: pd.Series([np.mean(m_array_from_cell(r["data"])[-100:]), np.mean(m_array_from_cell(r["std"])[-100:])]), axis=1)
@@ -604,7 +613,7 @@ def plot_cohesion_time_pareto(coh_df, time_df):
     merge_cols = [col for col in (set(c.columns) & set(t.columns)) if col not in ignore_cols]
     
     merged = pd.merge(c, t, on=merge_cols)
-    return plot_pareto_base(merged, "val_f", "val_s", "coh_f", "coh_s", "Median Exit Time (Ticks)", "Final Cohesion (Avg last 100)", "cohesion_time")
+    return plot_pareto_base(merged, "val_f", "val_s", "coh_f", "coh_s", "Median Exit Time (Ticks)", "Final Cohesion (Avg last 100)", "cohesion_time", file_meta=file_meta)
 
 ##################################################################################
 # 6. MAIN EXECUTION
@@ -612,15 +621,19 @@ def plot_cohesion_time_pareto(coh_df, time_df):
 
 def main():
     total_imgs = 0
-    df_coh = load_pickles_to_single_df("proc_data/cohesion")
-    df_acc = load_pickles_to_single_df("proc_data/accuracy")
-    df_time = load_pickles_to_single_df("proc_data/time")
-    if not df_coh.empty:
-        total_imgs += plot_cohesion_df(df_coh)
-    if not df_acc.empty:
-        total_imgs += plot_accuracy_df(df_acc)
-    if not df_time.empty:
-        total_imgs += plot_time_df(df_time)
+    file_meta_keys = {"spatcorr"}
+    coh_sets = load_pickles_with_file_meta("proc_data/cohesion", file_meta_keys)
+    acc_sets = load_pickles_with_file_meta("proc_data/accuracy", file_meta_keys)
+    time_sets = load_pickles_with_file_meta("proc_data/time", file_meta_keys)
+    for df_coh, meta in coh_sets:
+        if not df_coh.empty:
+            total_imgs += plot_cohesion_df(df_coh, file_meta=meta)
+    for df_acc, meta in acc_sets:
+        if not df_acc.empty:
+            total_imgs += plot_accuracy_df(df_acc, file_meta=meta)
+    for df_time, meta in time_sets:
+        if not df_time.empty:
+            total_imgs += plot_time_df(df_time, file_meta=meta)
 
     # if not df_coh.empty and not df_acc.empty:
     #     print("Generating Pareto: Cohesion vs Accuracy...")
