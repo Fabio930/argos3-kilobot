@@ -18,6 +18,13 @@ def main():
     short = [s.strip() for s in args.short.split(",") if s.strip()]
     use_short = "s" in short
 
+    def _select_files(base_dir):
+        selected = []
+        for file in sorted(os.listdir(base_dir)):
+            if "images" not in file and not file.startswith('.'):
+                selected.append(file)
+        return selected
+
     csv_res = CSVres.Data()
     if use_short:
         csv_res._assign_config("short_plot_config.json")
@@ -37,7 +44,7 @@ def main():
         tot_msgs        = None
         for base in csv_res.bases:
             if base.split('/')[-1] == "proc_data":
-                for file in sorted(os.listdir(base)):
+                for file in _select_files(base):
                     n_runs=0
                     arena=''
                     if "images" not in file and file.split('_')[0][0] != '.':
@@ -62,7 +69,7 @@ def main():
                                 tot_st      = np.append(tot_st,[states],axis=0)
                                 tot_times   = np.append(tot_times,[times],axis=0)
             if base.split('/')[-1] == "msgs_data":
-                for file in sorted(os.listdir(base)):
+                for file in _select_files(base):
                     if "images" not in file:
                         file_path=os.path.join(base, file)
                         tot_msgs = csv_res.read_msgs_csv(file_path)
@@ -72,7 +79,7 @@ def main():
             if base.split('/')[-1] == "proc_data":
                 tot_st          = []
                 tot_times       = []
-                for file in sorted(os.listdir(base)):
+                for file in _select_files(base):
                     n_runs=0
                     arena=''
                     if "images" not in file and file.split('_')[0][0] != '.':
@@ -100,7 +107,7 @@ def main():
                     path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents] = csv_res.plot_active(tot_st,tot_times)
                     csv_res.print_borders(path,'avg','median',ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents])
             if base.split('/')[-1] == "msgs_data":
-                for file in sorted(os.listdir(base)):
+                for file in _select_files(base):
                     if "images" not in file:
                         file_path=os.path.join(base, file)
                         tot_msgs = csv_res.read_msgs_csv(file_path)
