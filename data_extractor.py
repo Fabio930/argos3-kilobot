@@ -207,8 +207,8 @@ class Results:
             results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
             for thr in self.thresholds.get(self.ground_truth[gt]):
                 quorums = self.compute_quorum(results[0],results[1],thr)
-                self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
-                self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops)
+                self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
+                self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
                 self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
 
 ##########################################################################################################
@@ -251,7 +251,7 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "std", "buff_dim_eff"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "std", "max_buff_size"]
         out_dir = os.path.join(os.path.abspath(""), "msgs_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
@@ -262,9 +262,9 @@ class Results:
             fw.write("\t".join(map(str, data)) + "\n")
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,n_runs):    
-        static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time","msg_hops"]
-        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops]
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,n_runs,max_buff_size):    
+        static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time","msg_hops","max_buff_size"]
+        static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,max_buff_size]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
@@ -309,7 +309,7 @@ class Results:
             fw.write("\t".join(map(str, values)) + "\n")
 
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops):
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,max_buff_size):
         data_arr = np.asarray(data_in, dtype=float)
         flag2 = data_arr.mean(axis=1).mean(axis=0)
         fstd3 = np.median(np.std(data_arr, axis=1), axis=0)
@@ -317,11 +317,11 @@ class Results:
             algo,0,bias,
             np.around(flag2,decimals=2).tolist(),
             np.around(fstd3,decimals=3).tolist(),
-            BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in)
+            BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in),max_buff_size
         )
 
 ##########################################################################################################
-    def dump_times(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,max_buff_size):
         data_arr = np.asarray(data_in, dtype=float)
         runs = data_arr.shape[0]
         ticks = data_arr.shape[2]
@@ -331,7 +331,7 @@ class Results:
         first_idx = cond.argmax(axis=1)
         times = np.where(any_true, first_idx, ticks).tolist()
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in),max_buff_size)
 
 ##########################################################################################################
     def assign_states(self,n_agents,num_runs):
