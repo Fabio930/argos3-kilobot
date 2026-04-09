@@ -64,7 +64,7 @@ def main():
             file = os.path.basename(file_path)
             no_ext_file = file.split('.')[0]
             sets = no_ext_file.split('_')
-            algo = sets[0][0]
+            algo = sets[0][:2] if sets[0].lower().startswith("ps") else sets[0][0]
             for s in sets:
                 val = s.split('#')
                 if len(val) > 1:

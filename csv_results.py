@@ -45,6 +45,8 @@ class Data:
         if not raw:
             return []
         return [int(x) for x in Data._INT_RE.findall(raw)]
+    
+###################################################
     def __init__(self) -> None:
         self.bases = []
         self.base = os.path.abspath("")
@@ -382,15 +384,37 @@ class Data:
             header = next(reader, None)
             if not header:
                 return data
-            try:
-                data_idx = header.index("data")
-            except ValueError:
-                data_idx = len(header) - 1
+            header_idx = {name: i for i, name in enumerate(header)}
+            data_idx = header_idx.get("data", len(header) - 1)
+            arena_idx = header_idx.get("arena_size", 0)
+            algo_idx = header_idx.get("algo", 1)
+            broadcast_idx = header_idx.get("broadcast", 2)
+            n_agents_idx = header_idx.get("n_agents", 3)
+            buff_idx = header_idx.get("buff_dim", 4)
+            msg_hops_idx = header_idx.get("msg_hops", 5)
+            eff_idx = header_idx.get("buff_dim_eff", header_idx.get("max_buff_size"))
             parse_float = self._parse_float_list 
             for row in reader:
                 if len(row) <= data_idx:
                     continue
-                data[tuple(row[:6])] = (parse_float(row[data_idx]), [])
+                algo_val = row[algo_idx] if len(row) > algo_idx else ""
+                buff_val = row[buff_idx] if len(row) > buff_idx else ""
+                eff_val = None
+                if eff_idx is not None and len(row) > eff_idx:
+                    eff_val = row[eff_idx]
+                elif eff_idx is None and len(row) > len(header):
+                    eff_val = row[-1]
+                if str(algo_val).strip().lower() == "ps" and eff_val not in (None, "", "-", "nan"):
+                    buff_val = eff_val
+                key = (
+                    row[arena_idx] if len(row) > arena_idx else "",
+                    algo_val,
+                    row[broadcast_idx] if len(row) > broadcast_idx else "",
+                    row[n_agents_idx] if len(row) > n_agents_idx else "",
+                    buff_val,
+                    row[msg_hops_idx] if len(row) > msg_hops_idx else "",
+                )
+                data[key] = (parse_float(row[data_idx]), [])
         return data
     
 ###################################################
@@ -401,19 +425,38 @@ class Data:
             header = next(reader, None)
             if not header:
                 return data
-            try:
-                data_idx = header.index("data")
-            except ValueError:
-                data_idx = len(header) - 2
-            try:
-                std_idx = header.index("std")
-            except ValueError:
-                std_idx = data_idx + 1
+            header_idx = {name: i for i, name in enumerate(header)}
+            data_idx = header_idx.get("data", len(header) - 2)
+            std_idx = header_idx.get("std", data_idx + 1)
+            arena_idx = header_idx.get("arena_size", 0)
+            algo_idx = header_idx.get("algo", 1)
+            broadcast_idx = header_idx.get("broadcast", 2)
+            n_agents_idx = header_idx.get("n_agents", 3)
+            buff_idx = header_idx.get("buff_dim", 4)
+            msg_hops_idx = header_idx.get("msg_hops", 5)
+            eff_idx = header_idx.get("buff_dim_eff", header_idx.get("max_buff_size"))
             parse_float = self._parse_float_list
             for row in reader:
                 if len(row) <= max(data_idx, std_idx):
                     continue
-                data[tuple(row[:data_idx])] = (
+                algo_val = row[algo_idx] if len(row) > algo_idx else ""
+                buff_val = row[buff_idx] if len(row) > buff_idx else ""
+                eff_val = None
+                if eff_idx is not None and len(row) > eff_idx:
+                    eff_val = row[eff_idx]
+                elif eff_idx is None and len(row) > len(header):
+                    eff_val = row[-1]
+                if str(algo_val).strip().lower() == "ps" and eff_val not in (None, "", "-", "nan"):
+                    buff_val = eff_val
+                key = (
+                    row[arena_idx] if len(row) > arena_idx else "",
+                    algo_val,
+                    row[broadcast_idx] if len(row) > broadcast_idx else "",
+                    row[n_agents_idx] if len(row) > n_agents_idx else "",
+                    buff_val,
+                    row[msg_hops_idx] if len(row) > msg_hops_idx else "",
+                )
+                data[key] = (
                     parse_float(row[data_idx]), 
                     parse_float(row[std_idx], allow_dash=True)
                 )
