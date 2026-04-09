@@ -14,8 +14,8 @@ class Results:
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
-                selem=elem.split('_')
-                if selem[0]=="Oresults" or selem[0]=="Presults":
+                selem = elem.split('_')
+                if selem and selem[0].lower() in ("oresults", "presults", "psresults"):
                     self.bases.append(os.path.join(self.base, elem))
         for gt in range(len(self.ground_truth)):
             _thresholds=np.arange(50,101,1)
@@ -141,7 +141,9 @@ class Results:
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
-        max_buff_size = n_agents - 1
+        x = 5
+        if n_agents == 100: x = 20
+        max_buff_size = n_agents - x
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [None] * num_runs  # x num_samples
@@ -150,9 +152,10 @@ class Results:
         algo    = ""
         arenaS  = ""
         for iv in info_vec:
-            if "results_loop" in iv:
-                algo        = iv[0]
-                arenaS      = iv.split('_')[-1][:-1]
+            iv_lower = iv.lower()
+            if "results_loop" in iv_lower:
+                algo = iv[:2] if iv_lower.startswith("ps") else iv[0]
+                arenaS = iv.split('_')[-1][:-1]
                 break
         for elem in sorted(os.listdir(sub_path)):
             if '.' in elem:
@@ -177,6 +180,9 @@ class Results:
                                     msgs.append(int_cast(val))
                             if len(msgs) < max_buff_size:
                                 msgs.extend([-1] * (max_buff_size - len(msgs)))
+                            elif len(msgs) > max_buff_size:
+                                # Clamp oversize rows to avoid ragged arrays
+                                msgs = msgs[:max_buff_size]
                             msgs_list.append(msgs)
                         msgs_arr = np.asarray(msgs_list, dtype=int)
                         msgs_M[seed-1] = msgs_arr
@@ -193,8 +199,10 @@ class Results:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [None] * num_runs
         messages,decisions,msg_std = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM,max_buff_size)
-        self.dump_decisions("decisions_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,decisions])
-        self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages,msg_std])
+        algo_lower = str(algo).strip().lower()
+        buff_dim_eff = max_buff_size if algo_lower == "ps" else "-"
+        # self.dump_decisions("decisions_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,decisions,buff_dim_eff])
+        self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages,msg_std,buff_dim_eff])
         for gt in range(len(self.ground_truth)):
             results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
             for thr in self.thresholds.get(self.ground_truth[gt]):
@@ -231,7 +239,7 @@ class Results:
 
 ##########################################################################################################
     def dump_decisions(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "buff_dim_eff"]
         out_dir = os.path.join(os.path.abspath(""), "dec_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
@@ -243,7 +251,7 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "std"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "std", "buff_dim_eff"]
         out_dir = os.path.join(os.path.abspath(""), "msgs_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
@@ -262,10 +270,7 @@ class Results:
         write_header = 0
         name_fields = []
         values = []
-        if algo == 'O':
-            file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
-        else:
-            file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+        file_name = f"{algo}average_resume_r#{n_runs}_a#{base.split('_')[-1]}.csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         tmp_b = base.split('/')
