@@ -157,6 +157,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttribute(tHierarchicalStructNode,"middle_x_area",middle_x_area);
     GetNodeAttribute(tHierarchicalStructNode,"quorum_threshold",quorum_threshold);
+    GetNodeAttribute(tHierarchicalStructNode,"k_sampling",k_sampling);
 }
 
 /****************************************/
@@ -309,6 +310,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
         m_tMessages[unKilobotID].data[1+i*3] = tMessage.m_sData >> 8 | (tKilobotMessage.m_sType &  0b0110) << 1;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sData;
     }
+    m_tMessages[unKilobotID].data[8] = k_sampling;
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 

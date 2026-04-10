@@ -218,8 +218,13 @@ void update_messages(const uint8_t Msg_n_hops){
 
 void check_quorum(quorum_a **Array[]){
     uint8_t tmp = my_state;
-    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
-    if(num_quorum_items >= min_quorum_length && tmp >= (num_quorum_items + 1)*quorum_threshold) quorum_reached = 1;
+    uint8_t valid_items = 0;
+    uint8_t start_idx = (num_quorum_items > k_sampling) ? k_sampling : num_quorum_items;
+    for (uint8_t i = start_idx; i < num_quorum_items; i++) {
+        tmp += (*Array)[i]->agent_state;
+        valid_items++;
+    }
+    if(valid_items >= min_quorum_length && tmp >= (valid_items + 1)*quorum_threshold) quorum_reached = 1;
     else quorum_reached = 0;
 }
 
@@ -292,6 +297,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 uint8_t queue_lenght = data[0]>>1;
                 broadcasting_flag = data[2] & 0b00000011;
                 uint16_t msg_expiring_time = ((uint16_t)data[1] << 6) | data[2] >> 2;
+                k_sampling = data[8];
                 init_array_qrm(&quorum_array,queue_lenght,msg_expiring_time);
                 init_received_C = true;
             }

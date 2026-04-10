@@ -71,7 +71,7 @@ private:
     float                   quorum_threshold;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
-
+    UInt8                   k_sampling;
     std::vector<CVector2>   m_vecKilobotPositions;
     std::vector<CDegrees>   m_vecKilobotOrientations;
     std::vector<Real>       m_vecLastTimeMessaged;

@@ -104,7 +104,7 @@ uint8_t received_committed;
 
 /* map of the environment */
 arena_a *the_arena = NULL;
-
+uint8_t k_sampling = 0;
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
 uint16_t selected_msg_indx = 0b1111111111111111;

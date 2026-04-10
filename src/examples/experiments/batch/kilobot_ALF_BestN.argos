@@ -1,9 +1,6 @@
 <?xml version="1.0" ?>
 <argos-configuration>
     
-    <!-- ************************* -->
-    <!-- * General configuration * -->
-    <!-- ************************* -->
     <framework>
         <system threads="0" />
         <experiment length="__TIME_EXPERIMENT__"
@@ -11,11 +8,7 @@
         random_seed="__SEED__" />
     </framework>
     
-    <!-- *************** -->
-    <!-- * Controllers * -->
-    <!-- *************** -->
     <controllers>
-        
         <kilobot_controller id="bestN">
             <actuators>
                 <differential_steering implementation="default"/>
@@ -27,12 +20,8 @@
             </sensors>
             <params behavior="build/examples/behaviors/bestN" />
         </kilobot_controller>
-        
     </controllers>
 
-    <!-- ****************** -->
-    <!-- * Loop functions * -->
-    <!-- ****************** -->
     <loop_functions 
         library="build/examples/loop_functions/ARK_loop_functions/BestN/libALF_BestN_loop_function"
         label="ALF_BestN_loop_function" >
@@ -58,13 +47,12 @@
             quorum_threshold = "__THRESHOLD__"
             committed_percentage = "__COMMITTED_PERC__"
             middle_x_area="__MIDDLE_X_AREA__"
+            k_sampling = "__K_SAMPLING__"
         >
         </hierarchicStruct>
     
     </loop_functions>
-    <!-- *********************** -->
-    <!-- * Arena configuration * -->
-    <!-- *********************** -->
+
     <arena size="__ARENA_X__, __ARENA_Y__, 1" center="0,0,0">
         
         <box id="wall_north" size="__ARENA_X__,0.01,0.1" movable="false">
@@ -79,7 +67,6 @@
         <box id="wall_west" size="0.01,__ARENA_Y__,0.1"  movable="false">
             <body position="__MID_X_BOT__,0,0" orientation="0,0,0" />
         </box>
-
 
         <distribute>
             <position method="uniform" min="__AGENT_DIST_X_MIN__,__AGENT_DIST_Y_MIN__,0" max="__AGENT_DIST_X_MAX__,__AGENT_DIST_Y_MAX__,0" />
@@ -97,22 +84,12 @@
         
     </arena>
     
-    <!-- ******************* -->
-    <!-- * Physics engines * -->
-    <!-- ******************* -->
     <physics_engines>
         <dynamics2d id="dyn2d" />
     </physics_engines>
-    
-    <!-- ********* -->
-    <!-- * Media * -->
-    <!-- ********* -->
     
     <media>
         <kilobot_communication id="kilocomm" />
     </media>
     
-    <!-- ****************** -->
-    <!--  NO Visualization  -->
-    <!-- ****************** -->
-</argos-configuration>
+    </argos-configuration>
