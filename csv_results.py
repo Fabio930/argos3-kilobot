@@ -988,7 +988,7 @@ class Data:
                     if row_idx == 0: ax.set_title(dens_label)
 
                     n_tm_total = len(combined_tm)
-                    width_tm = 0.8 / max(1, n_tm_total)
+                    width_tm = 0.6
                     
                     def draw_pass(target_ax, target_type):
                         for k, pid in enumerate(protocols_order):
@@ -1022,7 +1022,7 @@ class Data:
                                             ratio = (m_idx + 1) / n_mbs_total
                                             h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
                                             c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                            m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs
+                                            m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs *.8
                                             if not d_mbs_row.empty:
                                                 self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
                                     else:
@@ -1033,7 +1033,7 @@ class Data:
                     draw_pass(ax, "main")
 
                     ax.set_xticks(range(1, len(active_labels) + 1))
-                    if row_idx == 1: ax.set_xticklabels(active_labels, rotation=0)
+                    if row_idx == 1: ax.set_xticklabels(active_labels, rotation=45)
                     else: ax.set_xticklabels([])
                     
                     if row_idx == 0: ax.set_ylim(self.event_axis_limits(event_max)[:2])
@@ -1077,8 +1077,8 @@ class Data:
                 legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
             
             legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
-            fig.legend(handles=legend_elements, loc='lower center', ncol=5, 
-                       bbox_to_anchor=(0.65, -0.08), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
+                       bbox_to_anchor=(0.58, -0.08), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
@@ -1969,7 +1969,7 @@ class Data:
         insert_tm_set = set(int(x) for x in insert_tm_list)
         combined_tm = sorted(list(tm_set | insert_tm_set))
         
-        fig, ax = plt.subplots(3, 3, figsize=(24, 20), constrained_layout=True, squeeze=False, gridspec_kw={'height_ratios': [1, 1, 1.4]})
+        fig, ax = plt.subplots(3, 3, figsize=(28, 22), constrained_layout=True, squeeze=False, gridspec_kw={'height_ratios': [1, 1, 1.4]})
         
         min_buf_plotted = np.zeros(3)
         mid_act_plotted = np.zeros(3)
@@ -2178,19 +2178,19 @@ class Data:
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
         legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|B|$'))
+        handler_map = {}
+        grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
+        legend_elements.append(grad_rect)
+        try:
+            handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
+        except NameError:
+            pass
         
         for p in self.protocols:
             p_id = p.get("id")
             if self._protocol_enabled(p_id):
                 legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
-        
-        handler_map = {}
-        # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
-        # legend_elements.append(grad_rect)
-        # try:
-        #     handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
-        # except NameError:
-        #     pass # Ignora se GradientHandler non e' importato in questo scope             
+                    
         if use_gradient:
             grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
             legend_elements.append(grad_rect)
@@ -2199,7 +2199,7 @@ class Data:
             except NameError:
                 pass 
 
-        fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=5, frameon=True, edgecolor='0.8')
+        fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=7, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
         plt.close(fig)
 
