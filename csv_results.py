@@ -703,8 +703,11 @@ class Data:
             msg_list = [60] + [m for m in msg_list if m != 60]
         col_labels = [f"$T_m$={m}" for m in msg_list]
         
-        mbs_per_agent = {ag: sorted([float(x) for x in df[df['Agents']==ag]['MBS'].unique()]) 
-                         for ag in df['Agents'].unique()}
+        # --- Mappa Globale MBS per P.1.1 ---
+        mbs_global_map = {}
+        for ag in df['Agents'].unique():
+            mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
+            mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
 
         def save_box(subset, threshold_str, entry, global_max):
             nrows, ncols = len(grid), len(msg_list)
@@ -724,23 +727,27 @@ class Data:
                         base_color = variant_map[pid][1]
                         
                         if pid == "P.1.1":
-                            mbs_presenti = sorted([float(x) for x in p_cell['MBS'].unique()])
-                            n_mbs = len(mbs_presenti)
-                            width = 0.8 / max(1, n_mbs)
-                            mbs_globali = mbs_per_agent.get(ag_num, [1.0])
-
-                            for m_idx, val_mbs in enumerate(mbs_presenti):
-                                d = p_cell[p_cell['MBS'] == str(int(val_mbs))][entry].values
-                                if len(d) == 0: continue
-                                
-                                rank = mbs_globali.index(val_mbs) + 1
-                                ratio = rank / len(mbs_globali)
-                                h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
-                                c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                
-                                offset = (m_idx - (n_mbs-1)/2) * width
-                                ax.boxplot(d, positions=[pos_idx + offset], widths=width*0.8, patch_artist=True,
-                                           boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
+                            mbs_list = mbs_global_map.get(ag_num, [])
+                            n_mbs_total = len(mbs_list)
+                            
+                            if n_mbs_total > 0:
+                                width = 0.8 / n_mbs_total
+                                for m_idx, val_mbs in enumerate(mbs_list):
+                                    d = p_cell[p_cell['MBS'] == val_mbs][entry].values
+                                    if len(d) == 0: continue
+                                    
+                                    ratio = (m_idx + 1) / n_mbs_total
+                                    h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
+                                    c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                    
+                                    offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
+                                    ax.boxplot(d, positions=[pos_idx + offset], widths=width*0.8, patch_artist=True,
+                                               boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
+                            else:
+                                d = p_cell[entry].values
+                                if len(d) > 0:
+                                    ax.boxplot(d, positions=[pos_idx], widths=0.6, patch_artist=True,
+                                               boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         else:
                             d = p_cell[entry].values
                             if len(d) > 0:
@@ -754,7 +761,14 @@ class Data:
                     ax.set_xticks(tick_pos)
                     ax.set_xticklabels(tick_labels, rotation=45)
                     ax.grid(True, ls=':')
-                    if entry == "Time": ax.set_yscale('log')
+                    
+                    # Uniformiamo i limiti Y in base al valore massimo globale, proprio come in plot_recovery_short
+                    if entry == "Time": 
+                        ax.set_yscale('log')
+                        ax.set_ylim(self.time_axis_limits(global_max)[:2])
+                    else:
+                        ax.set_ylim(self.event_axis_limits(global_max)[:2])
+                        
                     if i == 0: ax.set_title(col_labels[j])
                     
                     if j == 0:
@@ -765,7 +779,7 @@ class Data:
                         ax.annotate(row_labels[i], xy=(1.1, 0.5), xycoords='axes fraction',
                                     rotation=270, ha='left', va='center', fontsize=24)
 
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#E0E0E0', '#2D2D2D'])
+            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) 
                                for k, v in variant_map.items() if self._protocol_enabled(k)]
             legend_elements.append(Rectangle((0,0), 1, 1, label="K-sampling"))
@@ -900,9 +914,9 @@ class Data:
         #     # fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
         #     fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.pdf"))
         #     plt.close(fig)
-        
+
 ###################################################
-    def plot_recovery_short(self, data_in, side_by_side: bool = False):
+    def plot_recovery_short(self, data_in, side_by_side: bool = True):
         import matplotlib.colors as mcolors
         import colorsys
         plt.rcParams.update({"font.size": 24})
@@ -913,7 +927,7 @@ class Data:
         
         variant_map = {p.get("id"): (p.get("label", p.get("id")), self._protocol_color(p, scalarMap)) 
                        for p in self.protocols if p.get("id")}
-        # Filtriamo subito i protocolli abilitati per l'ordine
+        
         protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
 
         rows = []
@@ -943,15 +957,18 @@ class Data:
         df = pd.DataFrame(rows)
         if df.empty: return
         
-        # P.0 (AN) non ha Tm reale, gli assegniamo 60 per coerenza dati ma lo escludiamo dalla logica legenda
         df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
+        
+        # --- Mappa Globale MBS per P.1.1 ---
+        mbs_global_map = {}
+        for ag in df['Agents'].unique():
+            mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
+            mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
 
-        # --- LOGICA TM: Escludiamo P.0 dal calcolo dei Tm per la legenda ---
-        real_tm_vals = sorted(df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique())
+        real_tm_vals = sorted([m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0])
         main_tm_list = self._plot_tm_values(real_tm_vals)
         insert_tm_list = self._get_valid_insert_tm()
         
-        # Tm combinati per il posizionamento dei box (escluso AN)
         combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
         active_labels = [variant_map[pid][0] for pid in protocols_order]
         densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
@@ -965,9 +982,6 @@ class Data:
 
             for col_idx, (dens_label, arena, ag) in enumerate(densities):
                 cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
-                # Pre-calcolo per shading
-                mbs_sorted = sorted(cell[cell['VariantKey']=='P.1.1']['MBS'].unique(), key=lambda x: float(x))
-                N_mbs = len(mbs_sorted)
 
                 for row_idx, entry in enumerate(["Events", "Time"]):
                     ax = axes[row_idx, col_idx]
@@ -976,24 +990,19 @@ class Data:
                     n_tm_total = len(combined_tm)
                     width_tm = 0.8 / max(1, n_tm_total)
                     
-                    # Ciclo sui protocolli abilitati
                     for k, pid in enumerate(protocols_order):
                         is_p0 = (pid == 'P.0')
                         
-                        # Definiamo dove plottare il protocollo
                         if is_p0:
-                            # AN viene plottato una volta nel main (pos 0) e una nell'inset (pos 0)
                             targets_to_draw = []
                             if main_tm_list: targets_to_draw.append((main_tm_list[0], "main"))
                             if insert_tm_list: targets_to_draw.append((insert_tm_list[0], "inset"))
                         else:
-                            # Gli altri seguono i loro Tm specifici
                             targets_to_draw = []
                             for m_tm in main_tm_list: targets_to_draw.append((m_tm, "main"))
                             for i_tm in insert_tm_list: targets_to_draw.append((i_tm, "inset"))
 
                         for tm_val, target_type in targets_to_draw:
-                            # Filtro dati
                             if is_p0:
                                 p_data = cell[cell['VariantKey'] == pid]
                             else:
@@ -1001,7 +1010,6 @@ class Data:
                             
                             if p_data.empty: continue
 
-                            # Selezione Asse
                             if target_type == "main":
                                 target_ax = ax
                                 t_idx = main_tm_list.index(tm_val) if not is_p0 else 0
@@ -1015,24 +1023,30 @@ class Data:
                                 target_ax = inset_axes_dict[(row_idx, col_idx)]
                                 t_idx = insert_tm_list.index(tm_val) if not is_p0 else 0
 
-                            # Posizionamento
                             tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
                             final_base_pos = (k + 1) + (0 if is_p0 else tm_off)
 
                             if pid == "P.1.1":
-                                mbs_presenti = sorted(p_data['MBS'].unique(), key=lambda x: float(x))
-                                sub_w_mbs = width_tm / max(1, len(mbs_presenti))
-                                for m_idx, val_mbs in enumerate(mbs_presenti):
-                                    d_mbs_row = p_data[p_data['MBS'] == val_mbs]
-                                    ratio = (mbs_sorted.index(val_mbs)+1)/N_mbs if N_mbs > 0 else 1.0
-                                    h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
-                                    c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                    m_off = (m_idx - (len(mbs_presenti)-1)/2.0) * sub_w_mbs
-                                    self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
+                                mbs_list = mbs_global_map.get(ag, [])
+                                n_mbs_total = len(mbs_list)
+                                
+                                if n_mbs_total > 0:
+                                    sub_w_mbs = width_tm / n_mbs_total
+                                    for m_idx, val_mbs in enumerate(mbs_list):
+                                        d_mbs_row = p_data[p_data['MBS'] == val_mbs]
+                                        
+                                        ratio = (m_idx + 1) / n_mbs_total
+                                        h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
+                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                        
+                                        m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs
+                                        if not d_mbs_row.empty:
+                                            self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
+                                else:
+                                    self._draw_boxes_internal(target_ax, p_data, entry, final_base_pos, width_tm, variant_map[pid][1], side_by_side_mode)
                             else:
                                 self._draw_boxes_internal(target_ax, p_data, entry, final_base_pos, width_tm, variant_map[pid][1], side_by_side_mode)
 
-                    # Estetica Assi
                     ax.set_xticks(range(1, len(active_labels) + 1))
                     if row_idx == 1: ax.set_xticklabels(active_labels, rotation=0)
                     else: ax.set_xticklabels([])
@@ -1040,7 +1054,6 @@ class Data:
                     else: ax.set_yscale('log'); ax.set_ylim(self.time_axis_limits(time_max)[:2])
                     if col_idx == 0: ax.set_ylabel(r"$E_{r}$" if row_idx == 0 else r"$T_{r}$", fontsize=28)
 
-            # --- LEGENDA ---
             legend_elements = []
             if main_tm_list: 
                 legend_elements.append(Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
@@ -1056,7 +1069,7 @@ class Data:
             
             legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
             fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements)//2 + 1, 
-                       bbox_to_anchor=(0.5, -0.1), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys"))})
+                       bbox_to_anchor=(0.5, -0.1), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
@@ -1067,6 +1080,7 @@ class Data:
             save_short(df[df['Error'] <= 0.05], "le05", False)
             save_short(df[df['Error'] > 0.05], "gt05", False)
 
+###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
             d_le = data[data['Error'] <= 0.05][entry].values
@@ -1083,6 +1097,7 @@ class Data:
             if len(d) > 0:
                 ax.boxplot(d, positions=[pos], widths=width*0.8, patch_artist=True, 
                            boxprops=dict(facecolor=color), medianprops=dict(color='gray'), notch=False)
+
 ###################################################
     def store_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/"):
@@ -1231,6 +1246,7 @@ class Data:
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
+    ###################################################
     def print_messages(self,data_in,data_std):
         import matplotlib.colors as mcolors
         import colorsys
@@ -1324,8 +1340,11 @@ class Data:
             for k in dict_dk.keys():
                 if not self._protocol_enabled( dk):
                     continue
-                if k[2] not in col_index:
+                
+                # By-pass column check for P.0 so it propagates to all panels
+                if dk != 'P.0' and k[2] not in col_index:
                     continue
+                    
                 row = 0
                 if k[0]=='big' and k[1]=='25':
                     row = 0
@@ -1333,9 +1352,6 @@ class Data:
                     row = 2
                 elif k[0]=='small':
                     row = 1
-                col = col_index.get(k[2])
-                if col is None:
-                    continue
                     
                 c_val = protocol_colors.get(dk,"gray")
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
@@ -1362,7 +1378,14 @@ class Data:
                         c_val = tuple(np.clip(raw_rgb, 0, 1))
                     except Exception:
                         pass
-                ax[row][col].plot(dict_dk.get(k),color=c_val,lw=6)
+                
+                if dk == 'P.0':
+                    for c_idx in range(ncols):
+                        ax[row][c_idx].plot(dict_dk.get(k),color=c_val,lw=6)
+                else:
+                    col = col_index.get(k[2])
+                    if col is not None:
+                        ax[row][col].plot(dict_dk.get(k),color=c_val,lw=6)
                 
         for x in range(2):
             for y in range(ncols):
@@ -1408,7 +1431,7 @@ class Data:
         fig.tight_layout()
                 
         if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#E0E0E0', '#2D2D2D'])
+            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             grad_rect = Rectangle((0, 0), 1, 1)
             handles_r.append(grad_rect)
             l_list.append("k-sampling")
@@ -1504,8 +1527,11 @@ class Data:
             for k in dct.keys():
                 if not self._protocol_enabled( dk):
                     continue
-                if k[2] not in col_index:
+                
+                # By-pass column check for P.0
+                if dk != 'P.0' and k[2] not in col_index:
                     continue
+                    
                 row = 0
                 if k[0]=='big' and k[1]=='25':
                     row = 0
@@ -1513,9 +1539,6 @@ class Data:
                     row = 2
                 elif k[0]=='small':
                     row = 1
-                col = col_index.get(k[2])
-                if col is None:
-                    continue
                     
                 c_val = protocol_colors.get(dk,"gray")
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
@@ -1542,7 +1565,14 @@ class Data:
                         c_val = tuple(np.clip(raw_rgb, 0, 1))
                     except Exception:
                         pass
-                ax[row][col].plot(dct.get(k),color=c_val,lw=6)
+                
+                if dk == 'P.0':
+                    for c_idx in range(ncols):
+                        ax[row][c_idx].plot(dct.get(k),color=c_val,lw=6)
+                else:
+                    col = col_index.get(k[2])
+                    if col is not None:
+                        ax[row][col].plot(dct.get(k),color=c_val,lw=6)
                 
         for x in range(2):
             for y in range(ncols):
@@ -1591,7 +1621,7 @@ class Data:
         fig.tight_layout()
                     
         if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#E0E0E0', '#2D2D2D'])
+            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             grad_rect = Rectangle((0, 0), 1, 1)
             handles_r.append(grad_rect)
             l_list.append("k-sampling")
@@ -1676,14 +1706,17 @@ class Data:
                             # Scaling X coordinate to [0, 1]
                             x_plot = np.array(threshlds)
                             if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
+                            
+                            # Forcing lookup key to "60" for P.0 to map across all columns
+                            search_tm = "60" if dk == 'P.0' else str(o_k[k])
 
                             for th in range(len(threshlds)):
                                 vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
                                 valst, lim_valst = np.nan, np.nan
                                 
-                                # Access data with normalized 4-element key
-                                d_series = data_in.get(dk).get((a,ag,str(o_k[k]), m_b_s))
-                                t_series = times_in.get(dk).get((a,ag,str(o_k[k]), m_b_s))
+                                # Access data with overridden search_tm key
+                                d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
+                                t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
                                 
                                 if d_series is not None:
                                     for pt in range(len(ground_T)):
@@ -1735,7 +1768,7 @@ class Data:
                 
         handler_map = None
         if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#E0E0E0', '#2D2D2D'])
+            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             handles_r.append(Rectangle((0, 0), 1, 1))
             l_list_r.append("k-sampling")
             handler_map = {Rectangle: GradientHandler(cmap_grey)}
@@ -1905,6 +1938,15 @@ class Data:
     def plot_compressed_table(self, tot_states_in, tot_times_in, tot_msgs_in):
         import matplotlib.colors as mcolors
         import colorsys
+        import os
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
+        import matplotlib.colors as colors
+        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle
+        
         if not os.path.exists(self.base+"/compressed_data/images/"):
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
@@ -1942,6 +1984,8 @@ class Data:
         mid_act_plotted = np.zeros(3)
         max_time = 0
         ref_x = np.arange(0.5, 1.01, 0.01)
+        
+        # Inizializzazione del dizionario per gli inset axes
         inset_axes_dict = {}
 
         # Mappa MBS per normalizzazione shading tonale (coerenza con plot_recovery)
@@ -2000,6 +2044,10 @@ class Data:
                             ins.set_xlim(0, 901); ins.set_ylim(-0.01, 1.01)
                             ins.tick_params(labelbottom=False, labelleft=False)
                             ins.grid(True, ls=':', color='silver')
+                            
+                            # --> AGGIUNTA: Plot della linea dash-dot sull'inset appena creato <--
+                            ins.plot([5 / (num_agents - 1) for _ in range(901)], color="black", ls='-.', lw=3)
+                            
                             inset_axes_dict[(0, col_idx)] = ins
                         target_ax = inset_axes_dict[(0, col_idx)]
 
@@ -2087,16 +2135,28 @@ class Data:
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
                     ax[2][col_idx].plot(ref_x, ref_x, color='black', lw=3, ls=':')
-
-        self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, use_gradient, main_tm_list, insert_tm_list)
+        self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict)
         
 ###################################################
-    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors, tau_ticks, max_time, use_gradient, main_tm_list, insert_tm_list):
+    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors, tau_ticks, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict=None):
+        import os
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle
+        from matplotlib.legend_handler import HandlerBase
+        
+        # Fallback sicuro per il dizionario
+        if inset_axes_dict is None:
+            inset_axes_dict = {}
+            
         column_titles = ["LD25","HD25","HD100"]
         
         for i in range(3):
             for j in range(3):
                 curr = ax[i][j]
+                
+                # --- MAIN AXES SETUP ---
                 if i == 0:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
@@ -2113,6 +2173,29 @@ class Data:
                 
                 curr.grid(True, ls=':', which='major')
                 if j > 0: curr.set_yticklabels([])
+
+                # --- INSET AXES SYNCHRONIZATION ---
+                if (i, j) in inset_axes_dict:
+                    ins_ax = inset_axes_dict[(i, j)]
+                    
+                    # Copia limiti rigidi
+                    ins_ax.set_xlim(curr.get_xlim())
+                    ins_ax.set_ylim(curr.get_ylim())
+                    
+                    # Copia i tick sull'asse X
+                    if i == 0:
+                        ins_ax.set_xticks([0, 300, 600, 900])
+                    else:
+                        ins_ax.xaxis.set_major_locator(MultipleLocator(0.1))
+                    
+                    # Copia i tick sull'asse Y dal pannello principale
+                    ins_ax.set_yticks(curr.get_yticks())
+                    
+                    # Nascondi tutte le etichette di testo (labels)
+                    ins_ax.tick_params(
+                        labelbottom=False, labeltop=False, 
+                        labelleft=False, labelright=False
+                    )
 
         ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$T_c$"); ax[2][0].set_ylabel(r"$G$")
         
@@ -2132,17 +2215,28 @@ class Data:
                 legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
         
         handler_map = {}
+        # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
+        # legend_elements.append(grad_rect)
+        # try:
+        #     handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
+        # except NameError:
+        #     pass # Ignora se GradientHandler non e' importato in questo scope             
         if use_gradient:
-            grad_rect = Rectangle((0, 0), 1, 1)
+            # Assicurati di avere GradientHandler definito o importato correttamente
+            grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
             legend_elements.append(grad_rect)
-            handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
+            try:
+                handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
+            except NameError:
+                pass # Ignora se GradientHandler non e' importato in questo scope
 
-        fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=4, frameon=True, edgecolor='0.8')
+        fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=5, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
         plt.close(fig)
 
 ###################################################
     def find_emptiest_inset_position(self, ax, width=0.35, height=0.35, margin=0.03):
+        import numpy as np
         """
         Calculates the emptiest quadrant in the given axis to place an inset.
         Evaluates the top-left, top-right, bottom-left, and bottom-right corners.

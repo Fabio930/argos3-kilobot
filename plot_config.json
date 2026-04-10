@@ -8,5 +8,5 @@
     {"id": "O.1.1", "label": "$ID+R_{1}$", "color": "viridis:3"},
     {"id": "O.1.0", "label": "$ID+R_{\\infty}$", "color": "viridis:4"}
   ],
-  "plots": {"exclude_protocols": ["O.0.0","O.2.0","O.1.1","O.1.0"], "exclude_tm": [120,300]}
+  "plots": {"exclude_protocols": ["O.0.0","O.2.0","O.1.1","O.1.0"], "exclude_tm": []}
 }

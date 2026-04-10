@@ -141,8 +141,8 @@ class Results:
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
-        x = 10
-        if n_agents == 100: x = 40
+        x = 1
+        # if n_agents == 100: x = 40
         max_buff_size = n_agents - x
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
