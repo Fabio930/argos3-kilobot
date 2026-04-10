@@ -71,7 +71,7 @@ buffer_dim=""
 numrobots="25"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-msg_expiring_seconds="120 180"
+msg_expiring_seconds="60 180 600"
 messages_hops="0"
 
 # small arena dimensions
