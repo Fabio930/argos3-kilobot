@@ -15,7 +15,6 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        
         <kilobot_controller id="bestN">
             <actuators>
                 <differential_steering implementation="default"/>
@@ -27,7 +26,6 @@
             </sensors>
             <params behavior="build/examples/behaviors/bestN" />
         </kilobot_controller>
-        
     </controllers>
 
     <!-- ****************** -->
@@ -59,6 +57,7 @@
             start_commitment_variation_time = "__VARIATION_START_TIME__"
             end_commitment_variation_time = "__VARIATION_END_TIME__"
             next_committed_percentage = "__GT_AFTER_VAR__"
+            k_sampling = "__K_SAMPLING__"
         >
         </hierarchicStruct>
     
@@ -67,7 +66,6 @@
     <!-- * Arena configuration * -->
     <!-- *********************** -->
     <arena size="1.1, 1.1, 1" center="0,0,0">
-        
         <box id="wall_north" size="1.1,0.01,0.1" movable="false">
             <body position="0,.55,0" orientation="0,0,0" />
         </box>
@@ -80,7 +78,6 @@
         <box id="wall_west" size="0.01,1.1,0.1"  movable="false">
             <body position="-.55,0,0" orientation="0,0,0" />
         </box>
-
 
         <distribute>
             <position method="uniform" min="-.5,-0.5,0" max="0.5,0.5,0" />
@@ -121,7 +118,6 @@
         <floor id="floor"
         source="loop_functions"
         pixels_per_meter="100" />
-        
     </arena>
     
     <!-- ******************* -->

@@ -226,13 +226,6 @@ void update_messages(){
 
 void check_quorum(quorum_a **Array[]){
     uint8_t tmp = my_state;
-    for (uint8_t i = 0; i < num_quorum_items; i++) tmp += (*Array)[i]->agent_state;
-    if(num_quorum_items >= min_quorum_length && tmp >= (num_quorum_items + 1)*quorum_threshold) quorum_reached = 1;
-    else quorum_reached = 0;
-}
-
-void check_quorum(quorum_a **Array[]){
-    uint8_t tmp = my_state;
     uint8_t valid_items = 0;
     uint8_t start_idx = (num_quorum_items > k_sampling) ? k_sampling : num_quorum_items;
     for (uint8_t i = start_idx; i < num_quorum_items; i++){
