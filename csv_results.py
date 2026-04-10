@@ -23,12 +23,11 @@ class GradientHandler(HandlerBase):
         super().__init__()
         
     def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
-        n_steps = 5  # Numero di blocchi discreti
+        n_steps = 5  
         artists = []
         step_width = width / n_steps
         for i in range(n_steps):
             color = self.cmap(i / (n_steps - 1) if n_steps > 1 else 1)
-            # step_width - 1.5 crea lo spazio tra i blocchi per renderli meno fitti
             r = Rectangle((xdescent + i * step_width, ydescent), step_width - 1.5, height, 
                           facecolor=color, edgecolor='none', transform=trans)
             artists.append(r)
@@ -194,14 +193,12 @@ class Data:
             exclude_raw = plot_cfg.get("exclude_tm", [])
             insert_raw = plot_cfg.get("insert", [])
             
-            # Normalize exclude list into a set
             exclude_set = set()
             for v in exclude_raw:
                 norm = self._normalize_tm(v)
                 if norm is not None:
                     exclude_set.add(norm)
                     
-            # Filter insert array: keep only if present in exclude_set
             valid_insert = []
             for v in insert_raw:
                 nv = self._normalize_tm(v)
@@ -454,7 +451,6 @@ class Data:
                     except Exception:
                         max_buff_val = ""
                         
-                # NOTA: rimossa la sovrascrittura di buff_val per Ps! Ora Tm viene preservato.
                 key = (
                     row[arena_idx] if len(row) > arena_idx else "",
                     algo_val,
@@ -598,7 +594,6 @@ class Data:
                         
                 tipo = row[t_idx] if len(row) > t_idx else ""
 
-                # La chiave ora include max_buff_val (13 elementi totali)
                 key = (algo, arena, n_runs, exp_time, comm, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops, max_buff_val, tipo)
                 
                 data[key] = (
@@ -671,7 +666,8 @@ class Data:
             mean, std, events = float(value[0]), float(value[1]), float(value[2])
             k = [str(x) for x in key]
             alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
-            mbs = k[10] if len(k) > 10 else str(int(agents)-1)
+            
+            mbs = buf
             
             alg_lower = str(alg).strip().lower()
             if alg_lower == 'ps':
@@ -703,7 +699,6 @@ class Data:
             msg_list = [60] + [m for m in msg_list if m != 60]
         col_labels = [f"$T_m$={m}" for m in msg_list]
         
-        # --- Mappa Globale MBS per P.1.1 ---
         mbs_global_map = {}
         for ag in df['Agents'].unique():
             mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
@@ -716,22 +711,28 @@ class Data:
             for i, (arena_type, ag_num) in enumerate(grid):
                 for j, tm_val in enumerate(msg_list):
                     ax = axes[i, j]
-                    cell = subset[(subset['Arena'] == arena_type) & (subset['Agents'] == ag_num) & (subset['Msgs_exp_time'] == tm_val)]
+                    
+                    base_cell = subset[(subset['Arena'] == arena_type) & (subset['Agents'] == ag_num)]
                     
                     pos_idx = 1
                     tick_labels, tick_pos = [], []
 
                     for pid in protocols_order:
                         if not self._protocol_enabled(pid): continue
-                        p_cell = cell[cell['VariantKey'] == pid]
+                        
+                        if pid == 'P.0':
+                            p_cell = base_cell[(base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == 60)]
+                        else:
+                            p_cell = base_cell[(base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == tm_val)]
+                            
                         base_color = variant_map[pid][1]
                         
+                        width = 0.3
                         if pid == "P.1.1":
                             mbs_list = mbs_global_map.get(ag_num, [])
                             n_mbs_total = len(mbs_list)
                             
                             if n_mbs_total > 0:
-                                width = 0.8 / n_mbs_total
                                 for m_idx, val_mbs in enumerate(mbs_list):
                                     d = p_cell[p_cell['MBS'] == val_mbs][entry].values
                                     if len(d) == 0: continue
@@ -741,17 +742,17 @@ class Data:
                                     c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
                                     
                                     offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
-                                    ax.boxplot(d, positions=[pos_idx + offset], widths=width*0.8, patch_artist=True,
+                                    ax.boxplot(d, positions=[pos_idx + offset], widths=width, patch_artist=True,
                                                boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
                             else:
                                 d = p_cell[entry].values
                                 if len(d) > 0:
-                                    ax.boxplot(d, positions=[pos_idx], widths=0.6, patch_artist=True,
+                                    ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
                                                boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         else:
                             d = p_cell[entry].values
                             if len(d) > 0:
-                                ax.boxplot(d, positions=[pos_idx], widths=0.6, patch_artist=True,
+                                ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
                                            boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         
                         tick_pos.append(pos_idx)
@@ -776,16 +777,16 @@ class Data:
                         ax.set_ylabel(row_label_left, fontsize=28)
                     
                     if j == ncols - 1:
-                        ax.annotate(row_labels[i], xy=(1.1, 0.5), xycoords='axes fraction',
-                                    rotation=270, ha='left', va='center', fontsize=24)
+                        ax.annotate(row_labels[i], xy=(1.03, 0.5), xycoords='axes fraction',
+                                    rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
             cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) 
                                for k, v in variant_map.items() if self._protocol_enabled(k)]
             legend_elements.append(Rectangle((0,0), 1, 1, label="K-sampling"))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements), 
-                       bbox_to_anchor=(0.75, 0.01), handler_map={Rectangle: GradientHandler(cmap_grey)})
+            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements)//2, 
+                       bbox_to_anchor=(0.7, 0.0), handler_map={Rectangle: GradientHandler(cmap_grey)})
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_recovery_{threshold_str}_{entry}.pdf"), bbox_inches='tight')
@@ -935,7 +936,8 @@ class Data:
             mean, std, events = float(value[0]), float(value[1]), float(value[2])
             k = [str(x) for x in key]
             alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
-            mbs = k[10] if len(k) > 10 else str(int(agents)-1)
+            
+            mbs = buf
             
             alg_lower = str(alg).strip().lower()
             if alg_lower == 'ps':
@@ -959,7 +961,6 @@ class Data:
         
         df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
         
-        # --- Mappa Globale MBS per P.1.1 ---
         mbs_global_map = {}
         for ag in df['Agents'].unique():
             mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
@@ -978,7 +979,6 @@ class Data:
             fig, axes = plt.subplots(2, 3, figsize=(24, 14))
             event_max = subset["Events"].max()
             time_max = subset["Time"].max()
-            inset_axes_dict = {}
 
             for col_idx, (dens_label, arena, ag) in enumerate(densities):
                 cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
@@ -990,69 +990,78 @@ class Data:
                     n_tm_total = len(combined_tm)
                     width_tm = 0.8 / max(1, n_tm_total)
                     
-                    for k, pid in enumerate(protocols_order):
-                        is_p0 = (pid == 'P.0')
-                        
-                        if is_p0:
-                            targets_to_draw = []
-                            if main_tm_list: targets_to_draw.append((main_tm_list[0], "main"))
-                            if insert_tm_list: targets_to_draw.append((insert_tm_list[0], "inset"))
-                        else:
-                            targets_to_draw = []
-                            for m_tm in main_tm_list: targets_to_draw.append((m_tm, "main"))
-                            for i_tm in insert_tm_list: targets_to_draw.append((i_tm, "inset"))
-
-                        for tm_val, target_type in targets_to_draw:
-                            if is_p0:
-                                p_data = cell[cell['VariantKey'] == pid]
-                            else:
-                                p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
+                    def draw_pass(target_ax, target_type):
+                        for k, pid in enumerate(protocols_order):
+                            is_p0 = (pid == 'P.0')
                             
-                            if p_data.empty: continue
-
-                            if target_type == "main":
-                                target_ax = ax
-                                t_idx = main_tm_list.index(tm_val) if not is_p0 else 0
+                            if is_p0:
+                                tms = [main_tm_list[0]] if target_type == "main" and main_tm_list else []
+                                if target_type == "inset" and insert_tm_list: tms = [insert_tm_list[0]]
                             else:
-                                if (row_idx, col_idx) not in inset_axes_dict:
-                                    best_box = self.find_emptiest_inset_position(ax)
-                                    ins = ax.inset_axes(best_box)
-                                    ins.tick_params(labelbottom=False, labelleft=False)
-                                    ins.grid(True, ls=':', color='silver')
-                                    inset_axes_dict[(row_idx, col_idx)] = ins
-                                target_ax = inset_axes_dict[(row_idx, col_idx)]
-                                t_idx = insert_tm_list.index(tm_val) if not is_p0 else 0
+                                tms = main_tm_list if target_type == "main" else insert_tm_list
 
-                            tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
-                            final_base_pos = (k + 1) + (0 if is_p0 else tm_off)
-
-                            if pid == "P.1.1":
-                                mbs_list = mbs_global_map.get(ag, [])
-                                n_mbs_total = len(mbs_list)
+                            for tm_val in tms:
+                                if is_p0:
+                                    p_data = cell[cell['VariantKey'] == pid]
+                                    tm_off = 0
+                                else:
+                                    p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
+                                    t_idx = main_tm_list.index(tm_val) if target_type == "main" else insert_tm_list.index(tm_val)
+                                    tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
                                 
-                                if n_mbs_total > 0:
-                                    sub_w_mbs = width_tm / n_mbs_total
-                                    for m_idx, val_mbs in enumerate(mbs_list):
-                                        d_mbs_row = p_data[p_data['MBS'] == val_mbs]
-                                        
-                                        ratio = (m_idx + 1) / n_mbs_total
-                                        h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
-                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                        
-                                        m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs
-                                        if not d_mbs_row.empty:
-                                            self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
+                                if p_data.empty: continue
+                                final_base_pos = (k + 1) + tm_off
+
+                                if pid == "P.1.1":
+                                    mbs_list = mbs_global_map.get(ag, [])
+                                    n_mbs_total = len(mbs_list)
+                                    if n_mbs_total > 0:
+                                        sub_w_mbs = width_tm
+                                        for m_idx, val_mbs in enumerate(mbs_list):
+                                            d_mbs_row = p_data[p_data['MBS'] == val_mbs]
+                                            ratio = (m_idx + 1) / n_mbs_total
+                                            h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
+                                            c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                            m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs
+                                            if not d_mbs_row.empty:
+                                                self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
+                                    else:
+                                        self._draw_boxes_internal(target_ax, p_data, entry, final_base_pos, width_tm, variant_map[pid][1], side_by_side_mode)
                                 else:
                                     self._draw_boxes_internal(target_ax, p_data, entry, final_base_pos, width_tm, variant_map[pid][1], side_by_side_mode)
-                            else:
-                                self._draw_boxes_internal(target_ax, p_data, entry, final_base_pos, width_tm, variant_map[pid][1], side_by_side_mode)
+
+                    draw_pass(ax, "main")
 
                     ax.set_xticks(range(1, len(active_labels) + 1))
                     if row_idx == 1: ax.set_xticklabels(active_labels, rotation=0)
                     else: ax.set_xticklabels([])
+                    
                     if row_idx == 0: ax.set_ylim(self.event_axis_limits(event_max)[:2])
                     else: ax.set_yscale('log'); ax.set_ylim(self.time_axis_limits(time_max)[:2])
+                    
                     if col_idx == 0: ax.set_ylabel(r"$E_{r}$" if row_idx == 0 else r"$T_{r}$", fontsize=28)
+                    
+                    ax.set_axisbelow(True)
+                    ax.grid(True, ls=':', zorder=0)
+
+                    if insert_tm_list:
+                        best_box = self.find_emptiest_inset_position(ax)
+                        ins = ax.inset_axes(best_box)
+                        
+                        draw_pass(ins, "inset")
+                        
+                        ins.set_xlim(ax.get_xlim())
+                        ins.set_xscale(ax.get_xscale())
+                        ins.set_xticks(ax.get_xticks())
+                        ins.set_xticklabels([])
+                        
+                        ins.set_ylim(ax.get_ylim())
+                        ins.set_yscale(ax.get_yscale())
+                        ins.set_yticks(ax.get_yticks())
+                        ins.set_yticklabels([])
+                        
+                        ins.set_axisbelow(True)
+                        ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
             if main_tm_list: 
@@ -1068,8 +1077,8 @@ class Data:
                 legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
             
             legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
-            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements)//2 + 1, 
-                       bbox_to_anchor=(0.5, -0.1), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+            fig.legend(handles=legend_elements, loc='lower center', ncol=5, 
+                       bbox_to_anchor=(0.65, -0.08), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
@@ -1079,7 +1088,6 @@ class Data:
         else:
             save_short(df[df['Error'] <= 0.05], "le05", False)
             save_short(df[df['Error'] > 0.05], "gt05", False)
-
 ###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
@@ -1246,7 +1254,6 @@ class Data:
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
-    ###################################################
     def print_messages(self,data_in,data_std):
         import matplotlib.colors as mcolors
         import colorsys
@@ -1341,7 +1348,6 @@ class Data:
                 if not self._protocol_enabled( dk):
                     continue
                 
-                # By-pass column check for P.0 so it propagates to all panels
                 if dk != 'P.0' and k[2] not in col_index:
                     continue
                     
@@ -1442,7 +1448,7 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         if handles_r:
-            fig.legend(handles_r, l_list, bbox_to_anchor=(1, 0), ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+            fig.legend(handles_r, l_list, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
             
         fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.savefig(fig_path, bbox_inches='tight')
@@ -1528,7 +1534,6 @@ class Data:
                 if not self._protocol_enabled( dk):
                     continue
                 
-                # By-pass column check for P.0
                 if dk != 'P.0' and k[2] not in col_index:
                     continue
                     
@@ -1655,7 +1660,6 @@ class Data:
         ncols = len(o_k)
         arena = more_k[0]
         
-        # Legend handles
         low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
         high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
@@ -1703,18 +1707,15 @@ class Data:
                             vals_v2, vals_v8, gts_v2, gts_v8 = [], [], [], []
                             times_v = []
                             
-                            # Scaling X coordinate to [0, 1]
                             x_plot = np.array(threshlds)
                             if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
                             
-                            # Forcing lookup key to "60" for P.0 to map across all columns
                             search_tm = "60" if dk == 'P.0' else str(o_k[k])
 
                             for th in range(len(threshlds)):
                                 vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
                                 valst, lim_valst = np.nan, np.nan
                                 
-                                # Access data with overridden search_tm key
                                 d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
                                 t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
                                 
@@ -1773,8 +1774,8 @@ class Data:
             l_list_r.append("k-sampling")
             handler_map = {Rectangle: GradientHandler(cmap_grey)}
 
-        fig.legend(handles_r+handles_c, l_list_r + [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$"], bbox_to_anchor=(1, 0), ncols=9, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
-        tfig.legend(handles_r, l_list_r, bbox_to_anchor=(1, 0), ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
+        fig.legend(handles_c+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$"]+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
+        tfig.legend(handles_r, l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
@@ -1785,16 +1786,13 @@ class Data:
     def _borders_attributes(self, ax, tax, row, k, o_k, border_font, ncols):
         from matplotlib.ticker import FixedLocator
 
-        # Impostiamo i limiti X da 0.5 a 1
         for a_curr in [ax[row][k], tax[row][k]]:
             a_curr.set_xlim(0.5, 1.0)
             a_curr.tick_params(axis='both', which='major', labelsize=border_font)
 
-        # Limiti Y: G parte da 0.5, Tc rimane invariato
         ax[row][k].set_ylim(0.5, 1.0)
         tax[row][k].set_ylim(0, 201)
 
-        # Gestione Y-Labels (solo prima colonna)
         if k == 0:
             ax[row][k].set_ylabel(r"$G$", fontsize=border_font)
             tax[row][k].set_ylabel(r"$T_c$", fontsize=border_font)
@@ -1804,7 +1802,6 @@ class Data:
             tax[row][k].yaxis.set_tick_params(labelleft=False)
             ax[row][k].yaxis.set_tick_params(labelleft=False)
 
-        # Gestione X-Labels (Soglie tau) da 0.5 a 1.0
         ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
         if row == 2:
@@ -1819,7 +1816,6 @@ class Data:
                 a_curr.set_xticklabels([]) 
             if row == 1: tax[row][k].set_ylim(0, 40)
 
-        # Titoli Tm in alto (sulla riga 0)
         if row == 0:
             axt = ax[row][k].twiny()
             taxt = tax[row][k].twiny()
@@ -1829,7 +1825,6 @@ class Data:
             taxt.set_xticks([])
             axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, labelpad=15)
 
-        # Etichette Arena a destra
         if k == ncols - 1:
             for a_curr in [ax[row][k], tax[row][k]]:
                 a_right = a_curr.twinx()
@@ -1951,16 +1946,13 @@ class Data:
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
         
-        # Recupero dati raggruppati
         ground_T, threshlds, dk_tot_states, dk_tot_times, o_k, [arena, agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         
-        # Mappa colori globale
         typo = [0,1,2,3,4,5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         
-        # Gestione Tm e Inset
         raw_all_tm = sorted([int(x) for x in o_k if x is not None and int(x) > 0])
         main_tm_list = self._plot_tm_values(raw_all_tm)
         insert_tm_list = self._get_valid_insert_tm()
@@ -1968,7 +1960,6 @@ class Data:
         if not main_tm_list and not insert_tm_list:
             return
 
-        # Definizione use_gradient (necessaria per _finalize_compressed_plot)
         if insert_tm_list:
             use_gradient = False
         else:
@@ -1985,10 +1976,8 @@ class Data:
         max_time = 0
         ref_x = np.arange(0.5, 1.01, 0.01)
         
-        # Inizializzazione del dizionario per gli inset axes
         inset_axes_dict = {}
 
-        # Mappa MBS per normalizzazione shading tonale (coerenza con plot_recovery)
         mbs_per_agent = {}
         for dk_key in dk_tot_msgs.keys():
             dicts = dk_tot_msgs.get(dk_key)
@@ -2008,7 +1997,6 @@ class Data:
             base_color = protocol_colors.get(dk, 'gray')
             is_p0 = (dk == 'P.0')
 
-            # --- ROW 0: MESSAGES ---
             for key, msg_series in tot_msgs.items():
                 current_tm = int(key[2])
                 if not (current_tm in combined_tm or is_p0): continue
@@ -2025,7 +2013,6 @@ class Data:
                         h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
 
-                # Destinazioni: P.0 va in entrambi, gli altri seguono tm_set/insert_tm_set
                 destinations = []
                 if is_p0:
                     destinations.extend(["main", "inset"])
@@ -2039,13 +2026,11 @@ class Data:
                         target_ax = ax[0][col_idx]
                     else:
                         if (0, col_idx) not in inset_axes_dict:
-                            # Riga 0: Inset in basso a destra (y=0.03)
                             ins = ax[0][col_idx].inset_axes([0.62, 0.03, 0.35, 0.35])
                             ins.set_xlim(0, 901); ins.set_ylim(-0.01, 1.01)
                             ins.tick_params(labelbottom=False, labelleft=False)
                             ins.grid(True, ls=':', color='silver')
                             
-                            # --> AGGIUNTA: Plot della linea dash-dot sull'inset appena creato <--
                             ins.plot([5 / (num_agents - 1) for _ in range(901)], color="black", ls='-.', lw=3)
                             
                             inset_axes_dict[(0, col_idx)] = ins
@@ -2057,7 +2042,6 @@ class Data:
                     min_buf_plotted[col_idx] = 1
                     ax[0][col_idx].plot([5 / (num_agents - 1) for _ in range(901)], color="black", ls='-.', lw=3)
 
-            # --- ROW 1 & 2: ACTIVATION & TIMES ---
             for key, state_series in tot_states.items():
                 current_tm = int(key[2])
                 if not (current_tm in combined_tm or is_p0): continue
@@ -2066,7 +2050,6 @@ class Data:
                 col_idx = 2 if num_agents == 100 else 1 if key[0] == "smallA" and num_agents == 25 else 0
                 time_series = tot_times.get(key)
                 
-                # Calcolo v2, v8, vt
                 v2, v8, vt = [], [], []
                 for th in range(len(threshlds)):
                     vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
@@ -2092,7 +2075,6 @@ class Data:
                     vt.append(valst)
                     if not np.isnan(valst) and valst > max_time: max_time = valst
 
-                # Colore HLS
                 c_val = base_color
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
                     mbs_list = mbs_sorted_map.get(num_agents, [])
@@ -2101,7 +2083,6 @@ class Data:
                         h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
 
-                # Destinazioni
                 destinations = []
                 if is_p0: destinations.extend(["main", "inset"])
                 elif current_tm in tm_set: destinations.append("main")
@@ -2113,8 +2094,6 @@ class Data:
                             curr_ax = ax[r_idx][col_idx]
                         else:
                             if (r_idx, col_idx) not in inset_axes_dict:
-                                # Riga 1: Inset in alto a destra (y=0.62)
-                                # Riga 2: Inset dinamico (cerca spazio vuoto)
                                 if r_idx == 1:
                                     y_pos = 0.62
                                     best_box = [0.62, y_pos, 0.35, 0.35]
@@ -2146,7 +2125,6 @@ class Data:
         from matplotlib.patches import Rectangle
         from matplotlib.legend_handler import HandlerBase
         
-        # Fallback sicuro per il dizionario
         if inset_axes_dict is None:
             inset_axes_dict = {}
             
@@ -2155,8 +2133,6 @@ class Data:
         for i in range(3):
             for j in range(3):
                 curr = ax[i][j]
-                
-                # --- MAIN AXES SETUP ---
                 if i == 0:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
@@ -2173,25 +2149,19 @@ class Data:
                 
                 curr.grid(True, ls=':', which='major')
                 if j > 0: curr.set_yticklabels([])
-
-                # --- INSET AXES SYNCHRONIZATION ---
                 if (i, j) in inset_axes_dict:
                     ins_ax = inset_axes_dict[(i, j)]
                     
-                    # Copia limiti rigidi
                     ins_ax.set_xlim(curr.get_xlim())
                     ins_ax.set_ylim(curr.get_ylim())
                     
-                    # Copia i tick sull'asse X
                     if i == 0:
                         ins_ax.set_xticks([0, 300, 600, 900])
                     else:
                         ins_ax.xaxis.set_major_locator(MultipleLocator(0.1))
                     
-                    # Copia i tick sull'asse Y dal pannello principale
                     ins_ax.set_yticks(curr.get_yticks())
                     
-                    # Nascondi tutte le etichette di testo (labels)
                     ins_ax.tick_params(
                         labelbottom=False, labeltop=False, 
                         labelleft=False, labelright=False
@@ -2222,13 +2192,12 @@ class Data:
         # except NameError:
         #     pass # Ignora se GradientHandler non e' importato in questo scope             
         if use_gradient:
-            # Assicurati di avere GradientHandler definito o importato correttamente
             grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
             legend_elements.append(grad_rect)
             try:
                 handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
             except NameError:
-                pass # Ignora se GradientHandler non e' importato in questo scope
+                pass 
 
         fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=5, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
@@ -2243,7 +2212,6 @@ class Data:
         Fully compatible with lines, boxplots (patches), and scatter points (collections),
         respecting both linear and logarithmic axis scales.
         """
-        # Define candidate boxes in normalized axes coordinates [x0, y0, width, height]
         candidates = {
             "top_left": [margin, 1.0 - height - margin, width, height],
             "top_right": [1.0 - width - margin, 1.0 - height - margin, width, height],
@@ -2254,13 +2222,11 @@ class Data:
         counts = {key: 0 for key in candidates}
         points_axes = []
 
-        # Force a quick internal update so the newly applied log scales and y-limits take effect
         try:
             ax.figure.canvas.draw_idle()
         except Exception:
             pass
 
-        # 1. Lines (Line plots, boxplot whiskers, caps, medians, and flier outliers)
         for line in ax.lines:
             xdata = line.get_xdata()
             ydata = line.get_ydata()
@@ -2268,11 +2234,9 @@ class Data:
             if np.any(valid):
                 xy = np.column_stack((xdata[valid], ydata[valid]))
                 try:
-                    # Correct transformation for logarithmic and linear scales
                     disp_xy = line.get_transform().transform(xy)
                     ax_xy = ax.transAxes.inverted().transform(disp_xy)
                     
-                    # Prevent interpolating OUTLIERS (fliers) which are scattered points, not lines
                     ls = line.get_linestyle()
                     if ls not in ['None', 'none', '', ' ', False, None]:
                         interpolated_points = []
@@ -2288,12 +2252,10 @@ class Data:
                         else:
                             points_axes.append(ax_xy)
                     else:
-                        # Append the scattered outlier points directly without creating an invisible "wall"
                         points_axes.append(ax_xy)
                 except Exception:
                     pass
 
-        # 2. Patches (Boxplot bodies, bar charts, filled areas)
         for patch in ax.patches:
             try:
                 verts = patch.get_path().vertices
@@ -2309,7 +2271,6 @@ class Data:
             except Exception:
                 pass
 
-        # 3. Collections (Scatter plots, some types of fliers/outliers)
         for collection in ax.collections:
             try:
                 offsets = collection.get_offsets()
@@ -2320,14 +2281,12 @@ class Data:
             except Exception:
                 pass
 
-        # Fallback to top-left if the plot is completely empty
         if not points_axes:
             return candidates["top_left"]
             
         all_points_axes = np.vstack(points_axes)
         x_ax, y_ax = all_points_axes[:, 0], all_points_axes[:, 1]
         
-        # Calculate intersection density for each quadrant
         for key, box in candidates.items():
             x0, y0, w, h = box
             in_box = (x_ax >= x0) & (x_ax <= x0 + w) & (y_ax >= y0) & (y_ax <= y0 + h)
