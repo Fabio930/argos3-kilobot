@@ -74,7 +74,7 @@ private:
     UInt16                  end_commitment_variation_time;
     bool                    variation_done = false;
     float                   next_committed_percentage;
-
+    UInt8                   k_sampling;
     UInt8                   queue_lenght;
     UInt16                  expiring_quorum_seconds;
     float                   quorum_threshold;

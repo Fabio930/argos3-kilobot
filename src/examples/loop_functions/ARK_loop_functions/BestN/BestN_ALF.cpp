@@ -188,6 +188,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"end_commitment_variation_time",end_commitment_variation_time);
     GetNodeAttribute(tHierarchicalStructNode,"next_committed_percentage",next_committed_percentage);
     GetNodeAttribute(tHierarchicalStructNode,"quorum_threshold",quorum_threshold);
+    GetNodeAttribute(tHierarchicalStructNode,"k_sampling",k_sampling);
     if(start_commitment_variation_time==0) variation_done = true;
 }
 
@@ -296,6 +297,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
         m_tMessages[unKilobotID].data[1+i*3] = tMessage.m_sID << 1 | tMessage.m_sData >> 6;
         m_tMessages[unKilobotID].data[2+i*3] = tMessage.m_sData << 2 | tMessage.m_sType;
     }
+    m_tMessages[unKilobotID].data[8] = k_sampling;
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
