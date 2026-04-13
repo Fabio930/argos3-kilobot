@@ -2,14 +2,14 @@
   "protocols": [
     {"id": "P.0", "label": "$AN$", "color": "red"},
     {"id": "P.1.0", "label": "$AN_{t}$", "color": "viridis:0"},
-    {"id": "P.1.1", "label": "$AN_{t}^{1}$", "color": "orange"},
+    {"id": "P.1.1", "label": "$AN_{t}^{k}$", "color": "orange"},
     {"id": "O.0.0", "label": "$ID+B$", "color": "viridis:1"},
     {"id": "O.2.0", "label": "$ID+R_{f}$", "color": "viridis:2"},
     {"id": "O.1.1", "label": "$ID+R_{1}$", "color": "viridis:3"},
     {"id": "O.1.0", "label": "$ID+R_{\\infty}$", "color": "viridis:4"}
   ],
   "plots": {
-    "exclude_protocols": ["P.0","P.1.1"],
+    "exclude_protocols": ["P.1.1"],
     "exclude_tm": [60,120,300,600],
     "insert": [60]
   }

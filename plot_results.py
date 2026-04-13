@@ -13,7 +13,8 @@ def main():
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
 
-    csv_res = CSVres.Data()
+    # ORA IL FLAG SHORT GUIDA QUALE CONFIGURAZIONE CARICARE!
+    csv_res = CSVres.Data(use_short=args.short)
     
     # Applichiamo le regole di esclusione in modo globale
     if exclude_protocols or exclude_tm:
@@ -40,6 +41,9 @@ def main():
                     no_ext_file = file.split('.')[0]
                     sets = no_ext_file.split('_')
                     algo = sets[0][0]
+                    # Identificazione di Ps dal prefisso del nome del file
+                    if sets[0].startswith("Ps"):
+                        algo = "Ps"
                     
                     for s in sets:
                         val = s.split('#')
@@ -60,7 +64,6 @@ def main():
                     tot_msgs.update(csv_res.read_msgs_csv(file_path))
 
     # --- FASE DI PLOTTING ---
-    # Qui controlliamo solo l'argomento da riga di comando
     if args.short:
         print("Esecuzione modalità SHORT (grafici combinati 3x3)...")
         if tot_st and tot_msgs:
