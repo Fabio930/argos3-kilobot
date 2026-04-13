@@ -168,7 +168,7 @@ class Data:
         if not k_list or len(k_list) <= 1:
             return "orange"
         idx = k_list.index(k_val)
-        cmap = colors.LinearSegmentedColormap.from_list("or_grad", ["#FF8800", "#FCDB9B"])
+        cmap = colors.LinearSegmentedColormap.from_list("or_grad", ["#FF9100", "#FDCF72"])
         return cmap(idx / (len(k_list) - 1))
 
 ##########################################################################################################
@@ -176,6 +176,7 @@ class Data:
         lines = []
         subdict = target_dict.get(pid, {})
         matches = [(k[-1], v) for k, v in subdict.items() if k[:-1] == base_key]
+        matches.sort(key=lambda x: x[0])
         for k_val, data in matches:
             color = self._get_p11_color(k_val, ag) if pid == "P.1.1" else protocol_colors.get(pid, "black")
             lines.append((data, color))
@@ -458,11 +459,11 @@ class Data:
         handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI")]
         
         handler_map = {}
-        legend_elements = handles_l + handles_r
         if self._protocol_enabled("P.1.1"):
             grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
-            legend_elements.append(grad_rect_k)
+            handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
+        legend_elements = handles_l + handles_r
         legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
         
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
@@ -504,7 +505,7 @@ class Data:
                                     elif row == 2:
                                         cax[row][k_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); cax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
                                         uax[row][k_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); uax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                        cax[row][k_idx].set_xlabel(r"$T\,  s$"); uax[row][k_idx].set_xlabel(r"$T\,  s$")
+                                        cax[row][k_idx].set_xlabel(r"$T$"); uax[row][k_idx].set_xlabel(r"$T$")
                                     else:
                                         cax[row][k_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); cax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
                                         uax[row][k_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); uax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
@@ -546,11 +547,11 @@ class Data:
         handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI")]
         
         handler_map = {}
-        legend_elements = handles_l + handles_r
         if self._protocol_enabled("P.1.1"):
             grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
-            legend_elements.append(grad_rect_k)
+            handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
+        legend_elements = handles_l + handles_r
         legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
         
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
@@ -588,7 +589,7 @@ class Data:
                                 elif row == 2:
                                     ax[row][k_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6])
                                     ax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                    ax[row][k_idx].set_xlabel(r"$T\,  s$")
+                                    ax[row][k_idx].set_xlabel(r"$T$")
                                 else:
                                     ax[row][k_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6])
                                     ax[row][k_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
@@ -626,11 +627,11 @@ class Data:
         handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI"), mlines.Line2D([], [], color="black", linestyle=':', linewidth=6, label=r"$min\|\mathcal{B}\|$")]
 
         handler_map = {}
-        legend_elements = handles_l + handles_r
         if self._protocol_enabled("P.1.1"):
             grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
-            legend_elements.append(grad_rect_k)
+            handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
+        legend_elements = handles_l + handles_r
         legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
 
         for d_target in [sq_d, rt_d]:
@@ -684,7 +685,7 @@ class Data:
                     ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
                     ayt.set_ylabel("LD25" if r == 0 else "HD25" if r == 1 else "HD100")
                     ax[r][0].set_ylabel(r"$M$")
-                for y in range(ncols): ax[2][y].set_xlabel(r"$T\, (s)$")
+                for y in range(ncols): ax[2][y].set_xlabel(r"$T\, s$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
@@ -709,11 +710,11 @@ class Data:
         handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI")]
 
         handler_map = {}
-        legend_elements = handles_l + handles_r
         if self._protocol_enabled("P.1.1"):
             grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
-            legend_elements.append(grad_rect_k)
+            handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
+        legend_elements = handles_l + handles_r
         legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
 
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
@@ -767,7 +768,7 @@ class Data:
                     ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
                     ayt.set_ylabel("LD25" if r == 0 else "HD25" if r == 1 else "HD100")
                     ax[r][0].set_ylabel(r"$\Delta M$")
-                for y in range(ncols): ax[2][y].set_xlabel(r"$T\, (s)$")
+                for y in range(ncols): ax[2][y].set_xlabel(r"$T\, s$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
@@ -777,7 +778,7 @@ class Data:
                 plt.close(fig)
 
 ##########################################################################################################
-    def plot_short(self, msgs_data, proc_data):
+    def plot_short(self, msgs_data, proc_data, mode="combined"):
         path = os.path.join(self.base, "short_data", "images") + "/"
         os.makedirs(path, exist_ok=True)
         
@@ -871,145 +872,169 @@ class Data:
         thr_sorted = sorted(list(thr))
         msg_hop_sorted = sorted(list(msg_hop))
 
+        interfaces_to_plot = ["LI", "SI"] if mode == "split_interface" else ["both"]
+
         for g in gt_sorted:
-            fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(24,20), squeeze=False, constrained_layout=True)
-            inset_axes_dict = {}
-            
-            handles_r = [mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markersize=14, label=self.protocols_by_id[pid].get("label", pid)) for pid in protocols_order if self._protocol_enabled(pid)]
-            handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=4, label="LI"), 
-                         mlines.Line2D([], [], color="black", linestyle='--', linewidth=4, label="SI"), 
-                         mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$min\|\mathcal{B}\|$")]
-            
-            for t in thr_sorted:
-                for mh in msg_hop_sorted:
-                    for a in arena:
-                        for ag in agents:
-                            col = self._get_row(a, ag)
+            for interface in interfaces_to_plot:
+                fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(24,20), squeeze=False, constrained_layout=True)
+                inset_axes_dict = {}
+                
+                handles_r = [mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markersize=14, label=self.protocols_by_id[pid].get("label", pid)) for pid in protocols_order if self._protocol_enabled(pid)]
+                
+                handles_l = []
+                if interface == "both":
+                    handles_l.extend([
+                        mlines.Line2D([], [], color="black", linestyle='-', linewidth=4, label="LI"), 
+                        mlines.Line2D([], [], color="black", linestyle='--', linewidth=4, label="SI")
+                    ])
+                handles_l.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$min\|\mathcal{B}\|$"))
+                
+                for t in thr_sorted:
+                    for mh in msg_hop_sorted:
+                        for a in arena:
+                            is_sq_arena = (a.split(';')[0] == a.split(';')[1])
                             
-                            if not hasattr(ax[0][col], '_baseline_drawn'):
-                                ax[0][col].plot([5/(int(ag)-1)] * 900, color="black", lw=4, ls=":")
-                                ax[1][col].plot([0]*900, color="black", lw=2, ls=":")
-                                ax[0][col]._baseline_drawn = True
-                            
-                            for tm_val in combined_tm:
-                                is_main = tm_val in main_tm_list
-                                is_insert = tm_val in insert_tm_list
+                            if interface == "SI" and not is_sq_arena:
+                                continue
+                            if interface == "LI" and is_sq_arena:
+                                continue
                                 
-                                for pid in protocols_order + ["adp_rnd"]:
-                                    if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
-                                    is_p0 = (pid == 'P.0')
+                            for ag in agents:
+                                col = self._get_row(a, ag)
+                                
+                                if not hasattr(ax[0][col], '_baseline_drawn'):
+                                    ax[0][col].plot([5/(int(ag)-1)] * 900, color="black", lw=4, ls=":")
+                                    ax[1][col].plot([0]*900, color="black", lw=2, ls=":")
+                                    ax[0][col]._baseline_drawn = True
+                                
+                                for tm_val in combined_tm:
+                                    is_main = tm_val in main_tm_list
+                                    is_insert = tm_val in insert_tm_list
                                     
-                                    if not (is_main or is_insert or is_p0): continue
-                                    
-                                    base_key = (a, t, g, ag, tm_val, mh)
-                                    matches = [(k_tup[-1], v) for k_tup, v in sq_tot.get(pid, {}).items() if k_tup[:-1] == base_key]
-                                    
-                                    for k_val, _ in matches:
-                                        color = get_tm_color(pid, tm_val, k_val, ag)
-                                        data_key = base_key + (k_val,)
+                                    for pid in protocols_order + ["adp_rnd"]:
+                                        if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
+                                        is_p0 = (pid == 'P.0')
                                         
-                                        v_sq_m = sq_tot.get(pid, {}).get(data_key)
-                                        v_rt_m = rt_tot.get(pid, {}).get(data_key)
+                                        if not (is_main or is_insert or is_p0): continue
                                         
-                                        sc = sq_com.get(pid, {}).get(data_key)
-                                        su = sq_unc.get(pid, {}).get(data_key)
-                                        rc = rt_com.get(pid, {}).get(data_key)
-                                        ru = rt_unc.get(pid, {}).get(data_key)
+                                        base_key = (a, t, g, ag, tm_val, mh)
                                         
-                                        v_sq_d = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(sc, su)] if sc and su else None
-                                        v_rt_d = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(rc, ru)] if rc and ru else None
+                                        source_dict = sq_tot if is_sq_arena else rt_tot
+                                        matches = [(k_tup[-1], v) for k_tup, v in source_dict.get(pid, {}).items() if k_tup[:-1] == base_key]
+                                        matches.sort(key=lambda x: x[0]) 
                                         
-                                        v_sq_a = sq_act.get(pid, {}).get(data_key)
-                                        v_rt_a = rt_act.get(pid, {}).get(data_key)
-                                        
-                                        for r_idx, (d_sq, d_rt) in enumerate([(v_sq_m, v_rt_m), (v_sq_d, v_rt_d), (v_sq_a, v_rt_a)]):
-                                            targets = []
-                                            if is_main or is_p0:
-                                                targets.append(ax[r_idx][col])
-                                            if is_insert or is_p0:
-                                                if (r_idx, col) not in inset_axes_dict:
-                                                    if r_idx == 0:
-                                                        best_box = [0.62, 0.03, 0.35, 0.35]
-                                                    elif r_idx == 2 and g == 0.84:
-                                                        best_box = [0.62, 0.03, 0.35, 0.35]
-                                                    else:
-                                                        best_box = [0.62, 0.62, 0.35, 0.35]
+                                        for k_val, _ in matches:
+                                            color = get_tm_color(pid, tm_val, k_val, ag)
+                                            data_key = base_key + (k_val,)
+                                            
+                                            v_sq_m = sq_tot.get(pid, {}).get(data_key)
+                                            v_rt_m = rt_tot.get(pid, {}).get(data_key)
+                                            
+                                            sc = sq_com.get(pid, {}).get(data_key)
+                                            su = sq_unc.get(pid, {}).get(data_key)
+                                            rc = rt_com.get(pid, {}).get(data_key)
+                                            ru = rt_unc.get(pid, {}).get(data_key)
+                                            
+                                            v_sq_d = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(sc, su)] if sc and su else None
+                                            v_rt_d = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(rc, ru)] if rc and ru else None
+                                            
+                                            v_sq_a = sq_act.get(pid, {}).get(data_key)
+                                            v_rt_a = rt_act.get(pid, {}).get(data_key)
+                                            
+                                            for r_idx, (d_sq, d_rt) in enumerate([(v_sq_m, v_rt_m), (v_sq_d, v_rt_d), (v_sq_a, v_rt_a)]):
+                                                targets = []
+                                                if is_main or is_p0:
+                                                    targets.append(ax[r_idx][col])
+                                                if is_insert or is_p0:
+                                                    if (r_idx, col) not in inset_axes_dict:
+                                                        if r_idx == 0:
+                                                            best_box = [0.62, 0.03, 0.35, 0.35]
+                                                        elif r_idx == 2 and g == 0.84:
+                                                            best_box = [0.62, 0.03, 0.35, 0.35]
+                                                        else:
+                                                            best_box = [0.62, 0.62, 0.35, 0.35]
+                                                        
+                                                        ins_ax = ax[r_idx][col].inset_axes(best_box)
+                                                        ins_ax.set_xlim(0, 901)
+                                                        if r_idx == 0 or r_idx == 2:
+                                                            ins_ax.set_ylim(-0.03, 1.03)
+                                                            ins_ax.set_yticks([0.0, 0.5, 1.0])
+                                                            ins_ax.axhline(0.5, color='dimgray', ls=':', lw=1.5)
+                                                            ins_ax.axhline(1.0, color='dimgray', ls=':', lw=1.5)
+                                                        else:
+                                                            ins_ax.set_ylim(-0.03, 0.63)
+                                                            ins_ax.set_yticks([0.0, 0.3, 0.6])
+                                                            ins_ax.axhline(0.0, color='dimgray', ls=':', lw=1.5)
+                                                            ins_ax.axhline(0.6, color='dimgray', ls=':', lw=1.5)
+                                                        ins_ax.set_xticks([0, 300, 600, 900])
+                                                        ins_ax.tick_params(labelbottom=False, labelleft=False)
+                                                        ins_ax.grid(True, ls=':', color='silver')
+                                                        if r_idx == 0:
+                                                            ins_ax.plot([5/(int(ag)-1)] * 900, color="black", ls='-.', lw=2)
+                                                        inset_axes_dict[(r_idx, col)] = ins_ax
+                                                    targets.append(inset_axes_dict[(r_idx, col)])
                                                     
-                                                    ins_ax = ax[r_idx][col].inset_axes(best_box)
-                                                    ins_ax.set_xlim(0, 901)
-                                                    if r_idx == 0 or r_idx == 2:
-                                                        ins_ax.set_ylim(-0.03, 1.03)
-                                                        ins_ax.set_yticks([0.0, 0.5, 1.0])
-                                                        ins_ax.axhline(0.5, color='dimgray', ls=':', lw=1.5)
-                                                        ins_ax.axhline(1.0, color='dimgray', ls=':', lw=1.5)
-                                                    else:
-                                                        ins_ax.set_ylim(-0.03, 0.63)
-                                                        ins_ax.set_yticks([0.0, 0.3, 0.6])
-                                                        ins_ax.axhline(0.0, color='dimgray', ls=':', lw=1.5)
-                                                        ins_ax.axhline(0.6, color='dimgray', ls=':', lw=1.5)
-                                                    ins_ax.set_xticks([0, 300, 600, 900])
-                                                    ins_ax.tick_params(labelbottom=False, labelleft=False)
-                                                    ins_ax.grid(True, ls=':', color='silver')
-                                                    if r_idx == 0:
-                                                        ins_ax.plot([5/(int(ag)-1)] * 900, color="black", ls='-.', lw=2)
-                                                    inset_axes_dict[(r_idx, col)] = ins_ax
-                                                targets.append(inset_axes_dict[(r_idx, col)])
-                                                
-                                            for t_ax in targets:
-                                                if d_sq is not None: t_ax.plot(d_sq, color=color, lw=6, ls='--')
-                                                if d_rt is not None: t_ax.plot(d_rt, color=color, lw=6, ls='-')
+                                                for t_ax in targets:
+                                                    if interface in ["both", "SI"] and d_sq is not None:
+                                                        ls_sq = '--' if interface == "both" else '-'
+                                                        t_ax.plot(d_sq, color=color, lw=6, ls=ls_sq)
+                                                    
+                                                    if interface in ["both", "LI"] and d_rt is not None:
+                                                        t_ax.plot(d_rt, color=color, lw=6, ls='-')
 
-            for x in range(3):
-                for y in range(3):
-                    ax[x][y].grid(True)
-                    ax[x][y].set_xlim(0,900)
-                    if x == 0 or x == 2: ax[x][y].set_ylim(-0.03,1.03)
-                    else: ax[x][y].set_ylim(-0.03,0.63)
-                    ax[x][y].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6] if x==2 else svoid_x_ticks[::6])
-                    ax[x][y].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                    if y > 0: ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
+                for x in range(3):
+                    for y in range(3):
+                        ax[x][y].grid(True)
+                        ax[x][y].set_xlim(0,900)
+                        if x == 0 or x == 2: ax[x][y].set_ylim(-0.03,1.03)
+                        else: ax[x][y].set_ylim(-0.03,0.73)
+                        ax[x][y].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6] if x==2 else svoid_x_ticks[::6])
+                        ax[x][y].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                        if y > 0: ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
+                        
+                ax[0][0].set_title("LD25", pad=20)
+                ax[0][1].set_title("HD25", pad=20)
+                ax[0][2].set_title("HD100", pad=20)
+                
+                ax[0][0].set_ylabel(r"$M$")
+                ax[1][0].set_ylabel(r"$\Delta M$")
+                ax[2][0].set_ylabel(r"$Q(G,\tau)$")
+                
+                for y in range(3): ax[2][y].set_xlabel(r"$T$")
+
+                legend_elements = []
+                handler_map = {}
+                if use_gradient:
+                    class HandlerGradient(HandlerBase):
+                        def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
+                            n_steps = 5
+                            cmap = colors.LinearSegmentedColormap.from_list("grey_grad", [ "#E0E0E0","#2D2D2D"])
+                            artists = []
+                            step_width = width / n_steps
+                            for i in range(n_steps):
+                                color = cmap(i / n_steps)
+                                r = Rectangle((xdescent + i * step_width, ydescent), step_width, height, facecolor=color, edgecolor=color, transform=trans)
+                                artists.append(r)
+                            return artists
+                    grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
+                    legend_elements.append(grad_rect)
+                    handler_map[grad_rect] = HandlerGradient()
                     
-            ax[0][0].set_title("LD25", pad=20)
-            ax[0][1].set_title("HD25", pad=20)
-            ax[0][2].set_title("HD100", pad=20)
-            
-            ax[0][0].set_ylabel(r"$M$")
-            ax[1][0].set_ylabel(r"$\Delta M$")
-            ax[2][0].set_ylabel(r"$Q(G,\tau)$")
-            
-            for y in range(3): ax[2][y].set_xlabel(r"$T\, (s)$")
-
-            legend_elements = []
-            handler_map = {}
-            if use_gradient:
-                class HandlerGradient(HandlerBase):
-                    def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
-                        n_steps = 5
-                        cmap = colors.LinearSegmentedColormap.from_list("grey_grad", [ "#E0E0E0","#2D2D2D"])
-                        artists = []
-                        step_width = width / n_steps
-                        for i in range(n_steps):
-                            color = cmap(i / n_steps)
-                            r = Rectangle((xdescent + i * step_width, ydescent), step_width, height, facecolor=color, edgecolor=color, transform=trans)
-                            artists.append(r)
-                        return artists
-                grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
-                legend_elements.append(grad_rect)
-                handler_map[grad_rect] = HandlerGradient()
-                
-            if main_tm_list and not use_gradient and len(main_tm_list) == 1:
-                legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
-            if insert_tm_list and len(insert_tm_list) == 1:
-                legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
-                
-            if self._protocol_enabled("P.1.1"):
-                grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
-                legend_elements.append(grad_rect_k)
-                handler_map[grad_rect_k] = HandlerKGrad()
-                
-            legend_elements.extend(handles_l+handles_r)
-            
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower left', bbox_to_anchor=(0.25, -0.08), ncol=min(5, len(legend_elements)), frameon=True, edgecolor='0.8')
-                
-            fig.savefig(path + f"short_G{str(g).replace('.','_')}.pdf", bbox_inches='tight')
-            plt.close(fig)
+                if main_tm_list and not use_gradient and len(main_tm_list) == 1:
+                    legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
+                if insert_tm_list and len(insert_tm_list) == 1:
+                    legend_elements.append(mlines.Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
+                    
+                if self._protocol_enabled("P.1.1"):
+                    grad_rect_k = Rectangle((0, 0), 1, 1, label=r"$k$-sampling")
+                    handles_l.append(grad_rect_k)
+                    handler_map[grad_rect_k] = HandlerKGrad()
+                    
+                legend_elements.extend(handles_l+handles_r)
+                n_cols_leg = 6 if mode=="combined" else 5
+                x_pad = 0.1 if mode=="combined" else 0.19
+                fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower left', bbox_to_anchor=(x_pad, -0.09), ncol=n_cols_leg, frameon=True, edgecolor='0.8')
+                    
+                prefix = "" if interface == "both" else f"{interface}_"
+                fig.savefig(path + f"{prefix}short_G{str(g).replace('.','_')}.pdf", bbox_inches='tight')
+                plt.close(fig)

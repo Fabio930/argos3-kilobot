@@ -7,14 +7,15 @@ def main():
     parser = argparse.ArgumentParser(description="Plot results with optional protocol/Tm exclusions.")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude (e.g. P.0,O.2.0)")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude (e.g. 60,120)")
-    parser.add_argument("--short", action="store_true", help="Genera i grafici uniti in modalità short (3x3)")
+    
+    parser.add_argument("--short", nargs='?', const="combined", default=False, 
+                        help="Usa '--short' per uniti (3x3), oppure '--short split_interface' per dividere LI e SI.")
     args = parser.parse_args()
     
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
 
-    # ORA IL FLAG SHORT GUIDA QUALE CONFIGURAZIONE CARICARE!
-    csv_res = CSVres.Data(use_short=args.short)
+    csv_res = CSVres.Data(use_short=bool(args.short))
     
     # Applichiamo le regole di esclusione in modo globale
     if exclude_protocols or exclude_tm:
@@ -23,8 +24,6 @@ def main():
             exclude_protocols=exclude_protocols or None,
             exclude_tm=exclude_tm or None,
         )
-        
-    # Inizializziamo le variabili per raccogliere TUTTI i dati prima di disegnare
     tot_st      = []
     tot_times   = []
     tot_stbc    = []
@@ -41,7 +40,6 @@ def main():
                     no_ext_file = file.split('.')[0]
                     sets = no_ext_file.split('_')
                     algo = sets[0][0]
-                    # Identificazione di Ps dal prefisso del nome del file
                     if sets[0].startswith("Ps"):
                         algo = "Ps"
                     
@@ -63,11 +61,10 @@ def main():
                     file_path = os.path.join(base, file)
                     tot_msgs.update(csv_res.read_msgs_csv(file_path))
 
-    # --- FASE DI PLOTTING ---
     if args.short:
-        print("Esecuzione modalità SHORT (grafici combinati 3x3)...")
+        print(f"Esecuzione modalità SHORT (opzione: {args.short})...")
         if tot_st and tot_msgs:
-            csv_res.plot_short(tot_msgs, tot_st)
+            csv_res.plot_short(tot_msgs, tot_st, mode=args.short)
         else:
             print("Attenzione: per la modalità short servono dati sia da proc_data che da msgs_data.")
     else:
