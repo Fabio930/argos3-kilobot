@@ -16,7 +16,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0] in ("Oresults","Presults"):
+                if selem[0] in ("Oresults","Presults", "Psresults") and selem[-1] in ("smallA","bigA"):
                     self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
@@ -45,7 +45,7 @@ class Results:
         return out
     
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,msg_hops,sub_path):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,threshold,delta,msg_exp_time,msg_hops,k_sampling,sub_path):
         files = [fp for fp in sorted(Path(sub_path).glob("*.tsv")) if self.FILE_RE.search(fp.stem)]
         num_runs = int(len(files)/n_agents)
         state_m = np.zeros((num_runs, n_agents, max_steps), dtype=np.int16)
@@ -85,21 +85,28 @@ class Results:
         info_vec    = sub_path.split('/')
         for iv in info_vec:
             if "results_loop" in iv:
-                algo        = iv[0]
+                if iv.startswith("Psresults"):
+                    algo = "Ps"
+                elif iv.startswith("Presults"):
+                    algo = "P"
+                elif iv.startswith("Oresults"):
+                    algo = "O"
+                else:
+                    algo = iv.split("results")[0]
                 arenaS      = iv.split('_')[-1][:-1]
                 break
-        t_messages  = info_vec[-2].split('#')[-1]
+        t_messages  = info_vec[-3].split('#')[-1]
         messages    = self.compute_avg_msgs(msgs_m)
-        self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, t_messages, messages])
+        self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, delta, communication, msg_hops, n_agents, k_sampling, t_messages, messages])
         states = quorum_m
-        self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents,self.limit)
-        self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,n_agents)
+        self.dump_times(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,k_sampling,n_agents,self.limit)
+        self.dump_quorum(algo,0,states,base,path_temp,threshold,delta,self.min_buff_dim,msg_exp_time,msg_hops,k_sampling,n_agents)
         del state_m,quorum_m,msgs_m,loaded,messages,states
         gc.collect()
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast","msg_hops", "n_agents", "buff_dim", "data"]
+        header = ["ArenaSize", "algo", "threshold", "delta_GT", "broadcast","msg_hops", "n_agents", "k_sampling", "buff_dim", "data"]
         write_header = not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data", file_name))
         
         if not os.path.exists(os.path.join(os.path.abspath(""), "msgs_data")):
@@ -112,9 +119,9 @@ class Results:
             fwriter.writerow(data)
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,msg_hops,n_runs):    
-        static_fields=["MinBuffDim","MsgExpTime","MsgHops"]
-        static_values=[MINS,MSG_EXP_TIME,msg_hops]
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,MINS,MSG_EXP_TIME,msg_hops,k_sampling,n_runs):    
+        static_fields=["MinBuffDim","MsgExpTime","MsgHops","KSampling"]
+        static_values=[MINS,MSG_EXP_TIME,msg_hops,k_sampling]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
             os.mkdir(os.path.abspath("")+"/proc_data")
         write_header = 0
@@ -122,8 +129,13 @@ class Results:
         values = []
         if algo == 'O':
             file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
-        else:
+        elif algo == 'P':
             file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+        elif algo == 'Ps':
+            file_name = "Psaverage_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+        else:
+            file_name = str(algo)+"average_resume_r#"+str(n_runs)+"_a#"+base.split('_')[-1]+".csv"
+            
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
             write_header = 1
         tmp_b = base.split('/')
@@ -163,7 +175,7 @@ class Results:
         fw.close()
 
 ##########################################################################################################
-    def dump_sumof(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,msg_hops):
+    def dump_sumof(self,algo,bias,data_in,dMR,BASE,PATH,MSG_EXP_TIME,msg_hops,k_sampling):
         for l in range(len(data_in)):
             multi_run_data = data_in[l]
             flag2 = [-1]*len(multi_run_data[0][0])
@@ -183,17 +195,17 @@ class Results:
                         flag2[j]=flag1[j]+flag2[j]
             for i in range(len(flag2)):
                 flag2[i]=flag2[i]/len(multi_run_data[0])
-            self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,msg_hops,dMR)
+            self.dump_resume_csv(algo,l,bias,np.round(flag2,2).tolist(),"-",BASE,PATH,"-",MSG_EXP_TIME,msg_hops,k_sampling,dMR)
 
 ##########################################################################################################
-    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents):
+    def dump_quorum(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,k_sampling,n_agents):
         if isinstance(data_in, np.ndarray):
             if data_in.size == 0:
                 return
             flag2 = np.mean(data_in, axis=(0,1))
             std_per_run = np.std(data_in, axis=1)
             fstd3 = np.median(std_per_run, axis=0)
-            self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+            self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,k_sampling,len(data_in))
             return
         flag2=[-1]*len(data_in[0][0])
         for i in range(len(data_in)):
@@ -227,10 +239,10 @@ class Results:
             for i in range(len(fstd2)):
                 median_array.append(fstd2[i][z])
             fstd3[z]=np.median(median_array)
-        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+        self.dump_resume_csv(algo,0,bias,np.round(flag2,2).tolist(),np.round(fstd3,3).tolist(),BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,k_sampling,len(data_in))
 
 ##########################################################################################################
-    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,n_agents,limit):
+    def dump_times(self,algo,bias,data_in,BASE,PATH,THR,COMMIT,MINS,MSG_EXP_TIME,msg_hops,k_sampling,n_agents,limit):
         if isinstance(data_in, np.ndarray):
             if data_in.size == 0:
                 return
@@ -240,7 +252,7 @@ class Results:
             mask = sums >= thresh
             times = np.where(mask.any(axis=1), mask.argmax(axis=1), n_steps).tolist()
             times = sorted(times)
-            self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+            self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,k_sampling,len(data_in))
             return
         times = [len(data_in[0][0])] * len(data_in)
         for i in range(len(data_in)): # per ogni run
@@ -252,4 +264,4 @@ class Results:
                     times[i] = z
                     break
         times = sorted(times)
-        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,len(data_in))
+        self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,MINS,MSG_EXP_TIME,msg_hops,k_sampling,len(data_in))

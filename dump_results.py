@@ -39,18 +39,18 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, sub_path = task
+    base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, sub_path = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, sub_path)
+        results.extract_k_data(base, agents_path, exp_length, communication, n_agents, threshold, delta_str, msg_exp_time, msg_hops, k_sampling, sub_path)
     except KeyError as e:
         logging.error(f"MemoryError processing {sub_path}: {e}")
     except Exception as e:
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, sub_path
+        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, sub_path
 
 def main():
     setup_logging()
@@ -84,11 +84,15 @@ def main():
                                                     if '.' not in pre_folder:
                                                         msg_exp_time = int(pre_folder.split('#')[-1])
                                                         sub_path = os.path.join(agents_path, pre_folder)
-                                                        for folder in sorted(os.listdir(sub_path)):
-                                                            if '.' not in folder:
-                                                                msg_hops = folder.split('#')[-1]
-                                                                path = os.path.join(sub_path, folder)
-                                                                queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, path))
+                                                        for hops_folder in sorted(os.listdir(sub_path)):
+                                                            if '.' not in hops_folder:
+                                                                msg_hops = hops_folder.split('#')[-1]
+                                                                hops_path = os.path.join(sub_path, hops_folder)
+                                                                for k_folder in sorted(os.listdir(hops_path)):
+                                                                    if '.' not in k_folder:
+                                                                        k_sampling = int(k_folder.split('#')[-1])
+                                                                        path = os.path.join(hops_path, k_folder)
+                                                                        queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, path))
 
     # Using a manager to handle the queue
 
