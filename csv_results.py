@@ -10,6 +10,22 @@ from matplotlib.ticker import MultipleLocator
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 
+class GradientHandler(HandlerBase):
+    def __init__(self, cmap, **kw):
+        super().__init__(**kw)
+        self.cmap = cmap
+
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
+        artists = []
+        n = 30
+        for i in range(n):
+            color = self.cmap(i / (n - 1))
+            x = xdescent + (i / n) * width
+            w = width / n + 0.5 
+            rect = Rectangle([x, ydescent], w, height, facecolor=color, edgecolor='none', transform=trans)
+            artists.append(rect)
+        return artists
+
 class Data:
 
     def __init__(self, mode="default") -> None:
@@ -26,7 +42,6 @@ class Data:
         self.protocols_by_key = {p.get("key"): p for p in self.protocols if p.get("key") is not None}
 
     def _read_json_robust(self, path):
-        """Reads JSON safely by stripping illegal trailing commas."""
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         content = re.sub(r',\s*([\]}])', r'\1', content)
@@ -68,9 +83,10 @@ class Data:
                 {"key": "AN_t", "id": 1, "label": r"$AN_{t}$", "color": "viridis:0", "legend": True},
                 {"key": "ID+B", "id": 2, "label": r"$ID+B$", "color": "viridis:1", "legend": True},
                 {"key": "ID+R_f", "id": 3, "label": r"$ID+R_{f}$", "color": "viridis:2", "legend": True},
-                {"key": "ID+R_1", "id": 4, "label": r"$ID+R_{1}$", "color": "viridis:3", "legend": True},
+                {"key": "ID+R_1", "id": 4, "label": r"$ID+R_{k}$", "color": "viridis:3", "legend": True},
                 {"key": "ID+R_inf", "id": 5, "label": r"$ID+R_{\infty}$", "color": "viridis:4", "legend": True},
                 {"key": "ID+R_a", "id": 6, "label": r"$ID+R_{a}$", "color": "viridis:5", "legend": True},
+                {"key": "Ps", "id": 7, "label": r"$P.1.1$", "color": "orange", "legend": True}
             ],
             "plots": { "exclude_protocols": [], "columns": [60, 120, 180, 300, 600] },
         }
@@ -89,7 +105,6 @@ class Data:
 ##########################################################################################################
     def _load_plot_config(self):
         cfg = self._default_plot_config()
-        
         if self.mode == "short":
             path = os.path.join(self.base, "short_plot_config.json")
         elif self.mode == "diff":
@@ -195,6 +210,43 @@ class Data:
                 return "black"
         return color if color else "black"
 
+    def _protocol_color_with_k(self, p_key, k_samp, n_agents, ps_k_dict, scalarMap):
+        if p_key == "Ps":
+            base_orange = colors.to_rgb("darkorange")
+            k_list = sorted(ps_k_dict.get(str(n_agents), []))
+            if not k_list:
+                return base_orange
+            try:
+                idx = k_list.index(float(k_samp))
+            except ValueError:
+                idx = 0
+            n = max(1, len(k_list))
+            if n <= 1:
+                return base_orange
+            
+            h, l, s = 0.08, 0.45, 1.0
+            new_l = l + 0.40 * (idx / (n - 1))
+            return colorsys.hls_to_rgb(h, new_l, s)
+            
+        p = self.protocols_by_key.get(p_key)
+        return self._protocol_color(p, scalarMap)
+
+##########################################################################################################
+    def _identify_protocol_key_from_vars(self, algo, comm, msg_time, msg_hops):
+        if algo == 'P':
+            return "AN" if int(msg_time) == 0 else "AN_t"
+        if algo == 'Ps':
+            return "Ps"
+        if algo == 'O':
+            c = int(comm)
+            if c == 0: return "ID+B"
+            if c == 2: return "ID+R_f"
+            hops = str(msg_hops)
+            if hops == "0": return "ID+R_inf"
+            if hops == "31": return "ID+R_a"
+            return "ID+R_1"
+        return None
+
 ##########################################################################################################
     def _get_diff_folder_cfg(self, dict_key):
         for folder_cfg in self.bases_diff:
@@ -257,29 +309,6 @@ class Data:
                 except Exception:
                     pass
 
-        for patch in ax.patches:
-            try:
-                verts = patch.get_path().vertices
-                disp_verts = patch.get_transform().transform(verts)
-                ax_verts = ax.transAxes.inverted().transform(disp_verts)
-                xmin, ymin = np.min(ax_verts, axis=0)
-                xmax, ymax = np.max(ax_verts, axis=0)
-                xx, yy = np.meshgrid(np.linspace(xmin, xmax, 10), np.linspace(ymin, ymax, 10))
-                grid_points = np.column_stack((xx.ravel(), yy.ravel()))
-                points_axes.append(grid_points)
-            except Exception:
-                pass
-
-        for collection in ax.collections:
-            try:
-                offsets = collection.get_offsets()
-                if len(offsets) > 0:
-                    disp_offsets = collection.get_transform().transform(offsets)
-                    ax_offsets = ax.transAxes.inverted().transform(disp_offsets)
-                    points_axes.append(ax_offsets)
-            except Exception:
-                pass
-
         if not points_axes:
             return candidates["top_left"]
             
@@ -298,26 +327,27 @@ class Data:
     def _extract_short_data(self, tot_st, tot_msgs):
         msgs_dict = {}
         st_dict = {}
+        ps_k_dict = {}
         
         for k, res in tot_msgs.items():
             if k[3] == "0.68;0.92":
-                p_key = self._identify_protocol_key_msgs(k)
+                arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
+                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
                 if p_key:
-                    arena = k[0]
-                    agents = k[6]
-                    tm = k[7]
-                    msgs_dict[(p_key, arena, str(agents), str(tm))] = res
+                    if p_key == "Ps":
+                        if agents not in ps_k_dict: ps_k_dict[agents] = set()
+                        ps_k_dict[agents].add(float(k_samp))
+                    msgs_dict[(p_key, arena, str(agents), str(tm), str(k_samp))] = res
                     
         for states in tot_st:
             for k, res in states.items():
-                p_key = self._identify_protocol_key(k)
+                algo, arena, thr, gt, comm, agents, tm, msg_hops, k_samp = k[0], k[1], k[4], k[5], k[6], k[7], k[9], k[10], k[11]
+                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
                 if p_key:
-                    arena = k[1]
-                    thr = k[4]
-                    gt = k[5]
-                    agents = k[7]
-                    tm = k[9]
-                    s_key = (p_key, arena, str(agents), str(tm), gt, thr)
+                    if p_key == "Ps":
+                        if agents not in ps_k_dict: ps_k_dict[agents] = set()
+                        ps_k_dict[agents].add(float(k_samp))
+                    s_key = (p_key, arena, str(agents), str(tm), gt, thr, str(k_samp))
                     if s_key not in st_dict:
                         st_dict[s_key] = []
                     st_dict[s_key].append(res[0])
@@ -327,7 +357,7 @@ class Data:
             arr = np.array([x[:min_len] for x in lst])
             st_dict[s_key] = np.mean(arr, axis=0).tolist()
             
-        return msgs_dict, st_dict
+        return msgs_dict, st_dict, ps_k_dict
 
 ##########################################################################################################
     def plot_short(self, tot_st, tot_msgs):
@@ -335,7 +365,7 @@ class Data:
             os.makedirs(self.base + "/compressed_data/images/", exist_ok=True)
         path = self.base + "/compressed_data/images/"
         
-        msgs_dict, st_dict = self._extract_short_data(tot_st, tot_msgs)
+        msgs_dict, st_dict, ps_k_dict = self._extract_short_data(tot_st, tot_msgs)
         
         plot_cfg = self.plot_config.get("plots", {})
         raw_columns = plot_cfg.get("columns", [60, 120, 180, 300, 600])
@@ -362,7 +392,7 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         
         def tm_color(base_color, current_tm, p_key):
-            if p_key == "AN":
+            if p_key in ("AN", "Ps"):
                 return colors.to_rgb(base_color)
             rgb_base = colors.to_rgb(base_color)
             if not use_gradient:
@@ -406,64 +436,12 @@ class Data:
                 for p in self.protocols:
                     p_key = p.get("key")
                     if not self._protocol_enabled(p_key): continue
-                    base_color = self._protocol_color(p, scalarMap)
                     
-                    is_p0 = (p_key == "AN")
-                    tms_to_iterate = ["60"] if is_p0 else combined_tm
+                    unique_k_samps = set(k[4] for k in msgs_dict.keys() if k[0] == p_key and k[1] == col_cfg["msg_arena"] and k[2] == col_cfg["agents"])
+                    if not unique_k_samps: unique_k_samps = ["0"]
                     
-                    for tm in tms_to_iterate:
-                        if is_p0:
-                            is_main = True
-                            is_insert = bool(insert_tm_list)
-                        else:
-                            is_main = tm in main_tm_list
-                            is_insert = tm in insert_tm_list
-                            if not (is_main or is_insert): continue
-                        
-                        m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], str(tm)))
-                        if not m_data and is_p0:
-                            m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "60"))
-                            if not m_data:
-                                m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "0"))
-                        
-                        if m_data:
-                            c = tm_color(base_color, tm, p_key)
-                            
-                            norm_factor = int(col_cfg["agents"]) - 1
-                            if norm_factor <= 0: norm_factor = 1
-                            y_data = np.array(m_data) / norm_factor
-                            targets = []
-                            
-                            if is_main:
-                                targets.append(ax[0][col_idx])
-                                if not min_buf_drawn:
-                                    ax[0][col_idx].plot([5 / norm_factor] * 1200, color="black", ls=':', lw=4)
-                                    min_buf_drawn = True
-                            
-                            if is_insert:
-                                if (0, col_idx) not in inset_axes_dict:
-                                    best_box = [0.62, 0.03, 0.35, 0.35]
-                                    ins_ax = ax[0][col_idx].inset_axes(best_box)
-                                    ins_ax.set_xlim(0, 1201)
-                                    ins_ax.set_ylim(-0.03, 1.03)
-                                    ins_ax.set_xticks([0, 300, 600, 900, 1200])
-                                    ins_ax.tick_params(labelbottom=False, labelleft=False)
-                                    ins_ax.grid(True, ls=':', color='silver')
-                                    ins_ax.plot([5 / norm_factor] * 1200, color="black", ls=':', lw=3)
-                                    inset_axes_dict[(0, col_idx)] = ins_ax
-                                targets.append(inset_axes_dict[(0, col_idx)])
-                                
-                            for t_ax in targets:
-                                t_ax.plot(y_data, color=c, lw=4, alpha=0.9)
-                
-                # --- STATE LOGIC ---
-                for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=1):
-                    if not gt_val: continue
-                    for p in self.protocols:
-                        p_key = p.get("key")
-                        if not self._protocol_enabled(p_key): continue
-                        base_color = self._protocol_color(p, scalarMap)
-                        
+                    for k_samp in unique_k_samps:
+                        base_color = self._protocol_color_with_k(p_key, k_samp, col_cfg["agents"], ps_k_dict, scalarMap)
                         is_p0 = (p_key == "AN")
                         tms_to_iterate = ["60"] if is_p0 else combined_tm
                         
@@ -476,34 +454,93 @@ class Data:
                                 is_insert = tm in insert_tm_list
                                 if not (is_main or is_insert): continue
                             
-                            s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], str(tm), gt_val, thr))
-                            if not s_data and is_p0:
-                                s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "60", gt_val, thr))
-                                if not s_data:
-                                    s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "0", gt_val, thr))
+                            m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], str(tm), k_samp))
+                            if not m_data and is_p0:
+                                m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "60", k_samp))
+                                if not m_data:
+                                    m_data = msgs_dict.get((p_key, col_cfg["msg_arena"], col_cfg["agents"], "0", k_samp))
                             
-                            if s_data is not None:
+                            if m_data:
                                 c = tm_color(base_color, tm, p_key)
+                                norm_factor = int(col_cfg["agents"]) - 1
+                                if norm_factor <= 0: norm_factor = 1
+                                y_data = np.array(m_data) / norm_factor
                                 targets = []
+                                
                                 if is_main:
-                                    targets.append(ax[row_idx][col_idx])
+                                    targets.append(ax[0][col_idx])
+                                    if not min_buf_drawn:
+                                        ax[0][col_idx].plot([5 / norm_factor] * 1200, color="black", ls=':', lw=4)
+                                        min_buf_drawn = True
+                                
                                 if is_insert:
-                                    if (row_idx, col_idx) not in inset_axes_dict:
-                                        if row_idx == 2:
-                                            best_box = [0.62, 0.62, 0.35, 0.35]
-                                        else:
-                                            best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx])
-                                        ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
+                                    if (0, col_idx) not in inset_axes_dict:
+                                        best_box = [0.62, 0.03, 0.35, 0.35]
+                                        ins_ax = ax[0][col_idx].inset_axes(best_box)
                                         ins_ax.set_xlim(0, 1201)
                                         ins_ax.set_ylim(-0.03, 1.03)
                                         ins_ax.set_xticks([0, 300, 600, 900, 1200])
                                         ins_ax.tick_params(labelbottom=False, labelleft=False)
                                         ins_ax.grid(True, ls=':', color='silver')
-                                        inset_axes_dict[(row_idx, col_idx)] = ins_ax
-                                    targets.append(inset_axes_dict[(row_idx, col_idx)])
-                                
+                                        ins_ax.plot([5 / norm_factor] * 1200, color="black", ls=':', lw=3)
+                                        inset_axes_dict[(0, col_idx)] = ins_ax
+                                    targets.append(inset_axes_dict[(0, col_idx)])
+                                    
                                 for t_ax in targets:
-                                    t_ax.plot(s_data, color=c, lw=4, alpha=0.9)
+                                    t_ax.plot(y_data, color=c, lw=4, alpha=0.9)
+                
+                # --- STATE LOGIC ---
+                for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=1):
+                    if not gt_val: continue
+                    for p in self.protocols:
+                        p_key = p.get("key")
+                        if not self._protocol_enabled(p_key): continue
+                        
+                        unique_k_samps = set(k[6] for k in st_dict.keys() if k[0] == p_key and k[1] == col_cfg["st_arena"] and k[2] == col_cfg["agents"])
+                        if not unique_k_samps: unique_k_samps = ["0"]
+
+                        for k_samp in unique_k_samps:
+                            base_color = self._protocol_color_with_k(p_key, k_samp, col_cfg["agents"], ps_k_dict, scalarMap)
+                            is_p0 = (p_key == "AN")
+                            tms_to_iterate = ["60"] if is_p0 else combined_tm
+                            
+                            for tm in tms_to_iterate:
+                                if is_p0:
+                                    is_main = True
+                                    is_insert = bool(insert_tm_list)
+                                else:
+                                    is_main = tm in main_tm_list
+                                    is_insert = tm in insert_tm_list
+                                    if not (is_main or is_insert): continue
+                                
+                                s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], str(tm), gt_val, thr, k_samp))
+                                if not s_data and is_p0:
+                                    s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "60", gt_val, thr, k_samp))
+                                    if not s_data:
+                                        s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "0", gt_val, thr, k_samp))
+                                
+                                if s_data is not None:
+                                    c = tm_color(base_color, tm, p_key)
+                                    targets = []
+                                    if is_main:
+                                        targets.append(ax[row_idx][col_idx])
+                                    if is_insert:
+                                        if (row_idx, col_idx) not in inset_axes_dict:
+                                            if row_idx == 2:
+                                                best_box = [0.62, 0.62, 0.35, 0.35]
+                                            else:
+                                                best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx])
+                                            ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
+                                            ins_ax.set_xlim(0, 1201)
+                                            ins_ax.set_ylim(-0.03, 1.03)
+                                            ins_ax.set_xticks([0, 300, 600, 900, 1200])
+                                            ins_ax.tick_params(labelbottom=False, labelleft=False)
+                                            ins_ax.grid(True, ls=':', color='silver')
+                                            inset_axes_dict[(row_idx, col_idx)] = ins_ax
+                                        targets.append(inset_axes_dict[(row_idx, col_idx)])
+                                    
+                                    for t_ax in targets:
+                                        t_ax.plot(s_data, color=c, lw=4, alpha=0.9)
                                     
             for i in range(3):
                 for j in range(3):
@@ -542,6 +579,10 @@ class Data:
             handles_l.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
             
             handles_r = []
+            
+            if ps_k_dict and any(ps_k_dict.values()):
+                grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
+                handles_r.append(grad_handle)
 
             for p in self.protocols:
                 p_key = p.get("key")
@@ -550,13 +591,40 @@ class Data:
                     handles_r.append(mlines.Line2D([], [], color=color, marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", p_key)))
                     
             legend_elements = handles_l + handles_r
+            handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.75, -0.08), framealpha=0.7, fontsize=24, ncol=4)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.75, -0.08), framealpha=0.7, fontsize=24, ncol=4)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
 ##########################################################################################################
-    ##########################################################################################################
+    def _apply_plot_style(self, ax, ncols, columns, is_messages=False):
+        for x in range(3):
+            for y in range(ncols):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0, 1201)
+                ax[x][y].set_ylim(-0.03, 1.03)
+                if y == 0:
+                    ax[x][y].set_ylabel(r"$M$" if is_messages else r"$Q(G,\tau)$")
+                else:
+                    ax[x][y].set_yticklabels([])
+                if x == 2:
+                    ax[x][y].set_xlabel(r"$T\, (s)$")
+                    ax[x][y].set_xticks([0, 300, 600, 900, 1200])
+                    ax[x][y].set_xticklabels(["0", "300", "600", "900", "1200"])
+                else:
+                    ax[x][y].set_xticklabels([])
+                if x == 0:
+                    axt = ax[x][y].twiny()
+                    axt.set_xticks([])
+                    axt.set_xlabel(rf"$T_m = {int(columns[y])}\, s$")
+        labels = ["LD25", "HD25", "HD100"]
+        for row in range(3):
+            ax_right = ax[row][ncols-1].twinx()
+            ax_right.set_yticks([])
+            ax_right.set_ylabel(labels[row], rotation=270, labelpad=40)
+
+##########################################################################################################
     def plot_messages_diff(self, dict_msgs):
         if not os.path.exists(self.base + "/msgs_data/images/"):
             os.makedirs(self.base + "/msgs_data/images/", exist_ok=True)
@@ -568,7 +636,16 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in diff_protocols}
+        
+        ps_k_dict = {}
+        for msgs_dct in dict_msgs.values():
+            for k in msgs_dct.keys():
+                if k[3] == "0.68;0.92":
+                    arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
+                    p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
+                    if p_key == "Ps":
+                        if agents not in ps_k_dict: ps_k_dict[agents] = set()
+                        ps_k_dict[agents].add(float(k_samp))
 
         all_cols = set()
         for msgs_dct in dict_msgs.values():
@@ -603,19 +680,8 @@ class Data:
                 if k[3] != "0.68;0.92": continue
                 if str(k[-1]) not in col_index: continue
                 
-                p_key = None
-                if k[1] == 'P':
-                    p_key = "AN" if k[7] == "0" else "AN_t"
-                else:
-                    try:
-                        val_proto = int(k[4])
-                        if val_proto == 0: p_key = "ID+B"
-                        elif val_proto == 2: p_key = "ID+R_f"
-                        else:
-                            if k[5] == "0": p_key = "ID+R_inf"
-                            elif k[5] == "31": p_key = "ID+R_a"
-                            else: p_key = "ID+R_1"
-                    except: continue
+                arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
+                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
 
                 if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
                     used_protocols.add(p_key)
@@ -623,18 +689,18 @@ class Data:
                         used_roots[root_name] = (l_label, l_style)
 
                     try:
-                        norm = int(k[6]) - 1
+                        norm = int(agents) - 1
                         if norm <= 0: norm = 1
                         norm_data = [xi / norm for xi in res]
                     except: continue
                     
                     row = 0
-                    if k[0] == 'big' and str(k[6]) == '25': row = 0
-                    elif k[0] == 'big' and str(k[6]) == '100': row = 2
-                    elif k[0] == 'small': row = 1
+                    if arena == 'big' and str(agents) == '25': row = 0
+                    elif arena == 'big' and str(agents) == '100': row = 2
+                    elif arena == 'small': row = 1
                     
-                    col = col_index[str(k[-1])]
-                    color = protocol_colors.get(p_key, "red")
+                    col = col_index[str(tm)]
+                    color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
 
                     if min_buf_line[row][col] == 0:
                         ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls="--")
@@ -644,17 +710,22 @@ class Data:
         self._apply_messages_style(ax, ncols, columns, svoid_x_ticks, void_x_ticks, real_x_ticks)
 
         handles_r = []
+        if ps_k_dict and any(ps_k_dict.values()):
+            grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
+            handles_r.append(grad_handle)
+
         for p in diff_protocols:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
                 lbl = p.get("label", pk)
-                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
+                handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
         
         for r_name, (r_label, r_style) in used_roots.items():
             handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
         if handles_r:
-            fig.legend(handles=handles_r, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
 
         fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
@@ -685,94 +756,25 @@ class Data:
             ayt.set_ylabel(labels_side[r], labelpad=20)
 
 ##########################################################################################################
-    def plot_messages(self,data):
-        dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt = {},{},{},{},{},{},{}
-        for k in data.keys():
-            if(k[3]=="0.68;0.92"):
-                if k[1]=='P' and k[7]!="0":
-                    dict_park.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                elif k[1]=='P' and k[7]=="0":
-                    dict_park_real.update({(k[0],k[2],k[3],k[5],k[6],"60"):data.get(k)})
-                else:
-                    if int(k[4])==0:
-                        dict_adam.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                    elif int(k[4])==2:
-                        dict_fifo.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                    else:
-                        if k[5]=="0":
-                            dict_rnd_inf.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                        elif k[5]=="31":
-                            dict_rnd_adpt.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
-                        else:
-                            dict_rnd.update({(k[0],k[2],k[3],k[5],k[6],k[7]):data.get(k)})
+    def plot_messages(self, data):
+        dict_msgs = {}
+        ps_k_dict = {}
+        
+        for k, res in data.items():
+            if k[3] == "0.68;0.92":
+                arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
+                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
+                if not p_key: continue
+                if p_key == "Ps":
+                    if agents not in ps_k_dict: ps_k_dict[agents] = set()
+                    ps_k_dict[agents].add(float(k_samp))
+                key = (p_key, arena, agents, tm, str(k_samp))
+                dict_msgs[key] = res
 
-        self.print_messages([dict_park,dict_adam,dict_fifo, dict_rnd, dict_rnd_inf,dict_rnd_adpt,dict_park_real])
+        self.print_messages(dict_msgs, ps_k_dict)
 
 ##########################################################################################################
-    def _identify_protocol_key(self, k):
-        algo, c, m_t, m_h = k[0], int(k[6]), int(k[9]), k[10]
-        if algo == 'P':
-            return "AN" if m_t == 0 else "AN_t"
-        if algo == 'O':
-            if c == 0: return "ID+B"
-            if c == 2: return "ID+R_f"
-            if m_h == "1": return "ID+R_1"
-            if m_h == "31": return "ID+R_a"
-            return "ID+R_inf"
-        return None
-
-    def _get_scalar_map_msgs(self):
-        typo = [0, 1, 2, 3, 4, 5]
-        cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        return cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis')), typo
-
-##########################################################################################################
-    def _identify_protocol_key_msgs(self, k):
-        algo = k[1]
-        if algo == 'P':
-            real_an = str(k[7])
-            return "AN" if real_an == "0" else "AN_t"
-        if algo == 'O':
-            try:
-                val_proto = int(k[4])
-                if val_proto == 0: return "ID+B"
-                if val_proto == 2: return "ID+R_f"
-                hops = str(k[5])
-                if hops == "0": return "ID+R_inf"
-                if hops == "31": return "ID+R_a"
-                return "ID+R_1"
-            except Exception:
-                return None
-        return None
-    
-    def _apply_plot_style(self, ax, ncols, columns, is_messages=False):
-        for x in range(3):
-            for y in range(ncols):
-                ax[x][y].grid(True)
-                ax[x][y].set_xlim(0, 1201)
-                ax[x][y].set_ylim(-0.03, 1.03)
-                if y == 0:
-                    ax[x][y].set_ylabel(r"$M$" if is_messages else r"$Q(G,\tau)$")
-                else:
-                    ax[x][y].set_yticklabels([])
-                if x == 2:
-                    ax[x][y].set_xlabel(r"$T\, (s)$")
-                    ax[x][y].set_xticks([0, 300, 600, 900, 1200])
-                    ax[x][y].set_xticklabels(["0", "300", "600", "900", "1200"])
-                else:
-                    ax[x][y].set_xticklabels([])
-                if x == 0:
-                    axt = ax[x][y].twiny()
-                    axt.set_xticks([])
-                    axt.set_xlabel(rf"$T_m = {int(columns[y])}\, s$")
-        labels = ["LD25", "HD25", "HD100"]
-        for row in range(3):
-            ax_right = ax[row][ncols-1].twinx()
-            ax_right.set_yticks([])
-            ax_right.set_ylabel(labels[row], rotation=270, labelpad=40)
-
-##########################################################################################################
-    def print_evolutions_diff(self, path, ground_T, threshlds, dict_st, dict_times, o_k, more_k):
+    def print_evolutions_diff(self, path, ground_T, threshlds, dict_states, o_k, more_k, ps_k_dict):
         diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
 
@@ -781,7 +783,7 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         
         columns = self._plot_columns(o_k)
-        col_index = {c: i for i, c in enumerate(columns)}
+        col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
 
         for gt in ground_T:
@@ -791,39 +793,38 @@ class Data:
                 used_protocol_keys = set()
                 used_roots = {}
 
-                for root_name, data_list in dict_st.items():
+                for root_name, dict_st_root in dict_states.items():
                     folder_cfg = self._get_diff_folder_cfg(root_name)
                     l_style = folder_cfg.get("line_style", "-")
                     l_label = folder_cfg.get("label", str(root_name) if root_name else "default")
                     
-                    for data_in in data_list:
-                        for k, s_data in data_in.items():
-                            if k[4] != thr or k[5] != gt:
-                                continue
-                            
-                            row = 0
-                            if k[1] == "smallA": row = 1
-                            elif k[7] == "100": row = 2
-                            
-                            try:
-                                m_t = int(k[9])
-                                if m_t not in col_index: continue
-                                col = col_index[m_t]
-                            except: continue
+                    for key, s_data in dict_st_root.items():
+                        p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
+                        if k_gt != gt or k_thr != thr:
+                            continue
+                        
+                        row = 0
+                        if k_arena == "smallA": row = 1
+                        elif k_agents == "100": row = 2
+                        
+                        if str(k_tm) not in col_index: continue
+                        col = col_index[str(k_tm)]
 
-                            p_key = self._identify_protocol_key(k)
-                            if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
-                                p_cfg = diff_protocols_by_key.get(p_key, {})
-                                color = self._protocol_color(p_cfg, scalarMap)
-                                ax[row][col].plot(s_data[0], color=color, lw=4, linestyle=l_style)
-                                
-                                used_protocol_keys.add(p_key)
-                                if root_name not in used_roots:
-                                    used_roots[root_name] = (l_label, l_style)
+                        if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                            color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
+                            ax[row][col].plot(s_data, color=color, lw=4, linestyle=l_style)
+                            
+                            used_protocol_keys.add(p_key)
+                            if root_name not in used_roots:
+                                used_roots[root_name] = (l_label, l_style)
 
                 self._apply_plot_style(ax, ncols, columns, is_messages=False)
                 
                 handles_r = []
+                if ps_k_dict and any(ps_k_dict.values()):
+                    grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
+                    handles_r.append(grad_handle)
+
                 for p in diff_protocols:
                     pk = p.get("key")
                     if pk in used_protocol_keys and p.get("legend", True):
@@ -833,169 +834,158 @@ class Data:
                     handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
                 if handles_r:
-                    fig.legend(handles=handles_r, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
-    def plot_active_w_gt_thr_diff(self, dict_st, dict_times):
+    def plot_active_w_gt_thr_diff(self, dict_st_in, dict_times):
         if not os.path.exists(self.base + "/proc_data/images/"):
             os.makedirs(self.base + "/proc_data/images/", exist_ok=True)
         path = self.base + "/proc_data/images/"
         
         ground_T, threshlds, o_k = set(), set(), set()
         arenas, agents = set(), set()
+        ps_k_dict = {}
+        dict_states_aggregated = {}
         
-        for root_name, data_list in dict_st.items():
+        for root_name, data_list in dict_st_in.items():
+            dict_states_aggregated[root_name] = {}
             for data_in in data_list: 
-                for k in data_in.keys():
-                    arenas.add(k[1])
-                    threshlds.add(k[4])
-                    ground_T.add(k[5])
-                    agents.add(k[7])
-                    if int(k[9]) != 0:
-                        o_k.add(int(k[9]))
+                for k0, s_data in data_in.items():
+                    algo, arena, thr, gt, comm, ag, tm, hops, k_samp = k0[0], k0[1], k0[4], k0[5], k0[6], k0[7], k0[9], k0[10], k0[11]
+                    arenas.add(arena)
+                    threshlds.add(thr)
+                    ground_T.add(gt)
+                    agents.add(ag)
+                    if int(tm) != 0: o_k.add(int(tm))
+                    
+                    p_key = self._identify_protocol_key_from_vars(algo, comm, tm, hops)
+                    if not p_key: continue
+                    if p_key == "Ps":
+                        if ag not in ps_k_dict: ps_k_dict[ag] = set()
+                        ps_k_dict[ag].add(float(k_samp))
+                        
+                    key = (p_key, arena, ag, tm, gt, thr, str(k_samp))
+                    dict_states_aggregated[root_name][key] = s_data[0]
 
         ground_T = sorted(list(ground_T))
         threshlds = sorted(list(threshlds))
         o_k = sorted(list(o_k))
         more_k = [sorted(list(arenas)), sorted(list(agents))]
 
-        self.print_evolutions_diff(path, ground_T, threshlds, dict_st, dict_times, o_k, more_k)
+        self.print_evolutions_diff(path, ground_T, threshlds, dict_states_aggregated, o_k, more_k, ps_k_dict)
 
 ##########################################################################################################
-    def read_msgs_csv(self,path):
-        data = {}
-        lc = 0
-        with open(path,newline='') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if lc == 0:
-                    lc = 1
-                else:
-                    keys = []
-                    array_val=[]
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval))
-                            if ']' in val:
-                                data.update({(keys[0],keys[1],keys[2],keys[3],keys[4],keys[5],keys[6],keys[7]):array_val})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    keys.append(tval)
-        return data
-
-##########################################################################################################
-    def read_csv(self,path,algo,n_runs,arena):
-        lc = 0
-        keys = []
+    def read_msgs_csv(self, path):
         data = {}
         with open(path, newline='') as f:
-            reader = csv.reader(f)
+            reader = csv.reader(f, delimiter='\t')
+            headers = next(reader)
             for row in reader:
-                change = 0
-                if lc == 0:
-                    lc = 1
-                    for val in row:
-                        keys=val.split('\t')
-                else:
-                    array_val = []
-                    std_val = []
-                    data_val = {}
-                    for val in row:
-                        split_val = val.split('\t')
-                        if len(split_val)==1:
-                            tval = val  
-                            if ']' in val:
-                                tval = ''
-                                for c in val:
-                                    if c != ']':
-                                        tval+=c
-                            array_val.append(float(tval)) if change==0 else std_val.append(float(tval))
-                            if ']' in val:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
-                        elif len(split_val)==2:
-                            lval = ""
-                            rval = ""
-                            change = 1
-                            for c in split_val[0]:
-                                if c != ']':
-                                    lval += c
-                            for c in split_val[1]:
-                                if c != '[':
-                                    rval += c
-                            if rval == '-':
-                                rval = -1
-                            array_val.append(float(lval))
-                            std_val.append(float(rval))
-                            if rval == -1:
-                                data_val.update({keys[-2]:array_val})
-                                data_val.update({keys[-1]:std_val})
-                                data.update({(algo,arena,n_runs,data_val.get(keys[0]),data_val.get(keys[1]),data_val.get(keys[2]),data_val.get(keys[3]),data_val.get(keys[4]),data_val.get(keys[5]),data_val.get(keys[6]),data_val.get(keys[7]),data_val.get(keys[8])):(data_val.get(keys[9]),data_val.get(keys[10]))})
-                        else:
-                            for k in range(len(split_val)):
-                                tval = split_val[k]
-                                if '[' in split_val[k]:
-                                    tval = ''
-                                    for c in split_val[k]:
-                                        if c != '[':
-                                            tval+=c
-                                    array_val.append(float(tval))
-                                else:
-                                    data_val.update({keys[k]:tval})
+                if not row: continue
+                data_val = dict(zip(headers, row[:-1])) 
+                val = row[-1].replace('[', '').replace(']', '')
+                array_val = [float(x) for x in val.split(',')] if val else []
+                
+                key_tuple = (
+                    data_val.get("ArenaSize", "big"),
+                    data_val.get("algo", "P"),
+                    data_val.get("threshold", "0.8"),
+                    data_val.get("delta_GT", "0.68;0.92"),
+                    data_val.get("broadcast", "1"),
+                    data_val.get("msg_hops", "0"),
+                    data_val.get("n_agents", "25"),
+                    data_val.get("k_sampling", "0"),
+                    data_val.get("buff_dim", "60")  
+                )
+                data[key_tuple] = array_val
         return data
 
 ##########################################################################################################
-    def divide_data(self,data):
-        states, times = {},{}
-        algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = [],[],[],[],[],[],[],[],[],[],[]
+    def read_csv(self, path, algo, n_runs, arena):
+        data = {}
+        with open(path, newline='') as f:
+            reader = csv.reader(f, delimiter='\t')
+            headers = next(reader)
+            for row in reader:
+                if not row: continue
+                data_val = {}
+                array_val = []
+                std_val = []
+                for i, h in enumerate(headers):
+                    if i >= len(row): continue
+                    val = row[i]
+                    if h == 'data':
+                        val = val.replace('[', '').replace(']', '')
+                        array_val = [float(x) for x in val.split(',')] if val else []
+                    elif h == 'std':
+                        if val == '-':
+                            std_val = [-1.0] * len(array_val)
+                        else:
+                            val = val.replace('[', '').replace(']', '')
+                            std_val = [float(x) for x in val.split(',')] if val else []
+                    else:
+                        data_val[h] = val
+                        
+                key_tuple = (
+                    algo,
+                    arena,
+                    str(n_runs),
+                    data_val.get("ExperimentLength", "1200"),
+                    data_val.get("Threshold", "0.8"),
+                    data_val.get("GT", "0.68;0.92").replace('_', ';'), 
+                    data_val.get("Rebroadcast", "1"),
+                    data_val.get("Robots", "25"),
+                    data_val.get("MinBuffDim", "5"),
+                    data_val.get("MsgExpTime", "60"),
+                    data_val.get("MsgHops", "0"),
+                    data_val.get("KSampling", "0"),
+                    data_val.get("type", "swarm_state")
+                )
+                data[key_tuple] = (array_val, std_val)
+        return data
+
+##########################################################################################################
+    def divide_data(self, data):
+        states, times = {}, {}
+        algorithm, arena_size, n_runs, exp_time, thrlds, gt, communication, n_agents, min_buff_dim, msg_time, msg_hops, k_sampling = [],[],[],[],[],[],[],[],[],[],[],[]
+        
         for k in data.keys():
-            for i in range(len(k)-1):
-                if i == 0 and k[i] not in algorithm: algorithm.append(k[i])
-                elif i == 1 and k[i] not in arena_size: arena_size.append(k[i])
-                elif i == 2 and k[i] not in n_runs: n_runs.append(k[i])
-                elif i == 3 and k[i] not in exp_time: exp_time.append(k[i])
-                elif i == 4 and k[i] not in communication: communication.append(k[i])
-                elif i == 5 and k[i] not in n_agents: n_agents.append(k[i])
-                elif i == 6 and k[i] not in gt: gt.append(k[i])
-                elif i == 7 and k[i] not in thrlds: thrlds.append(k[i])
-                elif i == 8 and k[i] not in min_buff_dim: min_buff_dim.append(k[i])
-                elif i == 9 and k[i] not in msg_time: msg_time.append(k[i])
-                elif i == 10 and k[i] not in msg_hops: msg_hops.append(k[i])
-            if k[-1] == "times":
-                times.update({k[:-1]:data.get(k)})
-            elif k[-1] == "swarm_state":
-                states.update({k[:-1]:data.get(k)})
-        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time,msg_hops), states, times
+            algo, arena, runs, et, thr, gt_val, comm, agents, buf_dim, tm, hops, k_samp, dtype = k
+            if algo not in algorithm: algorithm.append(algo)
+            if arena not in arena_size: arena_size.append(arena)
+            if runs not in n_runs: n_runs.append(runs)
+            if et not in exp_time: exp_time.append(et)
+            if thr not in thrlds: thrlds.append(thr)
+            if gt_val not in gt: gt.append(gt_val)
+            if comm not in communication: communication.append(comm)
+            if agents not in n_agents: n_agents.append(agents)
+            if buf_dim not in min_buff_dim: min_buff_dim.append(buf_dim)
+            if tm not in msg_time: msg_time.append(tm)
+            if hops not in msg_hops: msg_hops.append(hops)
+            if k_samp not in k_sampling: k_sampling.append(k_samp)
+            
+            if dtype == "times":
+                times[k[:-1]] = data[k]
+            elif dtype == "swarm_state":
+                states[k[:-1]] = data[k]
+        
+        return (algorithm, arena_size, n_runs, exp_time, communication, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops, k_sampling), states, times
     
 ##########################################################################################################
-    def plot_active_w_gt_thr(self,data_in,times):
+    def plot_active_w_gt_thr(self, data_in, times):
         if not os.path.exists(self.base+"/proc_data/images/"):
-            os.mkdir(self.base+"/proc_data/images/")
+            os.makedirs(self.base+"/proc_data/images/", exist_ok=True)
         path = self.base+"/proc_data/images/"
-        dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state, dict_park_state_real  = {},{},{},{},{},{},{}
-        dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time, dict_park_time_real        = {},{},{},{},{},{},{}
-        ground_T, threshlds , jolly, msg_hops                                               = [],[],[],[]
-        algo,arena,runs,time,comm,agents,buf_dim                                            = [],[],[],[],[],[],[]
-        o_k                                                                                 = []
+        
+        dict_states = {}
+        dict_times = {}
+        ps_k_dict = {}
+        ground_T, threshlds, o_k = set(), set(), set()
+        arenas, agents = set(), set()
 
         def add_or_merge(dct, key, series):
             if key in dct:
@@ -1008,77 +998,47 @@ class Data:
                 dct[key] = series
 
         for i in range(len(data_in)):
-            da_K = data_in[i].keys()
-            for k0 in da_K:
-                if k0[0] not in algo: algo.append(k0[0])
-                if k0[1] not in arena: arena.append(k0[1])
-                if k0[2] not in runs: runs.append(k0[2])
-                if k0[3] not in time: time.append(k0[3])
-                if k0[4] not in threshlds: threshlds.append(k0[4])
-                if k0[5] not in ground_T: ground_T.append(k0[5])
-                if k0[6] not in comm: comm.append(k0[6])
-                if k0[7] not in agents: agents.append(k0[7])
-                if k0[8] not in buf_dim: buf_dim.append(k0[8])
-                if k0[9] not in jolly: jolly.append(k0[9])
-                if k0[10] not in msg_hops: msg_hops.append(k0[10])
-        for i in range(len(data_in)):
-            for a in algo:
-                for a_s in arena:
-                    for n_r in runs:
-                        for et in time:
-                            for c in comm:
-                                for n_a in agents:
-                                    for m_b_d in buf_dim:
-                                        for m_h in msg_hops:
-                                            for m_t in jolly:
-                                                for gt in ground_T:
-                                                    for thr in threshlds:
-                                                        s_data = data_in[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
-                                                        t_data = times[i].get((a,a_s,n_r,et,thr,gt,c,n_a,m_b_d,m_t,m_h))
-                                                        if s_data != None:
-                                                            if int(m_t) !=0 and m_t not in o_k: o_k.append(m_t)
-                                                            
-                                                            if a=='P' and int(c)==0 and int(m_t)!=0:
-                                                                key = (a_s,n_a,m_t,gt,thr)
-                                                                add_or_merge(dict_park_state, key, s_data[0])
-                                                                add_or_merge(dict_park_time, key, t_data[0])
-                                                            elif a=='P' and int(c)==0 and int(m_t)==0:
-                                                                key = (a_s,n_a,"60",gt,thr)
-                                                                add_or_merge(dict_park_state_real, key, s_data[0])
-                                                                add_or_merge(dict_park_time_real, key, t_data[0])
-                                                            elif a=='O':
-                                                                key = (a_s,n_a,m_t,gt,thr)
-                                                                if int(c)==0:
-                                                                    add_or_merge(dict_adms_state, key, s_data[0])
-                                                                    add_or_merge(dict_adms_time, key, t_data[0])
-                                                                elif int(c)==2:
-                                                                    add_or_merge(dict_fifo_state, key, s_data[0])
-                                                                    add_or_merge(dict_fifo_time, key, t_data[0])
-                                                                else:
-                                                                    if m_h=="1":
-                                                                        add_or_merge(dict_rnd_state, key, s_data[0])
-                                                                        add_or_merge(dict_rnd_time, key, t_data[0])
-                                                                    elif m_h=="31":
-                                                                        add_or_merge(dict_rnd_adapt_state, key, s_data[0])
-                                                                        add_or_merge(dict_rnd_adapt_time, key, t_data[0])
-                                                                    else:
-                                                                        add_or_merge(dict_rnd_inf_state, key, s_data[0])
-                                                                        add_or_merge(dict_rnd_inf_time, key, t_data[0])
-        self.print_evolutions(path,ground_T,threshlds,[dict_park_state,dict_adms_state,dict_fifo_state,dict_rnd_state,dict_rnd_inf_state,dict_rnd_adapt_state,dict_park_state_real],[dict_park_time,dict_adms_time,dict_fifo_time,dict_rnd_time,dict_rnd_inf_time,dict_rnd_adapt_time,dict_park_time_real],o_k,[arena,agents])
+            for k0, s_data in data_in[i].items():
+                t_data = times[i].get(k0)
+                algo, arena, thr, gt, comm, ag, tm, hops, k_samp = k0[0], k0[1], k0[4], k0[5], k0[6], k0[7], k0[9], k0[10], k0[11]
+                
+                arenas.add(arena)
+                threshlds.add(thr)
+                ground_T.add(gt)
+                agents.add(ag)
+                if int(tm) != 0: o_k.add(int(tm))
+                
+                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, hops)
+                if not p_key: continue
+                
+                if p_key == "Ps":
+                    if ag not in ps_k_dict: ps_k_dict[ag] = set()
+                    ps_k_dict[ag].add(float(k_samp))
+                
+                key = (p_key, arena, ag, tm, gt, thr, str(k_samp))
+                add_or_merge(dict_states, key, s_data[0])
+                if t_data:
+                    add_or_merge(dict_times, key, t_data[0])
+
+        ground_T = sorted(list(ground_T))
+        threshlds = sorted(list(threshlds))
+        o_k = sorted(list(o_k))
+        more_k = [sorted(list(arenas)), sorted(list(agents))]
+
+        self.print_evolutions(path, ground_T, threshlds, dict_states, dict_times, o_k, more_k, ps_k_dict)
 
 ##########################################################################################################
-    def print_evolutions(self, path, ground_T, threshlds, data_in, times_in, keys, more_k):
+    def print_evolutions(self, path, ground_T, threshlds, dict_states, times_in, keys, more_k, ps_k_dict):
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adapt, dict_park_real = data_in
         
         o_k = sorted(set([int(x) for x in keys]))
         columns = self._plot_columns(o_k)
-        col_index = {c: i for i, c in enumerate(columns)}
+        col_index = {str(c): i for i, c in enumerate(columns)}
         ncols = len(columns)
         arena = more_k[0]
-        protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        agents_list = more_k[1]
 
         for gt in ground_T:
             for thr in threshlds:
@@ -1086,162 +1046,58 @@ class Data:
                 used_protocols = set()
 
                 for a in arena:
-                    agents = more_k[1]
-                    for ag in agents:
+                    for ag in agents_list:
                         row = 1 if a == "smallA" else (2 if int(ag) == 100 else 0)
-                        for col_val in columns:
-                            col = col_index[col_val]
-                            key = (a, ag, str(col_val), gt, thr)
+                        
+                        for key, s_data in dict_states.items():
+                            p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
+                            if k_arena != a or k_agents != ag or k_gt != gt or k_thr != thr:
+                                continue
                             
-                            mapping = [
-                                ("AN", dict_park_real), ("AN_t", dict_park), ("ID+B", dict_adam),
-                                ("ID+R_f", dict_fifo), ("ID+R_1", dict_rnd), 
-                                ("ID+R_inf", dict_rnd_inf), ("ID+R_a", dict_rnd_adapt)
-                            ]
-
-                            for p_key, d_src in mapping:
-                                if self._protocol_enabled(p_key) and d_src.get(key) is not None:
-                                    ax[row][col].plot(d_src.get(key), color=protocol_colors.get(p_key, "red"), lw=6)
+                            if not self._protocol_enabled(p_key): continue
+                            
+                            if p_key == "AN":
+                                for col in range(ncols):
+                                    color = self._protocol_color_with_k(p_key, k_samp, ag, ps_k_dict, scalarMap)
+                                    ax[row][col].plot(s_data, color=color, lw=6)
                                     used_protocols.add(p_key)
+                            else:
+                                if str(k_tm) not in col_index: continue
+                                col = col_index[str(k_tm)]
+                                color = self._protocol_color_with_k(p_key, k_samp, ag, ps_k_dict, scalarMap)
+                                ax[row][col].plot(s_data, color=color, lw=6)
+                                used_protocols.add(p_key)
 
                 self._apply_plot_style(ax, ncols, columns, is_messages=False)
 
                 handles_r = []
+                if ps_k_dict and any(ps_k_dict.values()):
+                    grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
+                    handles_r.append(grad_handle)
+
                 for p in self.protocols:
                     pk = p.get("key")
                     if pk in used_protocols and p.get("legend", True):
-                        handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
+                        handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
 
                 if handles_r:
-                    fig.legend(handles=handles_r, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
-    def print_evolutions_anonymous(self,path,ground_T,threshlds,data_in,times_in,keys,more_k):
-        typo = [0]
-        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park,_,_,_,_,_, dict_park_real = data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]
-        arena = more_k[0]
-        agents_list = more_k[1]
-        gt_h2l = None
-        gt_l2h = None
-        if len(ground_T) >= 2:
-            try:
-                sorted_gt = sorted(ground_T, key=lambda x: float(x))
-                gt_l2h = sorted_gt[0]
-                gt_h2l = sorted_gt[-1]
-            except Exception:
-                gt_l2h = ground_T[0]
-                gt_h2l = ground_T[1]
-        elif ground_T:
-            gt_l2h = gt_h2l = ground_T[0]
-        if not os.path.exists(self.base+"/proc_data/images/"):
-            os.makedirs(self.base+"/proc_data/images/", exist_ok=True)
-
-        for thr in threshlds:
-            fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(19,16), squeeze=False, layout="constrained")
-            for a in arena:
-                if a=="smallA":
-                    row_base = 1
-                    agents = ["25"]
-                else:
-                    row_base = 0
-                    agents = agents_list
-                for ag in agents:
-                    row = row_base
-                    if int(ag) == 100:
-                        row = 2
-
-                    if gt_h2l is not None:
-                        s = dict_park.get((a,ag,"60",gt_h2l,thr))
-                        if s is not None:
-                            ax[row][0].plot(s, color=scalarMap.to_rgba(typo[0]), lw=4)
-                        sr = dict_park_real.get((a,ag,"60",gt_h2l,thr))
-                        if sr is not None:
-                            ax[row][0].plot(sr, color="red", lw=4)
-
-                    if gt_l2h is not None:
-                        s = dict_park.get((a,ag,"60",gt_l2h,thr))
-                        if s is not None:
-                            ax[row][1].plot(s, color=scalarMap.to_rgba(typo[0]), lw=4)
-                        sr = dict_park_real.get((a,ag,"60",gt_l2h,thr))
-                        if sr is not None:
-                            ax[row][1].plot(sr, color="red", lw=4)
-
-            svoid_x_ticks = []
-            void_x_ticks = []
-            real_x_ticks = []
-            for x in range(0,1201,50):
-                if x%300 == 0:
-                    svoid_x_ticks.append('')
-                    void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.round(x,0))))
-                else:
-                    void_x_ticks.append('')
-
-            for r in range(3):
-                for c in range(2):
-                    ax[r][c].set_xlim(0,1201)
-                    ax[r][c].set_ylim(-0.03,1.03)
-                    ax[r][c].set_xticks(np.arange(0,1201,300), labels=svoid_x_ticks)
-                    ax[r][c].set_xticks(np.arange(0,1201,50), labels=void_x_ticks, minor=True)
-                    ax[r][c].set_yticks(np.arange(0,1.01,0.1))
-                    if c==0:
-                        ax[r][c].set_ylabel(r"$Q(G,\tau)$")
-                    ax[r][c].grid(True)
-
-            ayt0 = ax[0][1].twinx()
-            ayt1 = ax[1][1].twinx()
-            ayt2 = ax[2][1].twinx()
-            labels = [item.get_text() for item in ayt0.get_yticklabels()]
-            empty_string_labels = [''] * len(labels)
-            ayt0.set_yticklabels(empty_string_labels)
-            ayt1.set_yticklabels(empty_string_labels)
-            ayt2.set_yticklabels(empty_string_labels)
-            ayt0.set_ylabel("LD25")
-            ayt1.set_ylabel("HD25")
-            ayt2.set_ylabel("HD100")
-
-            axt0 = ax[0][0].twiny()
-            axt1 = ax[0][1].twiny()
-            labels0 = [item.get_text() for item in axt0.get_xticklabels()]
-            empty0 = ['']*len(labels0)
-            axt0.set_xticklabels(empty0)
-            axt1.set_xticklabels(empty0)
-            axt0.set_xlabel(r"$G_{i}=0.92,G_{f}=0.68$")
-            axt1.set_xlabel(r"$G_{i}=0.68,G_{f}=0.92$")
-
-            for c in range(2):
-                ax[2][c].set_xticks(np.arange(0,1201,300), labels=real_x_ticks)
-                ax[2][c].set_xticks(np.arange(0,1201,50), labels=void_x_ticks, minor=True)
-                ax[2][c].set_xlabel(r"$T\, (s)$")
-
-            fig.tight_layout()
-            fig_path = self.base+"/proc_data/images/"+thr+"_anonymous_60_0_activation.pdf"
-            an_t = mlines.Line2D([], [], color=scalarMap.to_rgba(typo[0]), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN_{t}$")
-            an_r = mlines.Line2D([], [], color="red", marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=r"$AN$")
-            fig.legend(bbox_to_anchor=(1, 0), handles=[an_r, an_t], ncols=2, loc='upper right', framealpha=0.7, borderaxespad=0)
-            fig.savefig(fig_path, bbox_inches='tight')
-            plt.close(fig)
-
-##########################################################################################################
-    def print_messages(self, data_in):
+    def print_messages(self, dict_msgs, ps_k_dict):
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt, dict_park_real = data_in
         
-        protocol_colors = {p.get("key"): self._protocol_color(p, scalarMap) for p in self.protocols}
         used_protocols = set()
-
         all_cols = set()
-        for dct in (dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt):
-            for k in dct.keys():
-                try: all_cols.add(int(k[5]))
-                except Exception: continue
+        for k in dict_msgs.keys():
+            try: all_cols.add(int(k[3]))
+            except Exception: continue
         
         default_cols = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
         columns = self._plot_columns(default_cols)
@@ -1264,38 +1120,37 @@ class Data:
         min_buf_line = np.zeros((3, ncols), int)
         fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(size_per_plot * ncols, size_per_plot * 3), squeeze=False, layout="constrained")
 
-        dicts_to_norm = [dict_park_real, dict_park, dict_adam, dict_fifo, dict_rnd, dict_rnd_inf, dict_rnd_adpt]
-        for dct in dicts_to_norm:
-            for k in dct.keys():
-                norm = int(k[4]) - 1
-                dct[k] = [xi / norm for xi in dct[k]]
-
-        plot_map = [
-            ("AN", dict_park_real), ("AN_t", dict_park), ("ID+B", dict_adam),
-            ("ID+R_f", dict_fifo), ("ID+R_1", dict_rnd), 
-            ("ID+R_inf", dict_rnd_inf), ("ID+R_a", dict_rnd_adpt)
-        ]
-
-        for p_key, dct in plot_map:
+        for key, raw_data in dict_msgs.items():
+            p_key, arena, agents, tm, k_samp = key
             if not self._protocol_enabled(p_key): continue
             
-            for k, data in dct.items():
-                if k[5] not in col_index: continue
-                
-                if k[0] == 'big' and k[4] == '25': row = 0
-                elif k[0] == 'big' and k[4] == '100': row = 2
-                elif k[0] == 'small': row = 1
-                else: continue
-                
-                col = col_index[k[5]]
-                
+            if arena == 'big' and agents == '25': row = 0
+            elif arena == 'small' and agents == '25': row = 1
+            elif arena == 'big' and agents == '100': row = 2
+            else: continue
+            
+            norm = int(agents) - 1
+            if norm <= 0: norm = 1
+            data = [xi / norm for xi in raw_data]
+            
+            color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
+            used_protocols.add(p_key)
+
+            if p_key == "AN":
+                for col in range(ncols):
+                    if min_buf_line[row][col] == 0:
+                        val = 5 / norm
+                        ax[row][col].plot([val]*1200, color="black", lw=4, ls="--")
+                        min_buf_line[row][col] = 1
+                    ax[row][col].plot(data, color=color, lw=6)
+            else:
+                if str(tm) not in col_index: continue
+                col = col_index[str(tm)]
                 if min_buf_line[row][col] == 0:
-                    val = 5 / (int(k[4]) - 1)
+                    val = 5 / norm
                     ax[row][col].plot([val]*1200, color="black", lw=4, ls="--")
                     min_buf_line[row][col] = 1
-                
-                ax[row][col].plot(data, color=protocol_colors.get(p_key, "red"), lw=6)
-                used_protocols.add(p_key)
+                ax[row][col].plot(data, color=color, lw=6)
 
         for x in range(2):
             for y in range(ncols):
@@ -1330,14 +1185,19 @@ class Data:
                 ax[x][y].set_ylim(-0.03, 1.03)
 
         handles_r = []
+        if ps_k_dict and any(ps_k_dict.values()):
+            grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
+            handles_r.append(grad_handle)
+
         for p in self.protocols:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
-                handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pk), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
+                handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
 
         if handles_r:
+            handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             leg_cols = min(len(handles_r), max(2, ncols))
-            fig.legend(handles=handles_r, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
 
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)

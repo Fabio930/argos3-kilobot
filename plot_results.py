@@ -19,6 +19,8 @@ def _collect_proc_data(csv_res, proc_path, exclude_protocols=None):
         no_ext_file = file.split('.')[0]
         sets = no_ext_file.split('_')
         algo = sets[0][0] if len(sets[0]) > 1 and (sets[0][1] == "a" or sets[0][1] == "r") else sets[0][0:2]
+        if algo == "Ps": algo = "Ps"
+        
         for s in sets:
             val = s.split('#')
             if len(val) > 1:
@@ -57,13 +59,6 @@ def _collect_msgs_data(csv_res, msgs_path):
 ##################################################################################
 def _plot_proc_data(csv_res, proc_st, proc_times, mode):
     if mode == "diff":
-        o_k = []
-        for lst in proc_st.values():
-            for states in lst:
-                for k in states.keys():
-                    m_t = int(k[9])
-                    if m_t != 0 and m_t not in o_k:
-                        o_k.append(m_t)
         csv_res.plot_active_w_gt_thr_diff(proc_st, proc_times)
     else:
         csv_res.plot_active_w_gt_thr(proc_st, proc_times)
