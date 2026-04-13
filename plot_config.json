@@ -10,7 +10,7 @@
     {"key": "O.1.a", "id": 7, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
   ],
   "plots": {
-      "exclude_protocols": ["ID+R_a"],
+      "exclude_protocols": ["O.1.a"],
       "exclude_tm": [120, 300]
   }
 }

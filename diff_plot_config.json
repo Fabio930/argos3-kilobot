@@ -1,7 +1,7 @@
 {
   "folders": [
-    {"root": "../gossip_dynamic_data/", "label": "gossip", "line_style": "-","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]},
-    {"root": "./", "label": "state", "line_style": "--","exclude_protocols": ["AN","AN_t","ID+B","ID+R_a"]}
+    {"root": "./QS_analysis_data/gossip_dynamic_data/", "label": "gossip", "line_style": "--","exclude_protocols": ["P.0","P.1.0","P.1.1","O.0","O.1.a"]},
+    {"root": "./QS_analysis_data/dynamic_data/", "label": "state", "line_style": "-","exclude_protocols": ["P.0","P.1.0","P.1.1","O.0","O.1.a"]}
   ],
   "protocols": [
     {"key": "P.0", "id": 0, "label": "$AN$", "color": "red", "legend": false},
@@ -14,6 +14,6 @@
     {"key": "O.1.a", "id": 7, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
   ],
   "plots": {
-      "exclude_tm": [60, 180, 600]
+      "exclude_tm": [120, 300]
   }
 }

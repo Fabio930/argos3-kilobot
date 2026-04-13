@@ -17,9 +17,9 @@ class GradientHandler(HandlerBase):
 
     def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
         artists = []
-        n = 30
+        n = 6
         for i in range(n):
-            color = self.cmap(i / (n - 1))
+            color = self.cmap((i+1) / (n - 1))
             x = xdescent + (i / n) * width
             w = width / n + 0.5 
             rect = Rectangle([x, ydescent], w, height, facecolor=color, edgecolor='none', transform=trans)
@@ -79,14 +79,14 @@ class Data:
     def _default_plot_config(self):
         return {
             "protocols": [
-                {"key": "AN", "id": 0, "label": r"$AN$", "color": "red", "legend": False},
-                {"key": "AN_t", "id": 1, "label": r"$AN_{t}$", "color": "viridis:0", "legend": True},
-                {"key": "ID+B", "id": 2, "label": r"$ID+B$", "color": "viridis:1", "legend": True},
-                {"key": "ID+R_f", "id": 3, "label": r"$ID+R_{f}$", "color": "viridis:2", "legend": True},
-                {"key": "ID+R_1", "id": 4, "label": r"$ID+R_{k}$", "color": "viridis:3", "legend": True},
-                {"key": "ID+R_inf", "id": 5, "label": r"$ID+R_{\infty}$", "color": "viridis:4", "legend": True},
-                {"key": "ID+R_a", "id": 6, "label": r"$ID+R_{a}$", "color": "viridis:5", "legend": True},
-                {"key": "Ps", "id": 7, "label": r"$P.1.1$", "color": "orange", "legend": True}
+                {"key": "P.0", "id": 0, "label": r"$AN$", "color": "red", "legend": False},
+                {"key": "P.1.0", "id": 1, "label": r"$AN_{t}$", "color": "viridis:0", "legend": True},
+                {"key": "P.1.1", "id": 2, "label": r"$AN_{t}^{k}$", "color": "orange", "legend": True},
+                {"key": "O.0", "id": 3, "label": r"$ID+B$", "color": "viridis:1", "legend": True},
+                {"key": "O.2.0", "id": 4, "label": r"$ID+R_{f}$", "color": "viridis:2", "legend": True},
+                {"key": "O.1.1", "id": 5, "label": r"$ID+R_{k}$", "color": "viridis:3", "legend": True},
+                {"key": "O.1.0", "id": 6, "label": r"$ID+R_{\infty}$", "color": "viridis:4", "legend": True},
+                {"key": "O.1.a", "id": 7, "label": r"$ID+R_{a}$", "color": "viridis:5", "legend": True}
             ],
             "plots": { "exclude_protocols": [], "columns": [60, 120, 180, 300, 600] },
         }
@@ -211,22 +211,29 @@ class Data:
         return color if color else "black"
 
     def _protocol_color_with_k(self, p_key, k_samp, n_agents, ps_k_dict, scalarMap):
-        if p_key == "Ps":
-            base_orange = colors.to_rgb("darkorange")
-            k_list = sorted(ps_k_dict.get(str(n_agents), []))
+        if p_key == "P.1.1":
+            p = self.protocols_by_key.get(p_key)
+            base_color = self._protocol_color(p, scalarMap) if p else colors.to_rgb("orange")
+            k_list = sorted(list(ps_k_dict.get(str(n_agents), set())))
             if not k_list:
-                return base_orange
+                return base_color
             try:
                 idx = k_list.index(float(k_samp))
             except ValueError:
                 idx = 0
-            n = max(1, len(k_list))
+            n = len(k_list)
             if n <= 1:
-                return base_orange
+                return base_color
             
-            h, l, s = 0.08, 0.45, 1.0
-            new_l = l + 0.40 * (idx / (n - 1))
-            return colorsys.hls_to_rgb(h, new_l, s)
+            rgb = colors.to_rgb(base_color)
+            h, l, s = colorsys.rgb_to_hls(*rgb)
+            
+            max_l = 0.85
+            if l >= max_l: 
+                max_l = min(0.95, l + 0.15)
+            new_l = l + (max_l - l) * (idx / (n - 1))
+            rgb_new = colorsys.hls_to_rgb(h, new_l, s)
+            return tuple(min(1.0, max(0.0, c)) for c in rgb_new)
             
         p = self.protocols_by_key.get(p_key)
         return self._protocol_color(p, scalarMap)
@@ -234,17 +241,17 @@ class Data:
 ##########################################################################################################
     def _identify_protocol_key_from_vars(self, algo, comm, msg_time, msg_hops):
         if algo == 'P':
-            return "AN" if int(msg_time) == 0 else "AN_t"
+            return "P.0" if int(msg_time) == 0 else "P.1.0"
         if algo == 'Ps':
-            return "Ps"
+            return "P.1.1"
         if algo == 'O':
             c = int(comm)
-            if c == 0: return "ID+B"
-            if c == 2: return "ID+R_f"
+            if c == 0: return "O.0"
+            if c == 2: return "O.2.0"
             hops = str(msg_hops)
-            if hops == "0": return "ID+R_inf"
-            if hops == "31": return "ID+R_a"
-            return "ID+R_1"
+            if hops == "0": return "O.1.0"
+            if hops == "31": return "O.1.a"
+            return "O.1.1"
         return None
 
 ##########################################################################################################
@@ -334,7 +341,7 @@ class Data:
                 arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
                 p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
                 if p_key:
-                    if p_key == "Ps":
+                    if p_key == "P.1.1":
                         if agents not in ps_k_dict: ps_k_dict[agents] = set()
                         ps_k_dict[agents].add(float(k_samp))
                     msgs_dict[(p_key, arena, str(agents), str(tm), str(k_samp))] = res
@@ -344,7 +351,7 @@ class Data:
                 algo, arena, thr, gt, comm, agents, tm, msg_hops, k_samp = k[0], k[1], k[4], k[5], k[6], k[7], k[9], k[10], k[11]
                 p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
                 if p_key:
-                    if p_key == "Ps":
+                    if p_key == "P.1.1":
                         if agents not in ps_k_dict: ps_k_dict[agents] = set()
                         ps_k_dict[agents].add(float(k_samp))
                     s_key = (p_key, arena, str(agents), str(tm), gt, thr, str(k_samp))
@@ -392,7 +399,7 @@ class Data:
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
         
         def tm_color(base_color, current_tm, p_key):
-            if p_key in ("AN", "Ps"):
+            if p_key in ("P.0", "P.1.1"):
                 return colors.to_rgb(base_color)
             rgb_base = colors.to_rgb(base_color)
             if not use_gradient:
@@ -439,10 +446,11 @@ class Data:
                     
                     unique_k_samps = set(k[4] for k in msgs_dict.keys() if k[0] == p_key and k[1] == col_cfg["msg_arena"] and k[2] == col_cfg["agents"])
                     if not unique_k_samps: unique_k_samps = ["0"]
+                    unique_k_samps = sorted(list(unique_k_samps), key=lambda x: float(x))
                     
                     for k_samp in unique_k_samps:
                         base_color = self._protocol_color_with_k(p_key, k_samp, col_cfg["agents"], ps_k_dict, scalarMap)
-                        is_p0 = (p_key == "AN")
+                        is_p0 = (p_key == "P.0")
                         tms_to_iterate = ["60"] if is_p0 else combined_tm
                         
                         for tm in tms_to_iterate:
@@ -498,10 +506,11 @@ class Data:
                         
                         unique_k_samps = set(k[6] for k in st_dict.keys() if k[0] == p_key and k[1] == col_cfg["st_arena"] and k[2] == col_cfg["agents"])
                         if not unique_k_samps: unique_k_samps = ["0"]
+                        unique_k_samps = sorted(list(unique_k_samps), key=lambda x: float(x))
 
                         for k_samp in unique_k_samps:
                             base_color = self._protocol_color_with_k(p_key, k_samp, col_cfg["agents"], ps_k_dict, scalarMap)
-                            is_p0 = (p_key == "AN")
+                            is_p0 = (p_key == "P.0")
                             tms_to_iterate = ["60"] if is_p0 else combined_tm
                             
                             for tm in tms_to_iterate:
@@ -551,7 +560,7 @@ class Data:
                     if i < 2:
                         ax[i][j].set_xticklabels([])
                     else:
-                        ax[i][j].set_xlabel(r"$T\, (s)$")
+                        ax[i][j].set_xlabel(r"$T$")
                     if j > 0:
                         ax[i][j].set_yticklabels([])
             
@@ -561,12 +570,12 @@ class Data:
             
             ax_right1 = ax[1][2].twinx()
             ax_right1.set_yticks([])
-            lab1 = str(gt_068_092).replace('_','.').replace(';', r' \rightarrow ')
+            lab1 = str(gt_068_092).split(";")[0]+"."+str(gt_068_092).split(";")[1]+r' \rightarrow '+str(gt_068_092).split(";")[2]+"."+str(gt_068_092).split(";")[3]
             ax_right1.set_ylabel(r"$G: " + lab1 + r"$", rotation=270, labelpad=30)
             
             ax_right2 = ax[2][2].twinx()
             ax_right2.set_yticks([])
-            lab2 = str(gt_092_068).replace('_','.').replace(';', r' \rightarrow ')
+            lab2 = str(gt_092_068).split(";")[0]+"."+str(gt_092_068).split(";")[1]+r' \rightarrow '+str(gt_092_068).split(";")[2]+"."+str(gt_092_068).split(";")[3]
             ax_right2.set_ylabel(r"$G: " + lab2 + r"$", rotation=270, labelpad=30)
             
             handles_l = []
@@ -593,7 +602,7 @@ class Data:
             legend_elements = handles_l + handles_r
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.75, -0.08), framealpha=0.7, fontsize=24, ncol=4)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.68, -0.08), framealpha=0.7, fontsize=24, ncol=5)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
@@ -609,7 +618,7 @@ class Data:
                 else:
                     ax[x][y].set_yticklabels([])
                 if x == 2:
-                    ax[x][y].set_xlabel(r"$T\, (s)$")
+                    ax[x][y].set_xlabel(r"$T$")
                     ax[x][y].set_xticks([0, 300, 600, 900, 1200])
                     ax[x][y].set_xticklabels(["0", "300", "600", "900", "1200"])
                 else:
@@ -622,7 +631,7 @@ class Data:
         for row in range(3):
             ax_right = ax[row][ncols-1].twinx()
             ax_right.set_yticks([])
-            ax_right.set_ylabel(labels[row], rotation=270, labelpad=40)
+            ax_right.set_ylabel(labels[row], rotation=270, labelpad=30)
 
 ##########################################################################################################
     def plot_messages_diff(self, dict_msgs):
@@ -643,7 +652,7 @@ class Data:
                 if k[3] == "0.68;0.92":
                     arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
                     p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
-                    if p_key == "Ps":
+                    if p_key == "P.1.1":
                         if agents not in ps_k_dict: ps_k_dict[agents] = set()
                         ps_k_dict[agents].add(float(k_samp))
 
@@ -671,6 +680,7 @@ class Data:
         used_protocols = set()
         used_roots = {}
 
+        items_to_plot = []
         for root_name, msgs_dct in dict_msgs.items():
             folder_cfg = self._get_diff_folder_cfg(root_name)
             l_style = folder_cfg.get("line_style", "-")
@@ -679,53 +689,54 @@ class Data:
             for k, res in msgs_dct.items():
                 if k[3] != "0.68;0.92": continue
                 if str(k[-1]) not in col_index: continue
+                items_to_plot.append((root_name, k, res, l_style, l_label))
                 
-                arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
-                p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
+        # Z-order sorting
+        items_to_plot.sort(key=lambda x: float(x[1][7]))
 
-                if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
-                    used_protocols.add(p_key)
-                    if root_name not in used_roots:
-                        used_roots[root_name] = (l_label, l_style)
+        for root_name, k, res, l_style, l_label in items_to_plot:
+            arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
+            p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
 
-                    try:
-                        norm = int(agents) - 1
-                        if norm <= 0: norm = 1
-                        norm_data = [xi / norm for xi in res]
-                    except: continue
-                    
-                    row = 0
-                    if arena == 'big' and str(agents) == '25': row = 0
-                    elif arena == 'big' and str(agents) == '100': row = 2
-                    elif arena == 'small': row = 1
-                    
-                    col = col_index[str(tm)]
-                    color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
+            if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                used_protocols.add(p_key)
+                if root_name not in used_roots:
+                    used_roots[root_name] = (l_label, l_style)
 
-                    if min_buf_line[row][col] == 0:
-                        ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls="--")
-                        min_buf_line[row][col] = 1
-                    ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style)
+                try:
+                    norm = int(agents) - 1
+                    if norm <= 0: norm = 1
+                    norm_data = [xi / norm for xi in res]
+                except: continue
+                
+                row = 0
+                if arena == 'big' and str(agents) == '25': row = 0
+                elif arena == 'big' and str(agents) == '100': row = 2
+                elif arena == 'small': row = 1
+                
+                col = col_index[str(tm)]
+                color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
+
+                if min_buf_line[row][col] == 0:
+                    ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls="--")
+                    min_buf_line[row][col] = 1
+                ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style)
 
         self._apply_messages_style(ax, ncols, columns, svoid_x_ticks, void_x_ticks, real_x_ticks)
 
         handles_r = []
-        if ps_k_dict and any(ps_k_dict.values()):
-            grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
-            handles_r.append(grad_handle)
-
+        for r_name, (r_label, r_style) in used_roots.items():
+            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=3, label=r_label))
         for p in diff_protocols:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
                 lbl = p.get("label", pk)
                 handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
         
-        for r_name, (r_label, r_style) in used_roots.items():
-            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.62, 0.0), framealpha=0.7, fontsize=24)
 
         fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
@@ -741,7 +752,7 @@ class Data:
                     ax[x][y].set_xticks(np.arange(0, 1201, 300), labels=svoid)
                 else:
                     ax[x][y].set_xticks(np.arange(0, 1201, 300), labels=real)
-                    ax[x][y].set_xlabel(r"$T\, (s)$")
+                    ax[x][y].set_xlabel(r"$T$")
                 ax[x][y].set_xticks(np.arange(0, 1201, 50), labels=void, minor=True)
                 if y > 0: ax[x][y].set_yticklabels([])
 
@@ -753,7 +764,7 @@ class Data:
         for r in range(3):
             ayt = ax[r][ncols-1].twinx()
             ayt.set_yticklabels([])
-            ayt.set_ylabel(labels_side[r], labelpad=20)
+            ayt.set_ylabel(labels_side[r], rotation=270, labelpad=30)
 
 ##########################################################################################################
     def plot_messages(self, data):
@@ -765,7 +776,7 @@ class Data:
                 arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
                 p_key = self._identify_protocol_key_from_vars(algo, comm, tm, msg_hops)
                 if not p_key: continue
-                if p_key == "Ps":
+                if p_key == "P.1.1":
                     if agents not in ps_k_dict: ps_k_dict[agents] = set()
                     ps_k_dict[agents].add(float(k_samp))
                 key = (p_key, arena, agents, tm, str(k_samp))
@@ -793,6 +804,7 @@ class Data:
                 used_protocol_keys = set()
                 used_roots = {}
 
+                items_to_plot = []
                 for root_name, dict_st_root in dict_states.items():
                     folder_cfg = self._get_diff_folder_cfg(root_name)
                     l_style = folder_cfg.get("line_style", "-")
@@ -802,40 +814,42 @@ class Data:
                         p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
                         if k_gt != gt or k_thr != thr:
                             continue
+                        items_to_plot.append((root_name, key, s_data, l_style, l_label))
                         
-                        row = 0
-                        if k_arena == "smallA": row = 1
-                        elif k_agents == "100": row = 2
-                        
-                        if str(k_tm) not in col_index: continue
-                        col = col_index[str(k_tm)]
+                # Z-order sorting
+                items_to_plot.sort(key=lambda x: float(x[1][6]))
 
-                        if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
-                            color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
-                            ax[row][col].plot(s_data, color=color, lw=4, linestyle=l_style)
-                            
-                            used_protocol_keys.add(p_key)
-                            if root_name not in used_roots:
-                                used_roots[root_name] = (l_label, l_style)
+                for root_name, key, s_data, l_style, l_label in items_to_plot:
+                    p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
+                    row = 0
+                    if k_arena == "smallA": row = 1
+                    elif k_agents == "100": row = 2
+                    
+                    if str(k_tm) not in col_index: continue
+                    col = col_index[str(k_tm)]
+
+                    if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                        color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
+                        ax[row][col].plot(s_data, color=color, lw=4, linestyle=l_style)
+                        
+                        used_protocol_keys.add(p_key)
+                        if root_name not in used_roots:
+                            used_roots[root_name] = (l_label, l_style)
 
                 self._apply_plot_style(ax, ncols, columns, is_messages=False)
                 
                 handles_r = []
-                if ps_k_dict and any(ps_k_dict.values()):
-                    grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
-                    handles_r.append(grad_handle)
-
+                
+                for r_name, (r_label, r_style) in used_roots.items():
+                    handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
                 for p in diff_protocols:
                     pk = p.get("key")
                     if pk in used_protocol_keys and p.get("legend", True):
                         handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
-                
-                for r_name, (r_label, r_style) in used_roots.items():
-                    handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
 
                 if handles_r:
                     handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.62, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -864,7 +878,7 @@ class Data:
                     
                     p_key = self._identify_protocol_key_from_vars(algo, comm, tm, hops)
                     if not p_key: continue
-                    if p_key == "Ps":
+                    if p_key == "P.1.1":
                         if ag not in ps_k_dict: ps_k_dict[ag] = set()
                         ps_k_dict[ag].add(float(k_samp))
                         
@@ -1011,7 +1025,7 @@ class Data:
                 p_key = self._identify_protocol_key_from_vars(algo, comm, tm, hops)
                 if not p_key: continue
                 
-                if p_key == "Ps":
+                if p_key == "P.1.1":
                     if ag not in ps_k_dict: ps_k_dict[ag] = set()
                     ps_k_dict[ag].add(float(k_samp))
                 
@@ -1049,14 +1063,21 @@ class Data:
                     for ag in agents_list:
                         row = 1 if a == "smallA" else (2 if int(ag) == 100 else 0)
                         
+                        items_to_plot = []
                         for key, s_data in dict_states.items():
                             p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
                             if k_arena != a or k_agents != ag or k_gt != gt or k_thr != thr:
                                 continue
+                            items_to_plot.append((key, s_data))
                             
+                        # Z-order sorting
+                        items_to_plot.sort(key=lambda x: float(x[0][6]))
+                        
+                        for key, s_data in items_to_plot:
+                            p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
                             if not self._protocol_enabled(p_key): continue
                             
-                            if p_key == "AN":
+                            if p_key == "P.0":
                                 for col in range(ncols):
                                     color = self._protocol_color_with_k(p_key, k_samp, ag, ps_k_dict, scalarMap)
                                     ax[row][col].plot(s_data, color=color, lw=6)
@@ -1082,7 +1103,7 @@ class Data:
 
                 if handles_r:
                     handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=4, loc='upper center', bbox_to_anchor=(0.68, 0.0), framealpha=0.7, fontsize=24)
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -1120,7 +1141,14 @@ class Data:
         min_buf_line = np.zeros((3, ncols), int)
         fig, ax = plt.subplots(nrows=3, ncols=ncols, figsize=(size_per_plot * ncols, size_per_plot * 3), squeeze=False, layout="constrained")
 
+        items_to_plot = []
         for key, raw_data in dict_msgs.items():
+            items_to_plot.append((key, raw_data))
+            
+        # Z-order sorting
+        items_to_plot.sort(key=lambda x: float(x[0][4]))
+
+        for key, raw_data in items_to_plot:
             p_key, arena, agents, tm, k_samp = key
             if not self._protocol_enabled(p_key): continue
             
@@ -1136,7 +1164,7 @@ class Data:
             color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
             used_protocols.add(p_key)
 
-            if p_key == "AN":
+            if p_key == "P.0":
                 for col in range(ncols):
                     if min_buf_line[row][col] == 0:
                         val = 5 / norm
@@ -1177,7 +1205,7 @@ class Data:
             ayt.set_ylabel(lab)
             ax[r][0].set_ylabel(r"$M$")
 
-        for y in range(ncols): ax[2][y].set_xlabel(r"$T\, (s)$")
+        for y in range(ncols): ax[2][y].set_xlabel(r"$T$")
         for x in range(3):
             for y in range(ncols):
                 ax[x][y].grid(True)
@@ -1197,7 +1225,7 @@ class Data:
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             leg_cols = min(len(handles_r), max(2, ncols))
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.5, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=4, loc='upper center', bbox_to_anchor=(0.68, 0.0), framealpha=0.7, fontsize=24)
 
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
