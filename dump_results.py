@@ -36,12 +36,12 @@ def get_processed_keys():
     if os.path.exists(msgs_path):
         try:
             df = pd.read_csv(msgs_path, sep="\t" if "\t" in open(msgs_path).readline() else ",")
-            key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops']
+            key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops', 'k_sampling']
             for _, row in df.iterrows():
-                # Creiamo una chiave normalizzata
+                # Creiamo una chiave normalizzata che include k_sampling
                 key = (str(row['ArenaSize']), str(row['algo']), float(row['threshold']), 
                        float(row['GT']), int(row['broadcast']), int(row['n_agents']), 
-                       int(row['buff_dim']), int(row['msg_hops']))
+                       int(row['buff_dim']), int(row['msg_hops']), int(row['k_sampling']))
                 done_keys.add(key)
         except Exception as e:
             logging.warning(f"Errore lettura {msgs_path}: {e}")
@@ -53,13 +53,13 @@ def get_processed_keys():
     return done_keys
 
 def process_folder(task):
-    base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path, ticks_per_sec = task
+    base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, k_sampling, k_samp_path, ticks_per_sec = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
     try:
-        results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, msg_exp_path)
+        results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, k_sampling, k_samp_path)
     except Exception as e:
-        logging.error(f"Errore critico su {msg_exp_path}: {e}")
+        logging.error(f"Errore critico su {k_samp_path}: {e}")
     finally:
         del results
         gc.collect()
@@ -78,7 +78,14 @@ def main():
     # Scansione Gerarchica dei dati grezzi (Raw Data)
     results_obj = dex.Results()
     for base in results_obj.bases:
-        algo = "O" if "Oresults" in base else "P"
+        
+        if "Oresults" in base:
+            algo = "O"
+        elif "Psresults" in base:
+            algo = "Ps"
+        else:
+            algo = "P"
+            
         if not os.path.exists(base): continue
         
         for exp_l_dir in sorted(os.listdir(base)):
@@ -121,18 +128,23 @@ def main():
                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
                                         
-                                        # Identificatore univoco del task
-                                        current_key = (str(arena_size), str(algo), float(threshold), 
-                                                       float(delta_str), int(communication), int(n_agents), 
-                                                       int(msg_exp_time), int(msg_hops))
-                                        
-                                        if current_key not in done_keys:
-                                            queue.put((base, exp_length, communication, n_agents, 
-                                                       threshold, delta_str, msg_hops, msg_exp_time, 
-                                                       msg_exp_path, ticks_per_sec))
-                                            tasks_count += 1
-                                        else:
-                                            logging.debug(f"Saltato: {current_key}")
+                                        for k_samp_dir in sorted(os.listdir(msg_exp_path)):
+                                            if '#' not in k_samp_dir: continue
+                                            k_sampling = int(k_samp_dir.split('#')[-1])
+                                            k_samp_path = os.path.join(msg_exp_path, k_samp_dir)
+                                            
+                                            # Identificatore univoco del task aggiornato
+                                            current_key = (str(arena_size), str(algo), float(threshold), 
+                                                           float(delta_str), int(communication), int(n_agents), 
+                                                           int(msg_exp_time), int(msg_hops), int(k_sampling))
+                                            
+                                            if current_key not in done_keys:
+                                                queue.put((base, exp_length, communication, n_agents, 
+                                                           threshold, delta_str, msg_hops, msg_exp_time, 
+                                                           k_sampling, k_samp_path, ticks_per_sec))
+                                                tasks_count += 1
+                                            else:
+                                                logging.debug(f"Saltato: {current_key}")
 
     logging.info(f"Task totali da elaborare: {tasks_count}")
 

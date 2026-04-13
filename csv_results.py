@@ -48,7 +48,7 @@ class Data:
             "protocols": [
                 {"id": "P.0", "label": r"$AN$", "color": "red"},
                 {"id": "P.1.0", "label": r"$AN_{t}$", "color": "viridis:0"},
-                {"id": "P.1.1", "label": r"$AN_{t}^{1}$", "color": "orange"},
+                {"id": "P.1.1", "label": r"$AN_{t}^{k}$", "color": "orange"},
                 {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
                 {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},

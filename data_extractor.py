@@ -14,7 +14,7 @@ class Results:
         for elem in sorted(os.listdir(self.base)):
             if '.' not in elem:
                 selem=elem.split('_')
-                if selem[0] in ("Oresults","Presults"):
+                if selem[0] in ("Oresults", "Presults", "Psresults"):
                     self.bases.append(os.path.join(self.base, elem))
 
 ##########################################################################################################
@@ -51,7 +51,7 @@ class Results:
         return tot_avg, comm_avg, uncomm_avg
     
 ##########################################################################################################
-    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,sub_path):
+    def extract_k_data(self,base,max_steps,communication,n_agents,threshold,GT,msg_hops,msg_exp_time,k_sampling,sub_path):
         num_runs        = int(len(os.listdir(sub_path))/n_agents)
         states_bigM_1   = [np.array([]) for _ in range(n_agents)]
         quorum_bigM_1   = [np.array([]) for _ in range(n_agents)]
@@ -128,10 +128,13 @@ class Results:
         info_vec    = sub_path.split('/')
         for iv in info_vec:
             if "results_loop" in iv:
-                algo        = iv[0]
+                if iv.startswith("Ps"):
+                    algo = "Ps"
+                else:
+                    algo = iv[0]
             elif "ArenaType" in iv:
                 arenaS      = iv.split('#')[-1]
-        t_messages  = sub_path.split('#')[-1]
+                
         positions   = np.transpose(positions_bigM, (1,0,2)) if len(positions_bigM)>0 else []
         states      = np.transpose(states_bigM_1, (1,0,2))
         messages    = np.transpose(msgs_bigM_1, (1,0,2))
@@ -139,13 +142,14 @@ class Results:
         for i in range(len(states)):
             for j in range(len(states[i])):
                 statescpy[i][j] = states[i][j][-1]
+        
         avg_messages,commit_avg_msgs,uncommit_avg_msgs = self.compute_avg_msgs(messages,statescpy)
-        self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
+        self.dump_msgs("messages_resume.csv", [arenaS, algo, threshold, GT, communication, n_agents, msg_exp_time, msg_hops, k_sampling, avg_messages, commit_avg_msgs, uncommit_avg_msgs])
         quorums = np.transpose(quorum_bigM_1, (1,0,2))
         self.dump_times(algo,0,quorums,base,sub_path,self.min_buff_dim,msg_exp_time,n_agents,self.limit)
         self.dump_quorum(algo,0,quorums,statescpy,base,sub_path,self.min_buff_dim,msg_exp_time)
         # avg_distance = self.compute_frontier_avg_distance(positions,arenaS,GT)
-        # self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, t_messages,msg_hops, avg_distance])
+        # self.dump_distance("distance_resume.csv",[arenaS, algo, threshold, GT, communication, n_agents, msg_exp_time, msg_hops, k_sampling, avg_distance])
         del avg_messages,commit_avg_msgs,uncommit_avg_msgs, quorums, states, statescpy, positions, states_bigM_1,quorum_bigM_1,msgs_bigM_1,msgs_M_1,quorum_M_1,states_M_1,positions_M,positions_bigM
 
 ##########################################################################################################
@@ -167,12 +171,12 @@ class Results:
     
 ##########################################################################################################
     def dump_distance(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "k_sampling", "type", "data"]
         out_dir = os.path.join(os.path.abspath(""), "pos_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
         write_header = not os.path.exists(out_path)
-        row = [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-1]]
+        row = [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],"tot_average",data[-1]]
         with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
             if write_header:
                 fw.write("\t".join(header) + "\n")
@@ -180,15 +184,15 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "type", "data"]
+        header = ["ArenaSize", "algo", "threshold", "GT", "broadcast", "n_agents", "buff_dim", "msg_hops", "k_sampling", "type", "data"]
         out_dir = os.path.join(os.path.abspath(""), "msgs_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
         write_header = not os.path.exists(out_path)
         rows = [
-            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"tot_average",data[-3]],
-            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"commit_average",data[-2]],
-            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],"uncommit_average",data[-1]],
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],"tot_average",data[-3]],
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],"commit_average",data[-2]],
+            [data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],"uncommit_average",data[-1]],
         ]
         with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
             if write_header:
@@ -209,6 +213,8 @@ class Results:
         tmp_p = path.split('/')
         if algo == 'O':
             file_name = "Oaverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1].replace('_',',')+".csv"
+        elif algo == 'Ps':
+            file_name = "Psaverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1].replace('_',',')+".csv"
         else:
             file_name = "Paverage_resume_r#"+str(n_runs)+"_a#"+tmp_p[6].split('#')[1].replace('_',',')+".csv"
         if not os.path.exists(os.path.abspath("")+"/proc_data/"+file_name):
