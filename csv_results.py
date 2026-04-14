@@ -770,7 +770,7 @@ class Data:
                     else:
                         ax.set_ylim(self.event_axis_limits(global_max)[:2])
                         
-                    if i == 0: ax.set_title(col_labels[j])
+                    if i == 0: ax.set_title(col_labels[j]+" s")
                     
                     if j == 0:
                         row_label_left = r"$E_{r}$" if entry == "Events" else r"$T_{r}$"
@@ -781,11 +781,10 @@ class Data:
                                     rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
             cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) 
-                               for k, v in variant_map.items() if self._protocol_enabled(k)]
-            legend_elements.append(Rectangle((0,0), 1, 1, label="K-sampling"))
+            gradient = [Rectangle((0,0), 1, 1, label="K-sampling")]
+            legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) for k, v in variant_map.items() if self._protocol_enabled(k)]
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements)//2, 
+            fig.legend(handles=gradient+legend_elements, loc='lower center', ncol=4, 
                        bbox_to_anchor=(0.7, 0.0), handler_map={Rectangle: GradientHandler(cmap_grey)})
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
@@ -1065,18 +1064,18 @@ class Data:
 
             legend_elements = []
             if main_tm_list: 
-                legend_elements.append(Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
+                legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
             if insert_tm_list: 
-                legend_elements.append(Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
+                legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
             
             if side_by_side_mode:
                 legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
                 legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
+            legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
                 
             for pid in protocols_order:
                 legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-            legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
             fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
                        bbox_to_anchor=(0.58, -0.08), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
@@ -1266,8 +1265,10 @@ class Data:
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
+        handles_l = []
         handles_r = []
         l_list = []
+        r_list = []
         
         all_cols = set()
         p11_present = False
@@ -1305,9 +1306,9 @@ class Data:
                     markersize=16,
                 )
             )
-            l_list.append(protocol.get("label", pid) if protocol else pid)
+            r_list.append(protocol.get("label", pid) if protocol else pid)
                 
-        handles_r.append(min_dim)
+        handles_l.append(min_dim)
         l_list.append(r'$min|B|$')
         
         columns = [60, 120, 180, 300, 600]
@@ -1439,7 +1440,7 @@ class Data:
         if p11_present:
             cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             grad_rect = Rectangle((0, 0), 1, 1)
-            handles_r.append(grad_rect)
+            handles_l.append(grad_rect)
             l_list.append("k-sampling")
             handler_map = {Rectangle: GradientHandler(cmap_grey)}
         else:
@@ -1448,7 +1449,7 @@ class Data:
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         if handles_r:
-            fig.legend(handles_r, l_list, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+            fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
             
         fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.savefig(fig_path, bbox_inches='tight')
@@ -1668,6 +1669,8 @@ class Data:
         handles_c   = [high_bound,low_bound]
         handles_r = []
         l_list_r = []
+        handles_l = []
+        l_list_l = []
         
         p11_present = False
         for dk in data_in.keys():
@@ -1770,12 +1773,12 @@ class Data:
         handler_map = None
         if p11_present:
             cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            handles_r.append(Rectangle((0, 0), 1, 1))
-            l_list_r.append("k-sampling")
+            handles_l.append(Rectangle((0, 0), 1, 1))
+            l_list_l.append("k-sampling")
             handler_map = {Rectangle: GradientHandler(cmap_grey)}
 
-        fig.legend(handles_c+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$"]+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
-        tfig.legend(handles_r, l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
+        fig.legend(handles_c+[Rectangle((0, 0), 1, 1)]+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$", "k-sampling"]+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
+        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
@@ -1824,6 +1827,7 @@ class Data:
             axt.set_xticks([])
             taxt.set_xticks([])
             axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, labelpad=15)
+            taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, labelpad=15)
 
         if k == ncols - 1:
             for a_curr in [ax[row][k], tax[row][k]]:
@@ -2171,9 +2175,9 @@ class Data:
         
         legend_elements = []
         if main_tm_list: 
-            legend_elements.append(Line2D([], [], color='none', label=rf'Main $T_m={main_tm_list[0]}$'))
+            legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
         if insert_tm_list: 
-            legend_elements.append(Line2D([], [], color='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
+            legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
         
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
