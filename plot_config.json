@@ -1,6 +1,6 @@
 {
   "protocols": [
-    {"key": "P.0", "id": 0, "label": "$AN$", "color": "red", "legend": false},
+    {"key": "P.0", "id": 0, "label": "$AN$", "color": "red", "legend": true},
     {"key": "P.1.0", "id": 1, "label": "$AN_{t}$", "color": "viridis:0", "legend": true},
     {"key": "P.1.1", "id": 2, "label": "$AN_{t}^{k}$", "color": "orange", "legend": true},
     {"key": "O.0", "id": 3, "label": "$ID+B$", "color": "viridis:1", "legend": true},

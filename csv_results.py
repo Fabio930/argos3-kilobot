@@ -602,7 +602,7 @@ class Data:
             legend_elements = handles_l + handles_r
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.68, -0.08), framealpha=0.7, fontsize=24, ncol=5)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.62, -0.08), framealpha=0.7, fontsize=24, ncol=6)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
@@ -718,13 +718,14 @@ class Data:
                 color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
 
                 if min_buf_line[row][col] == 0:
-                    ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls="--")
+                    ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls=":")
                     min_buf_line[row][col] = 1
                 ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style)
 
         self._apply_messages_style(ax, ncols, columns, svoid_x_ticks, void_x_ticks, real_x_ticks)
 
         handles_r = []
+        handles_r.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
         for r_name, (r_label, r_style) in used_roots.items():
             handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=3, label=r_label))
         for p in diff_protocols:
@@ -736,7 +737,7 @@ class Data:
 
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.62, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.54, 0.0), framealpha=0.7, fontsize=24)
 
         fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
@@ -1168,7 +1169,7 @@ class Data:
                 for col in range(ncols):
                     if min_buf_line[row][col] == 0:
                         val = 5 / norm
-                        ax[row][col].plot([val]*1200, color="black", lw=4, ls="--")
+                        ax[row][col].plot([val]*1200, color="black", lw=4, ls=":")
                         min_buf_line[row][col] = 1
                     ax[row][col].plot(data, color=color, lw=6)
             else:
@@ -1176,7 +1177,7 @@ class Data:
                 col = col_index[str(tm)]
                 if min_buf_line[row][col] == 0:
                     val = 5 / norm
-                    ax[row][col].plot([val]*1200, color="black", lw=4, ls="--")
+                    ax[row][col].plot([val]*1200, color="black", lw=4, ls=":")
                     min_buf_line[row][col] = 1
                 ax[row][col].plot(data, color=color, lw=6)
 
@@ -1213,6 +1214,7 @@ class Data:
                 ax[x][y].set_ylim(-0.03, 1.03)
 
         handles_r = []
+        handles_r.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
         if ps_k_dict and any(ps_k_dict.values()):
             grad_handle = Rectangle((0,0), 1, 1, label="k-sampling")
             handles_r.append(grad_handle)
@@ -1225,7 +1227,7 @@ class Data:
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             leg_cols = min(len(handles_r), max(2, ncols))
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=4, loc='upper center', bbox_to_anchor=(0.68, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=5, loc='upper center', bbox_to_anchor=(0.61, 0.0), framealpha=0.7, fontsize=24)
 
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
