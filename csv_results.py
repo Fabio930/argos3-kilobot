@@ -1421,14 +1421,14 @@ class Data:
         ayt1.tick_params(labelright=False)
         ayt2.tick_params(labelright=False)
         
-        ayt0.set_ylabel("LD25")
-        ayt1.set_ylabel("HD25")
-        ayt2.set_ylabel("HD100")
+        ayt0.set_ylabel("LD25",rotation=270,labelpad=30)
+        ayt1.set_ylabel("HD25",rotation=270,labelpad=30)
+        ayt2.set_ylabel("HD100",rotation=270,labelpad=30)
         ax[0][0].set_ylabel(r"$M$")
         ax[1][0].set_ylabel(r"$M$")
         ax[2][0].set_ylabel(r"$M$")
         for y in range(ncols):
-            ax[2][y].set_xlabel(r"$T\, (s)$")
+            ax[2][y].set_xlabel(r"$T$")
         for x in range(3):
             for y in range(ncols):
                 ax[x][y].grid(True,ls=':')
@@ -1614,7 +1614,7 @@ class Data:
         ax[1][0].set_ylabel(r"$D$")
         ax[2][0].set_ylabel(r"$D$")
         for y in range(ncols):
-            ax[2][y].set_xlabel(r"$T\, (s)$")
+            ax[2][y].set_xlabel(r"$T$")
         for x in range(3):
             for y in range(ncols):
                 ax[x][y].grid(True,ls=':')
@@ -2140,7 +2140,7 @@ class Data:
                 if i == 0:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
-                    curr.set_ylim(-0.01, 1.01); curr.set_xlabel(r"$T\, (s)$")
+                    curr.set_ylim(-0.01, 1.01); curr.set_xlabel(r"$T$")
                 elif i == 1:
                     curr.set_xlim(0.5, 1); curr.set_ylim(0, max_time + 10)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
