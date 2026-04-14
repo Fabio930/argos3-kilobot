@@ -624,7 +624,7 @@ class Data:
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         
         handles_r = [mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=self.protocols_by_id[pid].get("label", pid)) for pid in protocols_order if self._protocol_enabled(pid)]
-        handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI"), mlines.Line2D([], [], color="black", linestyle=':', linewidth=6, label=r"$min\|\mathcal{B}\|$")]
+        handles_l = [mlines.Line2D([], [], color="black", linestyle='-', linewidth=6, label="LI"), mlines.Line2D([], [], color="black", linestyle='--', linewidth=6, label="SI"), mlines.Line2D([], [], color="black", linestyle=':', linewidth=6, label=r"$min|\mathcal{B}|$")]
 
         handler_map = {}
         if self._protocol_enabled("P.1.1"):
@@ -751,7 +751,7 @@ class Data:
                     for y in range(ncols):
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
-                        ax[x][y].set_ylim(-0.03,0.63)
+                        ax[x][y].set_ylim(-0.03,0.73)
                         ax[x][y].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6] if x==2 else svoid_x_ticks[::6])
                         ax[x][y].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
                         if y > 0:
@@ -887,7 +887,7 @@ class Data:
                         mlines.Line2D([], [], color="black", linestyle='-', linewidth=4, label="LI"), 
                         mlines.Line2D([], [], color="black", linestyle='--', linewidth=4, label="SI")
                     ])
-                handles_l.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$min\|\mathcal{B}\|$"))
+                handles_l.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$min|\mathcal{B}|$"))
                 
                 for t in thr_sorted:
                     for mh in msg_hop_sorted:
