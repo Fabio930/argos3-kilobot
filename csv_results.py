@@ -1259,7 +1259,7 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$min|B|$')
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$min|\mathcal{B}|$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
@@ -1309,7 +1309,7 @@ class Data:
             r_list.append(protocol.get("label", pid) if protocol else pid)
                 
         handles_l.append(min_dim)
-        l_list.append(r'$min|B|$')
+        l_list.append(r'$min|\mathcal{B}|$')
         
         columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values( columns)
@@ -1462,7 +1462,7 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|B|$')
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|\mathcal{B}|$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
@@ -1510,7 +1510,7 @@ class Data:
             l_list.append(protocol.get("label", pid) if protocol else pid)
                 
         handles_r.append(min_dim)
-        l_list.append(r'$min|B|$')
+        l_list.append(r'$min|\mathcal{B}|$')
         
         columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values( columns)
@@ -2181,7 +2181,7 @@ class Data:
         
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
         legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
-        legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|B|$'))
+        legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|\mathcal{B}|$'))
         handler_map = {}
         grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
         legend_elements.append(grad_rect)
