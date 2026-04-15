@@ -1,7 +1,7 @@
 {
   "folders": [
     {"root": "./QS_analysis_data/gossip_dynamic_data/", "label": "gossip", "line_style": "--","exclude_protocols": ["P.0","P.1.0","P.1.1","O.0","O.1.a"]},
-    {"root": "./QS_analysis_data/dynamic_data/", "label": "state", "line_style": "-","exclude_protocols": ["P.0","P.1.0","P.1.1","O.0","O.1.a"]}
+    {"root": "./QS_analysis_data/dynamic_data/", "label": "state", "line_style": "-","exclude_protocols": ["P.0","P.1.0","P.1.1","O.1.a"]}
   ],
   "protocols": [
     {"key": "P.0", "id": 0, "label": "$AN$", "color": "red", "legend": true},
