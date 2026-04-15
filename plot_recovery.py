@@ -15,10 +15,13 @@ def main():
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
     short = [s.strip() for s in args.short.split(",") if s.strip()]
     use_short = "s" in short
+    use_pareto = "p" in short
 
     csv_res = CSVres.Data()
     if use_short:
         csv_res._assign_config("short_plot_config.json")
+    if use_pareto:
+        csv_res._assign_config("pareto_plot_config.json")
     if exclude_protocols or exclude_tm:
         csv_res.apply_plot_overrides(
             ["recovery"],
@@ -34,6 +37,8 @@ def main():
                         data = csv_res.read_fitted_recovery_csv(file_path)
                         if use_short:
                             csv_res.plot_recovery_short(data)
+                        elif use_pareto:
+                            csv_res.plot_recovery_pareto(data)
                         else:
                             csv_res.plot_recovery(data)
                             

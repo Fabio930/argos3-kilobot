@@ -647,8 +647,7 @@ class Data:
     
 ###################################################
     def plot_recovery(self, data_in):
-        import matplotlib.colors as mcolors
-        import colorsys
+        
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -681,17 +680,20 @@ class Data:
             
             label, color = variant_map.get(variant_key, ('UNK', 'black'))
             rows.append({
-                'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
+                'Arena': str(arena), 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
                 'Error': abs(float(gt) - float(th)), 'Events': events / (100 * int(agents)),
                 'Time': mean, 'VariantKey': variant_key, 'Label': label, 'Color': color, 'MBS': mbs
             })
             
         df = pd.DataFrame(rows)
-        df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
-        df = df[df['Msgs_exp_time'] != 0]
+        if not df.empty:
+            df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
+            df = df[df['Msgs_exp_time'] != 0]
         
         grid = [("bigA", 25), ("smallA", 25), ("bigA", 100)]
         row_labels = ["LD25", "HD25", "HD100"]
+        
+        if df.empty: return
         msg_list = self._plot_tm_values(sorted(df['Msgs_exp_time'].unique()))
         if not msg_list: return
         
@@ -705,52 +707,53 @@ class Data:
             mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
 
         def save_box(subset, threshold_str, entry, global_max):
-            nrows, ncols = len(grid), len(msg_list)
-            fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*8, nrows*8), squeeze=False, sharex=True)
+            if subset.empty: return
             
-            for i, (arena_type, ag_num) in enumerate(grid):
-                for j, tm_val in enumerate(msg_list):
+            nrows, ncols = len(msg_list), len(grid)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*8, nrows*8), squeeze=False, sharex=True, sharey=True)
+            
+            for i, tm_val in enumerate(msg_list):
+                for j, (arena_type, ag_num) in enumerate(grid):
                     ax = axes[i, j]
                     
-                    base_cell = subset[(subset['Arena'] == arena_type) & (subset['Agents'] == ag_num)]
-                    
+                    # Strict .loc filtering to avoid empty fragments
+                    mask_base = (subset['Arena'] == arena_type) & (subset['Agents'] == ag_num)
+                    base_cell = subset.loc[mask_base]
                     pos_idx = 1
                     tick_labels, tick_pos = [], []
 
                     for pid in protocols_order:
                         if not self._protocol_enabled(pid): continue
                         
-                        if pid == 'P.0':
-                            p_cell = base_cell[(base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == 60)]
-                        else:
-                            p_cell = base_cell[(base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == tm_val)]
-                            
-                        base_color = variant_map[pid][1]
+                        target_tm = 60 if pid == 'P.0' else tm_val
+                        mask_p = (base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == target_tm)
+                        p_cell = base_cell.loc[mask_p]
                         
+                        base_color = variant_map[pid][1]
                         width = 0.3
+                        
                         if pid == "P.1.1":
                             mbs_list = mbs_global_map.get(ag_num, [])
                             n_mbs_total = len(mbs_list)
                             
                             if n_mbs_total > 0:
                                 for m_idx, val_mbs in enumerate(mbs_list):
-                                    d = p_cell[p_cell['MBS'] == val_mbs][entry].values
-                                    if len(d) == 0: continue
-                                    
-                                    ratio = (m_idx + 1) / n_mbs_total
-                                    h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
-                                    c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                    
-                                    offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
-                                    ax.boxplot(d, positions=[pos_idx + offset], widths=width, patch_artist=True,
-                                               boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
+                                    d = p_cell.loc[p_cell['MBS'] == val_mbs, entry].dropna().astype(float).values
+                                    if len(d) > 0:
+                                        ratio = (m_idx + 1) / n_mbs_total
+                                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
+                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                        
+                                        offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
+                                        ax.boxplot(d, positions=[pos_idx + offset], widths=width, patch_artist=True,
+                                                   boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
                             else:
-                                d = p_cell[entry].values
+                                d = p_cell[entry].dropna().astype(float).values
                                 if len(d) > 0:
                                     ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
                                                boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         else:
-                            d = p_cell[entry].values
+                            d = p_cell[entry].dropna().astype(float).values
                             if len(d) > 0:
                                 ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
                                            boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
@@ -759,44 +762,54 @@ class Data:
                         tick_labels.append(variant_map[pid][0])
                         pos_idx += 1
                     
+                    # Force X-limits to guarantee boxes are visible within bounds
+                    ax.set_xlim(0.5, pos_idx - 0.5)
+                    
                     ax.set_xticks(tick_pos)
                     ax.set_xticklabels(tick_labels, rotation=45)
                     ax.grid(True, ls=':')
                     
-                    # Uniformiamo i limiti Y in base al valore massimo globale, proprio come in plot_recovery_short
                     if entry == "Time": 
                         ax.set_yscale('log')
                         ax.set_ylim(self.time_axis_limits(global_max)[:2])
                     else:
                         ax.set_ylim(self.event_axis_limits(global_max)[:2])
                         
-                    if i == 0: ax.set_title(col_labels[j]+" s")
+                    if i == 0: 
+                        ax.set_title(row_labels[j], fontsize=plt.rcParams.get("font.size", 30))
                     
                     if j == 0:
                         row_label_left = r"$E_{r}$" if entry == "Events" else r"$T_{r}$"
                         ax.set_ylabel(row_label_left, fontsize=28)
                     
                     if j == ncols - 1:
-                        ax.annotate(row_labels[i], xy=(1.03, 0.5), xycoords='axes fraction',
+                        ax.annotate(f"$T_m$={tm_val} s", xy=(1.03, 0.5), xycoords='axes fraction',
                                     rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            gradient = [Rectangle((0,0), 1, 1, label="K-sampling")]
-            legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) for k, v in variant_map.items() if self._protocol_enabled(k)]
+            # cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
+            # gradient = [Rectangle((0,0), 1, 1, label="K-sampling")]
+            # legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) for k, v in variant_map.items() if self._protocol_enabled(k)]
             
-            fig.legend(handles=gradient+legend_elements, loc='lower center', ncol=4, 
-                       bbox_to_anchor=(0.7, 0.0), handler_map={Rectangle: GradientHandler(cmap_grey)})
+            # fig.legend(handles=gradient+legend_elements, loc='lower center', ncol=4, 
+            #            bbox_to_anchor=(0.7, 0.0), handler_map={Rectangle: GradientHandler(cmap_grey)})
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_recovery_{threshold_str}_{entry}.pdf"), bbox_inches='tight')
             plt.close(fig)
 
+        if df.empty: return
         time_max = df["Time"].max()
         event_max = df["Events"].max()
-        save_box(df[df['Error'] <= 0.05], "0.05_le", 'Events', event_max)
-        save_box(df[df['Error'] <= 0.05], "0.05_le", 'Time', time_max)
-        save_box(df[df['Error'] > 0.05], "0.05_gt", 'Events', event_max)
-        save_box(df[df['Error'] > 0.05], "0.05_gt", 'Time', time_max)
+        
+        df_le = df[df['Error'] <= 0.05]
+        if not df_le.empty:
+            save_box(df_le, "0.05_le", 'Events', event_max)
+            save_box(df_le, "0.05_le", 'Time', time_max)
+            
+        df_gt = df[df['Error'] > 0.05]
+        if not df_gt.empty:
+            save_box(df_gt, "0.05_gt", 'Events', event_max)
+            save_box(df_gt, "0.05_gt", 'Time', time_max)
 
         # # Istogrammi 2D per variante (Error vs Events)
         # xbins = np.linspace(0, 0.5, 30)
@@ -917,8 +930,6 @@ class Data:
 
 ###################################################
     def plot_recovery_short(self, data_in, side_by_side: bool = True):
-        import matplotlib.colors as mcolors
-        import colorsys
         plt.rcParams.update({"font.size": 24})
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
@@ -1019,7 +1030,7 @@ class Data:
                                         for m_idx, val_mbs in enumerate(mbs_list):
                                             d_mbs_row = p_data[p_data['MBS'] == val_mbs]
                                             ratio = (m_idx + 1) / n_mbs_total
-                                            h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(variant_map[pid][1]))
+                                            h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
                                             c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
                                             m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs *.8
                                             if not d_mbs_row.empty:
@@ -1039,7 +1050,7 @@ class Data:
                     else: ax.set_yscale('log'); ax.set_ylim(self.time_axis_limits(time_max)[:2])
                     
                     if col_idx == 0: ax.set_ylabel(r"$E_{r}$" if row_idx == 0 else r"$T_{r}$", fontsize=28)
-                    
+                    if col_idx > 0: ax.set_yticklabels([])
                     ax.set_axisbelow(True)
                     ax.grid(True, ls=':', zorder=0)
 
@@ -1049,35 +1060,31 @@ class Data:
                         
                         draw_pass(ins, "inset")
                         
-                        ins.set_xlim(ax.get_xlim())
                         ins.set_xscale(ax.get_xscale())
+                        ins.set_xlim(ax.get_xlim())
                         ins.set_xticks(ax.get_xticks())
                         ins.set_xticklabels([])
                         
-                        ins.set_ylim(ax.get_ylim())
-                        ins.set_yscale(ax.get_yscale())
                         ins.set_yticks(ax.get_yticks())
+                        if row_idx == 1: ins.set_yscale(ax.get_yscale())
+                        ins.set_ylim(ax.get_ylim())
                         ins.set_yticklabels([])
                         
-                        ins.set_axisbelow(True)
+                        # ins.set_axisbelow(True)
                         ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
-            if main_tm_list: 
-                legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
-            if insert_tm_list: 
-                legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
             
-            if side_by_side_mode:
-                legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
-                legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
-            legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
+            # if side_by_side_mode:
+            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
+            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
+            # legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
                 
-            for pid in protocols_order:
-                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
+            # for pid in protocols_order:
+            #     legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
-                       bbox_to_anchor=(0.58, -0.08), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+            # fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
+            #            bbox_to_anchor=(0.66, -0.04), handler_map=None) #{Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
@@ -1087,6 +1094,173 @@ class Data:
         else:
             save_short(df[df['Error'] <= 0.05], "le05", False)
             save_short(df[df['Error'] > 0.05], "gt05", False)
+
+
+###################################################
+    def plot_recovery_pareto(self, data_in, side_by_side_mode: bool=True):
+        plt.rcParams.update({"font.size": 24})
+        images_dir = os.path.join(self.base, "compressed_data", "images")
+        os.makedirs(images_dir, exist_ok=True)
+        norm = colors.Normalize(vmin=0, vmax=6)
+        scalarMap = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
+        
+        variant_map = {p.get("id"): (p.get("label", p.get("id")), self._protocol_color(p, scalarMap)) 
+                       for p in self.protocols if p.get("id")}
+        
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
+
+        rows = []
+        for key, value in data_in.items():
+            mean, std, events = float(value[0]), float(value[1]), float(value[2])
+            k = [str(x) for x in key]
+            alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
+            
+            mbs = buf
+            
+            alg_lower = str(alg).strip().lower()
+            if alg_lower == 'ps':
+                variant_key = 'P.1.1'
+            elif alg_lower == 'p':
+                variant_key = 'P.1.1' if int(buf) == max(0, int(agents) - 2) else ('P.1.0' if int(msgs) > 0 else 'P.0')
+            else:
+                variant_key = f"{alg}.{int(broadcast)}.{int(hops)}"
+
+            if not self._protocol_enabled(variant_key): continue
+            
+            rows.append({
+                'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
+                'Error': abs(float(gt) - float(th)), 'Events': events / (100 * int(agents)),
+                'Time': mean, 'VariantKey': variant_key, 'Label': variant_map[variant_key][0], 
+                'Color': variant_map[variant_key][1], 'MBS': mbs
+            })
+
+        df = pd.DataFrame(rows)
+        if df.empty: return
+        
+        df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
+        
+        mbs_global_map = {}
+        for ag in df['Agents'].unique():
+            mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
+            mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
+
+        real_tm_vals = sorted([m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0])
+        main_tm_list = self._plot_tm_values(real_tm_vals)
+        insert_tm_list = self._get_valid_insert_tm()
+        
+        combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
+        active_labels = [variant_map[pid][0] for pid in protocols_order]
+        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+
+        def save_short(subset, suffix, side_by_side_mode: bool):
+            if subset.empty: return
+            fig, axes = plt.subplots(1, 3, figsize=(24, 14))
+            event_max = subset["Events"].max()
+            time_max = subset["Time"].max()
+
+            for col_idx, (dens_label, arena, ag) in enumerate(densities):
+                cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
+
+                ax = axes[col_idx]
+                ax.set_title(dens_label)
+
+                n_tm_total = len(combined_tm)
+                width_tm = 0.6
+                
+                def draw_pass(target_ax, target_type):
+                    for k, pid in enumerate(protocols_order):
+                        is_p0 = (pid == 'P.0')
+                        
+                        if is_p0:
+                            tms = [main_tm_list[0]] if target_type == "main" and main_tm_list else []
+                            if target_type == "inset" and insert_tm_list: tms = [insert_tm_list[0]]
+                        else:
+                            tms = main_tm_list if target_type == "main" else insert_tm_list
+
+                        for tm_val in tms:
+                            if is_p0:
+                                p_data = cell[cell['VariantKey'] == pid]
+                                tm_off = 0
+                            else:
+                                p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
+                                t_idx = main_tm_list.index(tm_val) if target_type == "main" else insert_tm_list.index(tm_val)
+                                tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
+                            
+                            if p_data.empty: continue
+                            final_base_pos = (k + 1) + tm_off
+
+                            if pid == "P.1.1":
+                                mbs_list = mbs_global_map.get(ag, [])
+                                n_mbs_total = len(mbs_list)
+                                if n_mbs_total > 0:
+                                    sub_w_mbs = width_tm
+                                    for m_idx, val_mbs in enumerate(mbs_list):
+                                        d_mbs_row = p_data[p_data['MBS'] == val_mbs]
+                                        ratio = (m_idx + 1) / n_mbs_total
+                                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
+                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                        m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs *.8
+                                        if not d_mbs_row.empty:
+                                            self._draw_scatter_internal(target_ax, d_mbs_row, c_val,target_type)
+                                else:
+                                    self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
+                            else:
+                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
+
+                ax.set_ylim(1,500)
+                ax.set_yscale('log')
+                draw_pass(ax, "main")
+
+                
+                
+                if col_idx == 0: ax.set_ylabel(r"$T_{r}$" if col_idx == 0 else '', fontsize=28)
+                ax.set_xlabel(r"$E_{r}$",fontsize=28)
+                
+                ax.set_axisbelow(True)
+                ax.grid(True, ls=':', zorder=0)
+
+                if insert_tm_list:
+                    best_box = self.find_emptiest_inset_position(ax)
+                    ins = ax.inset_axes(best_box)
+                    
+                    draw_pass(ins, "inset")
+                    
+                    ins.set_xscale(ax.get_xscale())
+                    ins.set_xticks(ax.get_xticks())
+                    ins.set_xticklabels([])
+                    # ins.set_xlim(ax.get_xlim())
+                    
+                    ins.set_yscale(ax.get_yscale())
+                    ins.set_yticks(ax.get_yticks())
+                    ins.set_yticklabels([])
+                    ins.set_ylim(1,1000)
+                    
+                    ins.set_axisbelow(True)
+                    ins.grid(True, ls=':', color='silver', zorder=0)
+
+            legend_elements = []
+            # if main_tm_list: 
+            #     legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
+            # if insert_tm_list: 
+            #     legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
+            
+            # if side_by_side_mode:
+            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
+            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
+            # legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
+                
+            for pid in protocols_order:
+                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
+            
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
+                       bbox_to_anchor=(0.76, -0.04), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+            
+            fig.tight_layout()
+            fig.savefig(os.path.join(images_dir, f"pareto_{suffix}.pdf"), bbox_inches='tight')
+            plt.close(fig)
+
+        save_short(df, "sidebyside", True)
+
 ###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
@@ -1104,7 +1278,18 @@ class Data:
             if len(d) > 0:
                 ax.boxplot(d, positions=[pos], widths=width*0.8, patch_artist=True, 
                            boxprops=dict(facecolor=color), medianprops=dict(color='gray'), notch=False)
-
+                
+###################################################
+    def _draw_scatter_internal(self, ax, data, color,target_type):
+        sc_size = 400 if target_type == 'main' else 100
+        d_le = data[data['Error'] <= 0.05]['Events'].values
+        # d_gt = data[data['Error'] > 0.05]['Events'].values
+        t_le = data[data['Error'] <= 0.05]['Time'].values
+        # t_gt = data[data['Error'] > 0.05]['Time'].values
+        if len(d_le) > 0:
+            ax.scatter(d_le,t_le,marker='o',s=sc_size,alpha=0.2,c=color)
+        # if len(d_gt) > 0:
+        #     ax.scatter(d_gt,t_gt,marker='s',c=color)
 ###################################################
     def store_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/"):
@@ -1254,8 +1439,6 @@ class Data:
         
 ###################################################
     def print_messages(self,data_in,data_std):
-        import matplotlib.colors as mcolors
-        import colorsys
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -1311,14 +1494,14 @@ class Data:
         handles_l.append(min_dim)
         l_list.append(r'$min|\mathcal{B}|$')
         
-        columns = [60, 120, 180, 300, 600]
-        columns = self._plot_tm_values( columns)
-        if not columns:
+        rows = [60, 120, 180, 300, 600]
+        rows = self._plot_tm_values( rows)
+        if not rows:
             return
-        col_index = {str(c): i for i, c in enumerate(columns)}
-        ncols = len(columns)
+        col_index = {str(c): i for i, c in enumerate(rows)}
+        nrows = len(rows)
         
-        fig, ax = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5, 5.2*ncols + ncols*0.2),sharex=True, squeeze=False)
+        fig, ax = plt.subplots(nrows=nrows, ncols=3,figsize=(24,nrows*7),sharex=True,sharey=True, squeeze=False)
         
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1338,10 +1521,10 @@ class Data:
                     tmp.append(xi/norm)
                 dict_dk.update({k:tmp})
         for k in range(3):
-            for z in range(ncols):
+            for z in range(nrows):
                 den = 100 if k==2 else 25
                 val_min_buf = 5 / den
-                ax[k][z].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
+                ax[z][k].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
                 
         for dk in data_in.keys():
             dict_dk = data_in.get(dk)
@@ -1352,13 +1535,13 @@ class Data:
                 if dk != 'P.0' and k[2] not in col_index:
                     continue
                     
-                row = 0
+                col = 0
                 if k[0]=='big' and k[1]=='25':
-                    row = 0
+                    col = 0
                 elif k[0]=='big' and k[1]=='100':
-                    row = 2
+                    col = 2
                 elif k[0]=='small':
-                    row = 1
+                    col = 1
                     
                 c_val = protocol_colors.get(dk,"gray")
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
@@ -1376,7 +1559,7 @@ class Data:
                             
                         ratio = max(0.0, min(1.0, ratio))
                         
-                        rgb_base = mcolors.to_rgb(c_val)
+                        rgb_base = colors.to_rgb(c_val)
                         h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
                         diff = 1.0 - ratio
                         new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
@@ -1387,69 +1570,71 @@ class Data:
                         pass
                 
                 if dk == 'P.0':
-                    for c_idx in range(ncols):
-                        ax[row][c_idx].plot(dict_dk.get(k),color=c_val,lw=6)
+                    for r_idx in range(nrows):
+                        ax[r_idx][col].plot(dict_dk.get(k),color=c_val,lw=6)
                 else:
-                    col = col_index.get(k[2])
-                    if col is not None:
+                    row = col_index.get(k[2])
+                    if row is not None:
                         ax[row][col].plot(dict_dk.get(k),color=c_val,lw=6)
                 
-        for x in range(2):
-            for y in range(ncols):
+        for x in range(nrows):
+            for y in range(2):
                 ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
                 ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
                 
-        for x in range(3):
-            for y in range(1,ncols):
-                ax[x][y].tick_params(labelleft=False)
-                
-        for y in range(ncols):
-            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
-            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+        for y in range(3):
+            ax[4][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
+            ax[4][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
             
-        for idx, col_val in enumerate(columns):
+        for idx, col_val in enumerate(["LD25","HD25","HD100"]):
             axt=ax[0][idx].twiny()
             axt.tick_params(labeltop=False, labelbottom=False)
-            axt.set_xlabel(rf"$T_m = {int(col_val)}\, s$")
+            axt.set_xlabel(f"{col_val}")
             
-        last_col = ncols - 1
+        last_col = 2
         ayt0=ax[0][last_col].twinx()
         ayt1=ax[1][last_col].twinx()
         ayt2=ax[2][last_col].twinx()
+        ayt3=ax[3][last_col].twinx()
+        ayt4=ax[4][last_col].twinx()
         
         ayt0.tick_params(labelright=False)
         ayt1.tick_params(labelright=False)
         ayt2.tick_params(labelright=False)
-        
-        ayt0.set_ylabel("LD25",rotation=270,labelpad=30)
-        ayt1.set_ylabel("HD25",rotation=270,labelpad=30)
-        ayt2.set_ylabel("HD100",rotation=270,labelpad=30)
+        ayt3.tick_params(labelright=False)
+        ayt4.tick_params(labelright=False)
+        ays=[ayt0,ayt1,ayt2,ayt3,ayt4]
+        for idx, row_val in enumerate(rows):
+            ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
+
         ax[0][0].set_ylabel(r"$M$")
         ax[1][0].set_ylabel(r"$M$")
         ax[2][0].set_ylabel(r"$M$")
-        for y in range(ncols):
-            ax[2][y].set_xlabel(r"$T$")
-        for x in range(3):
-            for y in range(ncols):
+        ax[3][0].set_ylabel(r"$M$")
+        ax[4][0].set_ylabel(r"$M$")
+        for y in range(3):
+            ax[4][y].set_xlabel(r"$T$")
+        for x in range(nrows):
+            for y in range(3):
                 ax[x][y].grid(True,ls=':')
                 ax[x][y].set_xlim(0,900)
                 ax[x][y].set_ylim(-0.03,1.03)
 
         fig.tight_layout()
                 
-        if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            grad_rect = Rectangle((0, 0), 1, 1)
-            handles_l.append(grad_rect)
-            l_list.append("k-sampling")
-            handler_map = {Rectangle: GradientHandler(cmap_grey)}
-        else:
-            handler_map = None
+        # if p11_present:
+        #     cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
+        #     grad_rect = Rectangle((0, 0), 1, 1)
+        #     handles_l.append(grad_rect)
+        #     l_list.append("k-sampling")
+        #     handler_map = {Rectangle: GradientHandler(cmap_grey)}
+        # else:
+        handler_map = None
 
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
         if handles_r:
-            fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+            fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.01), ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
             
         fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.savefig(fig_path, bbox_inches='tight')
@@ -1457,8 +1642,6 @@ class Data:
     
 ###################################################
     def print_decisions(self,data_in):
-        import matplotlib.colors as mcolors
-        import colorsys
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -1562,7 +1745,7 @@ class Data:
                             
                         ratio = max(0.0, min(1.0, ratio))
                         
-                        rgb_base = mcolors.to_rgb(c_val)
+                        rgb_base = colors.to_rgb(c_val)
                         h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
                         diff = 1.0 - ratio
                         new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
@@ -1627,7 +1810,7 @@ class Data:
         fig.tight_layout()
                     
         if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
+            cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
             grad_rect = Rectangle((0, 0), 1, 1)
             handles_r.append(grad_rect)
             l_list.append("k-sampling")
@@ -1645,8 +1828,6 @@ class Data:
 
 ###################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
-        import matplotlib.colors as mcolors
-        import colorsys
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -1658,7 +1839,7 @@ class Data:
         o_k = self._plot_tm_values( o_k)
         if not o_k:
             return
-        ncols = len(o_k)
+        nrows = len(o_k)
         arena = more_k[0]
         
         low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
@@ -1685,15 +1866,15 @@ class Data:
                 
         border_font = plt.rcParams.get("font.size", 20) + 4
         
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(8*ncols + ncols*0.75,8*ncols), sharex=False, squeeze=False)
-        tfig, tax   = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5,5.2*ncols), sharex=False, squeeze=False)
+        fig, ax     = plt.subplots(nrows=nrows, ncols=3,figsize=(26,8*nrows), sharex=False, squeeze=False)
+        tfig, tax   = plt.subplots(nrows=nrows, ncols=3,figsize=(24,7*nrows), sharex=False, squeeze=False)
         
-        attributes_row_col = np.zeros((3,ncols))
+        attributes_row_col = np.zeros((nrows,3))
 
         for a in arena:
             agents_list = ["25"] if a=="smallA" else more_k[1]
             for ag in agents_list:
-                row = 1 if a=="smallA" else (2 if int(ag)==100 else 0)
+                col = 1 if a=="smallA" else (2 if int(ag)==100 else 0)
                 
                 raw_mbs = set()
                 for dk in data_in.keys():
@@ -1749,36 +1930,36 @@ class Data:
                                 times_v.append(valst)
 
                             if m_b_s == list(raw_mbs)[0]:
-                                ax[row][k].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
+                                ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
                                 
                             if self._protocol_enabled(dk):
                                 c_val = protocol_colors.get(dk, "gray")
                                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
                                     idx_mbs = sorted_valid_mbs.index(float(m_b_s))
                                     ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
-                                    h_c, l_c, s_c = colorsys.rgb_to_hls(*mcolors.to_rgb(c_val))
+                                    h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
                                     c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
 
-                                ax[row][k].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
-                                ax[row][k].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
-                                tax[row][k].plot(x_plot, times_v, color=c_val, lw=6)
+                                ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
+                                ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
+                                tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
 
-                            if attributes_row_col[row][k] == 0:
-                                attributes_row_col[row][k] = 1
-                                self._borders_attributes(ax, tax, row, k, o_k, border_font, ncols)
+                            if attributes_row_col[k][col] == 0:
+                                attributes_row_col[k][col] = 1
+                                self._borders_attributes(ax, tax, col, k, o_k, border_font, nrows)
 
         fig.tight_layout()
         tfig.tight_layout()
                 
         handler_map = None
-        if p11_present:
-            cmap_grey = mcolors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            handles_l.append(Rectangle((0, 0), 1, 1))
-            l_list_l.append("k-sampling")
-            handler_map = {Rectangle: GradientHandler(cmap_grey)}
+        # if p11_present:
+        #     cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
+        #     handles_l.append(Rectangle((0, 0), 1, 1))
+        #     l_list_l.append("k-sampling")
+        #     handler_map = {Rectangle: GradientHandler(cmap_grey)}
 
-        fig.legend(handles_c+[Rectangle((0, 0), 1, 1)]+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$", "k-sampling"]+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=5, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
-        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0.02), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0, handler_map=handler_map)
+        fig.legend(handles_c+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
@@ -1786,58 +1967,58 @@ class Data:
         # self.plot_protocol_tables(path, o_k, ground_T, threshlds, prot_tables_vals_dict)
 
 ###################################################
-    def _borders_attributes(self, ax, tax, row, k, o_k, border_font, ncols):
+    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows):
         from matplotlib.ticker import FixedLocator
 
-        for a_curr in [ax[row][k], tax[row][k]]:
+        for a_curr in [ax[k][col], tax[k][col]]:
             a_curr.set_xlim(0.5, 1.0)
             a_curr.tick_params(axis='both', which='major', labelsize=border_font)
 
-        ax[row][k].set_ylim(0.5, 1.0)
-        tax[row][k].set_ylim(0, 201)
+        ax[k][col].set_ylim(0.5, 1.0)
+        if col==0: tax[k][col].set_ylim(0, 201)
+        elif col==1: tax[k][col].set_ylim(0, 51)
+        elif col==2: tax[k][col].set_ylim(0, 101)
 
-        if k == 0:
-            ax[row][k].set_ylabel(r"$G$", fontsize=border_font)
-            tax[row][k].set_ylabel(r"$T_c$", fontsize=border_font)
-            tax[row][k].yaxis.set_tick_params(labelleft=True)
-            ax[row][k].yaxis.set_tick_params(labelleft=True)
+        if col == 0:
+            ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
+            tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
+            ax[k][col].yaxis.set_tick_params(labelleft=True)
         else:
-            tax[row][k].yaxis.set_tick_params(labelleft=False)
-            ax[row][k].yaxis.set_tick_params(labelleft=False)
+            # tax[k][col].yaxis.set_tick_params(labelleft=False)
+            ax[k][col].yaxis.set_tick_params(labelleft=False)
+        tax[k][col].yaxis.set_tick_params(labelleft=True)
 
         ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
-        if row == 2:
-            for a_curr in [ax[row][k], tax[row][k]]:
+        if k == 4:
+            for a_curr in [ax[k][col], tax[k][col]]:
                 a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                 a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
                 a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
-            tax[row][k].set_ylim(0, 80)
         else:
-            for a_curr in [ax[row][k], tax[row][k]]:
+            for a_curr in [ax[k][col], tax[k][col]]:
                 a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                 a_curr.set_xticklabels([]) 
-            if row == 1: tax[row][k].set_ylim(0, 40)
 
-        if row == 0:
-            axt = ax[row][k].twiny()
-            taxt = tax[row][k].twiny()
+        if k == 0:
+            axt = ax[k][col].twiny()
+            taxt = tax[k][col].twiny()
             axt.set_xlim(0.5, 1.0)
             taxt.set_xlim(0.5, 1.0)
             axt.set_xticks([])
             taxt.set_xticks([])
-            axt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, labelpad=15)
-            taxt.set_xlabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, labelpad=15)
+            label_top = "LD25" if col == 0 else ("HD25" if col == 1 else "HD100")
+            axt.set_xlabel(label_top, fontsize=border_font, labelpad=15)
+            taxt.set_xlabel(label_top, fontsize=border_font, labelpad=15)
 
-        if k == ncols - 1:
-            for a_curr in [ax[row][k], tax[row][k]]:
+        if col == 2:
+            for a_curr in [ax[k][col], tax[k][col]]:
                 a_right = a_curr.twinx()
                 a_right.set_yticks([])
-                label_right = "LD25" if row == 0 else ("HD25" if row == 1 else "HD100")
-                a_right.set_ylabel(label_right, fontsize=border_font, rotation=270, labelpad=35)
+                a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
 
-        ax[row][k].grid(True, which='major', ls=':', alpha=0.6)
-        tax[row][k].grid(True, which='major', ls=':', alpha=0.6)
+        ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
+        tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
 
 ###################################################
     def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
@@ -1935,17 +2116,6 @@ class Data:
 
 ###################################################
     def plot_compressed_table(self, tot_states_in, tot_times_in, tot_msgs_in):
-        import matplotlib.colors as mcolors
-        import colorsys
-        import os
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import matplotlib.cm as cm
-        import matplotlib.colors as colors
-        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-        from matplotlib.lines import Line2D
-        from matplotlib.patches import Rectangle
-        
         if not os.path.exists(self.base+"/compressed_data/images/"):
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
@@ -1973,7 +2143,7 @@ class Data:
         insert_tm_set = set(int(x) for x in insert_tm_list)
         combined_tm = sorted(list(tm_set | insert_tm_set))
         
-        fig, ax = plt.subplots(3, 3, figsize=(28, 22), constrained_layout=True, squeeze=False, gridspec_kw={'height_ratios': [1, 1, 1.4]})
+        fig, ax = plt.subplots(3, 3, figsize=(28, 22), constrained_layout=True, squeeze=False, gridspec_kw={'height_ratios': [1, 1.4, 1]})
         
         min_buf_plotted = np.zeros(3)
         mid_act_plotted = np.zeros(3)
@@ -2014,7 +2184,7 @@ class Data:
                     mbs_list = mbs_sorted_map.get(num_agents, [])
                     if mbs_list:
                         ratio = (mbs_list.index(val_mbs) + 1) / len(mbs_list)
-                        h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
+                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
 
                 destinations = []
@@ -2073,7 +2243,9 @@ class Data:
                                 if vals8[0] is np.nan or val>vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
                                 if vals2[1] is np.nan or val<vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
                     if vals8[0] is np.nan: vals8[0], gt8[0] = vals8[1], gt8[1]
+                    elif vals8[1] is np.nan: vals8[1], gt8[1] = vals8[0], gt8[0]
                     if vals2[0] is np.nan: vals2[0], gt2[0] = vals2[1], gt2[1]
+                    elif vals2[1] is np.nan: vals2[1], gt2[1] = vals2[0], gt2[0]
                     v2.append(np.interp([0.2], vals2, gt2, left=np.nan)[0])
                     v8.append(np.interp([0.8], vals8, gt8, right=np.nan)[0])
                     vt.append(valst)
@@ -2084,7 +2256,7 @@ class Data:
                     mbs_list = mbs_sorted_map.get(num_agents, [])
                     if mbs_list:
                         ratio = (mbs_list.index(float(key[3])) + 1) / len(mbs_list)
-                        h, l, s = colorsys.rgb_to_hls(*mcolors.to_rgb(base_color))
+                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
 
                 destinations = []
@@ -2093,12 +2265,12 @@ class Data:
                 elif current_tm in insert_tm_set: destinations.append("inset")
 
                 for target_type in destinations:
-                    for r_idx, data_to_plot in [(1, vt), (2, v2), (2, v8)]:
+                    for r_idx, data_to_plot in [(2, vt), (1, v2), (1, v8)]:
                         if target_type == "main":
                             curr_ax = ax[r_idx][col_idx]
                         else:
                             if (r_idx, col_idx) not in inset_axes_dict:
-                                if r_idx == 1:
+                                if r_idx == 2:
                                     y_pos = 0.62
                                     best_box = [0.62, y_pos, 0.35, 0.35]
                                 else:
@@ -2107,7 +2279,7 @@ class Data:
                                 ins = ax[r_idx][col_idx].inset_axes(best_box)
                                 ins.set_xlim(0.5, 1); ins.tick_params(labelbottom=False, labelleft=False)
                                 ins.grid(True, ls=':', color='silver')
-                                if r_idx == 2: 
+                                if r_idx == 1: 
                                     ins.set_ylim(0.5, 1); ins.plot(ref_x, ref_x, color='black', lw=2, ls=':')
                                 inset_axes_dict[(r_idx, col_idx)] = ins
                             curr_ax = inset_axes_dict[(r_idx, col_idx)]
@@ -2117,7 +2289,7 @@ class Data:
                 
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
-                    ax[2][col_idx].plot(ref_x, ref_x, color='black', lw=3, ls=':')
+                    ax[1][col_idx].plot(ref_x, ref_x, color='black', lw=3, ls=':')
         self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict)
         
 ###################################################
@@ -2141,14 +2313,18 @@ class Data:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
                     curr.set_ylim(-0.01, 1.01); curr.set_xlabel(r"$T$")
+                    if j == 0: ax[i][0].text(0.5, 0.25, r'$min|\mathcal{B}|$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
                 elif i == 1:
-                    curr.set_xlim(0.5, 1); curr.set_ylim(0, max_time + 10)
-                    curr.xaxis.set_major_locator(MultipleLocator(0.1))
-                    curr.set_xticklabels([])
-                elif i == 2:
                     curr.set_xlim(0.5, 1); curr.set_ylim(0.5, 1)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
                     curr.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+                    curr.set_xticklabels([])
+                    if j == 0:
+                        ax[i][0].text(0.6, 0.9, r'$\hat{Q}=0.8$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
+                        ax[i][0].text(0.9, 0.5, r'$\hat{Q}=0.2$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
+                elif i == 2:
+                    curr.set_xlim(0.5, 1); curr.set_ylim(0, max_time + 10)
+                    curr.xaxis.set_major_locator(MultipleLocator(0.1))
                     curr.set_xlabel(r"$\tau$")
                 
                 curr.grid(True, ls=':', which='major')
@@ -2156,8 +2332,6 @@ class Data:
                 if (i, j) in inset_axes_dict:
                     ins_ax = inset_axes_dict[(i, j)]
                     
-                    ins_ax.set_xlim(curr.get_xlim())
-                    ins_ax.set_ylim(curr.get_ylim())
                     
                     if i == 0:
                         ins_ax.set_xticks([0, 300, 600, 900])
@@ -2170,46 +2344,47 @@ class Data:
                         labelbottom=False, labeltop=False, 
                         labelleft=False, labelright=False
                     )
+                    ins_ax.set_xlim(curr.get_xlim())
+                    ins_ax.set_ylim(curr.get_ylim())
 
-        ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$T_c$"); ax[2][0].set_ylabel(r"$G$")
+        ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$G$"); ax[2][0].set_ylabel(r"$T_c$")
         
         legend_elements = []
-        if main_tm_list: 
-            legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
-        if insert_tm_list: 
-            legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
+        # if main_tm_list: 
+        #     legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
+        # if insert_tm_list: 
+        #     legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
         
-        legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
-        legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
-        legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|\mathcal{B}|$'))
+        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
+        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
+        # legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|\mathcal{B}|$'))
         handler_map = {}
-        grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
-        legend_elements.append(grad_rect)
-        try:
-            handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
-        except NameError:
-            pass
+        # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
+        # legend_elements.append(grad_rect)
+        # try:
+        #     handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
+        # except NameError:
+        #     pass
         
         for p in self.protocols:
             p_id = p.get("id")
             if self._protocol_enabled(p_id):
                 legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
                     
-        if use_gradient:
-            grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
-            legend_elements.append(grad_rect)
-            try:
-                handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
-            except NameError:
-                pass 
+        # if use_gradient:
+        #     grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
+        #     legend_elements.append(grad_rect)
+        #     try:
+        #         handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
+        #     except NameError:
+        #         pass 
 
-        fig.legend(handles=legend_elements, handler_map=handler_map, loc='upper right', bbox_to_anchor=(1, 0), ncol=7, frameon=True, edgecolor='0.8')
+        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 0), ncol=7, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
         plt.close(fig)
 
 ###################################################
     def find_emptiest_inset_position(self, ax, width=0.35, height=0.35, margin=0.03):
-        import numpy as np
         """
         Calculates the emptiest quadrant in the given axis to place an inset.
         Evaluates the top-left, top-right, bottom-left, and bottom-right corners.
@@ -2277,16 +2452,17 @@ class Data:
 
         for collection in ax.collections:
             try:
-                offsets = collection.get_offsets()
-                if len(offsets) > 0:
-                    disp_offsets = collection.get_transform().transform(offsets)
+                offsets = np.asarray(collection.get_offsets())
+                if offsets.size > 0:
+                    transform = collection.get_offset_transform() if hasattr(collection, "get_offset_transform") else collection.get_transform()
+                    disp_offsets = transform.transform(offsets)
                     ax_offsets = ax.transAxes.inverted().transform(disp_offsets)
                     points_axes.append(ax_offsets)
             except Exception:
                 pass
 
         if not points_axes:
-            return candidates["top_left"]
+            return candidates["top_right"]
             
         all_points_axes = np.vstack(points_axes)
         x_ax, y_ax = all_points_axes[:, 0], all_points_axes[:, 1]
