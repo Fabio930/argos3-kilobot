@@ -1390,7 +1390,7 @@ class Data:
 
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.61, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.66, 0.0), framealpha=0.7, fontsize=24)
 
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
