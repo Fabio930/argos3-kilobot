@@ -463,68 +463,15 @@ class Data:
         
         for thr in threshlds:
             # Create the 3x3 layout (Row 0: Messages, Row 1 & 2: States)
-            fig, ax = plt.subplots(3, 3, figsize=(24, 18), constrained_layout=True, squeeze=False)
+            fig, ax = plt.subplots(2, 3, figsize=(24, 12), constrained_layout=True, squeeze=False)
             inset_axes_dict = {}
             used_protocols = set()
             used_roots = {}
             
             for col_idx, col_cfg in enumerate(cols_config):
                 ax[0][col_idx].set_title(col_cfg["label"])
-                min_buf_drawn = False
-                
-                # --- MESSAGES LOGIC (ROW 0) ---
-                for root_name, msgs_dct in dict_msgs_aggregated.items():
-                    folder_cfg = self._get_diff_folder_cfg(root_name)
-                    l_style = folder_cfg.get("line_style", "-")
-                    l_label = folder_cfg.get("label", str(root_name) if root_name else "default")
-                    
-                    for key, res in msgs_dct.items():
-                        p_key, msg_arena, msg_agents, msg_tm, k_samp = key
-                        if msg_arena != col_cfg["msg_arena"] or msg_agents != col_cfg["agents"]: continue
-                        
-                        is_p0 = (p_key == "P.0")
-                        is_main = str(msg_tm) in main_tm_list or is_p0
-                        is_insert = str(msg_tm) in insert_tm_list or (is_p0 and insert_tm_list)
-                        
-                        if not (is_main or is_insert): continue
-                        
-                        if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
-                            used_protocols.add(p_key)
-                            if root_name not in used_roots: used_roots[root_name] = (l_label, l_style)
-                            
-                            try:
-                                norm = int(msg_agents) - 1
-                                if norm <= 0: norm = 1
-                                norm_data = [xi / norm for xi in res]
-                            except: continue
-                            
-                            c = self._protocol_color_with_k(p_key, k_samp, msg_agents, ps_k_dict, scalarMap)
-                            targets = []
-                            
-                            if is_main:
-                                targets.append(ax[0][col_idx])
-                                if not min_buf_drawn:
-                                    ax[0][col_idx].plot([5/norm]*1200, color="black", lw=4, ls=":")
-                                    min_buf_drawn = True
-                                    
-                            if is_insert:
-                                if (0, col_idx) not in inset_axes_dict:
-                                    best_box = [0.62, 0.03, 0.35, 0.35]
-                                    ins_ax = ax[0][col_idx].inset_axes(best_box)
-                                    ins_ax.set_xlim(0, 1201)
-                                    ins_ax.set_ylim(-0.03, 1.03)
-                                    ins_ax.set_xticks([0, 300, 600, 900, 1200])
-                                    ins_ax.tick_params(labelbottom=False, labelleft=False)
-                                    ins_ax.grid(True, ls=':', color='silver')
-                                    ins_ax.plot([5 / norm] * 1200, color="black", ls=':', lw=3)
-                                    inset_axes_dict[(0, col_idx)] = ins_ax
-                                targets.append(inset_axes_dict[(0, col_idx)])
-                            
-                            for t_ax in targets:
-                                t_ax.plot(norm_data, color=c, lw=4, linestyle=l_style, alpha=0.9)
 
-                # --- STATE LOGIC (ROWS 1 and 2) ---
-                for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=1):
+                for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=0):
                     if not gt_val: continue
                     for root_name, st_dct in dict_states_aggregated.items():
                         folder_cfg = self._get_diff_folder_cfg(root_name)
@@ -554,7 +501,7 @@ class Data:
                                     
                                 if is_insert:
                                     if (row_idx, col_idx) not in inset_axes_dict:
-                                        best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx]) if row_idx<2 else [1.0 - 0.35 - 0.03, 1.0 - 0.35 - 0.03, 0.35, 0.35]
+                                        best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx]) if row_idx<1 else [1.0 - 0.35 - 0.03, 1.0 - 0.35 - 0.03, 0.35, 0.35]
                                         ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
                                         ins_ax.set_xlim(0, 1201)
                                         ins_ax.set_ylim(-0.03, 1.03)
@@ -568,36 +515,35 @@ class Data:
                                     t_ax.plot(s_data, color=c, lw=4, linestyle=l_style, alpha=0.9)
 
             # --- APPLY STYLE ---
-            for i in range(3):
+            for i in range(2):
                 for j in range(3):
                     ax[i][j].grid(True)
+                    ax[i][j].set_xticks([0, 300, 600, 900, 1200])
+                    ax[i][j].set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
                     ax[i][j].set_xlim(0, 1201)
                     ax[i][j].set_ylim(-0.03, 1.03)
-                    ax[i][j].set_xticks([0, 300, 600, 900, 1200])
-                    if i < 2: ax[i][j].set_xticklabels([])
+                    if i == 0: ax[i][j].set_xticklabels([])
                     else: ax[i][j].set_xlabel(r"$T$")
                     if j > 0: ax[i][j].set_yticklabels([])
             
-            ax[0][0].set_ylabel(r"$M$")
+            ax[0][0].set_ylabel(r"$Q(G,\tau)$")
             ax[1][0].set_ylabel(r"$Q(G,\tau)$")
-            ax[2][0].set_ylabel(r"$Q(G,\tau)$")
             
             # Add GT info as labels to the rightmost axes
             if gt_068_092:
-                ax_right1 = ax[1][2].twinx()
+                ax_right1 = ax[0][2].twinx()
                 ax_right1.set_yticks([])
                 lab1 = str(gt_068_092).split(";")[0]+"."+str(gt_068_092).split(";")[1]+r' \rightarrow '+str(gt_068_092).split(";")[2]+"."+str(gt_068_092).split(";")[3]
                 ax_right1.set_ylabel(r"$G: " + lab1 + r"$", rotation=270, labelpad=30)
                 
             if gt_092_068:
-                ax_right2 = ax[2][2].twinx()
+                ax_right2 = ax[1][2].twinx()
                 ax_right2.set_yticks([])
                 lab2 = str(gt_092_068).split(";")[0]+"."+str(gt_092_068).split(";")[1]+r' \rightarrow '+str(gt_092_068).split(";")[2]+"."+str(gt_092_068).split(";")[3]
                 ax_right2.set_ylabel(r"$G: " + lab2 + r"$", rotation=270, labelpad=30)
                 
             # Build Combined Legend Handles
             handles_r = []
-            handles_r.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
             for r_name, (r_label, r_style) in used_roots.items():
                 handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=3, label=r_label))
             
@@ -608,7 +554,7 @@ class Data:
                     handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
             
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.6, -0.05), framealpha=0.7, fontsize=24, ncol=7)
+            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.66, -0.08), framealpha=0.7, fontsize=24, ncol=7)
             
             # Save the final consolidated file
             fig.savefig(f"{path}{thr}_diff_short_grid.pdf", bbox_inches='tight')
