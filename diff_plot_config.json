@@ -4,16 +4,16 @@
     {"root": "./QS_analysis_data/dynamic_data/", "label": "state", "line_style": "-","exclude_protocols": ["P.0","P.1.0","P.1.1","O.1.a"]}
   ],
   "protocols": [
-    {"key": "P.0", "id": 0, "label": "$AN$", "color": "red", "legend": true},
-    {"key": "P.1.0", "id": 1, "label": "$AN_{t}$", "color": "viridis:0", "legend": true},
-    {"key": "P.1.1", "id": 2, "label": "$AN_{t}^{k}$", "color": "orange", "legend": true},
-    {"key": "O.0", "id": 3, "label": "$ID+B$", "color": "viridis:1", "legend": true},
-    {"key": "O.2.0", "id": 4, "label": "$ID+R_{f}$", "color": "viridis:2", "legend": true},
-    {"key": "O.1.1", "id": 5, "label": "$ID+R_{1}$", "color": "viridis:3", "legend": true},
-    {"key": "O.1.0", "id": 6, "label": "$ID+R_{\\infty}$", "color": "viridis:4", "legend": true},
-    {"key": "O.1.a", "id": 7, "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
+    {"key": "P.0", "label": "$AN$", "color": "red", "legend": true},
+    {"key": "P.1.0", "label": "$AN_{t}$", "color": "viridis:0", "legend": true},
+    {"key": "P.1.1", "label": "$AN_{t}^{k}$", "color": "orange", "legend": true},
+    {"key": "O.0", "label": "$ID+B$", "color": "viridis:1", "legend": true},
+    {"key": "O.2.0", "label": "$ID+R_{f}$", "color": "viridis:2", "legend": true},
+    {"key": "O.1.1", "label": "$ID+R_{1}$", "color": "viridis:3", "legend": true},
+    {"key": "O.1.0", "label": "$ID+R_{\\infty}$", "color": "viridis:4", "legend": true},
+    {"key": "O.1.a", "label": "$ID+R_{a}$", "color": "viridis:5", "legend": true}
   ],
   "plots": {
-      "exclude_tm": [120, 300]
+      "exclude_tm": []
   }
 }

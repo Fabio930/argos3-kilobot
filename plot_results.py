@@ -80,7 +80,11 @@ def main():
     args = parser.parse_args()
     
     mode_arg = args.mode.strip().lower()
-    mode = "short" if args.short or mode_arg == "short" else mode_arg
+    # Resolve hybrid mode
+    if args.short and mode_arg == "diff":
+        mode = "diff_short"
+    else:
+        mode = "short" if args.short or mode_arg == "short" else mode_arg
     
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
@@ -88,16 +92,11 @@ def main():
     csv_res = CSVres.Data(mode=mode)
     
     if exclude_protocols or exclude_tm:
-        csv_res.apply_plot_overrides(
-            ["all"],
-            exclude_protocols=exclude_protocols or None,
-            exclude_tm=exclude_tm or None,
-        )
+        csv_res.apply_plot_overrides(["all"], exclude_protocols=exclude_protocols or None, exclude_tm=exclude_tm or None)
     
     if mode == "short":
         tot_st = []
         dict_msgs = {}
-        
         for base in csv_res.bases:
             if os.path.basename(base) == "proc_data":
                 tot_st, _ = _collect_proc_data(csv_res, base, exclude_protocols)
@@ -110,6 +109,31 @@ def main():
             csv_res.plot_short(tot_st, dict_msgs)
         else:
             print("Attenzione: per la modalità short servono dati sia da proc_data che da msgs_data.")
+
+    # --- NEW MODE IMPLEMENTATION ---
+    elif mode == "diff_short":
+        dict_proc_st = {}
+        dict_msgs = {}
+        
+        for folder_cfg in csv_res.bases_diff:
+            root_name = folder_cfg.get("root_name")
+            proc_data_path = folder_cfg.get("proc_data")
+            msgs_data_path = folder_cfg.get("msgs_data")
+            
+            if proc_data_path:
+                proc_st, _ = _collect_proc_data(csv_res, proc_data_path, exclude_protocols)
+                if len(proc_st) > 0:
+                    dict_proc_st[root_name] = proc_st
+
+            if msgs_data_path:
+                msgs = _collect_msgs_data(csv_res, msgs_data_path)
+                if msgs:
+                    dict_msgs[root_name] = msgs
+
+        if dict_proc_st and dict_msgs:
+            csv_res.plot_diff_short(dict_proc_st, dict_msgs)
+        else:
+            print("Attenzione: per la modalità diff_short servono dati sia da proc_data che da msgs_data.")
 
     elif mode == "diff":
         dict_proc_st = {}
