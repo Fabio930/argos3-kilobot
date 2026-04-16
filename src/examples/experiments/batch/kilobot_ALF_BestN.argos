@@ -50,7 +50,7 @@
             logfilename="__KILOLOG__">
         </variables>
 
-        <hierarchicStruct
+        <bestN
             rebroadcast = "__BROADCAST_POLICY__"
             adaptive_comm = "__ADAPTIVE_COMM__"
             msgs_n_hops = "__MSGS_HOPS__"
@@ -71,7 +71,7 @@
             voting_msgs = "__VOTING_MSGS__"
             control_parameter = "__CONTROL_PARAMETER__"
         >
-        </hierarchicStruct>
+        </bestN>
     
     </loop_functions>
     <!-- *********************** -->

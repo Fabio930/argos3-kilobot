@@ -49,7 +49,7 @@
             logfilename="log.tsv">
         </variables>
 
-        <hierarchicStruct
+        <bestN
             id_aware = "1"
             gossip = "1"
             rebroadcast = "1"
@@ -69,7 +69,7 @@
             control = "polynomial"
             voting_msgs = "5"
             control_parameter = "0.5">
-        </hierarchicStruct>
+        </bestN>
 
     </loop_functions>
     <!-- *********************** -->

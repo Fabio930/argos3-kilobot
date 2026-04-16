@@ -147,7 +147,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     CSimulator &simulator = GetSimulator();
     m_random_seed = simulator.GetRandomSeed();
     /* Get the structure variables from the .argos file*/
-    TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"hierarchicStruct");
+    TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"bestN");
     /* Get dimensions and quality scaling factor*/
     GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"options",options);
