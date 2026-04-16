@@ -82,6 +82,7 @@ private:
     UInt8                   rebroadcast;
     UInt8                   adaptive_comm;
     UInt8                   m_unIdAware;
+    UInt8                   m_unGossip;
     UInt8                   m_unPrioritySamplingK;
     UInt8                   m_unControlMode;
     UInt8                   m_unControlParameterQ;

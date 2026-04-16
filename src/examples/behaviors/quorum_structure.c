@@ -143,13 +143,13 @@ void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
     }
 }
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t Gossip){
     (void)Prev;
     if(id_aware){
         quorum_a *cursor = *Myquorum;
         while(cursor != NULL){
             if(cursor->agent_id == Agent_id){
-                if(received_state != cursor->agent_state && Msg_n_hops <= cursor->msg_n_hops){
+                if(received_state != cursor->agent_state &&(!Gossip || Msg_n_hops <= cursor->msg_n_hops)){
                     cursor->counter = expiring_time;
                     cursor->agent_state = received_state;
                     cursor->delivered = 0;

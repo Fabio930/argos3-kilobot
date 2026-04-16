@@ -56,6 +56,7 @@
             msgs_n_hops = "__MSGS_HOPS__"
             msgs_timeout = "__MSG_EXPIRING_SECONDS__"
             id_aware = "__ID_AWARE__"
+            gossip = "__GOSSIP__"
             priority_sampling_k = "__PRIORITY_K__"
             options = "__N_OPTIONS__"
             eta_init = "__ETA_INIT__"

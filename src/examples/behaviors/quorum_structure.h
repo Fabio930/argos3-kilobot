@@ -9,6 +9,7 @@ uint8_t true_quorum_items;
 uint8_t buffer_length = 128;
 uint8_t priority_sampling_k = 0;
 uint8_t id_aware = 1;
+uint8_t gossip = 0;
 
 typedef struct quorum_structure{
     uint32_t counter;
@@ -39,4 +40,4 @@ uint16_t select_a_random_message();
 
 uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops);
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops);
+uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t Gossip);

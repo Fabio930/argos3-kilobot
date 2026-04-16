@@ -168,6 +168,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
     GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
     GetNodeAttributeOrDefault(tHierarchicalStructNode,"id_aware",m_unIdAware,static_cast<UInt8>(1));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"gossip",m_unGossip,static_cast<UInt8>(0));
     GetNodeAttributeOrDefault(tHierarchicalStructNode,"priority_sampling_k",m_unPrioritySamplingK,static_cast<UInt8>(0));
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
@@ -184,6 +185,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
     adaptive_comm = Min<UInt8>(1, adaptive_comm);
     m_unIdAware = Min<UInt8>(1, m_unIdAware);
+    m_unGossip = Min<UInt8>(1, m_unGossip);
     m_unPrioritySamplingK = Min<UInt8>(127, m_unPrioritySamplingK);
     if(m_unIdAware == 0){
         rebroadcast = 0;
@@ -528,7 +530,8 @@ void CBestN_ALF::SendBufferInitInformation(CKilobotEntity &c_kilobot_entity){
     for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
     const UInt16 unPayload = static_cast<UInt16>(
         (m_unPrioritySamplingK & 0x7Fu) |
-        ((m_unIdAware & 0x01u) << 7));
+        ((m_unIdAware & 0x01u) << 7) |
+        ((m_unGossip & 0x01u) << 8));
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(2u << 6);

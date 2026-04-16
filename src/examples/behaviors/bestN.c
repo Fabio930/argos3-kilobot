@@ -519,7 +519,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,gossip);
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
     sort_q(&quorum_array);
     vote_fifo_update(received_id, received_committed);
@@ -570,6 +570,8 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 else if(packet_type == 2){
                     priority_sampling_k = (uint8_t)(sa_payload & 0x7F);
                     id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
+                    gossip = (uint8_t)((sa_payload >> 8) & 0x01);
+                    
                     if(priority_sampling_k > buffer_length){
                         priority_sampling_k = buffer_length;
                     }
@@ -607,7 +609,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
             break;
     }
 }
-
 void message_rx(message_t *msg, distance_measurement_t *d){
     sa_id = 0;
     sa_type = 0;

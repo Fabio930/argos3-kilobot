@@ -24,7 +24,8 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-msgs_n_hops=""
+gossip=""
+msgs_n_hops="0"
 eta_init=""
 eta_stop=""
 init_distr=""
@@ -123,11 +124,11 @@ for exp_len_par in $experiment_length; do
                                     mkdir $comm_dir
                                 fi
                                 if [[ $comm_type == "anon" ]]; then
-                                    msgs_n_hops="0"
+                                    gossip="0"
                                 elif [[ $comm_par == "1" ]]; then
-                                    msgs_n_hops="0"
+                                    gossip="1"
                                 else
-                                    msgs_n_hops="0"
+                                    gossip="0"
                                 fi
                                 for adaptive_par in $adaptive_set; do
                                     if [[ $comm_type == "anon" && $adaptive_par != "0" ]]; then
