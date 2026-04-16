@@ -646,7 +646,7 @@ class Data:
         return data
     
 ###################################################
-    def plot_recovery(self, data_in):
+    def plot_recovery(self, data_in, side_by_side: bool = True):
         
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
@@ -706,7 +706,7 @@ class Data:
             mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
             mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
 
-        def save_box(subset, threshold_str, entry, global_max):
+        def save_box(subset, threshold_str, entry, global_max, side_by_side_mode=False):
             if subset.empty: return
             
             nrows, ncols = len(msg_list), len(grid)
@@ -730,7 +730,7 @@ class Data:
                         p_cell = base_cell.loc[mask_p]
                         
                         base_color = variant_map[pid][1]
-                        width = 0.3
+                        width = 1.2
                         
                         if pid == "P.1.1":
                             mbs_list = mbs_global_map.get(ag_num, [])
@@ -738,25 +738,40 @@ class Data:
                             
                             if n_mbs_total > 0:
                                 for m_idx, val_mbs in enumerate(mbs_list):
-                                    d = p_cell.loc[p_cell['MBS'] == val_mbs, entry].dropna().astype(float).values
-                                    if len(d) > 0:
+                                    d_mbs_row = p_cell.loc[p_cell['MBS'] == val_mbs]
+                                    d = d_mbs_row[entry].dropna().astype(float).values
+                                    
+                                    if len(d) > 0 or (side_by_side_mode and not d_mbs_row.empty):
                                         ratio = (m_idx + 1) / n_mbs_total
                                         h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
                                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
                                         
                                         offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
-                                        ax.boxplot(d, positions=[pos_idx + offset], widths=width, patch_artist=True,
-                                                   boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
+                                        
+                                        if side_by_side_mode:
+                                            self._draw_boxes_internal(ax, d_mbs_row, entry, pos_idx + offset, width, c_val, side_by_side_mode)
+                                        else:
+                                            if len(d) > 0:
+                                                ax.boxplot(d, positions=[pos_idx + offset], widths=width, patch_artist=True,
+                                                           boxprops=dict(facecolor=c_val), medianprops=dict(color='gray'))
                             else:
                                 d = p_cell[entry].dropna().astype(float).values
-                                if len(d) > 0:
-                                    ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
-                                               boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
+                                if len(d) > 0 or (side_by_side_mode and not p_cell.empty):
+                                    if side_by_side_mode:
+                                        self._draw_boxes_internal(ax, p_cell, entry, pos_idx, width, base_color, side_by_side_mode)
+                                    else:
+                                        if len(d) > 0:
+                                            ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
+                                                       boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         else:
                             d = p_cell[entry].dropna().astype(float).values
-                            if len(d) > 0:
-                                ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
-                                           boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
+                            if len(d) > 0 or (side_by_side_mode and not p_cell.empty):
+                                if side_by_side_mode:
+                                    self._draw_boxes_internal(ax, p_cell, entry, pos_idx, width, base_color, side_by_side_mode)
+                                else:
+                                    if len(d) > 0:
+                                        ax.boxplot(d, positions=[pos_idx], widths=width, patch_artist=True,
+                                                   boxprops=dict(facecolor=base_color), medianprops=dict(color='gray'))
                         
                         tick_pos.append(pos_idx)
                         tick_labels.append(variant_map[pid][0])
@@ -785,13 +800,6 @@ class Data:
                     if j == ncols - 1:
                         ax.annotate(f"$T_m$={tm_val} s", xy=(1.03, 0.5), xycoords='axes fraction',
                                     rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
-
-            # cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            # gradient = [Rectangle((0,0), 1, 1, label="K-sampling")]
-            # legend_elements = [Line2D([0], [0], color=v[1], marker='s', linestyle='None', markersize=16, label=v[0]) for k, v in variant_map.items() if self._protocol_enabled(k)]
-            
-            # fig.legend(handles=gradient+legend_elements, loc='lower center', ncol=4, 
-            #            bbox_to_anchor=(0.7, 0.0), handler_map={Rectangle: GradientHandler(cmap_grey)})
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_recovery_{threshold_str}_{entry}.pdf"), bbox_inches='tight')
@@ -801,136 +809,22 @@ class Data:
         time_max = df["Time"].max()
         event_max = df["Events"].max()
         
-        df_le = df[df['Error'] <= 0.05]
-        if not df_le.empty:
-            save_box(df_le, "0.05_le", 'Events', event_max)
-            save_box(df_le, "0.05_le", 'Time', time_max)
-            
-        df_gt = df[df['Error'] > 0.05]
-        if not df_gt.empty:
-            save_box(df_gt, "0.05_gt", 'Events', event_max)
-            save_box(df_gt, "0.05_gt", 'Time', time_max)
-
-        # # Istogrammi 2D per variante (Error vs Events)
-        # xbins = np.linspace(0, 0.5, 30)
-        # ybins = np.arange(0, event_max+5, 2)
-        # # limite superiore arrotondato a multipli di 10 per gli eventi
-        # top_event = int(np.ceil((event_max if event_max > 0 else 1) / 10.0) * 10)
-        # for key_var, (label, color) in variant_map.items():
-        #     columns = len(msg_list) if key_var != "P.0" else 1
-        #     w_size = 30 if columns > 1 else 12
-        #     x_w = 0 if columns > 1 else 5
-
-        #     fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
-        #     # Flatten axes array for uniform processing
-        #     if columns == 1:
-        #         axes = np.array(axes).reshape(-1, 1)
-        #     elif len(grid) == 1:
-        #         axes = np.array(axes).reshape(1, -1)
-
-        #     h = None
-        #     for i, (arena, ag) in enumerate(grid):
-        #         for j, m in enumerate(msg_list):
-        #             ax = axes[i, j]
-        #             cell = df[
-        #                 (df['VariantKey'] == key_var) &
-        #                 (df['Arena'] == arena) &
-        #                 (df['Agents'] == ag) &
-        #                 (df['Msgs_exp_time'] == m)
-        #             ]
-        #             if not cell.empty:
-        #                 h = ax.hist2d(cell['Error'], cell['Events'], bins=[xbins, ybins], cmap='viridis')
-        #                 ax.set_yscale('linear')
-        #                 # imposta ticks a multipli di 10 e ylim basato su top_event
-        #                 ax.set_ylim(0, top_event)
-        #                 ax.set_yticks(np.arange(0, top_event + 1, 10))
-        #                 ax.grid(True,ls=':')
-        #             if i == 0:
-        #                 ax.set_title(col_labels[j])
-        #             if i == len(grid) - 1:
-        #                 ax.set_xlabel(r"$|G-\tau|$")
-        #                 ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-        #                 ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-        #                 plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-        #             if j == 0:
-        #                 ax.set_ylabel("Events")
-        #                 plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-        #             ax.set_ylim(0, top_event)
-        #             # assicurati che ci sia la griglia anche quando non ci sono dati
-        #             ax.grid(True,ls=':')
-        #             if columns == 1: break
-        #         axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-        #                         fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
-        #     if h is not None:
-        #         # Use divider to place the colorbar correctly
-        #         fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
-        #         cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
-        #         fig.colorbar(h[3], cax=cbar_ax, label='#')
-        #     # fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.png"))
-        #     fig.savefig(os.path.join(images_dir, f"hist2d_{key_var}.pdf"))
-        #     plt.close(fig)
-
-        # # Istogrammi 2D per variante (Error vs Time)
-        # xbins = np.linspace(0, 0.5, 30)
-        # ybins = np.arange(0, 155, 5)
-        # # limite superiore arrotondato a multipli di 50 per i tempi (ticks 0,50,100,...)
-        # top_time = int(np.ceil((time_max if time_max > 0 else 1) / 50.0) * 50)
-        # for key_var, (label, color) in variant_map.items():
-        #     columns = len(msg_list) if key_var != "P.0" else 1
-        #     w_size = 30 if columns > 1 else 12
-        #     x_w = 0 if columns > 1 else 5
-
-        #     fig, axes = plt.subplots(len(grid), columns, figsize=(w_size, 18), sharex=True, sharey=True)
-        #     # Flatten axes array for uniform processing
-        #     if columns == 1:
-        #         axes = np.array(axes).reshape(-1, 1)
-        #     elif len(grid) == 1:
-        #         axes = np.array(axes).reshape(1, -1)
-
-        #     h = None
-        #     for i, (arena, ag) in enumerate(grid):
-        #         for j, m in enumerate(msg_list):
-        #             ax = axes[i, j]
-        #             cell = df[
-        #                 (df['VariantKey'] == key_var) &
-        #                 (df['Arena'] == arena) &
-        #                 (df['Agents'] == ag) &
-        #                 (df['Msgs_exp_time'] == m)
-        #             ]
-        #             if not cell.empty:
-        #                 h = ax.hist2d(cell['Error'], cell['Time'], bins=[xbins, ybins], cmap='viridis')
-        #                 ax.set_yscale('linear')
-        #                 # imposta ticks a multipli di 50 e ylim basato su top_time
-        #                 ax.set_ylim(0, top_time)
-        #                 ax.set_yticks(np.arange(0, top_time + 1, 50))
-        #                 ax.grid(True,ls=':')
-        #             if i == 0:
-        #                 ax.set_title(col_labels[j])
-        #             if i == len(grid) - 1:
-        #                 ax.set_xlabel(r"$|G-\tau|$")
-        #                 ax.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-        #                 ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
-        #                 plt.setp(ax.get_xticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-        #             if j == 0:
-        #                 ax.set_ylabel("Time")
-        #                 plt.setp(ax.get_yticklabels(), fontsize=plt.rcParams.get("font.size") - 5 - x_w)
-        #             ax.set_ylim(0, top_time)
-        #             if columns == 1: break
-        #         axes[i, -1].annotate(row_labels[i], xy=(1.05, 0.5), xycoords='axes fraction',
-        #                         fontsize=plt.rcParams.get("font.size")-x_w, ha='left', va='center', rotation=270)
-        #     # Add colorbar aligned to the last subplot row and column
-        #     if h is not None:
-        #         # Use divider to place the colorbar correctly
-        #         fig.subplots_adjust(right=0.88) if columns > 1 else fig.subplots_adjust(right=0.75)
-        #         cbar_ax = fig.add_axes([0.91, 0.1, 0.03, 0.8]) if columns > 1 else fig.add_axes([0.85, 0.1, 0.04, 0.8])
-        #         fig.colorbar(h[3], cax=cbar_ax, label='#')
-        #     # fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.png"))
-        #     fig.savefig(os.path.join(images_dir, f"Thist2d_{key_var}.pdf"))
-        #     plt.close(fig)
+        if side_by_side:
+            save_box(df, "sidebyside", 'Events', event_max, side_by_side_mode=True)
+            save_box(df, "sidebyside", 'Time', time_max, side_by_side_mode=True)
+        else:
+            df_le = df[df['Error'] <= 0.05]
+            if not df_le.empty:
+                save_box(df_le, "0.05_le", 'Events', event_max, side_by_side_mode=False)
+                save_box(df_le, "0.05_le", 'Time', time_max, side_by_side_mode=False)
+                
+            df_gt = df[df['Error'] > 0.05]
+            if not df_gt.empty:
+                save_box(df_gt, "0.05_gt", 'Events', event_max, side_by_side_mode=False)
+                save_box(df_gt, "0.05_gt", 'Time', time_max, side_by_side_mode=False)
 
 ###################################################
     def plot_recovery_short(self, data_in, side_by_side: bool = True):
-        plt.rcParams.update({"font.size": 24})
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -998,7 +892,7 @@ class Data:
                     if row_idx == 0: ax.set_title(dens_label)
 
                     n_tm_total = len(combined_tm)
-                    width_tm = 0.6
+                    width_tm = 1.2
                     
                     def draw_pass(target_ax, target_type):
                         for k, pid in enumerate(protocols_order):
@@ -1017,7 +911,8 @@ class Data:
                                 else:
                                     p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
                                     t_idx = main_tm_list.index(tm_val) if target_type == "main" else insert_tm_list.index(tm_val)
-                                    tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
+                                    current_n_total = len(tms) 
+                                    tm_off = (t_idx - (current_n_total - 1) / 2.0) * width_tm
                                 
                                 if p_data.empty: continue
                                 final_base_pos = (k + 1) + tm_off
@@ -1073,19 +968,6 @@ class Data:
                         # ins.set_axisbelow(True)
                         ins.grid(True, ls=':', color='silver', zorder=0)
 
-            legend_elements = []
-            
-            # if side_by_side_mode:
-            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
-            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
-            # legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
-                
-            # for pid in protocols_order:
-            #     legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
-            
-            # fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
-            #            bbox_to_anchor=(0.66, -0.04), handler_map=None) #{Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
-            
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"box_short_{suffix}.pdf"), bbox_inches='tight')
             plt.close(fig)
@@ -1129,7 +1011,7 @@ class Data:
         return pareto_front[:, 0], pareto_front[:, 1]
 
 ###################################################
-    def plot_recovery_pareto(self, data_in, side_by_side_mode: bool=True):
+    def plot_recovery_pareto(self, data_in):
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -1183,11 +1065,9 @@ class Data:
         active_labels = [variant_map[pid][0] for pid in protocols_order]
         densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
 
-        def save_short(subset, suffix, side_by_side_mode: bool):
+        def save_short(subset):
             if subset.empty: return
             fig, axes = plt.subplots(1, 3, figsize=(24, 12))
-            event_max = subset["Events"].max()
-            time_max = subset["Time"].max()
 
             for col_idx, (dens_label, arena, ag) in enumerate(densities):
                 cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
@@ -1287,10 +1167,10 @@ class Data:
                        bbox_to_anchor=(0.60, -0.05), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
-            fig.savefig(os.path.join(images_dir, f"pareto_{suffix}.pdf"), bbox_inches='tight')
+            fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
 
-        save_short(df, "sidebyside", True)
+        save_short(df)
 
 ###################################################
     def _draw_scatter_internal(self, ax, data, color, target_type):
