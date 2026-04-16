@@ -512,7 +512,7 @@ class Data:
                                     targets.append(inset_axes_dict[(row_idx, col_idx)])
                                     
                                 for t_ax in targets:
-                                    t_ax.plot(s_data, color=c, lw=4, linestyle=l_style, alpha=0.9)
+                                    t_ax.plot(s_data, color=c, lw=6, linestyle=l_style, alpha=0.9)
 
             # --- APPLY STYLE ---
             for i in range(2):
@@ -554,7 +554,7 @@ class Data:
                     handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
             
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.66, -0.08), framealpha=0.7, fontsize=24, ncol=7)
+            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.58, -0.08), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
             
             # Save the final consolidated file
             fig.savefig(f"{path}{thr}_diff_short_grid.pdf", bbox_inches='tight')
@@ -685,7 +685,7 @@ class Data:
                                         targets.append(inset_axes_dict[(row_idx, col_idx)])
                                     
                                     for t_ax in targets:
-                                        t_ax.plot(s_data, color=c, lw=4, alpha=0.9)
+                                        t_ax.plot(s_data, color=c, lw=6, alpha=0.9)
                                     
             for i in range(2):
                 for j in range(3):
@@ -725,12 +725,19 @@ class Data:
             legend_elements = handles_l + handles_r
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.68, -0.08), framealpha=0.7, fontsize=24, ncol=7)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.58, -0.08), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
 ##########################################################################################################
     def _apply_plot_style(self, ax, nrows, rows, is_messages=False):
+        for y in range(3):
+            ax[nrows-1][y].set_xlabel(r"$T$")
+            for x in range(nrows):
+                ax[x][y].grid(True)
+                ax[x][y].set_xlim(0, 1201)
+                ax[x][y].set_ylim(-0.03, 1.03) 
+
         for x in range(nrows):
             for y in range(3):
                 ax[x][y].grid(True)
@@ -841,42 +848,16 @@ class Data:
                 color = self._protocol_color_with_k(p_key, k_samp, agents, ps_k_dict, scalarMap)
 
                 if min_buf_line[row][col] == 0:
-                    ax[row][col].plot([5/norm]*1200, color="black", lw=4, ls=":")
+                    ax[row][col].plot([5/norm]*1200, color="black", lw=5, ls=":")
                     min_buf_line[row][col] = 1
                 ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style)
 
-        # Apply standardized style inline (mirrors print_messages logic)
-        for x in range(nrows-1):
-            for y in range(3):
-                ax[x][y].set_xticks(np.arange(0, 1201, 300), labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0, 1201, 50), labels=void_x_ticks, minor=True)
-        
-        for x in range(nrows):
-            for y in range(1,3):
-                ax[x][y].set_yticklabels([''] * len(ax[x][y].get_yticklabels()))
-                
-        for idx, row_val in enumerate(columns):
-            axt = ax[idx][2].twinx()
-            axt.set_yticklabels([''] * len(axt.get_yticklabels()))
-            axt.set_ylabel(rf"$T_m = {int(row_val)}\, s$",rotation=270,labelpad=30)
-            ax[idx][0].set_ylabel(r"$M$")
-
-        for r, lab in enumerate(["LD25", "HD25", "HD100"]):
-            ayt = ax[0][r].twiny()
-            ayt.set_xticklabels([''] * len(ayt.get_xticklabels()))
-            ayt.set_xlabel(lab)
-
-        for y in range(3):
-            ax[nrows-1][y].set_xlabel(r"$T$")
-            for x in range(nrows):
-                ax[x][y].grid(True)
-                ax[x][y].set_xlim(0, 1201)
-                ax[x][y].set_ylim(-0.03, 1.03)
+        self._apply_plot_style(ax, nrows, columns, is_messages=True)
 
         handles_r = []
         handles_r.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
         for r_name, (r_label, r_style) in used_roots.items():
-            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=3, label=r_label))
+            handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=4, label=r_label))
         for p in diff_protocols:
             pk = p.get("key")
             if pk in used_protocols and p.get("legend", True):
@@ -885,7 +866,7 @@ class Data:
         
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=7, loc='upper center', bbox_to_anchor=(0.6, -0.005), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=7, loc='upper center', bbox_to_anchor=(0.5, 0.005), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
 
         fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
@@ -955,7 +936,7 @@ class Data:
 
                     if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
                         color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
-                        ax[row][col].plot(s_data, color=color, lw=4, linestyle=l_style)
+                        ax[row][col].plot(s_data, color=color, lw=6, linestyle=l_style)
                         
                         used_protocol_keys.add(p_key)
                         if root_name not in used_roots:
@@ -966,7 +947,7 @@ class Data:
                 handles_r = []
                 
                 for r_name, (r_label, r_style) in used_roots.items():
-                    handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=2, label=r_label))
+                    handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=4, label=r_label))
                 for p in diff_protocols:
                     pk = p.get("key")
                     if pk in used_protocol_keys and p.get("legend", True):
@@ -974,7 +955,7 @@ class Data:
 
                 if handles_r:
                     handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.66, 0.005), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.56, 0.005), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -1223,7 +1204,7 @@ class Data:
                         handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
 
                 if handles_r:
-                    fig.legend(handles=handles_r, ncols=6, loc='upper center', bbox_to_anchor=(0.68, 0.0), framealpha=0.7, fontsize=24)
+                    fig.legend(handles=handles_r, ncols=6, loc='upper center', bbox_to_anchor=(0.58, 0.0), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
@@ -1288,7 +1269,7 @@ class Data:
                 for row in range(nrows):
                     if min_buf_line[row][col] == 0:
                         val = 5 / norm
-                        ax[row][col].plot([val]*1200, color="black", lw=4, ls=":")
+                        ax[row][col].plot([val]*1200, color="black", lw=5, ls=":")
                         min_buf_line[row][col] = 1
                     ax[row][col].plot(data, color=color, lw=6)
             else:
@@ -1296,37 +1277,11 @@ class Data:
                 row = row_index[str(tm)]
                 if min_buf_line[row][col] == 0:
                     val = 5 / norm
-                    ax[row][col].plot([val]*1200, color="black", lw=4, ls=":")
+                    ax[row][col].plot([val]*1200, color="black", lw=5, ls=":")
                     min_buf_line[row][col] = 1
                 ax[row][col].plot(data, color=color, lw=6)
 
-        for x in range(nrows-1):
-            for y in range(3):
-                ax[x][y].set_xticks(np.arange(0, 1201, 300), labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0, 1201, 50), labels=void_x_ticks, minor=True)
-        
-        for x in range(nrows):
-            for y in range(1,3):
-                ax[x][y].set_yticklabels([''] * len(ax[x][y].get_yticklabels()))
-                
-        for idx, row_val in enumerate(rows):
-            axt = ax[idx][2].twinx()
-            axt.set_yticklabels([''] * len(axt.get_yticklabels()))
-            axt.set_ylabel(rf"$T_m = {int(row_val)}\, s$",rotation=270,labelpad=30)
-            ax[idx][0].set_ylabel(r"$M$")
-
-        for r, lab in enumerate(["LD25", "HD25", "HD100"]):
-            ayt = ax[0][r].twiny()
-            ayt.set_xticklabels([''] * len(ayt.get_xticklabels()))
-            ayt.set_xlabel(lab)
-
-        for y in range(3):
-            ax[nrows-1][y].set_xlabel(r"$T$")
-            for x in range(nrows):
-                ax[x][y].grid(True)
-                ax[x][y].set_xlim(0, 1201)
-                ax[x][y].set_ylim(-0.03, 1.03)
-
+        self._apply_plot_style(ax, nrows, rows, is_messages=True)
         handles_r = []
 
         for p in self.protocols:
@@ -1336,9 +1291,9 @@ class Data:
 
         if handles_r:
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.66, 0.0), framealpha=0.7, fontsize=24)
+            fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.58, 0.0), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
 
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
         fig.savefig(os.path.join(dest_dir, "messages.pdf"), bbox_inches='tight')
-        plt.close(fig)
+        plt.close(fig)       
