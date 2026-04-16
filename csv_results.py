@@ -2188,10 +2188,8 @@ class Data:
                                     best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx])
                                 
                                 ins = ax[r_idx][col_idx].inset_axes(best_box)
-                                ins.set_xlim(0.5, 1); ins.tick_params(labelbottom=False, labelleft=False)
                                 ins.grid(True, ls=':', color='silver')
-                                if r_idx == 1: 
-                                    ins.set_ylim(0.5, 1); ins.plot(ref_x, ref_x, color='black', lw=2, ls=':')
+                                if r_idx == 1: ins.set_ylim(0.5, 1); ins.plot(ref_x, ref_x, color='black', lw=2, ls=':')
                                 inset_axes_dict[(r_idx, col_idx)] = ins
                             curr_ax = inset_axes_dict[(r_idx, col_idx)]
                         
@@ -2253,10 +2251,10 @@ class Data:
                     
                     ins_ax.tick_params(
                         labelbottom=False, labeltop=False, 
-                        labelleft=False, labelright=False
+                        labelleft=False if i<2 else True, labelright=False
                     )
                     ins_ax.set_xlim(curr.get_xlim())
-                    ins_ax.set_ylim(curr.get_ylim())
+                    ins_ax.set_ylim(curr.get_ylim()) if i<2 else ins_ax.set_ylim(0,101)
 
         ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$G$"); ax[2][0].set_ylabel(r"$T_c$")
         
