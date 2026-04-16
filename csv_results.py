@@ -512,7 +512,7 @@ class Data:
                                     targets.append(inset_axes_dict[(row_idx, col_idx)])
                                     
                                 for t_ax in targets:
-                                    t_ax.plot(s_data, color=c, lw=6, linestyle=l_style, alpha=0.9)
+                                    t_ax.plot(s_data, color=c, lw=6, linestyle=l_style, alpha=0.9 if p_key!="O.0" else 0.6)
 
             # --- APPLY STYLE ---
             for i in range(2):
@@ -850,7 +850,7 @@ class Data:
                 if min_buf_line[row][col] == 0:
                     ax[row][col].plot([5/norm]*1200, color="black", lw=5, ls=":")
                     min_buf_line[row][col] = 1
-                ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style)
+                ax[row][col].plot(norm_data, color=color, lw=6, linestyle=l_style, alpha=0.9 if p_key!="O.0" else 0.6)
 
         self._apply_plot_style(ax, nrows, columns, is_messages=True)
 
@@ -936,7 +936,7 @@ class Data:
 
                     if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
                         color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
-                        ax[row][col].plot(s_data, color=color, lw=6, linestyle=l_style)
+                        ax[row][col].plot(s_data, color=color, lw=6, linestyle=l_style, alpha=0.9 if p_key!="O.0" else 0.6)
                         
                         used_protocol_keys.add(p_key)
                         if root_name not in used_roots:
