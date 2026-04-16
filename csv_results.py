@@ -2241,7 +2241,7 @@ class Data:
                             inset_axes_dict[(0, col_idx)] = ins
                         target_ax = inset_axes_dict[(0, col_idx)]
 
-                    target_ax.plot(np.array(msg_series) / (num_agents - 1), color=c_val, lw=4, alpha=0.75)
+                    target_ax.plot(np.array(msg_series) / (num_agents - 1), color=c_val, lw=6, alpha=0.75)
 
                 if min_buf_plotted[col_idx] == 0:
                     min_buf_plotted[col_idx] = 1
@@ -2316,7 +2316,7 @@ class Data:
                             curr_ax = inset_axes_dict[(r_idx, col_idx)]
                         
                         ls = '--' if data_to_plot == v2 else '-'
-                        curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=4, ls=ls, alpha=0.75)
+                        curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=6, ls=ls, alpha=0.75)
                 
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
