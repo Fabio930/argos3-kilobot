@@ -3,12 +3,48 @@
 **/
 
 #include "BestN_ALF.h"
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+
+namespace {
+UInt32 NextXorShift32(UInt32& unState) {
+    unState ^= (unState << 13);
+    unState ^= (unState >> 17);
+    unState ^= (unState << 5);
+    return unState;
+}
+
+UInt8 ControlModeFromString(const std::string& strControl) {
+    if(strControl == "static") return 0;
+    if(strControl == "linear") return 1;
+    if(strControl == "sigmoid") return 2;
+    if(strControl == "polynomial") return 3;
+    return 0;
+}
+
+std::string NormalizeDistributionString(const std::string& strValue) {
+    std::string strOut = strValue;
+    strOut.erase(0, strOut.find_first_not_of(" \t\r\n"));
+    strOut.erase(strOut.find_last_not_of(" \t\r\n") + 1);
+    std::transform(strOut.begin(), strOut.end(), strOut.begin(),
+                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    if(strOut.empty()) {
+        return "random";
+    }
+    return strOut;
+}
+
+std::string g_strOptionsDistribution = "random";
+}
 
 /****************************************/
 /****************************************/
 
 CBestN_ALF::CBestN_ALF() :
-    m_unDataAcquisitionFrequency(10){
+    m_unDataAcquisitionFrequency(10),
+    m_unIdAware(1),
+    m_unPrioritySamplingK(0){
         c_rng = CRandom::CreateRNG("argos");
 }
 
@@ -23,98 +59,83 @@ CBestN_ALF::~CBestN_ALF(){}
 void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
-    /* Other initializations: Variables, Log file opening... */
-    m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Reset(){
-    /* Close data file */
-    m_cLog.close();
-    /* Reopen the file, erasing its contents */
-    m_cLog.open(m_strLogFileName, std::ios_base::trunc | std::ios_base::out);
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Destroy(){
-    /* Close data file */
-    m_cLog.close();
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::PostStep(){
-    if(start_experiment){
-        log_counter++;
-        if(log_counter == m_unDataAcquisitionFrequency){
-            logging_time++;
-            UpdateLog(logging_time);
-            log_counter = 0;
+    if(variation_time > 0){
+        m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
+        if(m_fTimeInSeconds >= variation_time){
+            const UInt8 unEtaQNow = static_cast<UInt8>(std::round(eta_stop * 127.0));
+            if(unEtaQNow != m_unEtaQ){
+                m_unEtaQ = unEtaQNow;
+                SetupFloorColorMap();
+            }
+            variation_time = 0;
         }
-    }
-    else if(header==0){
-        UpdateLog(logging_time);
-        header = 1;
     }
 }
 
 /****************************************/
 /****************************************/
-
-void CBestN_ALF::UpdateLog(UInt16 Time){
-    if(Time == 0){
-        m_cLog << m_random_seed << '\t' << vh_floor->get_best_leaf()->get_id() << '\t' << vh_floor->get_best_leaf()->get_top_left_angle().GetX() << '\t' <<  vh_floor->get_best_leaf()->get_top_left_angle().GetY() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetX() << '\t' << vh_floor->get_best_leaf()->get_bottom_right_angle().GetY() << '\t';
-        for(UInt8 i=0;i< vh_floor->get_leafs().size();i++){
-            m_cLog << vh_floor->get_leafs()[i]->get_id();
-            if(i < vh_floor->get_leafs().size()-1) m_cLog << '\t';
-        }
-    }
-    m_cLog << std::endl;
-    m_cLog << std::setw(5) << std::setfill('0') << std::fixed << Time << '\t'; 
-    for(UInt8 i=0;i<m_vecKilobotPositions.size();i++){
-        m_cLog << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetX() << '\t' << std::setw(7) <<std::setprecision(4) << std::setfill('0') << std::fixed << m_vecKilobotPositions[i].GetY() << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotNodes[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotCommitments[i] << '\t' << std::setw(2) << std::setfill('0') << std::fixed << m_vecKilobotDistFromOpt[i]; 
-        if(i < m_vecKilobotPositions.size()-1) m_cLog << '\t';
-    }
-}
-
-/****************************************/
-/****************************************/
-
 void CBestN_ALF::SetupInitialKilobotStates(){
-    m_vecKilobotMsgType.resize(m_tKilobotEntities.size());
-    m_vecKilobotAskLevel.resize(m_tKilobotEntities.size());
+    m_vecKilobotState.resize(m_tKilobotEntities.size());
     m_vecLastTimeMessaged.resize(m_tKilobotEntities.size());
     m_vecStart_experiment.resize(m_tKilobotEntities.size());
     m_vecKilobotPositions.resize(m_tKilobotEntities.size());
-    m_vecKilobotDistFromOpt.resize(m_tKilobotEntities.size());
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
-    m_vecKilobotNodes.resize(m_tKilobotEntities.size());
-    m_vecKilobotCommitments.resize(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
-    /* Create the virtual hierarchic environment over the arena */
-    vh_floor = new ChierarchicFloor(TL,BR,depth,branches,10,k,1,this->GetSpace().GetArenaLimits().GetMax()[0],this->GetSpace().GetArenaLimits().GetMax()[1]);
-    best_leaf = c_rng->Uniform(CRange<SInt32>(0, vh_floor->get_leafs().size()));
-    vh_floor->assign_MAXutility(best_leaf);
-    /* Setup the virtual states of a kilobot */
-    for(UInt16 it=0;it< m_tKilobotEntities.size();it++) SetupInitialKilobotState(*m_tKilobotEntities[it]);
+    UInt32 unTotalRobots = m_tKilobotEntities.size();
+    UInt32 unSpecialRobots = static_cast<UInt32>(unTotalRobots * init_distr);
+    UInt8 unSpecialOption = 0; 
+    if(bTargetRandomWorse && options > 1) {
+        unSpecialOption = c_rng->Uniform(CRange<UInt32>(1, options)); 
+    } else {
+        unSpecialOption = 0;
+    }
+    std::vector<UInt8> vecOtherOptions;
+    for(UInt8 i = 0; i < options; ++i) {
+        if(i != unSpecialOption) {
+            vecOtherOptions.push_back(i);
+        }
+    }
+    for(UInt16 it = 0; it < unTotalRobots; it++) {
+        UInt16 unKilobotID = GetKilobotId(*m_tKilobotEntities[it]);
+        
+        if(it < unSpecialRobots) {
+            m_vecKilobotState[unKilobotID] = unSpecialOption;
+        } 
+        else {
+            if (!vecOtherOptions.empty()) {
+                UInt32 idx = (it - unSpecialRobots) % vecOtherOptions.size();
+                m_vecKilobotState[unKilobotID] = vecOtherOptions[idx];
+            } else {
+                m_vecKilobotState[unKilobotID] = unSpecialOption;
+            }
+        }
+        SetupInitialKilobotState(*m_tKilobotEntities[it]);
+    }
 }
-
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
     /* The kilobots begins in the root node with a random goal position inside it */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecKilobotAskLevel[unKilobotID] = 0;
-    m_vecKilobotMsgType[unKilobotID] = 0;
-    m_vecKilobotNodes[unKilobotID] = 0;
-    m_vecKilobotCommitments[unKilobotID] = 0;
-    m_vecKilobotDistFromOpt[unKilobotID] = depth;
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
 }
@@ -126,15 +147,288 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     CSimulator &simulator = GetSimulator();
     m_random_seed = simulator.GetRandomSeed();
     /* Get the structure variables from the .argos file*/
-    TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"hierarchicStruct");
+    TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"bestN");
     /* Get dimensions and quality scaling factor*/
-    GetNodeAttribute(tHierarchicalStructNode,"depth",depth);
-    GetNodeAttribute(tHierarchicalStructNode,"branches",branches);
-    GetNodeAttribute(tHierarchicalStructNode,"k",k);
-    GetNodeAttribute(tHierarchicalStructNode,"control_gain",control_gain);
-    /* Get the coordinates for the top left and bottom right corners of the arena */
-    TL = CVector2(Real(this->GetSpace().GetArenaLimits().GetMin()[0]),Real(this->GetSpace().GetArenaLimits().GetMin()[1]));
-    BR = CVector2(Real(this->GetSpace().GetArenaLimits().GetMax()[0]),Real(this->GetSpace().GetArenaLimits().GetMax()[1]));
+    GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
+    GetNodeAttribute(tHierarchicalStructNode,"options",options);
+    GetNodeAttribute(tHierarchicalStructNode,"variation_time",variation_time);
+    GetNodeAttribute(tHierarchicalStructNode,"eta_init",eta_init);
+    GetNodeAttribute(tHierarchicalStructNode,"eta_stop",eta_stop);
+    std::string strInitDistr;
+    GetNodeAttribute(tHierarchicalStructNode, "init_distr", strInitDistr);
+    strInitDistr.erase(0, strInitDistr.find_first_not_of(" \t\r\n"));
+    strInitDistr.erase(strInitDistr.find_last_not_of(" \t\r\n") + 1);
+    bTargetRandomWorse = false;
+    if(!strInitDistr.empty() && strInitDistr.back() == 'r') {
+        bTargetRandomWorse = true;
+        strInitDistr.pop_back();
+    }
+    init_distr = std::stof(strInitDistr);
+    GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
+    GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"id_aware",m_unIdAware,static_cast<UInt8>(1));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"gossip",m_unGossip,static_cast<UInt8>(0));
+    GetNodeAttributeOrDefault(tHierarchicalStructNode,"priority_sampling_k",m_unPrioritySamplingK,static_cast<UInt8>(0));
+    GetNodeAttribute(tHierarchicalStructNode,"control",control);
+    GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
+    GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
+    std::string strOptionsDistribution = "random";
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "options_distribution",strOptionsDistribution, strOptionsDistribution);
+    g_strOptionsDistribution = NormalizeDistributionString(strOptionsDistribution);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "spatial_correlation", m_fSpatialCorrelation, static_cast<Real>(0.0));
+    eta_init = Min<Real>(1.0, Max<Real>(0.0, eta_init));
+    eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));
+    variation_time = Max<uint16_t>(0,variation_time);
+    options = Max<UInt8>(1, options);
+    rebroadcast = Min<UInt8>(31, rebroadcast);
+    msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
+    adaptive_comm = Min<UInt8>(1, adaptive_comm);
+    m_unIdAware = Min<UInt8>(1, m_unIdAware);
+    m_unGossip = Min<UInt8>(1, m_unGossip);
+    m_unPrioritySamplingK = Min<UInt8>(127, m_unPrioritySamplingK);
+    if(m_unIdAware == 0){
+        rebroadcast = 0;
+        msgs_n_hops = 0;
+        adaptive_comm = 0;
+    }
+    if(rebroadcast == 0){
+        adaptive_comm = 0;
+    }
+    voting_msgs = Min<UInt8>(127, voting_msgs);
+    control_parameter = Min<Real>(1.0, Max<Real>(0.0, control_parameter));
+    m_unControlMode = ControlModeFromString(control);
+    m_unControlParameterQ = static_cast<UInt8>(std::round(control_parameter * 127.0));
+    m_unEtaQ = static_cast<UInt8>(std::round(eta_init * 127.0));
+    m_unFloorSeed = static_cast<UInt16>(m_random_seed & 0x0FFF);
+    if(m_unFloorSeed == 0) {
+        m_unFloorSeed = 1;
+    }
+
+    UInt32 unGridRows = 10;
+    UInt32 unGridCols = 10;
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "grid_rows", unGridRows, unGridRows);
+    GetNodeAttributeOrDefault(tHierarchicalStructNode, "grid_cols", unGridCols, unGridCols);
+
+    m_cGridFloor.Rows = unGridRows;
+    m_cGridFloor.Cols = unGridCols;
+    if(m_cGridFloor.Rows > 0 && m_cGridFloor.Cols > 0) {
+        const CVector3& cArenaMin = this->GetSpace().GetArenaLimits().GetMin();
+        const CVector3& cArenaMax = this->GetSpace().GetArenaLimits().GetMax();
+        CVector3 cMin(cArenaMin.GetX() + 0.05, cArenaMin.GetY() + 0.05, cArenaMin.GetZ());
+        CVector3 cMax(cArenaMax.GetX() - 0.05, cArenaMax.GetY() - 0.05, cArenaMax.GetZ());
+        const Real fCellSizeX = (cMax.GetX() - cMin.GetX()) / m_cGridFloor.Cols;
+        const Real fCellSizeY = (cMax.GetY() - cMin.GetY()) / m_cGridFloor.Rows;
+
+        m_cGridFloor.XMin = cMin.GetX();
+        m_cGridFloor.YMin = cMin.GetY();
+        m_cGridFloor.InvCellSizeX = (fCellSizeX > 0 ? 1.0 / fCellSizeX : 0);
+        m_cGridFloor.InvCellSizeY = (fCellSizeY > 0 ? 1.0 / fCellSizeY : 0);
+        m_cGridFloor.ColorId.assign(m_cGridFloor.Rows * m_cGridFloor.Cols, 1);
+        SetupFloorColorMap();
+
+        const Real fGpsMaxX = cMax.GetX() - cMin.GetX();
+        const Real fGpsMaxY = cMax.GetY() - cMin.GetY();
+        const SInt32 nGpsMaxXQ = static_cast<SInt32>(std::round(fGpsMaxX * 100.0));
+        const SInt32 nGpsMaxYQ = static_cast<SInt32>(std::round(fGpsMaxY * 100.0));
+        m_unGpsMaxXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxXQ)));
+        m_unGpsMaxYQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxYQ)));
+    }
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SetupFloorColorMap() {
+    const UInt32 unTotalCells = m_cGridFloor.Rows * m_cGridFloor.Cols;
+    if(unTotalCells == 0) {
+        return;
+    }
+
+    m_cGridFloor.ColorId.assign(unTotalCells, 1); // 1 = best option
+
+    const UInt32 unWorseCells =
+        static_cast<UInt32>((static_cast<UInt32>(m_unEtaQ) * unTotalCells + 63) / 127);
+    if(unWorseCells == 0 || options == 1) {
+        return;
+    }
+
+    const std::string strDistribution = NormalizeDistributionString(g_strOptionsDistribution);
+    const bool bOrdered = (strDistribution == "ordered");
+    const UInt8 unWorseOptions = options - 1;
+
+    if(bOrdered && options >= 2 && options <= 5) {
+        const UInt32 unRows = m_cGridFloor.Rows;
+        const UInt32 unCols = m_cGridFloor.Cols;
+        const UInt32 unBestCells = unTotalCells - unWorseCells;
+
+        auto SetRegion = [&](UInt32 unRowStart, UInt32 unRowEnd,
+                             UInt32 unColStart, UInt32 unColEnd,
+                             UInt8 unColorId) {
+            if(unRowStart >= unRowEnd || unColStart >= unColEnd) {
+                return;
+            }
+            for(UInt32 r = unRowStart; r < unRowEnd; ++r) {
+                const UInt32 unBase = r * unCols;
+                for(UInt32 c = unColStart; c < unColEnd; ++c) {
+                    m_cGridFloor.ColorId[unBase + c] = unColorId;
+                }
+            }
+        };
+
+        auto BestColsFromCells = [&](UInt32 unCells, UInt32 unRowsCount, UInt32 unColsCount) {
+            if(unRowsCount == 0) {
+                return static_cast<UInt32>(0);
+            }
+            const double fCols = static_cast<double>(unCells) / static_cast<double>(unRowsCount);
+            UInt32 unColsBest = static_cast<UInt32>(std::round(fCols));
+            if(unCells > 0 && unColsBest == 0) {
+                unColsBest = 1;
+            }
+            if(unColsBest > unColsCount) {
+                unColsBest = unColsCount;
+            }
+            return unColsBest;
+        };
+
+        if(options == 2) {
+            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
+            SetRegion(0, unRows, unBestCols, unCols, 2);
+            return;
+        }
+
+        if(options == 3) {
+            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
+            const UInt32 unLeftCols = (unCols - unBestCols) / 2;
+            const UInt32 unCenterStart = unLeftCols;
+            const UInt32 unCenterEnd = unLeftCols + unBestCols;
+            SetRegion(0, unRows, 0, unCenterStart, 2);
+            SetRegion(0, unRows, unCenterEnd, unCols, 3);
+            return;
+        }
+
+        if(options == 4) {
+            const double fBestRatio =
+                (unTotalCells > 0) ? static_cast<double>(unBestCells) / static_cast<double>(unTotalCells) : 0.0;
+            const double fSplitRatio = std::sqrt(Max<Real>(0.0, Min<Real>(1.0, fBestRatio)));
+            UInt32 unBestCols = static_cast<UInt32>(std::round(fSplitRatio * unCols));
+            UInt32 unBestRows = static_cast<UInt32>(std::round(fSplitRatio * unRows));
+            if(unBestCells > 0) {
+                if(unBestCols == 0) unBestCols = 1;
+                if(unBestRows == 0) unBestRows = 1;
+            }
+            if(unBestCols > unCols) unBestCols = unCols;
+            if(unBestRows > unRows) unBestRows = unRows;
+            const UInt32 unTopStart = (unBestRows > unRows) ? 0 : (unRows - unBestRows);
+            SetRegion(unTopStart, unRows, 0, unBestCols, 1);
+            SetRegion(unTopStart, unRows, unBestCols, unCols, 2);
+            SetRegion(0, unTopStart, 0, unBestCols, 3);
+            SetRegion(0, unTopStart, unBestCols, unCols, 4);
+            return;
+        }
+
+        if(options == 5) {
+            UInt32 unCenterCols = BestColsFromCells(unBestCells, unRows, unCols);
+            UInt32 unSideCols = (unCols > unCenterCols) ? (unCols - unCenterCols) / 2 : 0;
+            unCenterCols = (unCols > 2 * unSideCols) ? (unCols - 2 * unSideCols) : 0;
+            const UInt32 unLeftEnd = unSideCols;
+            const UInt32 unRightStart = (unCols >= unSideCols) ? (unCols - unSideCols) : unCols;
+            const UInt32 unBottomRows = unRows / 2;
+            const UInt32 unTopStart = unRows - (unRows - unBottomRows);
+            SetRegion(unTopStart, unRows, 0, unLeftEnd, 2);
+            SetRegion(0, unTopStart, 0, unLeftEnd, 3);
+            SetRegion(unTopStart, unRows, unRightStart, unCols, 4);
+            SetRegion(0, unTopStart, unRightStart, unCols, 5);
+            return;
+        }
+    }
+
+    const UInt32 unBaseCount = unWorseCells / unWorseOptions;
+    const UInt32 unRemainder = unWorseCells % unWorseOptions;
+    UInt32 unCursor = 0;
+    for(UInt8 unOpt = 0; unOpt < unWorseOptions; ++unOpt) {
+        const UInt32 unCellsForThisOption = unBaseCount + (unOpt < unRemainder ? 1 : 0);
+        const UInt8 unColorId = static_cast<UInt8>((unOpt % 254) + 2);
+        for(UInt32 j = 0; j < unCellsForThisOption && unCursor < unWorseCells; ++j, ++unCursor) {
+            m_cGridFloor.ColorId[unCursor] = unColorId;
+        }
+    }
+
+    /* Assegnazione delle posizioni: Casuale vs Macchie (Cluster) */
+    UInt32 unState = m_unFloorSeed;
+
+    if (m_fSpatialCorrelation == 0) {
+        /* Comportamento originale: distribuzione completamente casuale */
+        for(UInt32 i = unTotalCells - 1; i > 0; --i) {
+            const UInt32 j = NextXorShift32(unState) % (i + 1);
+            std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
+        }
+    } else {
+        /* Nuovo comportamento: generazione di "macchie" continue con numeri reali */
+        std::vector<UInt8> vecExactColors = m_cGridFloor.ColorId;
+        std::vector<double> vecNoise(unTotalCells);
+
+        for(UInt32 i = 0; i < unTotalCells; ++i) {
+             vecNoise[i] = static_cast<double>(NextXorShift32(unState) % 10000) / 10000.0;
+        }
+
+        /* Creiamo una funzione di supporto (Lambda) per fare 1 singolo passaggio di sfumatura */
+        auto ApplySingleSmoothingPass = [&](const std::vector<double>& inputNoise) {
+            std::vector<double> outputNoise(unTotalCells, 0.0);
+            for(UInt32 r = 0; r < m_cGridFloor.Rows; ++r) {
+                for(UInt32 c = 0; c < m_cGridFloor.Cols; ++c) {
+                    double fSum = 0.0;
+                    int nCount = 0;
+                    for(int dr = -1; dr <= 1; ++dr) {
+                        for(int dc = -1; dc <= 1; ++dc) {
+                            int nr = r + dr;
+                            int nc = c + dc;
+                            if(nr >= 0 && nr < m_cGridFloor.Rows && nc >= 0 && nc < m_cGridFloor.Cols) {
+                                fSum += inputNoise[nr * m_cGridFloor.Cols + nc];
+                                nCount++;
+                            }
+                        }
+                    }
+                    outputNoise[r * m_cGridFloor.Cols + c] = fSum / nCount;
+                }
+            }
+            return outputNoise;
+        };
+
+        /* Dividiamo il parametro reale in parte intera e parte frazionaria */
+        UInt32 unFullIterations = static_cast<UInt32>(std::floor(m_fSpatialCorrelation));
+        double fFraction = static_cast<double>(m_fSpatialCorrelation - unFullIterations);
+
+        std::vector<double> vecSmoothedNoise = vecNoise;
+
+        /* 1. Applichiamo le iterazioni intere (es. 2 volte se correlation è 2.8) */
+        for(UInt32 iter = 0; iter < unFullIterations; ++iter) {
+            vecSmoothedNoise = ApplySingleSmoothingPass(vecSmoothedNoise);
+        }
+
+        /* 2. Se c'è un resto decimale, facciamo l'interpolazione! */
+        if(fFraction > 0.0) {
+            std::vector<double> vecNextSmoothed = ApplySingleSmoothingPass(vecSmoothedNoise);
+            for(UInt32 i = 0; i < unTotalCells; ++i) {
+                // Mescoliamo proporzionalmente i valori
+                vecSmoothedNoise[i] = (vecSmoothedNoise[i] * (1.0 - fFraction)) + (vecNextSmoothed[i] * fFraction);
+            }
+        }
+
+        /* 3. Ordiniamo e assegniamo (esattamente come prima) */
+        std::vector<UInt32> vecIndices(unTotalCells);
+        for(UInt32 i = 0; i < unTotalCells; ++i) vecIndices[i] = i;
+
+        std::sort(vecIndices.begin(), vecIndices.end(), [&](UInt32 a, UInt32 b) {
+            return vecSmoothedNoise[a] < vecSmoothedNoise[b];
+        });
+
+        std::sort(vecExactColors.begin(), vecExactColors.end());
+
+        for(UInt32 i = 0; i < unTotalCells; ++i) {
+            m_cGridFloor.ColorId[vecIndices[i]] = vecExactColors[i];
+        }
+    }
 }
 
 /****************************************/
@@ -160,13 +454,6 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
-    CColor kilo_color = GetKilobotLedColor(c_kilobot_entity);
-    if(m_vecKilobotMsgType[unKilobotID] == 0 && m_vecKilobotAskLevel[unKilobotID]>=0 && kilo_color!=CColor::BLACK){
-        m_vecKilobotNodes[unKilobotID] = vh_floor->derive_node_id(m_vecKilobotAskLevel[unKilobotID],m_vecKilobotPositions[unKilobotID]);
-        if (kilo_color == CColor::RED) m_vecKilobotCommitments[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_parent()->get_id();
-        else if (kilo_color == CColor::BLUE) m_vecKilobotCommitments[unKilobotID] = m_vecKilobotNodes[unKilobotID];
-        m_vecKilobotDistFromOpt[unKilobotID] = vh_floor->get_node(m_vecKilobotNodes[unKilobotID])->get_distance_from_opt();
-    }
 }
 
 /****************************************/
@@ -177,37 +464,42 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     if (m_fTimeInSeconds - m_vecLastTimeMessaged[unKilobotID]< m_fMinTimeBetweenTwoMsg) return; // if the time is too short, the kilobot cannot receive a message
     for (UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i]=0; // clear all the variables used for messaging
-    if(!start_experiment){
-        /* Send init information for environment representation*/
-        switch (m_vecStart_experiment[unKilobotID]){
+    switch (start_experiment){
         case 0:
-            m_vecStart_experiment[unKilobotID]=1;
-            SendStructInitInformation(c_kilobot_entity);
-            break;
-        case 1:
-            m_vecStart_experiment[unKilobotID]=2;
-            SendInformationGPS(c_kilobot_entity,0);
-            break;
-        }
-        start_experiment=true;
-        for(UInt8 i=0;i<m_vecStart_experiment.size();i++){
-            if(m_vecStart_experiment[i]!=2){
-                start_experiment=false;
-                break;
+            /* Send init information for environment representation*/
+            switch (m_vecStart_experiment[unKilobotID]){
+                case 0:
+                    m_vecStart_experiment[unKilobotID]=1;
+                    SendStructInitInformation(c_kilobot_entity);
+                    break;
+                case 1:
+                    m_vecStart_experiment[unKilobotID]=2;
+                    SendBufferInitInformation(c_kilobot_entity);
+                    break;
+                case 2:
+                    m_vecStart_experiment[unKilobotID]=3;
+                    SendBoundsInitInformation(c_kilobot_entity);
+                    break;
+                case 3:
+                    m_vecStart_experiment[unKilobotID]=4;
+                    SendStateInformation(c_kilobot_entity);
+                    break;
+                case 4:
+                    m_vecStart_experiment[unKilobotID]=5;
+                    SendInformationGPS(c_kilobot_entity);
+                    break;
             }
-        }
-    }
-    else{
-        if(m_vecKilobotMsgType[unKilobotID] == 0){
-            SendInformationGPS(c_kilobot_entity,1);
-            m_vecKilobotMsgType[unKilobotID] = 1;
-            if(m_vecKilobotAskLevel[unKilobotID] < depth) m_vecKilobotAskLevel[unKilobotID]++;
-            else m_vecKilobotAskLevel[unKilobotID] = 0;
-        }
-        else{
-            AskForLevel(c_kilobot_entity,m_vecKilobotAskLevel[unKilobotID]);
-            m_vecKilobotMsgType[unKilobotID] = 0;
-        }
+            start_experiment=1;
+            for(size_t i = 0; i < m_vecStart_experiment.size(); ++i){
+                if(m_vecStart_experiment[i]!=5){
+                    start_experiment=0;
+                    break;
+                }
+            }
+            break;
+        default:
+            SendInformationGPS(c_kilobot_entity);
+            break;
     }
 }
 
@@ -218,120 +510,130 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
     m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = 0;
-    tKilobotMessage.m_sID = control_gain << 7 | ((UInt8)(k*100));
-    tKilobotMessage.m_sData = (vh_floor->get_best_leaf()->get_id()-1) << 4;
-    tKilobotMessage.m_sData = tKilobotMessage.m_sData | (depth-1) << 2 | (branches-1);
-    // Fill the kilobot message by the ARK-type messages
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3] = ((tMessage.m_sData >> 4) << 2) | tMessage.m_sType;
-        m_tMessages[unKilobotID].data[1+i*3] = tMessage.m_sID & 0b01111111;
-        m_tMessages[unKilobotID].data[2+i*3] = (tMessage.m_sID >> 7 ) << 4;
-        m_tMessages[unKilobotID].data[2+i*3] = m_tMessages[unKilobotID].data[2+i*3] | ((uint8_t)tMessage.m_sData & 0b00001111);
-    }
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = msgs_timeout & 0x3FFFu;
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    const UInt8 unPacketData = static_cast<UInt8>(((adaptive_comm & 0x01u) << 5) | (rebroadcast & 0x1Fu));
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (unPacketData & 0x3Fu));
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
 /****************************************/
 /****************************************/
 
-void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity, const UInt8 Type){
+void CBestN_ALF::SendBufferInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
+    m_tMessages[unKilobotID].type = 0;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = static_cast<UInt16>(
+        (m_unPrioritySamplingK & 0x7Fu) |
+        ((m_unIdAware & 0x01u) << 7) |
+        ((m_unGossip & 0x01u) << 8));
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(2u << 6);
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
+
+    m_tMessages[unKilobotID].type = 0;
+    const UInt16 unPayload = static_cast<UInt16>(((m_unGpsMaxXQ & 0x7Fu) << 7) | (m_unGpsMaxYQ & 0x7Fu));
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(3u << 6);
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
-    m_tMessages[unKilobotID].type = Type;
-    tKilobotMessage.m_sType = 1;
-    UInt8 angle = (UInt8)((m_vecKilobotOrientations[unKilobotID].GetValue()) * 0.0417);
-    UInt8 valX = (UInt8)((m_vecKilobotPositions[unKilobotID].GetX() + this->GetSpace().GetArenaLimits().GetMax()[0]) * 100)*.5;
-    UInt8 valY = (UInt8)((m_vecKilobotPositions[unKilobotID].GetY() + this->GetSpace().GetArenaLimits().GetMax()[1]) * 100)*.5;   
-    tKilobotMessage.m_sType = (valY & 0b00000011) << 2 | tKilobotMessage.m_sType;
-    tKilobotMessage.m_sID = unKilobotID << 4 | angle;
-    tKilobotMessage.m_sData = valX << 4 | valY >> 2;
-    // Prepare an empty ARK-type message to fill the gap in the full kilobot message
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3] = ((tMessage.m_sID >> 4) << 2) | (tMessage.m_sType & 0b0011);
-        m_tMessages[unKilobotID].data[1+i*3] = ((tMessage.m_sData >> 4) << 2) | ((tMessage.m_sID & 0b0000001111) >> 2);
-        m_tMessages[unKilobotID].data[2+i*3] = ((tMessage.m_sData & 0b0000001111) << 4) | (tMessage.m_sType & 0b1100) | (tMessage.m_sID & 0b0000000011);
+    m_tMessages[unKilobotID].type = 1;
+    for(UInt8 i = 0; i < 9; ++i) {
+        m_tMessages[unKilobotID].data[i] = 0;
     }
+
+    const Real fAngleDeg = m_vecKilobotOrientations[unKilobotID].GetValue();
+    UInt8 unAngleQ = static_cast<UInt8>(std::floor(fAngleDeg * (256.0 / 360.0))) & 0xFFu;
+    const Real fPosXInRobotFrame = m_vecKilobotPositions[unKilobotID].GetX() - m_cGridFloor.XMin;
+    const Real fPosYInRobotFrame = m_vecKilobotPositions[unKilobotID].GetY() - m_cGridFloor.YMin;
+    const SInt32 nXQ = static_cast<SInt32>(std::round(fPosXInRobotFrame * 50.0));
+    const SInt32 nYQ = static_cast<SInt32>(std::round(fPosYInRobotFrame * 50.0));
+    UInt8 unXQ = static_cast<UInt8>(Min<SInt32>(63, Max<SInt32>(0, nXQ)));
+    UInt8 unYQ = static_cast<UInt8>(Min<SInt32>(63, Max<SInt32>(0, nYQ)));
+
+    UInt8 unColorId = m_cGridFloor.GetColorIdAt(m_vecKilobotPositions[unKilobotID]);
+    UInt8 unColorQ = 0;
+    if(unColorId > 0 && unColorId < 255) {
+        unColorQ = static_cast<UInt8>((unColorId - 1) % 6);
+    }
+
+    const UInt32 unPayload =
+        (static_cast<UInt32>(unXQ) & 0x3Fu) |
+        ((static_cast<UInt32>(unYQ) & 0x3Fu) << 6) |
+        ((static_cast<UInt32>(unAngleQ) & 0xFFu) << 12) |
+        ((static_cast<UInt32>(unColorQ) & 0x07u) << 20);
+
+    /* Individual GPS packet: MSG_A in bit0 + 23-bit payload across 3 bytes. */
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 16) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload >> 8) & 0xFFu);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(unPayload & 0xFFu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 
 /****************************************/
 /****************************************/
-
-void CBestN_ALF::AskForLevel(CKilobotEntity &c_kilobot_entity,const UInt8 Level){
-    /* Get the kilobot ID */
+void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
-    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
-    /* Create ARK-type messages variables */
-    m_tALFKilobotMessage tKilobotMessage,tEmptyMessage,tMessage;
-    m_tMessages[unKilobotID].type = 0;
-    tKilobotMessage.m_sType = 2;
-    tKilobotMessage.m_sID = Level;
-    tKilobotMessage.m_sData = 0;
+    m_vecLastTimeMessaged[unKilobotID] = m_fTimeInSeconds;
 
-    // Fill the kilobot message by the ARK-type messages
-    tEmptyMessage.m_sID = 1023;
-    tEmptyMessage.m_sType = 0;
-    tEmptyMessage.m_sData = 0;
-    // Fill the kilobot message by the ARK-type messages
-    for (UInt8 i = 0; i < 3; ++i){
-        if( i == 0){
-            tMessage = tKilobotMessage;
-        }
-        else{
-            tMessage = tEmptyMessage;
-        }
-        m_tMessages[unKilobotID].data[i*3] = tMessage.m_sID << 2 | tMessage.m_sType;
-    }
+    m_tMessages[unKilobotID].type = 1;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+
+    const UInt8 unKilobotId7b = static_cast<UInt8>(unKilobotID & 0x7Fu);
+    const UInt16 unPayloadHops = static_cast<UInt16>(msgs_n_hops & 0x1Fu);
+    
+    const UInt16 unPayloadControl = static_cast<UInt16>(
+        ((m_unControlMode & 0x03u) << 14) |
+        ((voting_msgs & 0x7Fu) << 7) |
+        (m_vecKilobotState[unKilobotID] & 0x7Fu));
+
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>(unPayloadHops >> 8);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(unPayloadHops & 0xFFu);
+
+    m_tMessages[unKilobotID].data[3] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
+    m_tMessages[unKilobotID].data[4] = static_cast<UInt8>(unPayloadControl >> 8);
+    m_tMessages[unKilobotID].data[5] = static_cast<UInt8>(unPayloadControl & 0xFFu);
+
+    m_tMessages[unKilobotID].data[6] = static_cast<UInt8>((unKilobotId7b << 1) | 0x01u);
+    m_tMessages[unKilobotID].data[7] = 0;
+    m_tMessages[unKilobotID].data[8] = static_cast<UInt8>(m_unControlParameterQ & 0x7Fu);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
-}
-
-/****************************************/
-/****************************************/
-
-Real CBestN_ALF::abs_distance(const CVector2 a, const CVector2 b){
-    Real x = a.GetX()-b.GetX();
-    x = x * x;
-    Real y = a.GetY()-b.GetY();
-    y = y * y;
-    return sqrt(x + y);
 }
 
 /****************************************/
 /****************************************/
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
-    CColor color=CColor::WHITE;
-    Node *leaf = vh_floor->get_best_leaf();
-    if(leaf->isin(vec_position_on_plane)) color=CColor::GREEN;
-    if(abs(vec_position_on_plane.GetX())>this->GetSpace().GetArenaLimits().GetMax()[0]-0.05 || abs(vec_position_on_plane.GetY())>this->GetSpace().GetArenaLimits().GetMax()[1]-0.05) color=CColor::BLACK;
-    return color;
+    if(abs(vec_position_on_plane.GetX()) > this->GetSpace().GetArenaLimits().GetMax()[0] - 0.05 ||
+       abs(vec_position_on_plane.GetY()) > this->GetSpace().GetArenaLimits().GetMax()[1] - 0.05) {
+        return CColor::BLACK;
+    }
+    return m_cGridFloor.GetColorAt(vec_position_on_plane);
 }
 
 REGISTER_LOOP_FUNCTIONS(CBestN_ALF, "ALF_BestN_loop_function")

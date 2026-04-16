@@ -1,29 +1,18 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
+
 #ifndef BESTN_H
 #define BESTN_H
 
+#include <stdint.h>
 #include "kilolib.h"
 #include "tree_structure.c"
-#include "message_structure.c"
 #include "quorum_structure.c"
 #include "distribution_functions.c"
 
 #define PI 3.14159265358979323846
-/* used only for noisy data generation */
-typedef enum{
-    MAX_UTILITY = 10,
-    NOISE = 1
-}signal;
-
 FILE *fp;
-
-/* divided by 10 */
-typedef enum{
-    ARENA_X = 10,
-    ARENA_Y = 10
-}arena_size;
 
 /* Enum for messages type */
 typedef enum{
@@ -34,13 +23,20 @@ typedef enum{
 }received_message_type;
 
 typedef enum{
+  f_static = 0,
+  f_linear = 1,
+  f_sigmoid = 2,
+  f_polynomial = 3
+}control_type;
+
+typedef enum{
   MSG_A = 0,
   MSG_B = 1,
   MSG_C = 2,
   MSG_D = 3
 }message_type;
-/* Enum for motion */
 
+/* Enum for motion */
 typedef enum{
     FORWARD = 0,
     TURN_LEFT = 1,
@@ -54,10 +50,8 @@ typedef enum{
     true = 1,
 }bool;
 
-/* struct for the robot states */
-typedef struct state{
-    uint8_t previous_node,current_node,commitment_node,current_level;
-}state_t;
+uint64_t delta_elapsed = 0;
+uint64_t ticks_elapsed = 0;
 
 /* struct for the robot position */
 typedef struct position{
@@ -75,7 +69,6 @@ uint32_t expiring_dist;
 uint8_t avoid_tmmts;
 
 float goal_ticks_sec = TICKS_PER_SEC * 1.3;
-float quorum_ticks_sec = TICKS_PER_SEC * 2;
 
 /* position and angle given from ARK */
 position_t gps_position={0,0};
@@ -83,7 +76,8 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 /* current state */
-state_t my_state={0,0,0,0};
+uint8_t my_state;
+uint8_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -95,11 +89,19 @@ uint16_t sa_payload = 0;
 
 bool init_received_A = false;
 bool init_received_B = false;
+bool init_received_C = false;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
-bool last_sensing = false;
+const uint16_t decision_ticks = TICKS_PER_SEC * 5;
+uint32_t last_decision_ticks = 0;
+uint8_t broadcasting_flag = 0;
+uint8_t adaptive_comm = 0;
+uint32_t buff_ticks_sec = TICKS_PER_SEC * .2;
+uint32_t buff_ticks = 0;
+uint8_t msg_n_hops_rnd = 0;
+uint64_t buffer_update_rng = 0;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
@@ -107,48 +109,65 @@ message_t my_message;
 
 /* lists for decision handling */
 uint8_t received_id;
-uint8_t received_level;
 uint8_t received_committed;
-uint8_t received_leaf;
-float received_utility;
-
-uint8_t control_gain;
-float control_parameter;
-float gain_h;
-float gain_k;
-
-/* used only for noisy data generation */
-uint8_t last_sample_id = 0;
-uint8_t last_sample_level;
-uint8_t last_sample_committed;
-float last_sample_utility = -1;
 
 /* map of the environment */
-tree_a *the_tree = NULL;
-tree_a **tree_array;
-uint8_t leafs_id[16];
+arena_a *the_arena = NULL;
 
-message_a *messages_list = NULL;
-message_a **messages_array;
-
+uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
+#define FIFO_BUFFER_SIZE 128
+#define FIFO_MSG_SIZE 128
+typedef struct {
+    uint8_t agent_id;
+    uint8_t msg_n_hops;
+    uint8_t agent_state;
+} fifo_msg_t;
 
+typedef struct {
+    fifo_msg_t buffer[FIFO_MSG_SIZE];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+} fifo_msg_buffer_t;
+
+void fifo_msg_init(fifo_msg_buffer_t* fifo);
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
+void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state);
+
+fifo_msg_buffer_t rebroadcast_fifo;
+uint8_t vote_fifo_ids[FIFO_BUFFER_SIZE];
+uint8_t vote_fifo_states[FIFO_BUFFER_SIZE];
+uint8_t vote_fifo_head = 0;
+uint8_t vote_fifo_tail = 0;
+uint8_t vote_fifo_count = 0;
+
+// uint8_t quorum_reached = 0;
+char log_title[30];
 uint8_t led = RGB(0,0,0);
-/*-------------------------------------------------------------------*/
-/* Function for translating the relative ID of a leaf in the true ID */
-/*-------------------------------------------------------------------*/
-uint8_t get_leaf_vec_id_in(const uint8_t Leaf_id);
 
+control_type control_mode = f_static;
+uint8_t voting_msgs = 0;
+uint8_t control_parameter_q = 0;
+float control_parameter = 0.0f;
+float control_value = 0.0f;
+float quorum_value = 0.0f;
+bool init_control_received = false;
+uint8_t gps_max_x_q = 105;
+uint8_t gps_max_y_q = 105;
+uint8_t gps_floor_color = 0;
+
+void decision();
 /*-------------------------------------------------------------------*/
 /*              Function for setting the motor speed                 */
 /*-------------------------------------------------------------------*/
 void set_motion( motion_t new_motion_type);
-
-/*-------------------------------------------------------------------*/
-/*            Check if a given point is in a given node              */
-/*-------------------------------------------------------------------*/
-bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node);
 
 /*-------------------------------------------------------------------*/
 /*              Send current kb status to the swarm                  */
@@ -161,25 +180,24 @@ message_t *message_tx();
 void message_tx_success();
 
 /*-------------------------------------------------------------------*/
-/*                 Function to broadcast a message                   */
+/*                      Broadcasting functions                       */
 /*-------------------------------------------------------------------*/
+void talk();
+
 void broadcast();
 
-/*-------------------------------------------------------------------*/
-/*           Bunch of funtions for handling the quorum               */
-/*-------------------------------------------------------------------*/
-uint8_t check_quorum_trigger(quorum_a **Array[]);
+void rnd_rebroadcast();
 
-void check_quorum(quorum_a **Array[]);
-
-void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const uint8_t Msg_switch);
+void compute_msg_hops();
 
 /*-----------------------------------------------------------------------------------*/
 /*          sample a value, update the map, decide if change residence node          */
 /*-----------------------------------------------------------------------------------*/
-void sample_and_decide(tree_a **leaf);
 
 float random_in_range(float min, float max);
+float compute_quorum_value();
+float compute_r_threshold(float quorum_value);
+int majority_vote();
 
 /*-----------------------------------------------------------------------------------*/
 /* Function implementing the uncorrelated random walk with the random waypoint model */
@@ -192,14 +210,9 @@ void select_new_point(bool force);
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
 
 /*-------------------------------------------------------------------*/
-/*         derive the agent position from the data received          */
-/*-------------------------------------------------------------------*/
-uint8_t derive_agent_node(const uint8_t Received_committed, const uint8_t Received_leaf, const uint8_t Received_level);
-
-/*-------------------------------------------------------------------*/
 /*                   Check and save incoming data                    */
 /*-------------------------------------------------------------------*/
-void update_messages();
+void update_messages(const uint8_t Msg_n_hops);
 
 /*-------------------------------------------------------------------*/
 /*                      Parse smart messages                         */
@@ -207,6 +220,8 @@ void update_messages();
 void parse_kilo_message(uint8_t data[9]);
 
 void parse_smart_arena_broadcast(uint8_t data[9]);
+uint8_t led_from_color_value(uint8_t color_value);
+void update_debug_led();
 
 /*-------------------------------------------------------------------*/
 /*              Callback function for message reception              */
@@ -239,5 +254,10 @@ void loop();
 /*                             main                                  */
 /*-------------------------------------------------------------------*/
 uint8_t main();
+
+/*-------------------------------------------------------------------*/
+/*                             exit                                  */
+/*-------------------------------------------------------------------*/
+void deallocate_memory();
 
 #endif

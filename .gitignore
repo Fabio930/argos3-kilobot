@@ -6,4 +6,9 @@ build
 **/*RES_*
 **/*res_*
 **/*results_*
+**/*_processed*
 **/*cache*
+*_data*/*
+*diagnostics_*/*
+*.tar.xz
+*_images*

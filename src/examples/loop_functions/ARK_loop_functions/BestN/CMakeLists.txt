@@ -3,10 +3,6 @@ include_directories(argos3/plugins/robot/kilobot/control_interface argos3/plugin
 add_library(ALF_BestN_loop_function MODULE
   BestN_ALF.h
   BestN_ALF.cpp
-  node.h
-  node.cpp
-  hierarchicFloor.h
-  hierarchicFloor.cpp
 )
 
 target_link_libraries(ALF_BestN_loop_function

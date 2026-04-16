@@ -31,7 +31,9 @@ cmake_policy(VERSION 3.8.0)
 if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 endif(POLICY CMP0042)
-
+if(POLICY CMP0072)
+  cmake_policy(SET CMP0072 NEW)
+endif(POLICY CMP0072)
 #
 # Include path points to the base source dir
 #

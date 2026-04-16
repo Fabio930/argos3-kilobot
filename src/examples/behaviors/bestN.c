@@ -1,10 +1,140 @@
 /* Kilobot control software for the simple ALF experment : clustering
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
  */
-/* TODO fare in modo che Argos sappia quali sono i punti scelti da i kilobot...usano un segnale luminoso quando nel punto scelto*/
 #include "bestN.h"
-uint8_t get_leaf_vec_id_in(const uint8_t Leaf_id){
-    return leafs_id[Leaf_id];
+
+
+static uint8_t buffer_skip_prefix(){
+    if(priority_sampling_k == 0){
+        return 0;
+    }
+    if(priority_sampling_k >= num_quorum_items){
+        return num_quorum_items;
+    }
+    return priority_sampling_k;
+}
+
+static uint8_t eligible_quorum_items(){
+    uint8_t start = buffer_skip_prefix();
+    return (num_quorum_items > start) ? (num_quorum_items - start) : 0;
+}
+
+static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
+    for(uint8_t i = 0; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
+            return i;
+        }
+    }
+    return 0b1111111111111111;
+}
+
+float random_in_range(float min, float max){
+    float r = (float)rand_hard() / 255.0;
+    return min + (r*(max-min));
+}
+
+static float clamp01(float value){
+    if(value < 0.0f){
+        return 0.0f;
+    }
+    if(value > 1.0f){
+        return 1.0f;
+    }
+    return value;
+}
+
+void fifo_msg_init(fifo_msg_buffer_t* fifo) {
+    fifo->head = 0;
+    fifo->tail = 0;
+    fifo->count = 0;
+}
+
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
+    for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
+        if (fifo->buffer[idx].agent_id == agent_id) return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
+    }
+    if (fifo->count >= FIFO_MSG_SIZE) {
+        fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
+        fifo->count--;
+    }
+    fifo->buffer[fifo->tail].agent_id = agent_id;
+    fifo->buffer[fifo->tail].msg_n_hops = Msg_n_hops;
+    fifo->buffer[fifo->tail].agent_state = agent_state;
+    fifo->tail = (fifo->tail + 1) % FIFO_MSG_SIZE;
+    fifo->count++;
+    return 1;
+}
+
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id) {
+    if (fifo->count == 0) return 0;
+    uint8_t idx = fifo->head;
+    for (uint8_t i = 0; i < fifo->count; ++i) {
+        if (fifo->buffer[idx].agent_id == agent_id) {
+            for (uint8_t j = i; j < fifo->count - 1; ++j) {
+                uint8_t from = (fifo->head + j + 1) % FIFO_MSG_SIZE;
+                uint8_t to = (fifo->head + j) % FIFO_MSG_SIZE;
+                fifo->buffer[to] = fifo->buffer[from];
+            }
+            fifo->tail = (fifo->tail == 0) ? FIFO_MSG_SIZE - 1 : fifo->tail - 1;
+            fifo->count--;
+            return 1;
+        }
+        idx = (idx + 1) % FIFO_MSG_SIZE;
+    }
+    return 0;
+}
+
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
+    if (fifo->count == 0) return 0;
+    uint8_t idx = fifo->head;
+    uint8_t found = 0;
+    for (uint8_t i = 0; i < fifo->count; ++i) {
+        if (fifo->buffer[idx].agent_id == agent_id) {
+            fifo->buffer[idx].msg_n_hops = Msg_n_hops;
+            fifo->buffer[idx].agent_state = agent_state;
+            fifo_msg_remove(fifo, agent_id);
+            found = 1;
+            break;
+        }
+        idx = (idx + 1) % FIFO_MSG_SIZE;
+    }
+    if (!found) return 0;
+    return fifo_msg_enqueue(fifo, agent_id, Msg_n_hops, agent_state);
+}
+
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id) {
+    if (fifo->count == 0) return 0;
+    *agent_id = fifo->buffer[fifo->head].agent_id;
+    return 1;
+}
+
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo) {
+    if (fifo->count == 0) return 0;
+    fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
+    fifo->count--;
+    return 1;
+}
+
+static uint8_t sat_inc_u8(const uint8_t value){
+    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
+}
+
+static void update_arena_from_received_bounds(){
+    if(the_arena == NULL){
+        return;
+    }
+    the_arena->tlX = 0.0f;
+    the_arena->brX = gps_max_x_q * 0.01f;
+    the_arena->tlY = 0.0f;
+    the_arena->brY = gps_max_y_q * 0.01f;
+}
+
+static uint32_t received_arena_diagonal_cm(){
+    float dx_cm = (float)gps_max_x_q;
+    float dy_cm = (float)gps_max_y_q;
+    if(dx_cm < 0.0f) dx_cm = 0.0f;
+    if(dy_cm < 0.0f) dy_cm = 0.0f;
+    return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
 }
 
 void set_motion( motion_t new_motion_type){
@@ -30,194 +160,294 @@ void set_motion( motion_t new_motion_type){
     }
 }
 
-bool pos_isin_node(const float PositionX,const float PositionY, tree_a **Node){
-    if(((*Node) != NULL) && (PositionX >= (*Node)->tlX && PositionX <= (*Node)->brX)&&(PositionY >= (*Node)->tlY && PositionY <= (*Node)->brY)) return true;
-    return false;
-}
-
 message_t *message_tx(){    
     if (sending_msg) return &my_message;
     return 0;
 }
 
 void message_tx_success(){
+    my_message.data[0] = 0;
+    my_message.data[1] = 0;
+    my_message.data[2] = 0;
     sending_msg = false;
 }
 
-void broadcast(){
+void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
-        sa_type = 0;
-        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-        int8_t utility_to_send;
-        utility_to_send = (int8_t)(last_sample_utility*10);
-        my_message.data[0] = kilo_uid << 2 | sa_type;
-        my_message.data[1] = last_sample_committed << 7 | utility_to_send;
-        my_message.data[2] = last_sample_id << 4 | last_sample_level << 2;
-        my_message.crc = message_crc(&my_message);
         last_broadcast_ticks = kilo_ticks;
+        float p;
+        switch(broadcasting_flag){
+            case 0:
+                broadcast();
+                break;
+            case 1:
+                p = random_in_range(0,1);
+                if(p<0.5){
+                    selected_msg_indx = select_a_random_message();
+                    switch(msg_n_hops){
+                        case 0:
+                            if(selected_msg_indx != 0b1111111111111111) rnd_rebroadcast();
+                            else broadcast();
+                            break;
+                        default:
+                            if(adaptive_comm == 1) compute_msg_hops();
+                            uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
+                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < hop_limit) rnd_rebroadcast();
+                            else broadcast();
+                            break;
+                    }
+                }
+                else broadcast();
+                break;
+            case 2:
+                p = random_in_range(0,1);
+                if(p<0.5){
+                    if(id_aware){
+                        uint8_t agent_id;
+                        if(fifo_msg_peek(&rebroadcast_fifo, &agent_id)) {
+                            uint8_t msg_n_hops_local = 0;
+                            uint8_t agent_state = 0;
+                            uint8_t agent_idx = 0xFF;
+                            for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
+                                if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
+                                    msg_n_hops_local = rebroadcast_fifo.buffer[idx].msg_n_hops;
+                                    agent_state = rebroadcast_fifo.buffer[idx].agent_state;
+                                    agent_idx = idx;
+                                    break;
+                                }
+                            }
+                            if(agent_idx != 0xFF) {
+                                fifo_rebroadcast(agent_id, agent_state, msg_n_hops_local, agent_idx);
+                                fifo_msg_dequeue(&rebroadcast_fifo);
+                            } else broadcast();
+                        } else broadcast();
+                    }
+                    else broadcast();
+                }
+                else broadcast();                
+                break;
+            default:
+                break;   
+        }
+        selected_msg_indx = 0b1111111111111111;
         sending_msg = true;
     }
 }
 
-uint8_t check_quorum_trigger(quorum_a **Array[]){
-    uint8_t out = 0;
-    for(uint8_t i = 0;i < num_quorum_items;i++){
-        uint8_t msg_src = msg_received_from(&tree_array,my_state.current_node,(*Array)[i]->agent_node);
-        if(msg_src == THISNODE || msg_src == SUBTREE) out++;
-    }
-    return out;
+void broadcast(){
+    sa_type = 0;
+    sa_id = kilo_uid;
+    sa_payload = my_state;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    my_message.data[0] = sa_id;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = sa_payload;
 }
 
-void check_quorum(quorum_a **Array[]){
-    uint8_t counter = check_quorum_trigger(Array) + 1;
-    if(counter >= (num_quorum_items+1)*quorum_scaling_factor) my_state.commitment_node = my_state.current_node;
+void rnd_rebroadcast(){
+    sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
+    sa_id = quorum_array[selected_msg_indx]->agent_id;
+    sa_payload = quorum_array[selected_msg_indx]->agent_state;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
+    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
+    my_message.data[0] = sa_id;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = sa_payload;
 }
 
-void update_quorum_list(tree_a **Current_node,message_a **Mymessage,const uint8_t Msg_switch){
-    if(my_state.commitment_node == my_state.current_node && Msg_switch != SIBLINGTREE){
-        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-        sort_q(&quorum_array);
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
+    uint8_t sa_type_local = sat_inc_u8(msg_hops);
+    sa_type = sa_type_local;
+    sa_id = agent_id;
+    sa_payload = agent_state;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+    my_message.data[0] = sa_id;
+    my_message.data[1] = sa_type;
+    my_message.data[2] = sa_payload;
+
+    uint16_t q_idx = find_quorum_index_by_id(agent_id);
+    if(q_idx != 0b1111111111111111){
+        quorum_array[q_idx]->delivered = sat_inc_u8(quorum_array[q_idx]->delivered);
+        quorum_array[q_idx]->msg_n_hops = sa_type_local;
     }
-    else if(my_state.commitment_node == (*Current_node)->parent->id){
-        update_q(&quorum_array,&quorum_list,NULL,(*Mymessage)->agent_id,(*Mymessage)->agent_node);
-        sort_q(&quorum_array);
-    }
+
+    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type_local;
+    return 1;
 }
 
-void sample_and_decide(tree_a **leaf){
-    tree_a *current_node = get_node(&tree_array,my_state.current_node);
-    // select a random message
-    uint8_t message_switch = 0;
-    for(uint8_t m = 0;m<num_messages;m++){
-        update_quorum_list(&current_node,&messages_array[m],message_switch);
-        message_switch = msg_received_from(&tree_array,my_state.current_node,messages_array[m]->agent_node);
-    }
-    message_a *rnd_msg = select_a_random_msg(&messages_array);
-    if(rnd_msg != NULL) message_switch = msg_received_from(&tree_array,my_state.current_node,rnd_msg->agent_node);
-    if(quorum_list != NULL){
-        if(num_quorum_items >= min_quorum_length) check_quorum(&quorum_array);
-        else if(num_quorum_items <= min_quorum_items && current_node->parent != NULL) my_state.commitment_node=current_node->parent->id; 
-    }
-    // decide to commit or abandon
-    float commitment = 0;
-    float recruitment = 0;
-    float abandonment = 0;
-    float cross_inhibition = 0;
-    tree_a *over_node = NULL;
-    tree_a *c = current_node->children;
-    last_sensing = true;
-    float random_sample = levy(NOISE*1.0,2) + (*leaf)->gt_utility;
-    bottom_up_utility_update(&tree_array,(*leaf)->id,random_sample);
-    last_sample_utility = get_utility((*leaf)->node_filter);
-    if(last_sample_utility > 10) last_sample_utility=10;
-    else if(last_sample_utility < 0) last_sample_utility=0;
-    if(c != NULL){
-        for(uint8_t i = 0;i < branches;i++){
-            over_node = c+i;
-            if(pos_isin_node(goal_position.position_x,goal_position.position_y,&over_node)) break;
-            over_node = NULL;
+void compute_msg_hops(){
+    if(kilo_ticks > buff_ticks_sec + buff_ticks){
+        buff_ticks = kilo_ticks;
+        if(buffer_update_rng > 0){
+            msg_n_hops_rnd = 0;
         }
-        if(over_node != NULL && my_state.current_node == my_state.commitment_node){
-            if(over_node->node_filter->utility < 0) commitment = 0;
-            else if(over_node->node_filter->utility < MAX_UTILITY) commitment = over_node->node_filter->utility/MAX_UTILITY;
-            else commitment = 1;
+        else{
+            msg_n_hops_rnd += 1;
         }
+        buffer_update_rng = 0;
     }
-    if(current_node->parent != NULL && my_state.commitment_node == current_node->parent->id){
-        if(current_node->node_filter->utility <= 0) abandonment = 1;
-        else abandonment = 1/(1 + current_node->node_filter->utility);
+    if(msg_n_hops_rnd > msg_n_hops){
+        msg_n_hops_rnd = msg_n_hops;
     }
-    uint8_t agent_node_flag = 0;
-    switch (message_switch){
-        case SUBTREE:
-            if(my_state.current_node == my_state.commitment_node){
-                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
-                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
-                if(utility_flag <= 0) recruitment = 0;
-                else if(utility_flag<MAX_UTILITY) recruitment = utility_flag/MAX_UTILITY;
-                else recruitment = 1;
-                agent_node_flag = get_nearest_node(&tree_array,my_state.current_node,rnd_msg->agent_node);
-            }
-            break;
-        case SIBLINGTREE:
-            if(current_node->parent->id == my_state.commitment_node){
-                bottom_up_utility_update(&tree_array,rnd_msg->agent_leaf,rnd_msg->leaf_utility);
-                float utility_flag = get_node(&tree_array,rnd_msg->agent_node)->node_filter->utility;
-                if(utility_flag <= 0) cross_inhibition = 0;
-                else if(utility_flag < MAX_UTILITY) cross_inhibition = utility_flag/MAX_UTILITY;
-                else cross_inhibition = 1;
-            }
-            break;
-    }
-    // control_parameter = control_gain * (1 - current_node->node_filter->distance);
-    // gain_h = control_parameter / (1+control_parameter);
-    // gain_k = 1 / (1+control_parameter);
-    commitment = commitment * gain_k;
-    abandonment = abandonment * gain_k;
-    recruitment = recruitment * gain_h;
-    cross_inhibition = cross_inhibition * gain_h;
-    float p = (float)rand_hard() / 255.0;
-    my_state.previous_node = my_state.current_node;
-    if     (p < commitment)                                                          {my_state.current_node = over_node->id;           }
-    else if(p < commitment + recruitment)                                            {my_state.current_node = agent_node_flag;         }
-    else if(p < commitment + cross_inhibition)                                       {my_state.current_node = current_node->parent->id;}
-    else if(p < (commitment + recruitment + cross_inhibition + abandonment) * 0.667) {my_state.current_node = current_node->parent->id;}
-    erase_messages(&messages_array,&messages_list);
 }
 
-float random_in_range(float min, float max){
-    float r = (float)rand_hard() / 255.0;
-    return min + (r*(max-min));
+
+void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
+    uint8_t capacity = voting_msgs;
+    if(capacity == 0){
+        vote_fifo_head = 0;
+        vote_fifo_tail = 0;
+        vote_fifo_count = 0;
+        return;
+    }
+    while(vote_fifo_count > capacity){
+        vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count--;
+    }
+    if(vote_fifo_count == 0){
+        vote_fifo_head = vote_fifo_tail;
+    }
+
+    if(!id_aware){
+        if(vote_fifo_count >= capacity){
+            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+            vote_fifo_count--;
+        }
+        vote_fifo_ids[vote_fifo_tail] = 0;
+        vote_fifo_states[vote_fifo_tail] = agent_state;
+        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count++;
+        return;
+    }
+
+    int16_t found = -1;
+    for(uint8_t i = 0; i < vote_fifo_count; ++i){
+        uint8_t idx = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
+        if(vote_fifo_ids[idx] == agent_id){
+            found = i;
+            break;
+        }
+    }
+
+    if(found < 0){
+        if(vote_fifo_count >= capacity){
+            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
+            vote_fifo_count--;
+        }
+        vote_fifo_ids[vote_fifo_tail] = agent_id;
+        vote_fifo_states[vote_fifo_tail] = agent_state;
+        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
+        vote_fifo_count++;
+        return;
+    }
+
+    uint8_t last_offset = (uint8_t)(vote_fifo_count - 1);
+    if((uint8_t)found != last_offset){
+        for(uint8_t i = (uint8_t)found; i < last_offset; ++i){
+            uint8_t from = (uint8_t)((vote_fifo_head + i + 1) % FIFO_BUFFER_SIZE);
+            uint8_t to = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
+            vote_fifo_ids[to] = vote_fifo_ids[from];
+            vote_fifo_states[to] = vote_fifo_states[from];
+        }
+        uint8_t last_idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
+        vote_fifo_ids[last_idx] = agent_id;
+        vote_fifo_states[last_idx] = agent_state;
+    }
+    else{
+        uint8_t idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
+        vote_fifo_states[idx] = agent_state;
+    }
+}
+
+float compute_quorum_value(){
+    uint8_t eligible = eligible_quorum_items();
+    if(quorum_array == NULL || eligible < min_quorum_length) return 2.0f;
+    uint16_t agreeing = 1;
+    uint8_t start = buffer_skip_prefix();
+    for(uint8_t i = start; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
+            ++agreeing;
+        }
+    }
+    return (float)agreeing / (float)(eligible + 1);
+}
+
+float compute_r_threshold(float quorum_value){
+    if(control_mode == f_static) return clamp01(control_parameter);
+    if(quorum_value > 1.0f) return 0.0f;
+    switch(control_mode){
+        case f_linear:
+            return clamp01(quorum_value);
+        case f_sigmoid:
+        {
+            const float num = quorum_value;
+            const float den = 1.0f + expf(-10.0*(quorum_value - control_parameter));
+            return clamp01(num / den);
+        }
+        case f_polynomial:
+        {
+            const float polynomial = (1.0f - control_parameter) * powf(quorum_value,3.0f) + control_parameter;
+            return clamp01(polynomial);
+        }
+        default:
+            return clamp01(control_parameter);
+    }
+}
+
+uint8_t led_from_color_value(uint8_t color_value){
+    switch(color_value){
+        case 0: return RGB(3,0,0);
+        case 1: return RGB(0,3,0);
+        case 2: return RGB(0,0,3);
+        case 3: return RGB(3,3,0);
+        case 4: return RGB(0,3,3);
+        case 5: return RGB(3,0,3);
+        default: return RGB(0,0,0);
+    }
+}
+
+void update_debug_led(){
+    led = led_from_color_value(my_state);
+    set_color(led);
 }
 
 void select_new_point(bool force){
-    /* if the robot arrived to the destination, a new goal is selected and a noisy sample is taken from the respective leaf*/
-    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.03) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.03))){
-        if(!force){
-            tree_a *leaf = NULL;
-            set_color(RGB(0,3,0));
-            for(uint8_t l = 0;l < num_leafs;l++){
-                leaf = get_node(&tree_array,leafs_id[l]);
-                last_sample_id = l;
-                if(pos_isin_node(goal_position.position_x,goal_position.position_y,&leaf)) break;
-            }
-            last_sample_level = get_node(&tree_array,my_state.current_node)->depth;
-            if(my_state.commitment_node == my_state.current_node){
-                last_sample_committed = 1;
-                if(last_sample_level == 4){
-                    last_sample_level = last_sample_level - 1;
-                    last_sample_committed = 0;
-                }
-            }
-            else{   
-                last_sample_level = last_sample_level - 1;
-                last_sample_committed = 0;
-            }
-            sample_and_decide(&leaf);
-        }
-        tree_a *actual_node = get_node(&tree_array,my_state.current_node);
-        my_state.current_level = actual_node->depth;
-        goal_position.position_x = random_in_range(actual_node->tlX,actual_node->brX);
-        goal_position.position_y = random_in_range(actual_node->tlY,actual_node->brY);
+    /* if the robot arrived to the destination, a new goal is selected */
+    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
+        goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
+        goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
         reaching_goal_ticks = expiring_dist * goal_ticks_sec;
-
     }
     else{
-        set_color(led);
         if(avoid_tmmts==0){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
-            if(flag >= expiring_dist + .01){
-                if(rand_soft()/255.0 < .5) set_motion(TURN_LEFT);
-                else set_motion(TURN_RIGHT);
+            if(flag >= expiring_dist + 0.01){
                 avoid_tmmts=1;
+                float angleToGoal = AngleToGoal();
+                float p = rand_hard()/255.0;
+                if(p < .33){
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
+                    set_motion(TURN_LEFT);
+                }
+                else if(p < .66){
+                    last_motion_ticks = kilo_ticks;
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
+                    set_motion(TURN_RIGHT);
+                }
+                else avoid_tmmts=0;
             }
         }
         else{
             if(current_motion_type==TURN_LEFT || current_motion_type==TURN_RIGHT){
-                prev_motion_type = current_motion_type;
-                set_motion(FORWARD);
+                if(kilo_ticks > last_motion_ticks + turning_ticks){
+                    last_motion_ticks = kilo_ticks;  
+                    prev_motion_type = current_motion_type;
+                    set_motion(FORWARD);
                 }
+            }
             else set_motion(prev_motion_type);
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
             if(flag < expiring_dist) avoid_tmmts=0;
@@ -231,109 +461,154 @@ void select_new_point(bool force){
 }
 
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
-    // index of first element in the 3 sub-blocks of data
     uint8_t shift = kb_index * 3;
-    sa_type = data[shift] & 0b00000011;
-    sa_payload = ((uint16_t)data[shift + 1] << 8) | data[shift + 2];
+    sa_type = data[shift] & 0b00000001;
+    sa_payload = ((uint16_t)(data[shift + 1]) << 8) | data[shift + 2];
+    
     switch(sa_type){
+        case MSG_A:
+        {
+            uint32_t payload24 = (((uint32_t)(data[shift] >> 1) & 0x7F) << 16) |
+                                 ((uint32_t)data[shift + 1] << 8) |
+                                 (uint32_t)data[shift + 2];
+            uint8_t x_q = (uint8_t)(payload24 & 0x3F);
+            uint8_t y_q = (uint8_t)((payload24 >> 6) & 0x3F);
+            uint8_t angle_q = (uint8_t)((payload24 >> 12) & 0xFF);
+            uint8_t color_q = (uint8_t)((payload24 >> 20) & 0x07);
+
+            gps_position.position_x = x_q * 0.01f * 2.0f;
+            gps_position.position_y = y_q * 0.01f * 2.0f;
+            gps_angle = angle_q * (360.0f / 256.0f);
+            gps_floor_color = color_q;
+
+            if(init_received_B && init_control_received && !init_received_C){
+                init_received_C = true;
+                select_new_point(true);
+                set_motion(FORWARD);
+            }
+            break;
+        }
+
         case MSG_B:
-            gps_position.position_x = (sa_payload >> 10) * 0.01 *2;
-            gps_position.position_y = ((uint8_t)sa_payload >> 2) * 0.01 *2;
-            gps_angle = (((sa_payload >> 8) & 0b00000011) << 2 | ((uint8_t)sa_payload & 0b00000011)) * 24;
+            if(init_received_A){
+                if(kb_index == 0){
+                    msg_n_hops = (uint8_t)(sa_payload & 0x1F);
+                    msg_n_hops_rnd = msg_n_hops;
+                    if(!id_aware){
+                        msg_n_hops = 0;
+                        msg_n_hops_rnd = 0;
+                    }
+                    init_received_B = true;
+                }
+                else if(kb_index == 1){
+                    control_mode = (uint8_t)((sa_payload >> 14) & 0x03);
+                    voting_msgs = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    
+                    my_state = (uint8_t)(sa_payload & 0x7F);
+                    init_control_received = true;
+                    update_debug_led();
+                }
+                else if(kb_index == 2){
+                    control_parameter_q = (uint8_t)(sa_payload & 0x7F);
+                    control_parameter = control_parameter_q / 127.0f;
+                }
+            }
             break;
     }
 }
 
-uint8_t derive_agent_node(const uint8_t Received_committed, const uint8_t Received_leaf, const uint8_t Received_level){
-    tree_a *leaf = get_node(&tree_array,Received_leaf);
-    uint8_t level;
-    if(received_committed) level = Received_level;
-    else level = Received_level + 1;
-    if(level == leaf->depth) return leaf->id;
-    while(true){
-        if(leaf->parent != NULL){
-            leaf = leaf->parent;
-            if(level == leaf->depth) return leaf->id;
-        }
-        else break;
+void update_messages(const uint8_t Msg_n_hops){
+    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,gossip);
+    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
+    sort_q(&quorum_array);
+    vote_fifo_update(received_id, received_committed);
+    if(id_aware && broadcasting_flag == 2){
+        if(result == 1) fifo_msg_enqueue(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
+        else if(result == 2) fifo_msg_move_to_tail(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
     }
-    return 0;
-}
-
-void update_messages(){
-    uint8_t received_node = derive_agent_node(received_committed,received_leaf,received_level);
-    update_m(&messages_array,&messages_list,NULL,received_id,received_node,received_leaf,received_utility);
-    sort_m(&messages_array);
 }
 
 void parse_kilo_message(uint8_t data[9]){
-    received_utility = 0;
-    sa_id = (data[0] & 0b11111100) >> 2;
-    sa_type = data[0] & 0b00000011;
-    sa_payload = (((uint16_t)data[1]) << 8) | data[2];
-    received_id = sa_id;
-    received_utility = (((uint8_t)(sa_payload >> 8)) & 0b01111111) * 0.1;
-    received_committed = (((uint8_t)(sa_payload >> 8)) & 0b10000000) >> 7;
-    received_leaf = get_leaf_vec_id_in((((uint8_t)sa_payload) & 0b11110000) >> 4);
-    received_level = (((uint8_t)sa_payload) & 0b00001100) >> 2;
-    update_messages();
+    sa_id = data[0];
+    if(sa_id!=(uint8_t)kilo_uid){
+        sa_type = data[1];
+        sa_payload = data[2];
+        received_id = sa_id;
+        received_committed = (uint8_t)sa_payload;
+        update_messages(sa_type);
+    }
+    else sa_id = 0;
 }
 
 void parse_smart_arena_broadcast(uint8_t data[9]){   
-    sa_type = data[0] & 0b00000011;
+    uint8_t id1;
+    uint8_t id2;
+    uint8_t id3;
+    sa_type = data[0] & 0b00000001;
+    
     switch (sa_type){
         case MSG_A:
-            if(!init_received_A){   
-                led = RGB(3,3,0);
-                set_color(led);
-                float k = data[1]*.01;
-                uint8_t best_leaf_id = (data[0] >> 2)+1;
-                control_gain = (data[2] >> 4);
-                gain_h = (float)control_gain / (1+control_gain);
-                gain_k = 1.0 / (1+control_gain);
-                uint8_t depth = ((data[2] >> 2)& 0b00000011)+1;
-                uint8_t branches = (data[2] & 0b00000011)+1;
-                complete_tree(&tree_array,&the_tree,depth,branches,leafs_id,best_leaf_id,MAX_UTILITY,k);
-                set_vertices(&the_tree,(ARENA_X*.1),(ARENA_Y*.1));
-                uint32_t expiring_dist = (uint32_t)sqrt(pow((ARENA_X)*10,2)+pow((ARENA_Y)*10,2));
-                set_expiring_ticks_quorum_item(expiring_dist * quorum_ticks_sec);
-                init_received_A = true;
+            sa_payload = ((uint16_t)data[0]>>1) << 7 | (data[1]>>1);
+            {
+                uint8_t packet_type = (uint8_t)(data[2] >> 6);
+                uint8_t packet_data = (uint8_t)(data[2] & 0b00111111);
+                if(packet_type == 0){
+                    if(the_arena == NULL){
+                        build_arena(&the_arena);
+                    }
+                    update_arena_from_received_bounds();
+                    uint32_t msg_timeout = sa_payload;
+                    adaptive_comm = (uint8_t)((packet_data >> 5) & 0x01);
+                    broadcasting_flag = (uint8_t)(packet_data & 0x1F);
+                    if(broadcasting_flag == 0){
+                        adaptive_comm = 0;
+                    }
+                    set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
+                    init_received_A = true;
+                }
+                else if(packet_type == 2){
+                    priority_sampling_k = (uint8_t)(sa_payload & 0x7F);
+                    id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
+                    gossip = (uint8_t)((sa_payload >> 8) & 0x01);
+                    
+                    if(priority_sampling_k > buffer_length){
+                        priority_sampling_k = buffer_length;
+                    }
+                    if(!id_aware){
+                        broadcasting_flag = 0;
+                        msg_n_hops = 0;
+                        msg_n_hops_rnd = 0;
+                        adaptive_comm = 0;
+                    }
+                    if(broadcasting_flag == 0){
+                        adaptive_comm = 0;
+                    }
+                }
+                else if(packet_type == 3){
+                    gps_max_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
+                    gps_max_y_q = (uint8_t)(sa_payload & 0x7F);
+                    if(gps_max_x_q == 0){
+                        gps_max_x_q = 100;
+                    }
+                    if(gps_max_y_q == 0){
+                        gps_max_y_q = 100;
+                    }
+                    update_arena_from_received_bounds();
+                }
+
             }
             break;
         case MSG_B:
-            if(init_received_A && !init_received_B){   
-                uint8_t id1 = (data[0] & 0b11111100) >> 2;
-                uint8_t id2 = (data[3] & 0b11111100) >> 2;
-                uint8_t id3 = (data[6] & 0b11111100) >> 2;
-                if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
-                else if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
-                else if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
-                select_new_point(true);
-                set_motion(FORWARD);
-                init_received_B = true;
-                led = RGB(0,0,0);
-                set_color(led);
-            }
-            break;
-        case MSG_C:
-            if(my_state.current_level == (data[0] >> 2)){
-                if(my_state.current_node == my_state.commitment_node){
-                    led = RGB(0,0,3);
-                    set_color(led);
-                }
-                else{
-                    led = RGB(3,0,0);
-                    set_color(led);
-                }
-            }
-            else{
-                led = RGB(0,0,0);
-                set_color(led);
-            }
+            id1 = (data[0] & 0b11111110) >> 1;
+            id2 = (data[3] & 0b11111110) >> 1;
+            id3 = (data[6] & 0b11111110) >> 1;
+            if (id1 == kilo_uid) parse_smart_arena_message(data, 0);
+            if (id2 == kilo_uid) parse_smart_arena_message(data, 1);
+            if (id3 == kilo_uid) parse_smart_arena_message(data, 2);
             break;
     }
 }
-
 void message_rx(message_t *msg, distance_measurement_t *d){
     sa_id = 0;
     sa_type = 0;
@@ -346,18 +621,21 @@ void message_rx(message_t *msg, distance_measurement_t *d){
             parse_smart_arena_broadcast(msg->data);
             break;
         case ARK_INDIVIDUAL_MSG:
-            id1 = (msg->data[0] & 0b11111100) >> 2;
-            id2 = (msg->data[3] & 0b11111100) >> 2;
-            id3 = (msg->data[6] & 0b11111100) >> 2;
-            if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
-            else if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
-            else if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            if((msg->data[0] & 0x01) == MSG_A) parse_smart_arena_message(msg->data, 0);
+            else{
+                id1 = (msg->data[0] & 0b11111110) >> 1;
+                id2 = (msg->data[3] & 0b11111110) >> 1;
+                id3 = (msg->data[6] & 0b11111110) >> 1;
+                if (id1 == kilo_uid) parse_smart_arena_message(msg->data, 0);
+                if (id2 == kilo_uid) parse_smart_arena_message(msg->data, 1);
+                if (id3 == kilo_uid) parse_smart_arena_message(msg->data, 2);
+            }
             break;
         case KILO_BROADCAST_MSG:
             parse_kilo_message(msg->data);
             break;
         case KILO_IDENTIFICATION:
-            id1 = (msg->data[0] & 0b11111100) >> 2;
+            id1 = (msg->data[0] & 0b11111110) >> 1;
             if (id1 == kilo_uid){
                 led = RGB(0,0,3);
                 set_color(led);
@@ -386,38 +664,35 @@ float AngleToGoal(){
 }
 
 void random_way_point_model(){   
-    if(init_received_B){
+    if(init_received_C){
         select_new_point(false);
         if(avoid_tmmts == 0){
             float angleToGoal = AngleToGoal();
-            if(fabs(angleToGoal) <= 48){
-                set_motion(FORWARD);
+            if(fabs(angleToGoal) <= 36){
                 last_motion_ticks = kilo_ticks;
+                set_motion(FORWARD);
             }
             else{
+                last_motion_ticks = kilo_ticks;
                 if(angleToGoal > 0){
                     set_motion(TURN_LEFT);
-                    last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
                 }
                 else{
                     set_motion(TURN_RIGHT);
-                    last_motion_ticks = kilo_ticks;
                     turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
                 }
             }
             switch(current_motion_type){
                 case TURN_LEFT:
                     if(kilo_ticks > last_motion_ticks + turning_ticks){
-                        /* start moving forward */
-                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        last_motion_ticks = kilo_ticks;
                         set_motion(FORWARD);
                     }
                     break;
                 case TURN_RIGHT:
                     if(kilo_ticks > last_motion_ticks + turning_ticks){
-                        /* start moving forward */
-                        last_motion_ticks = kilo_ticks;  // fixed time FORWARD
+                        last_motion_ticks = kilo_ticks;
                         set_motion(FORWARD);
                     }
                     break;
@@ -431,37 +706,90 @@ void random_way_point_model(){
     }
 }
 
+void decision(){
+    if (kilo_ticks > last_decision_ticks + decision_ticks){
+        last_decision_ticks = kilo_ticks;
+        quorum_value = compute_quorum_value();
+        control_value = compute_r_threshold(quorum_value);
+        float p = rand_hard()/255.0;
+        if(p < control_value) my_state = majority_vote();
+        else my_state = gps_floor_color;
+        update_debug_led();
+    }
+}
+
+int majority_vote() {
+    if (vote_fifo_count == 0 || voting_msgs == 0) return my_state;
+    uint8_t sample_target = voting_msgs;
+    if(sample_target > FIFO_BUFFER_SIZE) return my_state;
+    if(vote_fifo_count < sample_target) return my_state;
+    uint8_t buffer[6] = {0};
+    uint8_t start_offset = (uint8_t)(vote_fifo_count - sample_target);
+    uint8_t idx = (uint8_t)((vote_fifo_head + start_offset) % FIFO_BUFFER_SIZE);
+    for(uint8_t i = 0; i < sample_target; ++i){
+        uint8_t state = vote_fifo_states[idx];
+        idx = (uint8_t)((idx + 1) % FIFO_BUFFER_SIZE);
+        if(state < sizeof(buffer)){
+            buffer[state]++;
+        }
+    }
+    uint8_t max = 0;
+    uint8_t selection = 0;
+    for (uint8_t i = 0; i < sizeof(buffer); i++) {
+        if (buffer[i] > max) {
+            max = buffer[i];
+            selection = i;
+        }
+        else if (max != 0 && buffer[i] == max) {
+            float p = rand_hard() / 255.0;
+            if (p < 0.5) selection = i;
+        }
+    }
+    return (max == 0) ? my_state : selection;
+}
+
 void setup(){
-    /* Init LED and motors */
     set_color(RGB(0,0,0));
     set_motors(0,0);
-    /* Init state, message type and control parameters*/
-    my_state.previous_node = 0;
-    my_state.current_node = 0;
-    my_state.commitment_node = 0;
-    my_state.current_level = 0;
+    my_state = 255;
     my_message.type = KILO_BROADCAST_MSG;
-    init_array_msg(&messages_array);
-    init_array_qrm(&quorum_array);
-
-    /* Init random seed */
+    my_message.crc = message_crc(&my_message);
+    init_array_qrm(&quorum_array, FIFO_BUFFER_SIZE);
+    id_aware = 1;
+    priority_sampling_k = 0;
+    
     uint8_t seed = rand_hard();
     rand_seed(seed);
     seed = rand_hard();
     srand(seed);
-
-    /* Init motion variables */
+    
+    snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
+    fp = fopen(log_title,"a");
     set_motion(STOP);
+    fifo_msg_init(&rebroadcast_fifo);
+    vote_fifo_head = 0;
+    vote_fifo_tail = 0;
+    vote_fifo_count = 0;
 }
 
 void loop(){
-    fp = fopen("quorum_log.tsv","a");
-    fprintf(fp,"%d\t%d\n",kilo_uid,num_quorum_items);
-    fclose(fp);
-    increment_quorum_counter(&quorum_array);
+    delta_elapsed = kilo_ticks - ticks_elapsed;
+    ticks_elapsed = kilo_ticks;
+    decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
-    random_way_point_model();
-    if(last_sensing) broadcast();
+    if(my_state != 255){
+        random_way_point_model();
+        decision();
+        talk();
+    }
+    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,true_quorum_items,quorum_value,control_value);
+}
+
+void deallocate_memory(){
+    fclose(fp);
+    destroy_tree(&the_arena);
+    destroy_quorum_memory(&quorum_array,&quorum_list);
+    return;
 }
 
 uint8_t main(){
@@ -478,8 +806,7 @@ uint8_t main(){
 
     kilo_start(setup, loop);
     
-    destroy_tree(&tree_array,&the_tree);
-    destroy_messages_memory(&messages_array,&messages_list);
-    destroy_quorum_memory(&quorum_array,&quorum_list);
+    deallocate_memory();
+
     return 0;
 }
