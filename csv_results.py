@@ -1095,10 +1095,41 @@ class Data:
             save_short(df[df['Error'] <= 0.05], "le05", False)
             save_short(df[df['Error'] > 0.05], "gt05", False)
 
+###################################################
+    def _get_pareto_front(self, xs, ys):
+        points = np.column_stack((xs, ys))
+        # Rimuove eventuali NaN
+        points = points[~np.isnan(points).any(axis=1)]
+        if len(points) == 0:
+            return [], []
+        
+        # Rimuove duplicati per ottimizzare
+        points = np.unique(points, axis=0)
+        pareto_front = []
+        
+        for i, p1 in enumerate(points):
+            is_dominated = False
+            for j, p2 in enumerate(points):
+                if i == j: continue
+                # p2 domina p1 se ha valori <= in tutte le dimensioni e < in almeno una
+                if (p2[0] <= p1[0] and p2[1] <= p1[1]) and (p2[0] < p1[0] or p2[1] < p1[1]):
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                pareto_front.append(p1)
+                
+        if not pareto_front:
+            return [], []
+            
+        pareto_front = np.array(pareto_front)
+        # Ordina per l'asse X per disegnare correttamente la linea continua
+        sort_idx = np.argsort(pareto_front[:, 0])
+        pareto_front = pareto_front[sort_idx]
+        
+        return pareto_front[:, 0], pareto_front[:, 1]
 
 ###################################################
     def plot_recovery_pareto(self, data_in, side_by_side_mode: bool=True):
-        plt.rcParams.update({"font.size": 24})
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
@@ -1154,7 +1185,7 @@ class Data:
 
         def save_short(subset, suffix, side_by_side_mode: bool):
             if subset.empty: return
-            fig, axes = plt.subplots(1, 3, figsize=(24, 14))
+            fig, axes = plt.subplots(1, 3, figsize=(24, 12))
             event_max = subset["Events"].max()
             time_max = subset["Time"].max()
 
@@ -1187,8 +1218,6 @@ class Data:
                                 tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
                             
                             if p_data.empty: continue
-                            final_base_pos = (k + 1) + tm_off
-
                             if pid == "P.1.1":
                                 mbs_list = mbs_global_map.get(ag, [])
                                 n_mbs_total = len(mbs_list)
@@ -1206,16 +1235,28 @@ class Data:
                                     self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
                             else:
                                 self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
+                    
+                        if is_p0:
+                            pid_data = cell[(cell['VariantKey'] == pid) & (cell['Error'] <= 0.05)]
+                        else:
+                            pid_data = cell[(cell['VariantKey'] == pid) & (cell['Error'] <= 0.05) & (cell['Msgs_exp_time'].isin(tms))]
+                        
+                        if not pid_data.empty:
+                            px, py = self._get_pareto_front(pid_data['Events'].values, pid_data['Time'].values)
+                            
+                            if len(px) > 0:
+                                if len(px) > 1: 
+                                    target_ax.plot(px, py, color=variant_map[pid][1], lw=8, alpha=0.8, zorder=1)
+                                
 
                 ax.set_ylim(1,500)
                 ax.set_yscale('log')
                 draw_pass(ax, "main")
-
-                
                 
                 if col_idx == 0: ax.set_ylabel(r"$T_{r}$" if col_idx == 0 else '', fontsize=28)
+                elif col_idx > 0: ax.set_yticklabels('' for _ in ax.get_yticks())
                 ax.set_xlabel(r"$E_{r}$",fontsize=28)
-                
+
                 ax.set_axisbelow(True)
                 ax.grid(True, ls=':', zorder=0)
 
@@ -1228,7 +1269,6 @@ class Data:
                     ins.set_xscale(ax.get_xscale())
                     ins.set_xticks(ax.get_xticks())
                     ins.set_xticklabels([])
-                    # ins.set_xlim(ax.get_xlim())
                     
                     ins.set_yscale(ax.get_yscale())
                     ins.set_yticks(ax.get_yticks())
@@ -1239,21 +1279,12 @@ class Data:
                     ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
-            # if main_tm_list: 
-            #     legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
-            # if insert_tm_list: 
-            #     legend_elements.append(Line2D([], [], color='none',marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
-            
-            # if side_by_side_mode:
-            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', label=r'$|G-\tau| \leq 0.05$'))
-            #     legend_elements.append(Patch(facecolor='white', edgecolor='black', hatch='///', label=r'$|G-\tau| > 0.05$'))
-            # legend_elements.append(Rectangle((0,0),1,1, label="k-sampling"))
                 
             for pid in protocols_order:
                 legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
             
             fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
-                       bbox_to_anchor=(0.76, -0.04), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+                       bbox_to_anchor=(0.60, -0.05), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"pareto_{suffix}.pdf"), bbox_inches='tight')
@@ -1261,6 +1292,16 @@ class Data:
 
         save_short(df, "sidebyside", True)
 
+###################################################
+    def _draw_scatter_internal(self, ax, data, color, target_type):
+        sc_size = 600 if target_type == 'main' else 200
+        alpha_val = 0.15 if target_type == 'main' else 0.05
+        d_le = data[data['Error'] <= 0.05]['Events'].values
+        t_le = data[data['Error'] <= 0.05]['Time'].values
+        
+        if len(d_le) > 0:
+            # The base face uses alpha=0.2 and edgecolors is strictly defined
+            ax.scatter(d_le, t_le, marker='o', s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none',zorder=0)
 ###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
@@ -1279,17 +1320,6 @@ class Data:
                 ax.boxplot(d, positions=[pos], widths=width*0.8, patch_artist=True, 
                            boxprops=dict(facecolor=color), medianprops=dict(color='gray'), notch=False)
                 
-###################################################
-    def _draw_scatter_internal(self, ax, data, color,target_type):
-        sc_size = 400 if target_type == 'main' else 100
-        d_le = data[data['Error'] <= 0.05]['Events'].values
-        # d_gt = data[data['Error'] > 0.05]['Events'].values
-        t_le = data[data['Error'] <= 0.05]['Time'].values
-        # t_gt = data[data['Error'] > 0.05]['Time'].values
-        if len(d_le) > 0:
-            ax.scatter(d_le,t_le,marker='o',s=sc_size,alpha=0.2,c=color)
-        # if len(d_gt) > 0:
-        #     ax.scatter(d_gt,t_gt,marker='s',c=color)
 ###################################################
     def store_recovery(self,data_in):
         if not os.path.exists(self.base+"/rec_data/"):
@@ -1842,8 +1872,8 @@ class Data:
         nrows = len(o_k)
         arena = more_k[0]
         
-        low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label=r"$\hat{Q} = 0.2$")
-        high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label=r"$\hat{Q} = 0.8$")
+        low_bound           = mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label="Q=0.2")
+        high_bound          = mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label="Q=0.8")
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         
@@ -1958,7 +1988,7 @@ class Data:
         #     l_list_l.append("k-sampling")
         #     handler_map = {Rectangle: GradientHandler(cmap_grey)}
 
-        fig.legend(handles_c+handles_r, [r"$\hat{Q} = 0.8$", r"$\hat{Q} = 0.2$"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+        fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
         tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
@@ -2119,6 +2149,7 @@ class Data:
         if not os.path.exists(self.base+"/compressed_data/images/"):
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
+        # plt.rcParams.update({"font.size": 34})
         
         ground_T, threshlds, dk_tot_states, dk_tot_times, o_k, [arena, agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         
@@ -2320,10 +2351,10 @@ class Data:
                     curr.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                     curr.set_xticklabels([])
                     if j == 0:
-                        ax[i][0].text(0.6, 0.9, r'$\hat{Q}=0.8$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
-                        ax[i][0].text(0.9, 0.5, r'$\hat{Q}=0.2$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
+                        ax[i][0].text(0.6, 0.9, 'Q=0.8', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
+                        ax[i][0].text(0.9, 0.5, 'Q=0.2', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
                 elif i == 2:
-                    curr.set_xlim(0.5, 1); curr.set_ylim(0, max_time + 10)
+                    curr.set_xlim(0.5, 1); curr.set_ylim(0, 201)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
                     curr.set_xlabel(r"$\tau$")
                 
@@ -2355,8 +2386,8 @@ class Data:
         # if insert_tm_list: 
         #     legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
         
-        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label=r'$\hat{Q}=0.2$'))
-        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label=r'$\hat{Q}=0.8$'))
+        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label='Q=0.2'))
+        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label='Q=0.8'))
         # legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|\mathcal{B}|$'))
         handler_map = {}
         # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
@@ -2379,7 +2410,7 @@ class Data:
         #     except NameError:
         #         pass 
 
-        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 0), ncol=7, frameon=True, edgecolor='0.8')
+        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0), ncol=7, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
         plt.close(fig)
 
