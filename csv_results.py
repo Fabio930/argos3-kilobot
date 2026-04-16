@@ -2014,8 +2014,9 @@ class Data:
             tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
             ax[k][col].yaxis.set_tick_params(labelleft=True)
         else:
-            tax[k][col].yaxis.set_tick_params(labelleft=False)
+            # tax[k][col].yaxis.set_tick_params(labelleft=False)
             ax[k][col].yaxis.set_tick_params(labelleft=False)
+        tax[k][col].yaxis.set_tick_params(labelleft=True)
 
         ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
