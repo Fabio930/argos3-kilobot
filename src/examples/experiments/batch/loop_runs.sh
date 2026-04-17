@@ -30,18 +30,18 @@ eta_init=""
 eta_stop=""
 init_distr=""
 control_parameter=""
-experiment_length="600"
-variation_time="0"
+experiment_length="1200"
+variation_time="600"
 RUNS=100
 options="2 5"
 options_distrib="random"
 spatial_correlation="0"
-if [[ $options_distrib == "random" ]]; then
-    spatial_correlation="0 1 2 5"
-fi
+# if [[ $options_distrib == "random" ]]; then
+#     spatial_correlation="0 1 2 5"
+# fi
 numrobots="100"
 comm_type_set="id_aware"
-rebroadcast="0 1"
+rebroadcast="0 1 2"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="180"
@@ -202,6 +202,7 @@ for exp_len_par in $experiment_length; do
                                                                     sed -i "s|__SEED__|$i|g" $config
                                                                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                                                     sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
+                                                                    sed -i "s|__GOSSIP__|$gossip|g" $config
                                                                     sed -i "s|__N_OPTIONS__|$options_par|g" $config
                                                                     sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
                                                                     sed -i "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" $config
