@@ -44,7 +44,9 @@ std::string g_strOptionsDistribution = "random";
 CBestN_ALF::CBestN_ALF() :
     m_unDataAcquisitionFrequency(10),
     m_unIdAware(1),
-    m_unPrioritySamplingK(0){
+    m_unPrioritySamplingK(0),
+    m_bInitialFloorSetupAllowed(true),
+    m_bVariationFloorSetupAllowed(false){
         c_rng = CRandom::CreateRNG("argos");
 }
 
@@ -79,6 +81,10 @@ void CBestN_ALF::Destroy(){
 void CBestN_ALF::PostStep(){
     if(variation_time > 0){
         m_fTimeInSeconds = GetSpace().GetSimulationClock()/CPhysicsEngine::GetInverseSimulationClockTick();
+        if(m_fTimeInSeconds >= (variation_time - 1.0) && m_fTimeInSeconds < variation_time) {
+            m_bVariationFloorSetupAllowed = true;
+        }
+
         if(m_fTimeInSeconds >= variation_time){
             const UInt8 unEtaQNow = static_cast<UInt8>(std::round(eta_stop * 127.0));
             if(unEtaQNow != m_unEtaQ){
@@ -215,20 +221,25 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     if(m_cGridFloor.Rows > 0 && m_cGridFloor.Cols > 0) {
         const CVector3& cArenaMin = this->GetSpace().GetArenaLimits().GetMin();
         const CVector3& cArenaMax = this->GetSpace().GetArenaLimits().GetMax();
-        CVector3 cMin(cArenaMin.GetX() + 0.05, cArenaMin.GetY() + 0.05, cArenaMin.GetZ());
-        CVector3 cMax(cArenaMax.GetX() - 0.05, cArenaMax.GetY() - 0.05, cArenaMax.GetZ());
-        const Real fCellSizeX = (cMax.GetX() - cMin.GetX()) / m_cGridFloor.Cols;
-        const Real fCellSizeY = (cMax.GetY() - cMin.GetY()) / m_cGridFloor.Rows;
+        
+        m_fLimitMinX = cArenaMin.GetX() + 0.05;
+        m_fLimitMinY = cArenaMin.GetY() + 0.05;
+        m_fLimitMaxX = cArenaMax.GetX() - 0.05;
+        m_fLimitMaxY = cArenaMax.GetY() - 0.05;
 
-        m_cGridFloor.XMin = cMin.GetX();
-        m_cGridFloor.YMin = cMin.GetY();
+        const Real fCellSizeX = (m_fLimitMaxX - m_fLimitMinX) / m_cGridFloor.Cols;
+        const Real fCellSizeY = (m_fLimitMaxY - m_fLimitMinY) / m_cGridFloor.Rows;
+
+        m_cGridFloor.XMin = m_fLimitMinX;
+        m_cGridFloor.YMin = m_fLimitMinY;
         m_cGridFloor.InvCellSizeX = (fCellSizeX > 0 ? 1.0 / fCellSizeX : 0);
         m_cGridFloor.InvCellSizeY = (fCellSizeY > 0 ? 1.0 / fCellSizeY : 0);
         m_cGridFloor.ColorId.assign(m_cGridFloor.Rows * m_cGridFloor.Cols, 1);
+        
         SetupFloorColorMap();
 
-        const Real fGpsMaxX = cMax.GetX() - cMin.GetX();
-        const Real fGpsMaxY = cMax.GetY() - cMin.GetY();
+        const Real fGpsMaxX = m_fLimitMaxX - m_fLimitMinX;
+        const Real fGpsMaxY = m_fLimitMaxY - m_fLimitMinY;
         const SInt32 nGpsMaxXQ = static_cast<SInt32>(std::round(fGpsMaxX * 100.0));
         const SInt32 nGpsMaxYQ = static_cast<SInt32>(std::round(fGpsMaxY * 100.0));
         m_unGpsMaxXQ = static_cast<UInt8>(Min<SInt32>(127, Max<SInt32>(0, nGpsMaxXQ)));
@@ -239,196 +250,127 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
 /****************************************/
 /****************************************/
 
+/****************************************/
+/****************************************/
 void CBestN_ALF::SetupFloorColorMap() {
+    if (!m_bInitialFloorSetupAllowed && !m_bVariationFloorSetupAllowed) {
+        return;
+    }
+
     const UInt32 unTotalCells = m_cGridFloor.Rows * m_cGridFloor.Cols;
     if(unTotalCells == 0) {
         return;
     }
 
-    m_cGridFloor.ColorId.assign(unTotalCells, 1); // 1 = best option
+    const UInt32 unWorseCells = static_cast<UInt32>((static_cast<UInt32>(m_unEtaQ) * unTotalCells + 63) / 127);
+    const UInt32 unBestCells = unTotalCells - unWorseCells;
 
-    const UInt32 unWorseCells =
-        static_cast<UInt32>((static_cast<UInt32>(m_unEtaQ) * unTotalCells + 63) / 127);
-    if(unWorseCells == 0 || options == 1) {
-        return;
+    m_cGridFloor.ColorId.assign(unTotalCells, 1); 
+
+    if(options > 1 && unWorseCells > 0) {
+        const UInt8 unWorseOptions = options - 1;
+        const UInt32 unBaseCount = unWorseCells / unWorseOptions;
+        const UInt32 unRemainder = unWorseCells % unWorseOptions;
+        UInt32 unCursor = unBestCells;
+
+        for(UInt8 unOpt = 0; unOpt < unWorseOptions; ++unOpt) {
+            const UInt32 unCellsForThisOption = unBaseCount + (unOpt < unRemainder ? 1 : 0);
+            const UInt8 unColorId = static_cast<UInt8>((unOpt % 254) + 2);
+            for(UInt32 j = 0; j < unCellsForThisOption; ++j) {
+                m_cGridFloor.ColorId[unCursor++] = unColorId;
+            }
+        }
     }
 
-    const std::string strDistribution = NormalizeDistributionString(g_strOptionsDistribution);
-    const bool bOrdered = (strDistribution == "ordered");
-    const UInt8 unWorseOptions = options - 1;
+    std::mt19937 cLocalRNG(m_unFloorSeed);
 
-    if(bOrdered && options >= 2 && options <= 5) {
-        const UInt32 unRows = m_cGridFloor.Rows;
-        const UInt32 unCols = m_cGridFloor.Cols;
-        const UInt32 unBestCells = unTotalCells - unWorseCells;
+    std::uniform_int_distribution<UInt32> cDist;
+    for(UInt32 i = unTotalCells - 1; i > 0; --i) {
+        const UInt32 j = cDist(cLocalRNG, decltype(cDist)::param_type(0, i));
+        std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
+    }
 
-        auto SetRegion = [&](UInt32 unRowStart, UInt32 unRowEnd,
-                             UInt32 unColStart, UInt32 unColEnd,
-                             UInt8 unColorId) {
-            if(unRowStart >= unRowEnd || unColStart >= unColEnd) {
-                return;
-            }
-            for(UInt32 r = unRowStart; r < unRowEnd; ++r) {
-                const UInt32 unBase = r * unCols;
-                for(UInt32 c = unColStart; c < unColEnd; ++c) {
-                    m_cGridFloor.ColorId[unBase + c] = unColorId;
+    if (m_fSpatialCorrelation > 0.0) {
+        const UInt32 unSwapAttempts = static_cast<UInt32>(m_fSpatialCorrelation * unTotalCells * 20.0);
+        std::uniform_int_distribution<UInt32> cDistCells(0, unTotalCells - 1);
+        std::uniform_int_distribution<UInt32> cDistProb(0, 99);
+
+        const UInt32 nRows = m_cGridFloor.Rows;
+        const UInt32 nCols = m_cGridFloor.Cols;
+
+        for(UInt32 attempt = 0; attempt < unSwapAttempts; ++attempt) {
+            UInt32 idxA = cDistCells(cLocalRNG);
+            UInt32 idxB = cDistCells(cLocalRNG);
+
+            UInt8 colorA = m_cGridFloor.ColorId[idxA];
+            UInt8 colorB = m_cGridFloor.ColorId[idxB];
+
+            if(colorA == colorB) continue; 
+
+            UInt32 rA = idxA / nCols;
+            UInt32 cA = idxA % nCols;
+            UInt32 rB = idxB / nCols;
+            UInt32 cB = idxB % nCols;
+
+            UInt32 scoreA_ColorA = 0, scoreA_ColorB = 0;
+            UInt32 rStartA = Max<UInt32>(0, rA - 1);
+            UInt32 rEndA = Min<UInt32>(nRows - 1, rA + 1);
+            UInt32 cStartA = Max<UInt32>(0, cA - 1);
+            UInt32 cEndA = Min<UInt32>(nCols - 1, cA + 1);
+            
+            for(UInt32 nr = rStartA; nr <= rEndA; ++nr) {
+                UInt32 rowOff = nr * nCols;
+                for(UInt32 nc = cStartA; nc <= cEndA; ++nc) {
+                    if (nr == rA && nc == cA) continue;
+                    UInt8 col = m_cGridFloor.ColorId[rowOff + nc];
+                    if (col == colorA) scoreA_ColorA++;
+                    else if (col == colorB) scoreA_ColorB++;
                 }
             }
-        };
 
-        auto BestColsFromCells = [&](UInt32 unCells, UInt32 unRowsCount, UInt32 unColsCount) {
-            if(unRowsCount == 0) {
-                return static_cast<UInt32>(0);
-            }
-            const double fCols = static_cast<double>(unCells) / static_cast<double>(unRowsCount);
-            UInt32 unColsBest = static_cast<UInt32>(std::round(fCols));
-            if(unCells > 0 && unColsBest == 0) {
-                unColsBest = 1;
-            }
-            if(unColsBest > unColsCount) {
-                unColsBest = unColsCount;
-            }
-            return unColsBest;
-        };
-
-        if(options == 2) {
-            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
-            SetRegion(0, unRows, unBestCols, unCols, 2);
-            return;
-        }
-
-        if(options == 3) {
-            const UInt32 unBestCols = BestColsFromCells(unBestCells, unRows, unCols);
-            const UInt32 unLeftCols = (unCols - unBestCols) / 2;
-            const UInt32 unCenterStart = unLeftCols;
-            const UInt32 unCenterEnd = unLeftCols + unBestCols;
-            SetRegion(0, unRows, 0, unCenterStart, 2);
-            SetRegion(0, unRows, unCenterEnd, unCols, 3);
-            return;
-        }
-
-        if(options == 4) {
-            const double fBestRatio =
-                (unTotalCells > 0) ? static_cast<double>(unBestCells) / static_cast<double>(unTotalCells) : 0.0;
-            const double fSplitRatio = std::sqrt(Max<Real>(0.0, Min<Real>(1.0, fBestRatio)));
-            UInt32 unBestCols = static_cast<UInt32>(std::round(fSplitRatio * unCols));
-            UInt32 unBestRows = static_cast<UInt32>(std::round(fSplitRatio * unRows));
-            if(unBestCells > 0) {
-                if(unBestCols == 0) unBestCols = 1;
-                if(unBestRows == 0) unBestRows = 1;
-            }
-            if(unBestCols > unCols) unBestCols = unCols;
-            if(unBestRows > unRows) unBestRows = unRows;
-            const UInt32 unTopStart = (unBestRows > unRows) ? 0 : (unRows - unBestRows);
-            SetRegion(unTopStart, unRows, 0, unBestCols, 1);
-            SetRegion(unTopStart, unRows, unBestCols, unCols, 2);
-            SetRegion(0, unTopStart, 0, unBestCols, 3);
-            SetRegion(0, unTopStart, unBestCols, unCols, 4);
-            return;
-        }
-
-        if(options == 5) {
-            UInt32 unCenterCols = BestColsFromCells(unBestCells, unRows, unCols);
-            UInt32 unSideCols = (unCols > unCenterCols) ? (unCols - unCenterCols) / 2 : 0;
-            unCenterCols = (unCols > 2 * unSideCols) ? (unCols - 2 * unSideCols) : 0;
-            const UInt32 unLeftEnd = unSideCols;
-            const UInt32 unRightStart = (unCols >= unSideCols) ? (unCols - unSideCols) : unCols;
-            const UInt32 unBottomRows = unRows / 2;
-            const UInt32 unTopStart = unRows - (unRows - unBottomRows);
-            SetRegion(unTopStart, unRows, 0, unLeftEnd, 2);
-            SetRegion(0, unTopStart, 0, unLeftEnd, 3);
-            SetRegion(unTopStart, unRows, unRightStart, unCols, 4);
-            SetRegion(0, unTopStart, unRightStart, unCols, 5);
-            return;
-        }
-    }
-
-    const UInt32 unBaseCount = unWorseCells / unWorseOptions;
-    const UInt32 unRemainder = unWorseCells % unWorseOptions;
-    UInt32 unCursor = 0;
-    for(UInt8 unOpt = 0; unOpt < unWorseOptions; ++unOpt) {
-        const UInt32 unCellsForThisOption = unBaseCount + (unOpt < unRemainder ? 1 : 0);
-        const UInt8 unColorId = static_cast<UInt8>((unOpt % 254) + 2);
-        for(UInt32 j = 0; j < unCellsForThisOption && unCursor < unWorseCells; ++j, ++unCursor) {
-            m_cGridFloor.ColorId[unCursor] = unColorId;
-        }
-    }
-
-    /* Assegnazione delle posizioni: Casuale vs Macchie (Cluster) */
-    UInt32 unState = m_unFloorSeed;
-
-    if (m_fSpatialCorrelation == 0) {
-        /* Comportamento originale: distribuzione completamente casuale */
-        for(UInt32 i = unTotalCells - 1; i > 0; --i) {
-            const UInt32 j = NextXorShift32(unState) % (i + 1);
-            std::swap(m_cGridFloor.ColorId[i], m_cGridFloor.ColorId[j]);
-        }
-    } else {
-        /* Nuovo comportamento: generazione di "macchie" continue con numeri reali */
-        std::vector<UInt8> vecExactColors = m_cGridFloor.ColorId;
-        std::vector<double> vecNoise(unTotalCells);
-
-        for(UInt32 i = 0; i < unTotalCells; ++i) {
-             vecNoise[i] = static_cast<double>(NextXorShift32(unState) % 10000) / 10000.0;
-        }
-
-        /* Creiamo una funzione di supporto (Lambda) per fare 1 singolo passaggio di sfumatura */
-        auto ApplySingleSmoothingPass = [&](const std::vector<double>& inputNoise) {
-            std::vector<double> outputNoise(unTotalCells, 0.0);
-            for(UInt32 r = 0; r < m_cGridFloor.Rows; ++r) {
-                for(UInt32 c = 0; c < m_cGridFloor.Cols; ++c) {
-                    double fSum = 0.0;
-                    int nCount = 0;
-                    for(int dr = -1; dr <= 1; ++dr) {
-                        for(int dc = -1; dc <= 1; ++dc) {
-                            int nr = r + dr;
-                            int nc = c + dc;
-                            if(nr >= 0 && nr < m_cGridFloor.Rows && nc >= 0 && nc < m_cGridFloor.Cols) {
-                                fSum += inputNoise[nr * m_cGridFloor.Cols + nc];
-                                nCount++;
-                            }
-                        }
-                    }
-                    outputNoise[r * m_cGridFloor.Cols + c] = fSum / nCount;
+            UInt32 scoreB_ColorB = 0, scoreB_ColorA = 0;
+            UInt32 rStartB = Max<UInt32>(0, rB - 1);
+            UInt32 rEndB = Min<UInt32>(nRows - 1, rB + 1);
+            UInt32 cStartB = Max<UInt32>(0, cB - 1);
+            UInt32 cEndB = Min<UInt32>(nCols - 1, cB + 1);
+            
+            for(UInt32 nr = rStartB; nr <= rEndB; ++nr) {
+                UInt32 rowOff = nr * nCols;
+                for(UInt32 nc = cStartB; nc <= cEndB; ++nc) {
+                    if (nr == rB && nc == cB) continue;
+                    UInt8 col = m_cGridFloor.ColorId[rowOff + nc];
+                    if (col == colorB) scoreB_ColorB++;
+                    else if (col == colorA) scoreB_ColorA++;
                 }
             }
-            return outputNoise;
-        };
 
-        /* Dividiamo il parametro reale in parte intera e parte frazionaria */
-        UInt32 unFullIterations = static_cast<UInt32>(std::floor(m_fSpatialCorrelation));
-        double fFraction = static_cast<double>(m_fSpatialCorrelation - unFullIterations);
+            UInt32 currentScore = scoreA_ColorA + scoreB_ColorB;
+            UInt32 swapScore = scoreA_ColorB + scoreB_ColorA;
 
-        std::vector<double> vecSmoothedNoise = vecNoise;
+            UInt32 rdiff = Abs<UInt32>(rA - rB);
+            UInt32 cdiff = Abs<UInt32>(cA - cB);
+            bool adjacent = (rdiff <= 1 && cdiff<= 1);
+            if (adjacent) swapScore -= 2;
 
-        /* 1. Applichiamo le iterazioni intere (es. 2 volte se correlation è 2.8) */
-        for(UInt32 iter = 0; iter < unFullIterations; ++iter) {
-            vecSmoothedNoise = ApplySingleSmoothingPass(vecSmoothedNoise);
-        }
-
-        /* 2. Se c'è un resto decimale, facciamo l'interpolazione! */
-        if(fFraction > 0.0) {
-            std::vector<double> vecNextSmoothed = ApplySingleSmoothingPass(vecSmoothedNoise);
-            for(UInt32 i = 0; i < unTotalCells; ++i) {
-                // Mescoliamo proporzionalmente i valori
-                vecSmoothedNoise[i] = (vecSmoothedNoise[i] * (1.0 - fFraction)) + (vecNextSmoothed[i] * fFraction);
+            if (swapScore > currentScore || (swapScore == currentScore && cDistProb(cLocalRNG) < 50)) {
+                std::swap(m_cGridFloor.ColorId[idxA], m_cGridFloor.ColorId[idxB]);
             }
         }
+    }
 
-        /* 3. Ordiniamo e assegniamo (esattamente come prima) */
-        std::vector<UInt32> vecIndices(unTotalCells);
-        for(UInt32 i = 0; i < unTotalCells; ++i) vecIndices[i] = i;
-
-        std::sort(vecIndices.begin(), vecIndices.end(), [&](UInt32 a, UInt32 b) {
-            return vecSmoothedNoise[a] < vecSmoothedNoise[b];
-        });
-
-        std::sort(vecExactColors.begin(), vecExactColors.end());
-
-        for(UInt32 i = 0; i < unTotalCells; ++i) {
-            m_cGridFloor.ColorId[vecIndices[i]] = vecExactColors[i];
+    m_vecGridColors.resize(unTotalCells);
+    for(UInt32 r = 0; r < static_cast<UInt32>(m_cGridFloor.Rows); ++r) {
+        for(UInt32 c = 0; c < static_cast<UInt32>(m_cGridFloor.Cols); ++c) {
+            CVector2 cCellCenter(
+                m_fLimitMinX + (c + 0.5) / m_cGridFloor.InvCellSizeX,
+                m_fLimitMinY + (r + 0.5) / m_cGridFloor.InvCellSizeY
+            );
+            m_vecGridColors[r * m_cGridFloor.Cols + c] = m_cGridFloor.GetColorAt(cCellCenter);
         }
     }
+
+    m_bInitialFloorSetupAllowed = false;
+    m_bVariationFloorSetupAllowed = false;
 }
 
 /****************************************/
@@ -629,11 +571,18 @@ void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
 /****************************************/
 
 CColor CBestN_ALF::GetFloorColor(const CVector2 &vec_position_on_plane){
-    if(abs(vec_position_on_plane.GetX()) > this->GetSpace().GetArenaLimits().GetMax()[0] - 0.05 ||
-       abs(vec_position_on_plane.GetY()) > this->GetSpace().GetArenaLimits().GetMax()[1] - 0.05) {
+    const Real fX = vec_position_on_plane.GetX();
+    const Real fY = vec_position_on_plane.GetY();
+    if(fX < m_fLimitMinX || fX > m_fLimitMaxX || fY < m_fLimitMinY || fY > m_fLimitMaxY) {
         return CColor::BLACK;
     }
-    return m_cGridFloor.GetColorAt(vec_position_on_plane);
+    UInt32 c = static_cast<UInt32>((fX - m_fLimitMinX) * m_cGridFloor.InvCellSizeX);
+    UInt32 r = static_cast<UInt32>((fY - m_fLimitMinY) * m_cGridFloor.InvCellSizeY);
+    if (c >= static_cast<UInt32>(m_cGridFloor.Cols)) c = m_cGridFloor.Cols - 1;
+    if (r >= static_cast<UInt32>(m_cGridFloor.Rows)) r = m_cGridFloor.Rows - 1;
+    if (c < 0) c = 0;
+    if (r < 0) r = 0;
+    return m_vecGridColors[r * m_cGridFloor.Cols + c];
 }
 
 REGISTER_LOOP_FUNCTIONS(CBestN_ALF, "ALF_BestN_loop_function")

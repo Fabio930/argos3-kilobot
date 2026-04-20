@@ -51,8 +51,8 @@
 
         <bestN
             id_aware = "1"
-            gossip = "1"
-            rebroadcast = "1"
+            gossip = "0"
+            rebroadcast = "2"
             msgs_n_hops = "0"
             msgs_timeout = "180"
             adaptive_comm = "0"
@@ -61,11 +61,11 @@
             options = "2"
             eta_init = "0.4"
             eta_stop = "0.6"
-            variation_time = "500"
+            variation_time = "0"
             grid_rows = "20"
             grid_cols = "20"
             options_distribution = "random"
-            spatial_correlation = "0"
+            spatial_correlation = "1.5"
             control = "polynomial"
             voting_msgs = "5"
             control_parameter = "0.5">
@@ -130,7 +130,7 @@
 
         <floor id="floor"
         source="loop_functions"
-        pixels_per_meter="200" />
+        pixels_per_meter="100" />
     </arena>
     
     <!-- ******************* -->
