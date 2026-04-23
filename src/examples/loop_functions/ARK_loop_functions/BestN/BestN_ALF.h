@@ -6,6 +6,7 @@
 #ifndef BESTN_ALF_H
 #define BESTN_ALF_H
 
+#include <random>
 #include <argos3/plugins/robots/kilobot/simulator/ALF.h>
 #include "grid_floor.h"
 
@@ -66,7 +67,13 @@ private:
     /*  Virtual Environment variables   */
     /************************************/
     /* virtual environment struct*/
-    // UInt8 minimum_quorum_length;
+    bool                    m_bInitialFloorSetupAllowed;
+    bool                    m_bVariationFloorSetupAllowed;
+    std::vector<CColor>     m_vecGridColors;
+    Real                    m_fLimitMinX;
+    Real                    m_fLimitMaxX;
+    Real                    m_fLimitMinY;
+    Real                    m_fLimitMaxY;
     Real                    eta_init;
     Real                    eta_stop;
     UInt16                  variation_time;
