@@ -30,8 +30,8 @@ eta_init=""
 eta_stop=""
 init_distr=""
 control_parameter=""
-experiment_length="1200"
-variation_time="600"
+experiment_length="900"
+variation_time="0"
 RUNS=100
 options="2 5"
 options_distrib="random"
@@ -45,7 +45,7 @@ rebroadcast="0 1 2"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="180"
-control="static polynomial"
+control="static direct polynomial"
 voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
@@ -64,12 +64,10 @@ for exp_len_par in $experiment_length; do
                 mkdir $options_dir
             fi
             if [[ $options_par == "2" ]]; then
-                eta_init="0.4"
-                eta_stop="0.6"
+                eta_init="0.4 0.5"
                 init_distr="0.5"
             else
-                eta_init="0.7"
-                eta_stop="0.9"
+                eta_init="0.7 0.8"
                 init_distr="0.2"
             fi
             eta_init_list=($eta_init)
@@ -168,12 +166,10 @@ for exp_len_par in $experiment_length; do
                                                         fi
                                                         if [[ $control_par == "static" ]]; then
                                                             control_parameter="0.8"
+                                                        elif [[ $control_par == "direct" ]]; then
+                                                            control_parameter="0.0"
                                                         else
-                                                            if [[ $options_par == "2" ]]; then
-                                                                control_parameter="0.5"
-                                                            else
-                                                                control_parameter="0.7"
-                                                            fi
+                                                            control_parameter="0.5 0.7"
                                                         fi
                                                         for voting_msgs_par in $voting_msgs; do
                                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par

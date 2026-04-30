@@ -122,8 +122,17 @@ class Results:
                 counts = np.bincount(valid_states, minlength=n_options)
                 threshold = 0.9 * valid_states.size
                 if np.any(counts[:] >= threshold):
+                    idx = np.argmax(counts)
                     found_step = t
-                    break
+                    for tk in range(t,n_steps):
+                        k_states = run_data[:, tk].astype(np.int32)
+                        k_valid_states = k_states[(k_states >= 0) & (k_states < n_options)]
+                        k_counts = np.bincount(k_valid_states, minlength=n_options)
+                        if k_counts[idx] < threshold:
+                            found_step = n_steps + 1
+                            break
+
+                    if found_step != n_steps + 1: break
             
             exit_times.append(found_step)
 
@@ -211,90 +220,133 @@ class Results:
             print(f"[WARN] Ignoro {temp_count} campioni con stato temporaneo 255")
 
         cohesion_mean, cohesion_std = self.compute_average_cohesion_through_run(state_m, n_options)
+        # success = self.compute_accuracy(state_m, n_options,eta)
+        time_mean = self.compute_exit_time(state_m, n_options)
+        msgs_mean, msgs_std = self.compute_overall_average_through_run(msgs_m)
+        quorum_mean, quorum_std = self.compute_average_metric_through_run(quorum_m, state_m, n_options)
+        ctrl_mean, ctrl_std = self.compute_average_metric_through_run(ctrl_m, state_m, n_options)
 
         for state_id in range(len(cohesion_mean)):
             self.dump_resume_per_opt_csv(
-                data_in=cohesion_mean[state_id],
-                data_std=cohesion_std[state_id],
-                exp_length=exp_length,
-                communication=communication,
-                adaptive_com=adaptive_com,
-                comm_type=comm_type,
-                id_aware=id_aware,
-                priority_k=priority_k,
-                n_agents=n_agents,
-                msg_exp_time=msg_exp_time,
-                msg_hops=msg_hops,
-                variation_time=variation_time,
-                spat_corr=spat_corr,
-                n_options=n_options,
-                eta=eta,
-                eta_stop=eta_stop,
-                init_distr=init_distr,
-                function=function,
-                vote_msg=vote_msg,
-                ctrl_par=ctrl_par,
-                num_runs=num_runs,
-                arenaS=arenaS,
-                option_id=state_id,
+                data_in=cohesion_mean[state_id], data_std=cohesion_std[state_id], exp_length=exp_length,
+                communication=communication, adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware,
+                priority_k=priority_k, n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops,
+                variation_time=variation_time, spat_corr=spat_corr, n_options=n_options, eta=eta,
+                eta_stop=eta_stop, init_distr=init_distr, function=function, vote_msg=vote_msg,
+                ctrl_par=ctrl_par, num_runs=num_runs, arenaS=arenaS, option_id=state_id,
                 data_type="cohesion"
             )
 
-        success = self.compute_accuracy(state_m, n_options,eta)
+            self.dump_resume_per_opt_csv(
+                data_in=quorum_mean[state_id], data_std=quorum_std[state_id],
+                exp_length=exp_length, communication=communication, adaptive_com=adaptive_com,
+                comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+                n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops,
+                variation_time=variation_time, spat_corr=spat_corr, n_options=n_options,
+                eta=eta, eta_stop=eta_stop, init_distr=init_distr, function=function,
+                vote_msg=vote_msg, ctrl_par=ctrl_par, num_runs=num_runs, arenaS=arenaS,
+                option_id=state_id, data_type="quorum"
+            )
+
+            self.dump_resume_per_opt_csv(
+                data_in=ctrl_mean[state_id], data_std=ctrl_std[state_id],
+                exp_length=exp_length, communication=communication, adaptive_com=adaptive_com,
+                comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+                n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops,
+                variation_time=variation_time, spat_corr=spat_corr, n_options=n_options,
+                eta=eta, eta_stop=eta_stop, init_distr=init_distr, function=function,
+                vote_msg=vote_msg, ctrl_par=ctrl_par, num_runs=num_runs, arenaS=arenaS,
+                option_id=state_id, data_type="ctrl"
+            )
+
+        # self.dump_resume_csv(
+        #     data_in=success, data_std="-", exp_length=exp_length, communication=communication,
+        #     adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+        #     n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
+        #     spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
+        #     init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
+        #     num_runs=num_runs, arenaS=arenaS, data_type="accuracy" )
+
         self.dump_resume_csv(
-            data_in=success,
-            data_std="-",
-            exp_length=exp_length,
-            communication=communication,
-            adaptive_com=adaptive_com,
-            comm_type=comm_type,
-            id_aware=id_aware,
-            priority_k=priority_k,
-            n_agents=n_agents,
-            msg_exp_time=msg_exp_time,
-            msg_hops=msg_hops,
-            variation_time=variation_time,
-            spat_corr=spat_corr,
-            n_options=n_options,
-            eta=eta,
-            eta_stop=eta_stop,
-            init_distr=init_distr,
-            function=function,
-            vote_msg=vote_msg,
-            ctrl_par=ctrl_par,
-            num_runs=num_runs,
-            arenaS=arenaS,
-            data_type="accuracy"
-        )
-
-        time_mean = self.compute_exit_time(state_m, n_options)
+            data_in=time_mean, data_std="-", exp_length=exp_length, communication=communication,
+            adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+            n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
+            spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
+            init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
+            num_runs=num_runs, arenaS=arenaS, data_type="time" )
 
         self.dump_resume_csv(
-            data_in=time_mean,
-            data_std="-",
-            exp_length=exp_length,
-            communication=communication,
-            adaptive_com=adaptive_com,
-            comm_type=comm_type,
-            id_aware=id_aware,
-            priority_k=priority_k,
-            n_agents=n_agents,
-            msg_exp_time=msg_exp_time,
-            msg_hops=msg_hops,
-            variation_time=variation_time,
-            spat_corr=spat_corr,
-            n_options=n_options,
-            eta=eta,
-            eta_stop=eta_stop,
-            init_distr=init_distr,
-            function=function,
-            vote_msg=vote_msg,
-            ctrl_par=ctrl_par,
-            num_runs=num_runs,
-            arenaS=arenaS,
-            data_type="time"
-        )
+            data_in=msgs_mean, data_std=msgs_std, exp_length=exp_length, communication=communication,
+            adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+            n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
+            spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
+            init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
+            num_runs=num_runs, arenaS=arenaS, data_type="msgs" )
+        
+##########################################################################################################
+    def compute_average_metric_through_run(self, metric_data: np.ndarray, state_data: np.ndarray, n_options: int):
+        if metric_data.ndim != 3 or state_data.ndim != 3:
+            raise ValueError("Input expected to be 3D (n_runs, n_agents, steps)")
+        
+        n_runs, n_agents, n_steps = metric_data.shape
+        state_data_int = state_data.astype(np.int32, copy=False)
+        valid_mask = (state_data_int >= 0) & (state_data_int < n_options)
 
+        state_values = np.arange(n_options, dtype=np.int32)[:, None, None]
+        
+        # Mask per option: (n_options, n_runs, n_agents, n_steps)
+        opt_mask = (state_data_int[:, None, :, :] == state_values[None, :, :, :]) & valid_mask[:, None, :, :]
+        
+        # Agent counts per option: (n_options, n_runs, n_steps)
+        counts = opt_mask.sum(axis=2).astype(np.float64)
+        
+        # Sum of metric per option: (n_options, n_runs, n_steps)
+        metric_sums = np.sum(np.where(opt_mask, metric_data[:, None, :, :], 0.0), axis=2)
+        
+        # Average metric per option
+        safe_counts = np.where(counts > 0.0, counts, 1.0)
+        metric_avgs = metric_sums / safe_counts
+        
+        # Determine winner option per run and step based on agent counts
+        winner_idx = np.argmax(counts, axis=0) 
+        
+        # Gather winner metrics dynamically
+        r_idx = np.arange(n_runs)[:, None]
+        s_idx = np.arange(n_steps)[None, :]
+        winner_metric = metric_avgs[winner_idx, r_idx, s_idx]
+        
+        # Gather others metrics
+        if n_options > 1:
+            total_metric_except_winner = np.sum(metric_avgs, axis=0) - winner_metric
+            other_metric = total_metric_except_winner / (n_options - 1)
+        else:
+            other_metric = np.zeros_like(winner_metric)
+            
+        final_means = []
+        final_stds = []
+
+        # option_id = 0 -> winner avg metric; option_id = 1 -> other avg metric
+        for group in [winner_metric, other_metric]:
+            final_means.append(np.around(group.mean(axis=0), decimals=3).tolist())
+            final_stds.append(np.around(group.std(axis=0), decimals=3).tolist())
+
+        return final_means, final_stds
+    
+##########################################################################################################
+
+    def compute_overall_average_through_run(self, data: np.ndarray):
+        if data.ndim != 3:
+            raise ValueError(f"Input expected 3D (n_runs, n_agents, steps), found ndim={data.ndim}")
+        
+        # Average across all agents for each run and step: shape becomes (n_runs, n_steps)
+        agent_mean = np.mean(data, axis=1)
+        
+        # Mean and standard deviation across runs: shape becomes (n_steps,)
+        final_mean = np.around(np.mean(agent_mean, axis=0), decimals=3).tolist()
+        final_std = np.around(np.std(agent_mean, axis=0), decimals=3).tolist()
+        
+        return final_mean, final_std
+    
 ##########################################################################################################
     def dump_resume_per_opt_csv(self,data_in,data_std,exp_length:int,communication:int,
                        adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,spat_corr:int,n_options:int,
