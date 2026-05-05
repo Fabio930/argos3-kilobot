@@ -1022,6 +1022,17 @@ class Data:
         
         protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
 
+        # Define specific markers for each protocol
+        marker_map = {
+            'P.0': 'o',      # AN: circle
+            'P.1.0': 's',    # ANt: square
+            'P.1.1': 'D',    # ANt^k: diamond 
+            'O.0.0': 'P',    # IDB: plus/filled cross
+            'O.2.0': '^',    # IDRf: triangle up
+            'O.1.1': 'v',    # IDR1: triangle down
+            'O.1.0': 'X'     # IDR_inf: cross
+        }
+
         rows = []
         for key, value in data_in.items():
             mean, std, events = float(value[0]), float(value[1]), float(value[2])
@@ -1062,25 +1073,24 @@ class Data:
         insert_tm_list = self._get_valid_insert_tm()
         
         combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
-        active_labels = [variant_map[pid][0] for pid in protocols_order]
         densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
 
         def save_short(subset):
             if subset.empty: return
-            fig, axes = plt.subplots(1, 3, figsize=(24, 12))
+            # Figsize stretto e aspect ratio bloccato garantiscono grafici perfettamente quadrati
+            fig, axes = plt.subplots(1, 3, figsize=(22, 8))
 
             for col_idx, (dens_label, arena, ag) in enumerate(densities):
                 cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
 
                 ax = axes[col_idx]
                 ax.set_title(dens_label)
-
-                n_tm_total = len(combined_tm)
-                width_tm = 0.6
+                ax.set_box_aspect(1)
                 
                 def draw_pass(target_ax, target_type):
                     for k, pid in enumerate(protocols_order):
                         is_p0 = (pid == 'P.0')
+                        marker = marker_map.get(pid, 'o')
                         
                         if is_p0:
                             tms = [main_tm_list[0]] if target_type == "main" and main_tm_list else []
@@ -1091,49 +1101,31 @@ class Data:
                         for tm_val in tms:
                             if is_p0:
                                 p_data = cell[cell['VariantKey'] == pid]
-                                tm_off = 0
                             else:
                                 p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
-                                t_idx = main_tm_list.index(tm_val) if target_type == "main" else insert_tm_list.index(tm_val)
-                                tm_off = (t_idx - (n_tm_total - 1) / 2.0) * width_tm
                             
                             if p_data.empty: continue
                             if pid == "P.1.1":
                                 mbs_list = mbs_global_map.get(ag, [])
                                 n_mbs_total = len(mbs_list)
                                 if n_mbs_total > 0:
-                                    sub_w_mbs = width_tm
                                     for m_idx, val_mbs in enumerate(mbs_list):
                                         d_mbs_row = p_data[p_data['MBS'] == val_mbs]
                                         ratio = (m_idx + 1) / n_mbs_total
                                         h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
                                         c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                        m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs *.8
                                         if not d_mbs_row.empty:
-                                            self._draw_scatter_internal(target_ax, d_mbs_row, c_val,target_type)
+                                            self._draw_scatter_internal(target_ax, d_mbs_row, c_val, target_type, marker)
                                 else:
-                                    self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
+                                    self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], target_type, marker)
                             else:
-                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1],target_type)
-                    
-                        if is_p0:
-                            pid_data = cell[(cell['VariantKey'] == pid) & (cell['Error'] <= 0.05)]
-                        else:
-                            pid_data = cell[(cell['VariantKey'] == pid) & (cell['Error'] <= 0.05) & (cell['Msgs_exp_time'].isin(tms))]
-                        
-                        if not pid_data.empty:
-                            px, py = self._get_pareto_front(pid_data['Events'].values, pid_data['Time'].values)
-                            
-                            if len(px) > 0:
-                                if len(px) > 1: 
-                                    target_ax.plot(px, py, color=variant_map[pid][1], lw=8, alpha=0.8, zorder=1)
-                                
+                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], target_type, marker)
 
                 ax.set_ylim(1,500)
                 ax.set_yscale('log')
                 draw_pass(ax, "main")
                 
-                if col_idx == 0: ax.set_ylabel(r"$T_{r}$" if col_idx == 0 else '', fontsize=28)
+                if col_idx == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
                 elif col_idx > 0: ax.set_yticklabels('' for _ in ax.get_yticks())
                 ax.set_xlabel(r"$E_{r}$",fontsize=28)
 
@@ -1141,47 +1133,168 @@ class Data:
                 ax.grid(True, ls=':', zorder=0)
 
                 if insert_tm_list:
-                    best_box = self.find_emptiest_inset_position(ax)
-                    ins = ax.inset_axes(best_box)
+                    best_box = self.find_emptiest_inset_position(ax, width=0.45, height=0.45) if col_idx>0 else [1.0 - 0.45 - 0.03, 1.0 - 0.45 - 0.03, 0.45, 0.45]
+                    
+                    # Condividendo nativamente gli assi eliminiamo ogni problema di overlap e tick extra
+                    ins = ax.inset_axes(best_box, sharex=ax, sharey=ax)
+                    ins.autoscale(False) # Evita che l'inset sovrascriva i limiti del genitore 
                     
                     draw_pass(ins, "inset")
                     
-                    ins.set_xscale(ax.get_xscale())
-                    ins.set_xticks(ax.get_xticks())
-                    ins.set_xticklabels([])
+                    # Rimuove le labels sull'inset per evitare collisioni grafiche
+                    ins.tick_params(labelbottom=False, labeltop=False, labelleft=False, labelright=False)
                     
-                    ins.set_yscale(ax.get_yscale())
-                    ins.set_yticks(ax.get_yticks())
-                    ins.set_yticklabels([])
-                    ins.set_ylim(1,1000)
+                    # Garantisce che il pannello genitore mantenga sempre le proprie labels (sharex potrebbe averle nascoste)
+                    ax.tick_params(labelbottom=True)
+                    if col_idx == 0:
+                        ax.tick_params(labelleft=True)
                     
                     ins.set_axisbelow(True)
                     ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
-                
             for pid in protocols_order:
-                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker='s', linestyle='None', markersize=14, label=variant_map[pid][0]))
+                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
             fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
-                       bbox_to_anchor=(0.60, -0.05), handler_map={Rectangle: GradientHandler(plt.get_cmap("Greys_r"))})
+                       bbox_to_anchor=(0.56, -0.11))
             
             fig.tight_layout()
             fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
 
         save_short(df)
+        self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map)
 
 ###################################################
-    def _draw_scatter_internal(self, ax, data, color, target_type):
-        sc_size = 600 if target_type == 'main' else 200
-        alpha_val = 0.15 if target_type == 'main' else 0.05
+    def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map):
+        images_dir = os.path.join(self.base, "compressed_data", "images")
+        
+        # Bypass the exclude_tm filter to force all available T_m values to be plotted
+        raw_tms = [m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0]
+        msg_list = sorted(raw_tms)
+        
+        if not msg_list: return
+        if 60 in msg_list:
+            msg_list = [60] + [m for m in msg_list if m != 60]
+            
+        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+        nrows = len(msg_list)
+        ncols = len(densities)
+        
+        # Establish global Y limit for Time, but calculate specific X limits for each column (Density)
+        time_max = df["Time"].max()
+        event_max_per_col = [df[(df['Arena'] == arena) & (df['Agents'] == ag)]["Events"].max() for _, arena, ag in densities]
+        
+        # sharex='col' is CRITICAL here: it allows different columns to have different x-axis scales
+        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*8, nrows*8), squeeze=False, sharex='col', sharey=True)
+
+        for i, tm_val in enumerate(msg_list):
+            for j, (dens_label, arena, ag) in enumerate(densities):
+                ax = axes[i, j]
+                cell = df[(df['Arena'] == arena) & (df['Agents'] == ag)]
+                
+                for pid in protocols_order:
+                    is_p0 = (pid == 'P.0')
+                    target_tm = 60 if is_p0 else tm_val
+                    p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == target_tm)]
+                    
+                    if p_data.empty: continue
+                    marker = marker_map.get(pid, 'o')
+                    
+                    if pid == "P.1.1":
+                        mbs_list = mbs_global_map.get(ag, [])
+                        n_mbs_total = len(mbs_list)
+                        if n_mbs_total > 0:
+                            for m_idx, val_mbs in enumerate(mbs_list):
+                                d_mbs_row = p_data[p_data['MBS'] == val_mbs]
+                                ratio = (m_idx + 1) / n_mbs_total
+                                h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
+                                c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                if not d_mbs_row.empty:
+                                    self._draw_scatter_internal(ax, d_mbs_row, c_val, 'main', marker)
+                        else:
+                            self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
+                    else:
+                        self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
+
+                ax.set_yscale('log')
+                ax.set_ylim(self.time_axis_limits(time_max)[:2])
+                
+                # Apply the specific maximum for this column using the index 'j'
+                ax.set_xlim(0, self.event_axis_limits(event_max_per_col[j])[1])
+                ax.grid(True, ls=':', zorder=0)
+
+                if i == 0: 
+                    ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
+                if j == 0:
+                    ax.set_ylabel(r"$T_{r}$", fontsize=28)
+                if i == nrows - 1:
+                    ax.set_xlabel(r"$E_{r}$", fontsize=28)
+                if j == ncols - 1:
+                    ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
+                                rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
+
+        legend_elements = []
+        for pid in protocols_order:
+            legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
+            
+        fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.56, 0.035))
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+        fig.savefig(os.path.join(images_dir, f"scatter_recovery_all_tm.pdf"), bbox_inches='tight')
+        plt.close(fig)
+        
+###################################################
+    def _draw_scatter_internal(self, ax, data, color, target_type, marker_type='o'):
+        sc_size = 200 if target_type == 'main' else 75
+        alpha_val = 0.3 if target_type == 'main' else 0.2
         d_le = data[data['Error'] <= 0.05]['Events'].values
         t_le = data[data['Error'] <= 0.05]['Time'].values
         
         if len(d_le) > 0:
-            # The base face uses alpha=0.2 and edgecolors is strictly defined
-            ax.scatter(d_le, t_le, marker='o', s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none',zorder=0)
+            # 1. Draw the scatter points with zorder=2 (above the highlighted area)
+            ax.scatter(d_le, t_le, marker=marker_type, s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none', zorder=2)
+            
+            # 2. Compute variables for the shaded area
+            alpha_fill = 0.15 if target_type == 'main' else 0.05
+            alpha_edge = 0.40 if target_type == 'main' else 0.20
+            
+            points = np.column_stack((d_le, t_le))
+            
+            # Prevent log(0) errors by setting a tiny lower bound for the transformation
+            safe_t_le = np.where(t_le > 0, t_le, 1e-10)
+            
+            # Transform the Y-axis into logarithmic space strictly for the Hull calculation
+            hull_space_points = np.column_stack((d_le, np.log10(safe_t_le)))
+            
+            # Remove duplicate points based on the transformed space to prevent Qhull geometry errors
+            _, unique_indices = np.unique(hull_space_points, axis=0, return_index=True)
+            
+            if len(unique_indices) >= 3:
+                from scipy.spatial import ConvexHull
+                from matplotlib.patches import Polygon
+                try:
+                    # Calculate the hull in logarithmic space
+                    unique_hull_space = hull_space_points[unique_indices]
+                    hull = ConvexHull(unique_hull_space)
+                    
+                    # Map the hull vertices back to the ORIGINAL linear coordinates for plotting
+                    original_vertices = points[unique_indices][hull.vertices]
+                    
+                    poly = Polygon(original_vertices, 
+                                   facecolor=colors.to_rgba(color, alpha_fill), 
+                                   edgecolor=colors.to_rgba(color, alpha_edge), 
+                                   linewidth=2, zorder=1)
+                    ax.add_patch(poly)
+                except Exception:
+                    # Fallback for collinear points that fail the Convex Hull calculation
+                    unique_points = points[unique_indices]
+                    ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=1)
+            elif len(unique_indices) == 2:
+                # Draw a simple connective line if there are only exactly two unique points
+                unique_points = points[unique_indices]
+                ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=1)
+
 ###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
@@ -1352,7 +1465,7 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$min|\mathcal{B}|$')
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
@@ -1402,7 +1515,7 @@ class Data:
             r_list.append(protocol.get("label", pid) if protocol else pid)
                 
         handles_l.append(min_dim)
-        l_list.append(r'$min|\mathcal{B}|$')
+        l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         
         rows = [60, 120, 180, 300, 600]
         rows = self._plot_tm_values( rows)
@@ -1555,7 +1668,7 @@ class Data:
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$min|\mathcal{B}|$')
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         real_x_ticks = []
@@ -1603,7 +1716,7 @@ class Data:
             l_list.append(protocol.get("label", pid) if protocol else pid)
                 
         handles_r.append(min_dim)
-        l_list.append(r'$min|\mathcal{B}|$')
+        l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         
         columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values( columns)
@@ -2029,7 +2142,6 @@ class Data:
         if not os.path.exists(self.base+"/compressed_data/images/"):
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
-        # plt.rcParams.update({"font.size": 34})
         
         ground_T, threshlds, dk_tot_states, dk_tot_times, o_k, [arena, agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         
@@ -2111,7 +2223,8 @@ class Data:
                         target_ax = ax[0][col_idx]
                     else:
                         if (0, col_idx) not in inset_axes_dict:
-                            ins = ax[0][col_idx].inset_axes([0.62, 0.03, 0.35, 0.35])
+                            # INCREASED INSET SIZE (0.45x0.45)
+                            ins = ax[0][col_idx].inset_axes([0.52, 0.03, 0.45, 0.45])
                             ins.set_xlim(0, 901); ins.set_ylim(-0.01, 1.01)
                             ins.tick_params(labelbottom=False, labelleft=False)
                             ins.grid(True, ls=':', color='silver')
@@ -2182,10 +2295,12 @@ class Data:
                         else:
                             if (r_idx, col_idx) not in inset_axes_dict:
                                 if r_idx == 2:
-                                    y_pos = 0.62
-                                    best_box = [0.62, y_pos, 0.35, 0.35]
+                                    # INCREASED INSET SIZE (0.45x0.45) AND ADJUSTED Y_POS
+                                    y_pos = 0.52
+                                    best_box = [0.52, y_pos, 0.45, 0.45]
                                 else:
-                                    best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx])
+                                    # INCREASED INSET SIZE PASSED TO DYNAMIC LOCATOR
+                                    best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx], width=0.45, height=0.45)
                                 
                                 ins = ax[r_idx][col_idx].inset_axes(best_box)
                                 ins.grid(True, ls=':', color='silver')
@@ -2203,12 +2318,6 @@ class Data:
         
 ###################################################
     def _finalize_compressed_plot(self, fig, ax, path, protocol_colors, tau_ticks, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict=None):
-        import os
-        import matplotlib.pyplot as plt
-        from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-        from matplotlib.lines import Line2D
-        from matplotlib.patches import Rectangle
-        from matplotlib.legend_handler import HandlerBase
         
         if inset_axes_dict is None:
             inset_axes_dict = {}
@@ -2222,7 +2331,7 @@ class Data:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
                     curr.set_ylim(-0.01, 1.01); curr.set_xlabel(r"$T$")
-                    if j == 0: ax[i][0].text(0.5, 0.25, r'$min|\mathcal{B}|$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
+                    if j == 0: ax[i][0].text(0.4, 0.3, r'$\dfrac{\mathcal{B}_m}{N-1}$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
                 elif i == 1:
                     curr.set_xlim(0.5, 1); curr.set_ylim(0.5, 1)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
@@ -2266,7 +2375,7 @@ class Data:
         
         # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label='Q=0.2'))
         # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label='Q=0.8'))
-        # legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$min|\mathcal{B}|$'))
+        # legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$'))
         handler_map = {}
         # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
         # legend_elements.append(grad_rect)
@@ -2293,13 +2402,18 @@ class Data:
         plt.close(fig)
 
 ###################################################
-    def find_emptiest_inset_position(self, ax, width=0.35, height=0.35, margin=0.03):
+    def find_emptiest_inset_position(self, ax, width=0.35, height=0.35, margin=0.03, grid_bins=15):
         """
         Calculates the emptiest quadrant in the given axis to place an inset.
         Evaluates the top-left, top-right, bottom-left, and bottom-right corners.
-        Fully compatible with lines, boxplots (patches), and scatter points (collections),
-        respecting both linear and logarithmic axis scales.
+        Fully compatible with lines, boxplots (patches), and scatter points (collections).
+        
+        Uses a 2D histogram to evaluate spatial coverage rather than raw point counts.
+        Many overlapping points will only occupy a single grid bin, whereas scattered 
+        points will occupy many bins, making them a heavier penalty.
         """
+        import numpy as np
+        
         candidates = {
             "top_left": [margin, 1.0 - height - margin, width, height],
             "top_right": [1.0 - width - margin, 1.0 - height - margin, width, height],
@@ -2330,6 +2444,7 @@ class Data:
                         interpolated_points = []
                         for i in range(len(ax_xy) - 1):
                             p1, p2 = ax_xy[i], ax_xy[i+1]
+                            # Create interpolated points along the line to ensure coverage
                             num_pts = max(2, int(np.linalg.norm(p2 - p1) * 30))
                             x_interp = np.linspace(p1[0], p2[0], num_pts)
                             y_interp = np.linspace(p1[1], p2[1], num_pts)
@@ -2378,8 +2493,21 @@ class Data:
         
         for key, box in candidates.items():
             x0, y0, w, h = box
+            
+            # Isolate points that fall into the current candidate box
             in_box = (x_ax >= x0) & (x_ax <= x0 + w) & (y_ax >= y0) & (y_ax <= y0 + h)
-            counts[key] += np.sum(in_box)
+            box_x = x_ax[in_box]
+            box_y = y_ax[in_box]
+            
+            if len(box_x) == 0:
+                counts[key] = 0
+            else:
+                # Create a 2D histogram of the box to calculate spatial coverage.
+                # 'bins=15' splits the box into a 15x15 grid.
+                H, _, _ = np.histogram2d(box_x, box_y, bins=grid_bins, range=[[x0, x0 + w], [y0, y0 + h]])
+                
+                # Count how many grid cells have > 0 points in them
+                counts[key] = np.sum(H > 0)
             
         best_position_key = min(counts, key=counts.get)
         
