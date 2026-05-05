@@ -1,6 +1,7 @@
 import os, csv, logging, re
 import numpy as np
 from pathlib import Path
+import warnings
 
 class Results:
     min_buff_dim = 5
@@ -26,40 +27,47 @@ class Results:
 
 ##########################################################################################################
     def compute_average_cohesion_through_run(self, data: np.ndarray, n_options: int):
-
         if data.ndim != 3:
             raise ValueError(f"Input atteso 3D (n_runs,n_agents,steps), trovato ndim={data.ndim}")
         
         n_runs, n_agents, n_steps = data.shape
-        n_states = n_options
-
         data_int = data.astype(np.int32, copy=False)
-        valid_mask = (data_int >= 0) & (data_int < n_states)
-        valid_agents = valid_mask.sum(axis=1).astype(np.float64)  # (n_runs, n_steps)
-        valid_agents = np.where(valid_agents > 0.0, valid_agents, np.nan)
-
-        state_values = np.arange(n_states, dtype=np.int32)[:, None, None]
-        counts = (
-            (data_int[:, None, :, :] == state_values[None, :, :, :]) &
-            valid_mask[:, None, :, :]
-        ).sum(axis=2).astype(np.float64)
-
-        counts_norm = counts / valid_agents[:, None, :]
-        counts_norm = np.nan_to_num(counts_norm, nan=0.0)
-        winner_counts = np.max(counts_norm, axis=1) # (n_runs, n_steps)
+        valid_mask = (data_int >= 0) & (data_int < n_options)
         
+        # Agenti validi totali per run e step (n_runs, n_steps)
+        valid_agents = valid_mask.sum(axis=1).astype(np.float64)
+        valid_agents_safe = np.where(valid_agents > 0.0, valid_agents, 1.0)
+
+        # Contiamo gli agenti per singola opzione
+        state_values = np.arange(n_options, dtype=np.int32)[:, None, None]
+        opt_mask = (data_int[:, None, :, :] == state_values[None, :, :, :]) & valid_mask[:, None, :, :]
+        # Shape: (n_runs, n_options, n_steps)
+        counts_per_opt = opt_mask.sum(axis=2).astype(np.float64) 
+
+        # Correzione Broadcasting: espandiamo il denominatore
+        cohesion_per_opt = counts_per_opt / valid_agents_safe[:, None, :]
+
+        # Determiniamo l'indice dell'opzione maggioritaria step-by-step
+        winner_idx = np.argmax(counts_per_opt, axis=1) # (n_runs, n_steps)
+        r_idx = np.arange(n_runs)[:, None]
+        s_idx = np.arange(n_steps)[None, :]
+
+        # Coesione dell'opzione vincitrice
+        winner_cohesion = cohesion_per_opt[r_idx, winner_idx, s_idx]
+
+        # Coesione cumulativa di tutte le altre opzioni
         if n_options > 1:
-            other_counts = (np.sum(counts_norm, axis=1) - winner_counts) / (n_options - 1)
+            others_cohesion = np.sum(cohesion_per_opt, axis=1) - winner_cohesion
         else:
-            other_counts = np.zeros_like(winner_counts)
+            others_cohesion = np.zeros_like(winner_cohesion)
 
         final_means = []
         final_stds = []
 
-        # option_id = 0 -> coesione massima; option_id = 1 -> media delle altre opzioni
-        for group in [winner_counts, other_counts]:
-            final_means.append(np.around(group.mean(axis=0), decimals=3).tolist())
-            final_stds.append(np.around(group.std(axis=0), decimals=3).tolist())
+        # option_id = 0 logico (Maggioranza), option_id = 1 logico (Resto)
+        for group in [winner_cohesion, others_cohesion]:
+            final_means.append(np.around(np.mean(group, axis=0), decimals=3).tolist())
+            final_stds.append(np.around(np.std(group, axis=0), decimals=3).tolist())
 
         return final_means, final_stds
 
@@ -67,6 +75,11 @@ class Results:
     def compute_accuracy(self, data: np.ndarray, n_options: int, eta: float, window: int = 100):
         n_runs, n_agents, n_steps = data.shape
         crit_eta = (n_options - 1) / n_options
+        
+        # Ignora se eta è uguale al valore critico
+        if abs(eta - crit_eta) < 1e-5:
+            return None
+            
         actual_window = min(window, n_steps)
         last_data = data[:, :, -actual_window:] # shape: (runs, agents, window)
         
@@ -86,6 +99,8 @@ class Results:
             
             avg_counts = np.mean(counts_per_step, axis=0)
             avg_valid_agents = float(np.mean(valid_per_step))
+            
+            # Soglia per dichiarare il successo (es. 90% degli agenti validi)
             threshold = 0.9 * avg_valid_agents
             
             is_success = False
@@ -97,15 +112,15 @@ class Results:
             elif eta > crit_eta:
                 if n_options > 1 and np.any(avg_counts[1:] >= threshold):
                     is_success = True
-            else:
-                if np.any(avg_counts[:] >= threshold):
-                    is_success = True
             
             if is_success:
                 success_count += 1
 
-        return (success_count / n_runs) * 100
+        # Restituisce la percentuale di run che hanno avuto successo
+        accuracy_percentage = (success_count / n_runs) * 100.0
+        return accuracy_percentage
 
+##########################################################################################################
     def compute_exit_time(self, data: np.ndarray, n_options: int):
         n_runs, n_agents, n_steps = data.shape
         exit_times = []
@@ -183,16 +198,12 @@ class Results:
             if loaded[rn, ag]:
                 raise ValueError(f"Duplicato run/agent: run={rn}, agent={ag}, file={fp.name}")
 
-            sampled = np.loadtxt(fp, delimiter="\t", ndmin=2)  # attese 4 colonne numeriche
+            sampled = np.loadtxt(fp, delimiter="\t", ndmin=2)
             if sampled.shape[1] != 4:
                 raise ValueError(f"{fp.name}: colonne trovate={sampled.shape[1]}, attese=4")
             n_rows = sampled.shape[0]
 
-            # Check 1: troppe righe
-            if n_rows > max_steps:
-                raise ValueError(f"{fp.name}: righe={n_rows} > max_steps={max_steps}")
-
-            # Check 2: meno righe -> padding iniziale (valori default già impostati)
+            # Padding iniziale automatico se le righe sono meno
             start = max_steps - n_rows
             state_m[rn, ag, start:] = sampled[:, 0].astype(np.int16)
             msgs_m[rn, ag, start:] = sampled[:, 1].astype(np.int32)
@@ -206,7 +217,6 @@ class Results:
         if incomplete_runs.size:
             raise ValueError(f"Run incomplete: {incomplete_runs.tolist()}")
         
-
         invalid_state_mask = (state_m < 0) | (state_m >= n_options)
         if np.any(invalid_state_mask):
             invalid_values = np.unique(state_m[invalid_state_mask]).tolist()
@@ -216,13 +226,11 @@ class Results:
             temp_count = int(np.count_nonzero(state_m == 255))
             print(f"[WARN] Ignoro {temp_count} campioni con stato temporaneo 255")
 
+        # Metriche dipendenti dall'opzione (0=Dominante, 1=Altre)
         cohesion_mean, cohesion_std = self.compute_average_cohesion_through_run(state_m, n_options)
-        # success = self.compute_accuracy(state_m, n_options,eta)
-        time_mean = self.compute_exit_time(state_m, n_options)
-        msgs_mean, msgs_std = self.compute_overall_average_through_run(msgs_m)
-        quorum_mean, quorum_std = self.compute_average_metric_through_run(quorum_m, state_m, n_options)
-        ctrl_mean, ctrl_std = self.compute_average_metric_through_run(ctrl_m, state_m, n_options)
-
+        quorum_mean, quorum_std = self.compute_average_metric_through_run(quorum_m, state_m, n_options, is_quorum=True)
+        ctrl_mean, ctrl_std = self.compute_average_metric_through_run(ctrl_m, state_m, n_options, is_quorum=False)
+        
         for state_id in range(len(cohesion_mean)):
             self.dump_resume_per_opt_csv(
                 data_in=cohesion_mean[state_id], data_std=cohesion_std[state_id], exp_length=exp_length,
@@ -256,14 +264,20 @@ class Results:
                 option_id=state_id, data_type="ctrl"
             )
 
-        # self.dump_resume_csv(
-        #     data_in=success, data_std="-", exp_length=exp_length, communication=communication,
-        #     adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
-        #     n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
-        #     spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
-        #     init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
-        #     num_runs=num_runs, arenaS=arenaS, data_type="accuracy" )
+        # Salvo l'Accuracy come valore percentuale globale (se eta != crit_eta)
+        accuracy_val = self.compute_accuracy(state_m, n_options, eta)
+        if accuracy_val is not None:
+            # Salviamo il singolo scalare in data_in. Impostiamo "-" in data_std.
+            self.dump_resume_csv(
+                data_in=accuracy_val, data_std="-", exp_length=exp_length, communication=communication,
+                adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
+                n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
+                spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
+                init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
+                num_runs=num_runs, arenaS=arenaS, data_type="accuracy" )
 
+        # Salvo le metriche globali (indipendenti dall'opzione)
+        time_mean = self.compute_exit_time(state_m, n_options)
         self.dump_resume_csv(
             data_in=time_mean, data_std="-", exp_length=exp_length, communication=communication,
             adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
@@ -271,7 +285,8 @@ class Results:
             spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
             init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
             num_runs=num_runs, arenaS=arenaS, data_type="time" )
-
+        
+        msgs_mean, msgs_std = self.compute_overall_average_through_run(msgs_m)
         self.dump_resume_csv(
             data_in=msgs_mean, data_std=msgs_std, exp_length=exp_length, communication=communication,
             adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
@@ -281,7 +296,7 @@ class Results:
             num_runs=num_runs, arenaS=arenaS, data_type="msgs" )
         
 ##########################################################################################################
-    def compute_average_metric_through_run(self, metric_data: np.ndarray, state_data: np.ndarray, n_options: int):
+    def compute_average_metric_through_run(self, metric_data: np.ndarray, state_data: np.ndarray, n_options: int, is_quorum: bool = False):
         if metric_data.ndim != 3 or state_data.ndim != 3:
             raise ValueError("Input expected to be 3D (n_runs, n_agents, steps)")
         
@@ -289,59 +304,89 @@ class Results:
         state_data_int = state_data.astype(np.int32, copy=False)
         valid_mask = (state_data_int >= 0) & (state_data_int < n_options)
 
+        # 1. Contiamo quanti agenti ci sono per ogni ID opzione, per ogni run e step
+        # shape: (n_runs, n_options, n_agents, n_steps)
         state_values = np.arange(n_options, dtype=np.int32)[:, None, None]
-        
-        # Mask per option: (n_options, n_runs, n_agents, n_steps)
         opt_mask = (state_data_int[:, None, :, :] == state_values[None, :, :, :]) & valid_mask[:, None, :, :]
         
-        # Agent counts per option: (n_options, n_runs, n_steps)
-        counts = opt_mask.sum(axis=2).astype(np.float64)
+        # shape: (n_runs, n_options, n_steps)
+        counts_per_opt = opt_mask.sum(axis=2).astype(np.float64) 
         
-        # Sum of metric per option: (n_options, n_runs, n_steps)
-        metric_sums = np.sum(np.where(opt_mask, metric_data[:, None, :, :], 0.0), axis=2)
-        
-        # Average metric per option
-        safe_counts = np.where(counts > 0.0, counts, 1.0)
-        metric_avgs = metric_sums / safe_counts
-        
-        # Determine winner option per run and step based on agent counts
-        winner_idx = np.argmax(counts, axis=0) 
-        
-        # Gather winner metrics dynamically
+        # 2. Sommiamo la metrica per ogni ID opzione
+        metric_sums_per_opt = np.sum(np.where(opt_mask, metric_data[:, None, :, :], 0.0), axis=2)
+        metric_sq_sums_per_opt = np.sum(np.where(opt_mask, metric_data[:, None, :, :]**2, 0.0), axis=2)
+
+        # 3. Determiniamo dinamicamente l'indice dell'opzione vincitrice step by step
+        winner_idx = np.argmax(counts_per_opt, axis=1)
         r_idx = np.arange(n_runs)[:, None]
         s_idx = np.arange(n_steps)[None, :]
-        winner_metric = metric_avgs[winner_idx, r_idx, s_idx]
-        
-        # Gather others metrics
+
+        # --- VINCITORE (option_id = 0 logico) ---
+        winner_counts = counts_per_opt[r_idx, winner_idx, s_idx]
+        winner_sums = metric_sums_per_opt[r_idx, winner_idx, s_idx]
+        winner_sq_sums = metric_sq_sums_per_opt[r_idx, winner_idx, s_idx]
+
+        # --- ALTRE OPZIONI (option_id = 1 logico) ---
         if n_options > 1:
-            total_metric_except_winner = np.sum(metric_avgs, axis=0) - winner_metric
-            other_metric = total_metric_except_winner / (n_options - 1)
+            others_counts = np.sum(counts_per_opt, axis=1) - winner_counts
+            others_sums = np.sum(metric_sums_per_opt, axis=1) - winner_sums
+            others_sq_sums = np.sum(metric_sq_sums_per_opt, axis=1) - winner_sq_sums
         else:
-            other_metric = np.zeros_like(winner_metric)
-            
+            others_counts = np.zeros_like(winner_counts)
+            others_sums = np.zeros_like(winner_sums)
+            others_sq_sums = np.zeros_like(winner_sq_sums)
+
+        groups = [
+            (np.sum(winner_counts, axis=0), np.sum(winner_sums, axis=0), np.sum(winner_sq_sums, axis=0)),
+            (np.sum(others_counts, axis=0), np.sum(others_sums, axis=0), np.sum(others_sq_sums, axis=0))
+        ]
+
+        # Totale agenti validi per il sistema (solo se is_quorum)
+        total_valid_agents = np.sum(valid_mask, axis=(0, 1)).astype(np.float64)
+
         final_means = []
         final_stds = []
 
-        # option_id = 0 -> winner avg metric; option_id = 1 -> other avg metric
-        for group in [winner_metric, other_metric]:
-            final_means.append(np.around(group.mean(axis=0), decimals=3).tolist())
-            final_stds.append(np.around(group.std(axis=0), decimals=3).tolist())
+        for group_counts, group_sums, group_sq_sums in groups:
+            if is_quorum:
+                # Quorum: diviso SEMPRE per il totale agenti del sistema
+                safe_div = np.where(total_valid_agents > 0, total_valid_agents, 1.0)
+                mean_opt = group_sums / safe_div
+                mean_sq_opt = group_sq_sums / safe_div
+            else:
+                # Ctrl: diviso per gli agenti in QUEL gruppo (vincitori o restanti)
+                safe_div = np.where(group_counts > 0, group_counts, 1.0)
+                mean_opt = group_sums / safe_div
+                mean_sq_opt = group_sq_sums / safe_div
+                
+                mean_opt = np.where(group_counts > 0, mean_opt, 0.0)
+                mean_sq_opt = np.where(group_counts > 0, mean_sq_opt, 0.0)
+
+            # Varianza aggregata (Pooled Variance)
+            variance = mean_sq_opt - (mean_opt**2)
+            variance = np.where(variance > 0, variance, 0.0)
+            std_opt = np.sqrt(variance)
+
+            final_means.append(np.around(mean_opt, decimals=3).tolist())
+            final_stds.append(np.around(std_opt, decimals=3).tolist())
 
         return final_means, final_stds
     
 ##########################################################################################################
-
     def compute_overall_average_through_run(self, data: np.ndarray):
         if data.ndim != 3:
             raise ValueError(f"Input expected 3D (n_runs, n_agents, steps), found ndim={data.ndim}")
+        n_runs, n_agents, n_steps = data.shape
+        max_msgs = max(1.0, float(n_agents - 1))
         
-        # Average across all agents for each run and step: shape becomes (n_runs, n_steps)
-        agent_mean = np.mean(data, axis=1)
+        sum_per_run = np.sum(data, axis=1) # shape: (n_runs, n_steps)
+        avg_per_run = sum_per_run / n_agents
         
-        # Mean and standard deviation across runs: shape becomes (n_steps,)
-        final_mean = np.around(np.mean(agent_mean, axis=0), decimals=3).tolist()
-        final_std = np.around(np.std(agent_mean, axis=0), decimals=3).tolist()
+        # Normalizziamo per numero massimo di messaggi
+        norm_avg_per_run = avg_per_run / max_msgs
         
+        final_mean = np.around(np.mean(norm_avg_per_run, axis=0), decimals=3).tolist()
+        final_std = np.around(np.std(norm_avg_per_run, axis=0), decimals=3).tolist()
         return final_mean, final_std
     
 ##########################################################################################################
