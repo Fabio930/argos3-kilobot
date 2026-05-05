@@ -118,11 +118,25 @@ uint64_t buffer_neglect=0;
 uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
-#define FIFO_BUFFER_SIZE 128
-uint8_t fifo_ids[FIFO_BUFFER_SIZE];
-uint8_t fifo_head = 0;
-uint8_t fifo_tail = 0;
-uint8_t fifo_count = 0;
+#define FIFO_MSG_SIZE 128
+
+/* Struttura per il singolo elemento della coda */
+typedef struct {
+    uint8_t agent_id;
+    uint8_t msg_n_hops;
+    uint8_t agent_state;
+} fifo_msg_t;
+
+/* Struttura per il buffer circolare della FIFO */
+typedef struct {
+    fifo_msg_t buffer[FIFO_MSG_SIZE];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+} fifo_msg_buffer_t;
+
+/* Istanza globale della coda di rebroadcast */
+fifo_msg_buffer_t rebroadcast_fifo;
 // uint8_t quorum_reached = 0;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
@@ -149,7 +163,24 @@ void talk();
 
 void broadcast();
 
-void rebroadcast();
+/*-------------------------------------------------------------------*/
+/*             Rebroadcasting & FIFO Functions                   */
+/*-------------------------------------------------------------------*/
+void rnd_rebroadcast();
+
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
+
+void fifo_msg_init(fifo_msg_buffer_t* fifo);
+
+uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
+
+uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
+
+uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
+
+uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
+
+uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
 
 /*-------------------------------------------------------------------*/
 /*           Bunch of funtions for handling the quorum               */

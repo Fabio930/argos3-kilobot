@@ -3,9 +3,7 @@
  */
 #include "bestN.h"
 
-static void fifo_enqueue(const uint8_t agent_id);
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id);
-static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops);
 
 void set_motion( motion_t new_motion_type){
     if(current_motion_type != new_motion_type){
@@ -221,56 +219,11 @@ uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops
     return 1;
 }
 
-void rebroadcast(){
-    // frequency log
-    num_other_info +=1;
-    // message
-    sa_type = 0;
-    if(broadcasting_flag==2 && msg_n_hops > 0) sa_type = quorum_array[selected_msg_indx]->msg_n_hops - 1;
-    sa_id = quorum_array[selected_msg_indx]->agent_id;
-    sa_payload = quorum_array[selected_msg_indx]->agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = quorum_array[selected_msg_indx]->delivered + 1;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-static void fifo_enqueue(const uint8_t agent_id){
-    if(fifo_count >= FIFO_BUFFER_SIZE){
-        return;
-    }
-    fifo_ids[fifo_tail] = agent_id;
-    fifo_tail = (uint8_t)((fifo_tail + 1) % FIFO_BUFFER_SIZE);
-    fifo_count++;
-}
-
 static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
     for(uint8_t i = 0; i < num_quorum_items; ++i){
         if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
             return i;
         }
-    }
-    return 0b1111111111111111;
-}
-
-static uint16_t select_message_by_fifo_buffer(const uint8_t check_4_hops){
-    while(fifo_count > 0){
-        uint8_t agent_id = fifo_ids[fifo_head];
-        fifo_head = (uint8_t)((fifo_head + 1) % FIFO_BUFFER_SIZE);
-        fifo_count--;
-        uint16_t idx = find_quorum_index_by_id(agent_id);
-        if(idx == 0b1111111111111111){
-            continue;
-        }
-        quorum_a *item = quorum_array[idx];
-        if(item == NULL || item->delivered != 0){
-            continue;
-        }
-        if(check_4_hops != 0 && item->msg_n_hops == 0){
-            continue;
-        }
-        return idx;
     }
     return 0b1111111111111111;
 }
