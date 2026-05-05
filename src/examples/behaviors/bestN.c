@@ -211,7 +211,11 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(const uint8_t Msg_n_hops){
-    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+
+    uint32_t expiring_time = 0;
+    if(expiring_ticks_quorum > 0){
+        expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+    }
     update_circular_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time);
     sort_q(&quorum_array);
 }
