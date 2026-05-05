@@ -68,15 +68,16 @@ experiment_length="900"
 RUNS=100
 rebroadcast="0"
 buffer_dim=""
-numrobots="25"
+numrobots="25 100"
+k_sampling="0"
 threshold="0.80"
 committed_percentage="0.68 0.76 0.84"
-msg_expiring_seconds="60 180 600"
+msg_expiring_seconds="0"
 messages_hops="0"
 
 # small arena dimensions
-arena_x_side="0.500 1.000"
-arena_y_side="0.500 0.250"
+arena_x_side="1.000 2.000"
+arena_y_side="1.000 0.500"
 
 # Convert the space-separated strings into arrays
 arena_x_side_array=($arena_x_side)
@@ -131,10 +132,10 @@ for exp_len_par in $experiment_length; do
                             fi
                             if [ $agents_par -eq 25 ]; then
                                 buffer_dim="24"
-                                k_sampling="1 4 9"
+                                # k_sampling="1 4 9"
                             elif [ $agents_par -eq 100 ]; then
                                 buffer_dim="99"
-                                k_sampling="1 19 39"
+                                # k_sampling="1 19 39"
                             fi
                             for msgs_par in $msg_expiring_seconds; do
                                 msgs_dir=$msgs_hop_dir/"MsgExpTime#"$msgs_par
@@ -166,6 +167,10 @@ for exp_len_par in $experiment_length; do
                                     midXbot=$(echo "$midXbot - $Wr" | bc)
                                     midYbot=$(echo "$midYbot - $Hr" | bc)
                                     
+                                    if find "$k_dir" -mindepth 1 -maxdepth 10 -print -quit | grep -q .; then
+                                        echo "Skipping non-empty results directory: $k_dir"
+                                        continue
+                                    fi
                                     for i in $(seq 1 $RUNS); do
                                         config=`printf 'config_arenaX%s_Y%s_nrobots%s_rebroad%d_MsgExpTime%s_Thr%s_GT%s_Ksamp%s_run%s.argos' $arena_x_par $arena_y_par $agents_par $comm_par $msgs_par $thr_par $committed_par $k_par $i`
                                         cp $base_config $config
