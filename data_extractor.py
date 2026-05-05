@@ -148,10 +148,7 @@ class Results:
         arenaS  = ""
         for iv in info_vec:
             if iv.startswith("results_"):
-                arenaS = iv.split("results_", 1)[1]
-                break
-            if iv.startswith("results"):
-                arenaS = iv[len("results"):].lstrip("_")
+                arenaS = iv.split("_")[-1]
                 break
 
         files = sorted(Path(path).glob("*.tsv"))

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 3 ]; then
     echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
     exit 1
 fi
@@ -33,7 +33,7 @@ control_parameter=""
 experiment_length="900"
 variation_time="0"
 RUNS=100
-options="2 5"
+options="$3"
 options_distrib="random"
 spatial_correlation="0"
 # if [[ $options_distrib == "random" ]]; then
@@ -45,7 +45,7 @@ rebroadcast="0 1 2"
 adaptive_set="0"
 priority_k_set="0"
 msgs_timeout="180"
-control="static direct polynomial"
+control="static linear polynomial"
 voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
@@ -166,7 +166,7 @@ for exp_len_par in $experiment_length; do
                                                         fi
                                                         if [[ $control_par == "static" ]]; then
                                                             control_parameter="0.8"
-                                                        elif [[ $control_par == "direct" ]]; then
+                                                        elif [[ $control_par == "linear" ]]; then
                                                             control_parameter="0.0"
                                                         else
                                                             control_parameter="0.5 0.7"
