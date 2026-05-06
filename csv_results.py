@@ -183,9 +183,10 @@ class Data:
         return lines
 
 ##########################################################################################################
-    def _get_protocol_id(self, a, c, m_h):
+    def _get_protocol_id(self, a, c, m_h, tm=0):
         c_int = int(c)
-        if a == 'P' and c_int == 0: return "P.1.0"
+        if a == 'P' and c_int == 0: 
+            return "P.0" if int(float(tm)) == 0 else "P.1.0"
         if a == 'O':
             if c_int == 0: return "O.0.0"
             if c_int == 1:
@@ -368,7 +369,7 @@ class Data:
                 ground_T.add(gt); threshlds.add(thr); msg_time.add(m_t); msg_hop.add(m_h)
                 arena.add(a_s); agents.add(n_a)
 
-                pid = self._get_protocol_id(a, c, m_h)
+                pid = self._get_protocol_id(a, c, m_h, m_t)
                 if pid:
                     if pid == "P.1.1":
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
@@ -403,7 +404,7 @@ class Data:
                 ground_T.add(gt); threshlds.add(thr); msg_time.add(m_t); msg_hop.add(m_h)
                 arena.add(a_s); agents.add(n_a)
 
-                pid = self._get_protocol_id(a, c, m_h)
+                pid = self._get_protocol_id(a, c, m_h, m_t)
                 if pid:
                     if pid == "P.1.1":
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
@@ -426,7 +427,7 @@ class Data:
             
             arena.add(a); thr.add(t); gt.add(g); agents.add(ag); buffer.add(b)
             
-            pid = self._get_protocol_id(al, c, mh)
+            pid = self._get_protocol_id(al, c, mh, b)
             if pid:
                 if pid == "P.1.1":
                     if str(ag) not in self.k_samps_per_agent: self.k_samps_per_agent[str(ag)] = set()
@@ -483,8 +484,7 @@ class Data:
                             for k_idx, tm in enumerate(o_k): # Row corresponds to Tm
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
-                                    
-                                    base_key = (a, ag, tm, m_h, gt, thr)
+                                    base_key = (a, ag, 0 if pid == "P.0" else tm, m_h, gt, thr)
                                     
                                     for target_ax, sq_dict, rt_dict in [(cax, sq_c, rt_c), (uax, sq_u, rt_u)]:
                                         lines_sq = self._get_lines_to_plot(sq_dict, pid, base_key, ag, protocol_colors)
@@ -571,7 +571,7 @@ class Data:
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
                                     
-                                    base_key = (a, ag, tm, m_h, gt, thr)
+                                    base_key = (a, ag, 0 if pid == "P.0" else tm, m_h, gt, thr)
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
@@ -654,8 +654,7 @@ class Data:
                                 ax[row][col].plot([5/(int(ag)-1)] * 900, color="black", lw=4, ls=":")
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
-                                    
-                                    base_key = (a, t, g, ag, b)
+                                    base_key = (a, t, g, ag, 0 if pid == "P.0" else b)
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
@@ -730,7 +729,7 @@ class Data:
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
                                     
-                                    base_key = (a, t, g, ag, b)
+                                    base_key = (a, t, g, ag, 0 if pid == "P.0" else b)
                                     sc_lines = self._get_lines_to_plot(sq_c, pid, base_key, ag, protocol_colors)
                                     su_lines = self._get_lines_to_plot(sq_u, pid, base_key, ag, protocol_colors)
                                     rc_lines = self._get_lines_to_plot(rt_c, pid, base_key, ag, protocol_colors)
@@ -802,7 +801,7 @@ class Data:
                 if t_val > 1: t_val = round(t_val / 100.0, 2)
                 
                 arena.add(a_s); thr.add(t_val); gt.add(g_val); agents.add(n_a); buffer.add(b_val); msg_hop.add(m_h)
-                pid = self._get_protocol_id(a_al, c, m_h)
+                pid = self._get_protocol_id(a_al, c, m_h, b_val)
                 if pid:
                     if pid == "P.1.1":
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
@@ -898,7 +897,7 @@ class Data:
                                         
                                         if not (is_main or is_insert or is_p0): continue
                                         
-                                        base_key = (a, t, g, ag, tm_val, mh)
+                                        base_key = (a, t, g, ag, 0 if is_p0 else tm_val, mh)
                                         
                                         source_dict = sq_act if is_sq_arena else rt_act
                                         matches = [(k_tup[-1], v) for k_tup, v in source_dict.get(pid, {}).items() if k_tup[:-1] == base_key]
@@ -914,7 +913,9 @@ class Data:
                                             targets = []
                                             if is_main or is_p0:
                                                 targets.append(ax[r_idx][col])
-                                            if is_insert or is_p0:
+                                                
+                                            # Added check to ensure insert_tm_list is not empty
+                                            if insert_tm_list and (is_insert or is_p0):
                                                 if (r_idx, col) not in inset_axes_dict:
                                                     if g >= 0.8:
                                                         best_box = [0.62, 0.03, 0.35, 0.35]
@@ -993,7 +994,7 @@ class Data:
             
             n_cols_leg = 7 if mode=="combined" else 5
             x_pad = 0.11 if mode=="combined" else 0.31
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower left', bbox_to_anchor=(x_pad, -0.06), ncol=n_cols_leg, frameon=True, edgecolor='0.8')
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower left', bbox_to_anchor=(x_pad, -0.09), ncol=n_cols_leg, frameon=True, edgecolor='0.8')
                 
             prefix = "" if interface == "both" else f"{interface}_"
             fig.savefig(path + f"{prefix}short_all_G.pdf", bbox_inches='tight')
