@@ -1123,6 +1123,8 @@ class Data:
 
                 ax.set_ylim(1,500)
                 ax.set_yscale('log')
+                ax.set_xlim(0.3,500)
+                ax.set_xscale('log')
                 draw_pass(ax, "main")
                 
                 if col_idx == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
@@ -1133,8 +1135,8 @@ class Data:
                 ax.grid(True, ls=':', zorder=0)
 
                 if insert_tm_list:
-                    best_box = self.find_emptiest_inset_position(ax, width=0.45, height=0.45) if col_idx>0 else [1.0 - 0.45 - 0.03, 1.0 - 0.45 - 0.03, 0.45, 0.45]
-                    
+                    best_box = [1.0 - 0.44 - 0.03, 1.0 - 0.44 - 0.03, 0.44, 0.44]
+                    # self.find_emptiest_inset_position(ax, width=0.45, height=0.45) if col_idx>0 else
                     # Condividendo nativamente gli assi eliminiamo ogni problema di overlap e tick extra
                     ins = ax.inset_axes(best_box, sharex=ax, sharey=ax)
                     ins.autoscale(False) # Evita che l'inset sovrascriva i limiti del genitore 
@@ -1218,11 +1220,12 @@ class Data:
                     else:
                         self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
 
-                ax.set_yscale('log')
                 ax.set_ylim(self.time_axis_limits(time_max)[:2])
-                
+                ax.set_yscale('log')
+                ax.set_xlim(0.3,101)
+                ax.set_xscale('log')
+
                 # Apply the specific maximum for this column using the index 'j'
-                ax.set_xlim(0, self.event_axis_limits(event_max_per_col[j])[1])
                 ax.grid(True, ls=':', zorder=0)
 
                 if i == 0: 
@@ -1716,7 +1719,6 @@ class Data:
             l_list.append(protocol.get("label", pid) if protocol else pid)
                 
         handles_r.append(min_dim)
-        l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         
         columns = [60, 120, 180, 300, 600]
         columns = self._plot_tm_values( columns)
@@ -2294,13 +2296,12 @@ class Data:
                             curr_ax = ax[r_idx][col_idx]
                         else:
                             if (r_idx, col_idx) not in inset_axes_dict:
-                                if r_idx == 2:
-                                    # INCREASED INSET SIZE (0.45x0.45) AND ADJUSTED Y_POS
-                                    y_pos = 0.52
-                                    best_box = [0.52, y_pos, 0.45, 0.45]
+                                if r_idx == 1:
+                                    best_box = [1.0 - 0.48 - 0.03, 0.03, 0.48, 0.48]
+                                elif r_idx == 2:
+                                    best_box = [1.0 - 0.48 - 0.03, 1.0 - 0.48 - 0.03, 0.48, 0.48]
                                 else:
-                                    # INCREASED INSET SIZE PASSED TO DYNAMIC LOCATOR
-                                    best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx], width=0.45, height=0.45)
+                                    best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx], width=0.48, height=0.48)
                                 
                                 ins = ax[r_idx][col_idx].inset_axes(best_box)
                                 ins.grid(True, ls=':', color='silver')
@@ -2331,15 +2332,11 @@ class Data:
                     curr.set_title(column_titles[j], pad=20)
                     curr.set_xlim(0, 901); curr.set_xticks([0, 300, 600, 900])
                     curr.set_ylim(-0.01, 1.01); curr.set_xlabel(r"$T$")
-                    if j == 0: ax[i][0].text(0.4, 0.3, r'$\dfrac{\mathcal{B}_m}{N-1}$', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
                 elif i == 1:
                     curr.set_xlim(0.5, 1); curr.set_ylim(0.5, 1)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
                     curr.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                     curr.set_xticklabels([])
-                    if j == 0:
-                        ax[i][0].text(0.6, 0.9, 'Q=0.8', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
-                        ax[i][0].text(0.9, 0.5, 'Q=0.2', transform=ax[i][0].transAxes, fontsize=plt.get("font.size"), ha='center', va='center', color='black')
                 elif i == 2:
                     curr.set_xlim(0.5, 1); curr.set_ylim(0, 201)
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
@@ -2349,7 +2346,6 @@ class Data:
                 if j > 0: curr.set_yticklabels([])
                 if (i, j) in inset_axes_dict:
                     ins_ax = inset_axes_dict[(i, j)]
-                    
                     
                     if i == 0:
                         ins_ax.set_xticks([0, 300, 600, 900])

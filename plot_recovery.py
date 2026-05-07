@@ -18,10 +18,8 @@ def main():
     use_pareto = "p" in short
 
     csv_res = CSVres.Data()
-    if use_short:
+    if use_short or use_pareto:
         csv_res._assign_config("short_plot_config.json")
-    if use_pareto:
-        csv_res._assign_config("pareto_plot_config.json")
     if exclude_protocols or exclude_tm:
         csv_res.apply_plot_overrides(
             ["recovery"],
