@@ -261,27 +261,35 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
 
     return image_count
 
+def plot_comparative_cohesion_df(baseline_df: pd.DataFrame, new_method_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
+    """
+    Cohesion line plots with std shadow comparing two datasets.
+    Baseline is plotted with solid lines and solid fill.
+    New Method is plotted with dashed lines and hatched fill.
+    """
+    # 1. Combine DataFrames and add the 'Method' column
+    baseline_df = baseline_df.copy()
+    new_method_df = new_method_df.copy()
+    
+    baseline_df['Method'] = 'Baseline'
+    new_method_df['Method'] = 'New Method'
+    
+    combined_df = pd.concat([baseline_df, new_method_df], ignore_index=True)
 
-def plot_comparative_cohesion_df(result_df: pd.DataFrame, aux_df: pd.DataFrame, file_meta: Optional[dict] = None, aux_meta: Optional[dict]=None) -> int:
-    """
-    Cohesion line plots with std shadow and comparative boxplot.
-    Combines 'static' (control_par=0.8), 'linear' (control_par=0) and 'polynomial' (dynamic control_par) on the same plot.
-    """
-    # Ensure control_par and function are present for our custom masking
-    required_cols = {"option_id", "vote_msg", "data", "std", "function", "control_par"}
-    missing = required_cols.difference(result_df.columns)
+    # Ensure required columns are present
+    required_cols = {"option_id", "vote_msg", "data", "std", "function", "control_par", "Method"}
+    missing = required_cols.difference(combined_df.columns)
     if missing:
-        raise ValueError(f"plot_cohesion_df missing required columns: {sorted(missing)}")
+        raise ValueError(f"plot_comparative_cohesion_df missing required columns: {sorted(missing)}")
 
-    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion"
+    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion_comparison"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Exclude control_par from the base grouping so we can pair different control_par values together
-    exclude_cols = {"option_id", "vote_msg", "function", "data", "std", "control_par"}
-    grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
+    # Exclude columns not used for grouping the base plots
+    exclude_cols = {"option_id", "vote_msg", "function", "data", "std", "control_par", "Method"}
+    grouping_cols = [c for c in combined_df.columns if c not in exclude_cols]
     image_count = 0
 
-    # Explicitly set the colormaps as requested
     function_cmaps = {
         "static": plt.get_cmap("Reds"),
         "polynomial": plt.get_cmap("Blues"),
@@ -289,29 +297,32 @@ def plot_comparative_cohesion_df(result_df: pd.DataFrame, aux_df: pd.DataFrame, 
     }
 
     file_meta = file_meta or {}
-    for group_meta, gdf in _iter_groups(result_df, grouping_cols):
+    
+    # We iterate over groups (e.g., combinations of agents, eta, etc., excluding control_par for now)
+    for group_meta, gdf in _iter_groups(combined_df, grouping_cols):
         
-        # Identify the distinct control_par values used by 'polynomial' in this group
-        poly_df = gdf[gdf["function"] == "polynomial"]
-        if poly_df.empty:
-            poly_ctrl_vals = [None] # Fallback if no polynomial data is found
-        else:
-            poly_ctrl_vals = sorted(poly_df["control_par"].dropna().unique().tolist())
+        # In this example, we'll plot all available control_pars for the polynomial function,
+        # compared against a static baseline if that's your goal.
+        # Alternatively, you can just plot the groups as they are if control_par is a grouping col.
+        
+        # Let's assume you want to plot each unique 'control_par' separately for clarity in comparison
+        ctrl_vals = sorted(gdf["control_par"].dropna().unique().tolist())
+        
+        # If control_par isn't a list of numbers but strings, adjust the sorting/filtering accordingly.
+        
+        for ctrl_val in ctrl_vals:
+            # Filter the group for this specific control parameter (and maybe a static baseline)
+            # This logic might need tweaking based on exactly which subsets you are comparing.
+            # Here we just take the data for the current control_val.
+            plot_df = gdf[gdf["control_par"] == ctrl_val]
+            
+            if plot_df.empty: 
+                continue
 
-        for ctrl_val in poly_ctrl_vals:
-            # Mask and combine polynomial (at current ctrl_val) with static (at 0.8)
-            if ctrl_val is not None:
-                mask_poly = (gdf["function"] == "polynomial") & (np.isclose(gdf["control_par"].astype(float), float(ctrl_val)))
-                mask_static = (gdf["function"] == "static") & (np.isclose(gdf["control_par"].astype(float), 0.8))
-                mask_linear = (gdf["function"] == "linear") & (np.isclose(gdf["control_par"].astype(float), 0.0))
-                
-                plot_df = gdf[mask_poly | mask_static | mask_linear]
-                # Inject the polynomial's control_par into the metadata so filenames remain unique
-                curr_meta = {**group_meta, **file_meta, "control_par": ctrl_val}
-            else:
-                plot_df = gdf
-                curr_meta = {**group_meta, **file_meta}
+            group_meta_dict = group_key if isinstance(group_key, dict) else dict(zip(grouping_cols, group_key))
+            curr_meta = {**group_meta_dict, **file_meta, "control_par": ctrl_val}
 
+            # Prepare subplots for options 0 and 1
             option_1_df = plot_df[plot_df["option_id"] == 0]
             option_2_df = plot_df[plot_df["option_id"] == 1]
             
@@ -319,11 +330,14 @@ def plot_comparative_cohesion_df(result_df: pd.DataFrame, aux_df: pd.DataFrame, 
                 continue
 
             fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
-            panel_data = [(1, option_1_df, axes[0]), (2, option_2_df, axes[1])]
+            panel_data = [(0, option_1_df, axes[0]), (1, option_2_df, axes[1])] # Assuming option_ids are 0 and 1
+
+            legend_lines = {}
+            methods_in_plot = set()
 
             for option_id, opt_df, ax in panel_data:
                 if opt_df.empty:
-                    ax.set_title(f"Option {option_id} (no data)")
+                    ax.set_title(f"Option {option_id} (No data)")
                     ax.set_xlabel("step")
                     ax.grid(alpha=0.25)
                     continue
@@ -332,44 +346,85 @@ def plot_comparative_cohesion_df(result_df: pd.DataFrame, aux_df: pd.DataFrame, 
                     fn_df = opt_df[opt_df["function"].astype(str) == function_name]
                     votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
                     
-                    # Apply Red/Blue maps, defaulting to Greys if another function sneaks in
                     cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
                     vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
                     vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
 
                     for _, row in fn_df.iterrows():
-                        data_arr = m_array_from_cell(row["data"])
-                        std_arr = m_array_from_cell(row["std"])
+                        method = row['Method']
+                        methods_in_plot.add(method)
+                        
+                        try:
+                            data_arr = m_array_from_cell(row["data"])
+                            std_arr = m_array_from_cell(row["std"])
+                        except ValueError as e:
+                            logging.warning(f"Skipping row due to array conversion error: {e}")
+                            continue
+
                         n_steps = min(len(data_arr), len(std_arr))
-                        if n_steps == 0:
+                        if n_steps == 0: 
                             continue
 
                         x = np.arange(n_steps)
                         y = data_arr[:n_steps]
                         s = std_arr[:n_steps]
+                        
                         vote = row["vote_msg"]
                         color = vote_to_color.get(vote, cmap(0.7))
-                        label = f"f:{function_name} | m:{vote}"
 
-                        ax.plot(x, y, color=color, linewidth=2.0, label=label)
-                        ax.fill_between(x, y - s, y + s, color=color, alpha=0.18)
+                        # --- STYLE LOGIC ---
+                        if method == 'Baseline': 
+                            ls = '-'
+                            alpha_fill = 0.2
+                            hatch = None
+                            fc = color
+                        else: # New Method
+                            ls = '--'
+                            alpha_fill = 0.5  # Slightly higher alpha for the hatch lines to be visible
+                            hatch = '///'
+                            fc = 'none' # Transparent background for the hatch to let baseline show through
+
+                        # Plot line
+                        ax.plot(x, y, color=color, linewidth=2.0, linestyle=ls)
                         
+                        # Plot std dev shadow
+                        ax.fill_between(x, y - s, y + s, facecolor=fc, edgecolor=color, hatch=hatch, alpha=alpha_fill)
+                        
+                        # Build unified legend items
+                        label_key = f"{function_name} | m={vote}"
+                        if label_key not in legend_lines:
+                            legend_lines[label_key] = mlines.Line2D([], [], color=color, linewidth=2.0, label=label_key)
+
                 ax.set_ylim(-0.03, 1.03)
                 ax.set_title(f"Option {option_id}")
                 ax.set_xlabel("step")
                 ax.grid(alpha=0.25)
-                handles, labels = ax.get_legend_handles_labels()
-                if handles:
-                    uniq = dict(zip(labels, handles))
-                    ax.legend(uniq.values(), uniq.keys(), loc="best", frameon=False, fontsize=8)
 
-            axes[0].set_ylabel("cohesion")
+            axes[0].set_ylabel("Cohesion")
             
-            # Optional: Add context to the title
-            title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8, Linear)" if ctrl_val is not None else ""
-            fig.suptitle(f"Cohesion{title_suffix}")
+            # --- UNIFIED LEGEND ---
+            handles = list(legend_lines.values())
+            
+            # Add Method indicators to legend
+            if 'Baseline' in methods_in_plot:
+                handles.append(mlines.Line2D([], [], color='black', linewidth=2.0, linestyle='-', label='Baseline'))
+            if 'New Method' in methods_in_plot:
+                handles.append(mlines.Line2D([], [], color='black', linewidth=2.0, linestyle='--', label='New Method'))
 
-            file_name = f"cohesion_{_safe_filename_from_metadata(curr_meta)}.png"
+            axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=8)
+
+            title_suffix = f" (ctrl={ctrl_val})"
+            fig.suptitle(f"Comparative Cohesion{title_suffix}")
+
+            # Define a safe filename
+            # Note: you might need to adjust _safe_filename_from_params to handle the new dictionary structure
+            safe_str = ""
+            for k,v in curr_meta.items():
+               if isinstance(v, (int, float, str)):
+                   safe_str += f"{k}_{v}_"
+            
+            file_name = f"comp_cohesion_{safe_str}.png"
+            
             fig.tight_layout()
             fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
             plt.close(fig)
@@ -741,12 +796,13 @@ def main():
     total_imgs = 0
     file_meta_keys = {"spatcorr"}
     coh_sets = load_pickles_with_file_meta("proc_data/cohesion", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("python_batch", file_meta_keys)
+    pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp", file_meta_keys)
     # acc_sets = load_pickles_with_file_meta("proc_data/accuracy", file_meta_keys)
     # time_sets = load_pickles_with_file_meta("proc_data/time", file_meta_keys)
     for df_coh, meta in coh_sets:
         if not df_coh.empty:
             total_imgs += plot_cohesion_df(df_coh, file_meta=meta)
+    total_imgs += plot_comparative_cohesion_df(coh_sets, pyth_sets)
     # for df_acc, meta in acc_sets:
     #     if not df_acc.empty:
     #         total_imgs += plot_accuracy_df(df_acc, file_meta=meta)
