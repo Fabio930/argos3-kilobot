@@ -1,140 +1,93 @@
-/* Kilobot control software for the simple ALF experment : clustering
- * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
- */
 #include "bestN.h"
 
+generic_fifo_t rebroadcast_fifo;
+generic_fifo_t vote_fifo;
 
-static uint8_t buffer_skip_prefix(){
-    if(priority_sampling_k == 0){
-        return 0;
-    }
-    if(priority_sampling_k >= num_quorum_items){
-        return num_quorum_items;
-    }
-    return priority_sampling_k;
-}
-
-static uint8_t eligible_quorum_items(){
-    uint8_t start = buffer_skip_prefix();
-    return (num_quorum_items > start) ? (num_quorum_items - start) : 0;
-}
-
-static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
-    for(uint8_t i = 0; i < num_quorum_items; ++i){
-        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
-            return i;
-        }
-    }
-    return 0b1111111111111111;
-}
-
-float random_in_range(float min, float max){
-    float r = (float)rand_hard() / 255.0;
-    return min + (r*(max-min));
-}
-
-static float clamp01(float value){
-    if(value < 0.0f){
-        return 0.0f;
-    }
-    if(value > 1.0f){
-        return 1.0f;
-    }
-    return value;
-}
-
-void fifo_msg_init(fifo_msg_buffer_t* fifo) {
+void generic_fifo_init(generic_fifo_t* fifo) {
     fifo->head = 0;
     fifo->tail = 0;
     fifo->count = 0;
 }
 
-uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
-    for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-        if (fifo->buffer[idx].agent_id == agent_id) return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
+void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag) {
+    if (capacity == 0) {
+        generic_fifo_init(fifo);
+        return;
     }
-    if (fifo->count >= FIFO_MSG_SIZE) {
-        fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
+
+    while(fifo->count > capacity) {
+        fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
         fifo->count--;
     }
-    fifo->buffer[fifo->tail].agent_id = agent_id;
-    fifo->buffer[fifo->tail].msg_n_hops = Msg_n_hops;
-    fifo->buffer[fifo->tail].agent_state = agent_state;
-    fifo->tail = (fifo->tail + 1) % FIFO_MSG_SIZE;
-    fifo->count++;
-    return 1;
-}
 
-uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id) {
-    if (fifo->count == 0) return 0;
-    uint8_t idx = fifo->head;
-    for (uint8_t i = 0; i < fifo->count; ++i) {
-        if (fifo->buffer[idx].agent_id == agent_id) {
-            for (uint8_t j = i; j < fifo->count - 1; ++j) {
-                uint8_t from = (fifo->head + j + 1) % FIFO_MSG_SIZE;
-                uint8_t to = (fifo->head + j) % FIFO_MSG_SIZE;
-                fifo->buffer[to] = fifo->buffer[from];
-            }
-            fifo->tail = (fifo->tail == 0) ? FIFO_MSG_SIZE - 1 : fifo->tail - 1;
+    if (!id_aware_flag) {
+        if (fifo->count >= capacity) {
+            fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
             fifo->count--;
-            return 1;
         }
-        idx = (idx + 1) % FIFO_MSG_SIZE;
+        fifo->buffer[fifo->tail].agent_id = 0;
+        fifo->buffer[fifo->tail].agent_state = agent_state;
+        fifo->buffer[fifo->tail].msg_n_hops = msg_n_hops;
+        fifo->tail = (uint8_t)((fifo->tail + 1) % FIFO_BUFFER_SIZE);
+        fifo->count++;
+        return;
     }
-    return 0;
-}
 
-uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
-    if (fifo->count == 0) return 0;
-    uint8_t idx = fifo->head;
-    uint8_t found = 0;
-    for (uint8_t i = 0; i < fifo->count; ++i) {
-        if (fifo->buffer[idx].agent_id == agent_id) {
-            fifo->buffer[idx].msg_n_hops = Msg_n_hops;
-            fifo->buffer[idx].agent_state = agent_state;
-            fifo_msg_remove(fifo, agent_id);
-            found = 1;
+    int16_t found = -1;
+    for(uint8_t i = 0; i < fifo->count; ++i) {
+        uint8_t idx = (uint8_t)((fifo->head + i) % FIFO_BUFFER_SIZE);
+        if(fifo->buffer[idx].agent_id == agent_id) {
+            found = i;
             break;
         }
-        idx = (idx + 1) % FIFO_MSG_SIZE;
     }
-    if (!found) return 0;
-    return fifo_msg_enqueue(fifo, agent_id, Msg_n_hops, agent_state);
+
+    if(found < 0) {
+        if (fifo->count >= capacity) {
+            fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
+            fifo->count--;
+        }
+        fifo->buffer[fifo->tail].agent_id = agent_id;
+        fifo->buffer[fifo->tail].agent_state = agent_state;
+        fifo->buffer[fifo->tail].msg_n_hops = msg_n_hops;
+        fifo->tail = (uint8_t)((fifo->tail + 1) % FIFO_BUFFER_SIZE);
+        fifo->count++;
+    } else {
+        uint8_t last_offset = (uint8_t)(fifo->count - 1);
+        if ((uint8_t)found != last_offset) {
+            for(uint8_t i = (uint8_t)found; i < last_offset; ++i) {
+                uint8_t from = (uint8_t)((fifo->head + i + 1) % FIFO_BUFFER_SIZE);
+                uint8_t to = (uint8_t)((fifo->head + i) % FIFO_BUFFER_SIZE);
+                fifo->buffer[to] = fifo->buffer[from];
+            }
+            uint8_t last_idx = (uint8_t)((fifo->head + last_offset) % FIFO_BUFFER_SIZE);
+            fifo->buffer[last_idx].agent_id = agent_id;
+            fifo->buffer[last_idx].agent_state = agent_state;
+            fifo->buffer[last_idx].msg_n_hops = msg_n_hops;
+        } else {
+            uint8_t idx = (uint8_t)((fifo->head + last_offset) % FIFO_BUFFER_SIZE);
+            fifo->buffer[idx].agent_state = agent_state;
+            fifo->buffer[idx].msg_n_hops = msg_n_hops;
+        }
+    }
 }
 
-uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id) {
+uint8_t generic_fifo_peek(generic_fifo_t* fifo, fifo_item_t* item_out) {
     if (fifo->count == 0) return 0;
-    *agent_id = fifo->buffer[fifo->head].agent_id;
+    *item_out = fifo->buffer[fifo->head];
     return 1;
 }
 
-uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo) {
+uint8_t generic_fifo_dequeue(generic_fifo_t* fifo) {
     if (fifo->count == 0) return 0;
-    fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
+    fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
     fifo->count--;
     return 1;
 }
 
-static uint8_t sat_inc_u8(const uint8_t value){
-    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
-}
-
-static void update_arena_from_received_bounds(){
-    if(the_arena == NULL){
-        return;
-    }
-    the_arena->tlX = 0.0f;
-    the_arena->brX = gps_max_x_q * 0.01f;
-    the_arena->tlY = 0.0f;
-    the_arena->brY = gps_max_y_q * 0.01f;
-}
-
-static uint32_t received_arena_diagonal_cm(){
-    float dx_cm = (float)gps_max_x_q;
-    float dy_cm = (float)gps_max_y_q;
-    if(dx_cm < 0.0f) dx_cm = 0.0f;
-    if(dy_cm < 0.0f) dy_cm = 0.0f;
-    return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
+float random_in_range(float min, float max){
+    float r = (float)rand_hard() / 255.0;
+    return min + (r*(max-min));
 }
 
 void set_motion( motion_t new_motion_type){
@@ -203,23 +156,10 @@ void talk(){
                 p = random_in_range(0,1);
                 if(p<0.5){
                     if(id_aware){
-                        uint8_t agent_id;
-                        if(fifo_msg_peek(&rebroadcast_fifo, &agent_id)) {
-                            uint8_t msg_n_hops_local = 0;
-                            uint8_t agent_state = 0;
-                            uint8_t agent_idx = 0xFF;
-                            for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
-                                if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
-                                    msg_n_hops_local = rebroadcast_fifo.buffer[idx].msg_n_hops;
-                                    agent_state = rebroadcast_fifo.buffer[idx].agent_state;
-                                    agent_idx = idx;
-                                    break;
-                                }
-                            }
-                            if(agent_idx != 0xFF) {
-                                fifo_rebroadcast(agent_id, agent_state, msg_n_hops_local, agent_idx);
-                                fifo_msg_dequeue(&rebroadcast_fifo);
-                            } else broadcast();
+                        fifo_item_t item_to_send;
+                        if(generic_fifo_peek(&rebroadcast_fifo, &item_to_send)) {
+                            fifo_rebroadcast(item_to_send.agent_id, item_to_send.agent_state, item_to_send.msg_n_hops, rebroadcast_fifo.head);
+                            generic_fifo_dequeue(&rebroadcast_fifo);
                         } else broadcast();
                     }
                     else broadcast();
@@ -292,74 +232,6 @@ void compute_msg_hops(){
     }
 }
 
-
-void vote_fifo_update(const uint8_t agent_id, const uint8_t agent_state){
-    uint8_t capacity = voting_msgs;
-    if(capacity == 0){
-        vote_fifo_head = 0;
-        vote_fifo_tail = 0;
-        vote_fifo_count = 0;
-        return;
-    }
-    while(vote_fifo_count > capacity){
-        vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
-        vote_fifo_count--;
-    }
-    if(vote_fifo_count == 0){
-        vote_fifo_head = vote_fifo_tail;
-    }
-
-    if(!id_aware){
-        if(vote_fifo_count >= capacity){
-            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
-            vote_fifo_count--;
-        }
-        vote_fifo_ids[vote_fifo_tail] = 0;
-        vote_fifo_states[vote_fifo_tail] = agent_state;
-        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
-        vote_fifo_count++;
-        return;
-    }
-
-    int16_t found = -1;
-    for(uint8_t i = 0; i < vote_fifo_count; ++i){
-        uint8_t idx = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
-        if(vote_fifo_ids[idx] == agent_id){
-            found = i;
-            break;
-        }
-    }
-
-    if(found < 0){
-        if(vote_fifo_count >= capacity){
-            vote_fifo_head = (uint8_t)((vote_fifo_head + 1) % FIFO_BUFFER_SIZE);
-            vote_fifo_count--;
-        }
-        vote_fifo_ids[vote_fifo_tail] = agent_id;
-        vote_fifo_states[vote_fifo_tail] = agent_state;
-        vote_fifo_tail = (uint8_t)((vote_fifo_tail + 1) % FIFO_BUFFER_SIZE);
-        vote_fifo_count++;
-        return;
-    }
-
-    uint8_t last_offset = (uint8_t)(vote_fifo_count - 1);
-    if((uint8_t)found != last_offset){
-        for(uint8_t i = (uint8_t)found; i < last_offset; ++i){
-            uint8_t from = (uint8_t)((vote_fifo_head + i + 1) % FIFO_BUFFER_SIZE);
-            uint8_t to = (uint8_t)((vote_fifo_head + i) % FIFO_BUFFER_SIZE);
-            vote_fifo_ids[to] = vote_fifo_ids[from];
-            vote_fifo_states[to] = vote_fifo_states[from];
-        }
-        uint8_t last_idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
-        vote_fifo_ids[last_idx] = agent_id;
-        vote_fifo_states[last_idx] = agent_state;
-    }
-    else{
-        uint8_t idx = (uint8_t)((vote_fifo_head + last_offset) % FIFO_BUFFER_SIZE);
-        vote_fifo_states[idx] = agent_state;
-    }
-}
-
 float compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
     if(quorum_array == NULL || eligible < min_quorum_length) return 2.0f;
@@ -413,7 +285,6 @@ void update_debug_led(){
 }
 
 void select_new_point(bool force){
-    /* if the robot arrived to the destination, a new goal is selected */
     if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
@@ -519,13 +390,16 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
 void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,gossip);
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,hop_count);
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
     sort_q(&quorum_array);
-    vote_fifo_update(received_id, received_committed);
+    
+    generic_fifo_update(&vote_fifo, received_id, received_committed, 0, voting_msgs, id_aware);
+    
     if(id_aware && broadcasting_flag == 2){
-        if(result == 1) fifo_msg_enqueue(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
-        else if(result == 2) fifo_msg_move_to_tail(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
+        if(result == 1 || result == 2) {
+            generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, Msg_n_hops, FIFO_BUFFER_SIZE, 1);
+        }
     }
 }
 
@@ -570,7 +444,7 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                 else if(packet_type == 2){
                     priority_sampling_k = (uint8_t)(sa_payload & 0x7F);
                     id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
-                    gossip = (uint8_t)((sa_payload >> 8) & 0x01);
+                    hop_count = (uint8_t)((sa_payload >> 8) & 0x01);
                     
                     if(priority_sampling_k > buffer_length){
                         priority_sampling_k = buffer_length;
@@ -719,15 +593,15 @@ void decision(){
 }
 
 int majority_vote() {
-    if (vote_fifo_count == 0 || voting_msgs == 0) return my_state;
+    if (vote_fifo.count == 0 || voting_msgs == 0) return my_state;
     uint8_t sample_target = voting_msgs;
     if(sample_target > FIFO_BUFFER_SIZE) return my_state;
-    if(vote_fifo_count < sample_target) return my_state;
+    if(vote_fifo.count < sample_target) return my_state;
     uint8_t buffer[6] = {0};
-    uint8_t start_offset = (uint8_t)(vote_fifo_count - sample_target);
-    uint8_t idx = (uint8_t)((vote_fifo_head + start_offset) % FIFO_BUFFER_SIZE);
+    uint8_t start_offset = (uint8_t)(vote_fifo.count - sample_target);
+    uint8_t idx = (uint8_t)((vote_fifo.head + start_offset) % FIFO_BUFFER_SIZE);
     for(uint8_t i = 0; i < sample_target; ++i){
-        uint8_t state = vote_fifo_states[idx];
+        uint8_t state = vote_fifo.buffer[idx].agent_state;
         idx = (uint8_t)((idx + 1) % FIFO_BUFFER_SIZE);
         if(state < sizeof(buffer)){
             buffer[state]++;
@@ -766,10 +640,8 @@ void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     fp = fopen(log_title,"a");
     set_motion(STOP);
-    fifo_msg_init(&rebroadcast_fifo);
-    vote_fifo_head = 0;
-    vote_fifo_tail = 0;
-    vote_fifo_count = 0;
+    generic_fifo_init(&rebroadcast_fifo);
+    generic_fifo_init(&vote_fifo);
 }
 
 void loop(){
@@ -794,19 +666,10 @@ void deallocate_memory(){
 
 uint8_t main(){
     kilo_init();
-    
-    // register message transmission callback
     kilo_message_tx = message_tx;
-
-    // register tranmsission success callback
     kilo_message_tx_success = message_tx_success;
-
-    // register message reception callback
     kilo_message_rx = message_rx;
-
     kilo_start(setup, loop);
-    
     deallocate_memory();
-
     return 0;
 }

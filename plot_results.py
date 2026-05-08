@@ -37,28 +37,29 @@ def m_array_from_cell(cell_value) -> np.ndarray:
 # 2. FILENAME AND METADATA MANAGEMENT
 ##################################################################################
 
+# Keys to explicitly remove from generated filenames
+EXCLUDED_FILENAME_KEYS = {
+    "cohesion_adaptive_com", "adaptive_com", "agents", "arena", "comm_type", 
+    "id_aware", "msg_hops", "priority_k", "runs", "spatcorr", "time", "variation_time"
+}
+
 def _safe_filename_from_params(values: dict) -> str:
     """
     Generates a safe filename using ONLY experimental parameters.
-    Prevents 'File name too long' errors by ignoring data columns.
+    Prevents 'File name too long' errors by ignoring data columns and excluded keys.
     """
-    # Define which keys are actually parameters we want in the filename
     allowed_params = {
-        "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "spatcorr", "arena", "runs", "time"
+        "communication", "msg_exp_time", "eta", "eta_stop", "control_par", "options"
     }
     
     safe_parts = []
-    # Use priority order for a consistent look
     priority_order = [
-        "communication", "adaptive_com", "comm_type", "id_aware", "priority_k", "msg_exp_time", "msg_hops",
-        "variation_time", "eta", "eta_stop", "control_par", "agents", "options", "spatcorr", "arena", "runs", "time"
+        "communication", "msg_exp_time", "eta", "eta_stop", "control_par", "options"
     ]
     
     for key in priority_order:
-        if key in values and key in allowed_params:
+        if key in values and key in allowed_params and key not in EXCLUDED_FILENAME_KEYS:
             val = values[key]
-            # Avoid placing entire lists/arrays in the filename
             if not isinstance(val, (list, np.ndarray, pd.Series)):
                 clean = f"{key}#{val}".replace("/", "-").replace(" ", "").replace(":", "-")
                 safe_parts.append(clean)
@@ -67,14 +68,19 @@ def _safe_filename_from_params(values: dict) -> str:
 
 
 def _safe_filename_from_metadata(values: dict) -> str:
-    """Generates a safe filename using all scalar metadata key/value pairs."""
+    """Generates a safe filename using all scalar metadata key/value pairs, excluding filtered keys."""
     safe_parts = []
     for key in sorted(values.keys()):
+        if key in EXCLUDED_FILENAME_KEYS:
+            continue
+            
         val = values[key]
         if isinstance(val, (list, tuple, np.ndarray, pd.Series, dict, set)):
             continue
+            
         clean = f"{key}#{val}".replace("/", "-").replace(" ", "").replace(":", "-")
         safe_parts.append(clean)
+        
     return "_".join(safe_parts) if safe_parts else "plot"
 
 def metadata_from_filename(file_name: str) -> dict:
@@ -174,7 +180,6 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
     Cohesion line plots with std shadow.
     Combines 'static' (control_par=0.8) and 'polynomial' (dynamic control_par) on the same plot.
     """
-    # Ensure control_par and function are present for our custom masking
     required_cols = {"option_id", "vote_msg", "data", "std", "function", "control_par"}
     missing = required_cols.difference(result_df.columns)
     if missing:
@@ -183,12 +188,10 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Exclude control_par from the base grouping so we can pair different control_par values together
     exclude_cols = {"option_id", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
 
-    # Explicitly set the colormaps as requested
     function_cmaps = {
         "static": plt.get_cmap("Reds"),
         "polynomial": plt.get_cmap("Blues"),
@@ -198,22 +201,19 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
     file_meta = file_meta or {}
     for group_meta, gdf in _iter_groups(result_df, grouping_cols):
         
-        # Identify the distinct control_par values used by 'polynomial' in this group
         poly_df = gdf[gdf["function"] == "polynomial"]
         if poly_df.empty:
-            poly_ctrl_vals = [None] # Fallback if no polynomial data is found
+            poly_ctrl_vals = [None]
         else:
             poly_ctrl_vals = sorted(poly_df["control_par"].dropna().unique().tolist())
 
         for ctrl_val in poly_ctrl_vals:
-            # Mask and combine polynomial (at current ctrl_val) with static (at 0.8)
             if ctrl_val is not None:
                 mask_poly = (gdf["function"] == "polynomial") & (np.isclose(gdf["control_par"].astype(float), float(ctrl_val)))
                 mask_static = (gdf["function"] == "static") & (np.isclose(gdf["control_par"].astype(float), 0.8))
                 mask_linear = (gdf["function"] == "linear") & (np.isclose(gdf["control_par"].astype(float), 0.0))
                 
                 plot_df = gdf[mask_poly | mask_static | mask_linear]
-                # Inject the polynomial's control_par into the metadata so filenames remain unique
                 curr_meta = {**group_meta, **file_meta, "control_par": ctrl_val}
             else:
                 plot_df = gdf
@@ -239,7 +239,6 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
                     fn_df = opt_df[opt_df["function"].astype(str) == function_name]
                     votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
                     
-                    # Apply Red/Blue maps, defaulting to Greys if another function sneaks in
                     cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
                     vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
                     vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
@@ -266,13 +265,31 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
                 ax.set_xlabel("step")
                 ax.grid(alpha=0.25)
                 handles, labels = ax.get_legend_handles_labels()
+                polynomial_group = []
+                static_group = []
+                linear_group = []
+
+                # Now you have three separate lists
                 if handles:
                     uniq = dict(zip(labels, handles))
-                    ax.legend(uniq.values(), uniq.keys(), loc="best", frameon=False, fontsize=8)
+                    # Sort the labels alphanumerically
+                    sorted_labels = sorted(uniq.keys())
+                    for label in sorted_labels:
+                        if "polynomial" in label:
+                            polynomial_group.append(label)
+                        elif "static" in label:
+                            static_group.append(label)
+                        elif "linear" in label:
+                            linear_group.append(label)
+                    polynomial_group = sorted(polynomial_group, key=lambda x: int(x.split("m:")[-1]))
+                    static_group = sorted(static_group, key=lambda x: int(x.split("m:")[-1]))
+                    linear_group = sorted(linear_group, key=lambda x: int(x.split("m:")[-1]))
+                    sorted_handles = [uniq[lbl] for lbl in static_group]+[uniq[lbl] for lbl in linear_group]+[uniq[lbl] for lbl in polynomial_group]
+                    sorted_labels = static_group + linear_group + polynomial_group
+                    ax.legend(sorted_handles, sorted_labels, loc="best", frameon=False, fontsize=8)
 
             axes[0].set_ylabel("cohesion")
             
-            # Optional: Add context to the title
             title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8, Linear)" if ctrl_val is not None else ""
             fig.suptitle(f"Cohesion{title_suffix}")
 
@@ -294,10 +311,17 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     output_path.mkdir(parents=True, exist_ok=True)
     image_count = 0
     
-    # 1. Aggregazione Python: Trasforma l'array di ogni run nella media degli ultimi 10 elementi
+    eta_mapping = {
+        0.4: [0.38, 0.42],
+        0.5: [0.46, 0.5, 0.54],
+        0.7: [0.66, 0.7, 0.74],
+        0.8: [0.78, 0.82]
+    }
+    
+    # 1. Aggregazione Python
     py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'option_id', 'communication']
     if not pyth_df.empty:
-        pyth_df['data_arr'] = pyth_df['data'].apply(m_array_from_cell)
+        pyth_df['data_arr'] = pyth_df['data'].apply(m_array_from_cell) 
         
         py_group_cols = [c for c in py_group_cols if c in pyth_df.columns]
         
@@ -314,7 +338,6 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     else:
         pyth_agg = pd.DataFrame()
 
-    # 2. Definisci le configurazioni di base sui dati ARGoS
     base_group_cols = ['control_par', 'eta', 'init_distr']
     base_group_cols = [c for c in base_group_cols if c in argos_df.columns]
     
@@ -327,45 +350,58 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     comm_styles = {0: '-', 1: '--', 2: ':'}
     comm_labels = {0: 'IDB', 1: 'hIDRi', 2: 'IDRf'}
     
-    # --- CICLO DI PLOTTING PRINCIPALE ---
+    # --- MAIN PLOTTING LOOP ---
     for group_vals, argos_group in argos_df.groupby(base_group_cols, dropna=False):
         group_dict = dict(zip(base_group_cols, group_vals)) if isinstance(group_vals, tuple) else {base_group_cols[0]: group_vals}
         
-        # Filtriamo il dataframe Python aggregato per abbinarlo al setting corrente
         pyth_group = pyth_agg
         for k, v in group_dict.items():
             if not pyth_group.empty and k in pyth_group.columns:
-                if isinstance(v, (float, np.floating)):
-                    pyth_group = pyth_group[np.isclose(pyth_group[k].astype(float), float(v))]
+                col_numeric = pd.to_numeric(pyth_group[k], errors='coerce').fillna(-999)
+                
+                if k == 'eta':
+                    base_eta = float(v)
+                    allowed_etas = [base_eta]
+                    for map_k, map_v in eta_mapping.items():
+                        if np.isclose(base_eta, map_k, atol=1e-3):
+                            allowed_etas.extend(map_v)
+                            break
+                            
+                    mask = pd.Series(False, index=pyth_group.index)
+                    for allowed_eta in allowed_etas:
+                        mask = mask | np.isclose(col_numeric, float(allowed_eta), atol=1e-3)
+                    pyth_group = pyth_group[mask]
                 else:
-                    pyth_group = pyth_group[pyth_group[k] == v]
+                    if isinstance(v, (float, np.floating, int, np.integer)):
+                        pyth_group = pyth_group[np.isclose(col_numeric, float(v), atol=1e-3)]
+                    else:
+                        pyth_group = pyth_group[pyth_group[k].astype(str) == str(v)]
         
         fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
         legend_lines = {}
         comms_in_plot = set()
         has_python = False
         
-        # Iteriamo sulle Opzioni 0 e 1 (i due pannelli)
         for option_id, ax in zip([0, 1], axes):
-            # Logica per gestire N opzioni nel plot di destra
             if option_id == 0:
                 ax.set_title("Option 0 (Best)")
                 argos_opt = argos_group[argos_group['option_id'] == 0]
                 pyth_opt = pyth_group[pyth_group['option_id'] == 0] if not pyth_group.empty else pd.DataFrame()
             else:
-                # Gestione accorpamento per Plot Destra (Opzioni >= 1)
                 argos_opt = argos_group[argos_group['option_id'] == 1]
                 
                 if not pyth_group.empty:
-                    # Se abbiamo più di 2 opzioni (ID > 1), sommiamo i dati
                     if pyth_group['option_id'].max() > 1:
                         ax.set_title("Other Options (Combined)")
                         others = pyth_group[pyth_group['option_id'] >= 1]
-                        # Sommiamo box_data raggruppando per tutte le altre colonne meta
                         sum_cols = [c for c in py_group_cols if c != 'option_id' and c in others.columns]
-                        pyth_opt = others.groupby(sum_cols, dropna=False)['box_data'].apply(
-                            lambda x: np.sum(np.stack(x.values), axis=0)
-                        ).reset_index()
+                        
+                        def sicura_somma(x):
+                            if len(x.values) == 0: return np.array([])
+                            min_l = min(len(a) for a in x.values)
+                            return np.sum(np.stack([a[:min_l] for a in x.values]), axis=0)
+                            
+                        pyth_opt = others.groupby(sum_cols, dropna=False)['box_data'].apply(sicura_somma).reset_index()
                     else:
                         ax.set_title("Option 1")
                         pyth_opt = pyth_group[pyth_group['option_id'] == 1]
@@ -380,6 +416,7 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
             max_x = 0
             boxes_to_draw = []
             box_colors = []
+            box_votes = []
             
             funcs_argos = argos_opt['function'].unique() if 'function' in argos_opt.columns else []
             funcs_pyth = pyth_opt['function'].unique() if 'function' in pyth_opt.columns else []
@@ -400,7 +437,6 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
                     if label_key not in legend_lines:
                         legend_lines[label_key] = Line2D([], [], color=color, linewidth=2.0, label=label_key)
                     
-                    # 3. Disegna le curve continue ARGoS
                     if not argos_opt.empty:
                         a_mask = (argos_opt['function'] == f_name) & (argos_opt['vote_msg'] == vote)
                         for _, row in argos_opt[a_mask].iterrows():
@@ -418,43 +454,63 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
                             comms_in_plot.add(comm)
                             ls = comm_styles.get(comm, '-')
                             
-                            ax.plot(x, y, color=color, linestyle=ls, linewidth=2.0)
-                            ax.fill_between(x, y-s, y+s, facecolor=color, alpha=0.15)
+                            if ls == ":":
+                                ax.plot(x, y, color=color, linestyle=ls, linewidth=2.0)
+                                ax.fill_between(x, y-s, y+s, facecolor=color, alpha=0.15)
                             
-                    # 4. Prepara i Box Plot Python 
                     if not pyth_opt.empty:
-                        p_mask = (pyth_opt['function'] == f_name) & (pyth_opt['vote_msg'] == vote)
-                        for _, row in pyth_opt[p_mask].iterrows():
-                            if 'box_data' in row and len(row['box_data']) > 0:
-                                boxes_to_draw.append(row['box_data'])
+                        p_mask = (pyth_opt['function'].astype(str) == str(f_name)) & \
+                                 np.isclose(pd.to_numeric(pyth_opt['vote_msg'], errors='coerce').fillna(-999), float(vote), atol=1e-3)
+                        
+                        matching_pyth = pyth_opt[p_mask]
+                        
+                        if not matching_pyth.empty:
+                            merged_box_data = []
+                            for _, row in matching_pyth.iterrows():
+                                if 'box_data' in row and len(row['box_data']) > 0:
+                                    merged_box_data.extend(row['box_data'])
+                            
+                            if merged_box_data:
+                                boxes_to_draw.append(np.array(merged_box_data))
                                 box_colors.append(color)
+                                box_votes.append(vote)
                                 has_python = True
                                 
-            # 5. Esegui il Rendering dei Box Plot
             if boxes_to_draw:
                 if max_x == 0: max_x = 100
                 box_width = max(1, max_x * 0.03)
+                box_positions = [] 
+                
                 for i, (b_data, b_color) in enumerate(zip(boxes_to_draw, box_colors)):
-                    pos = max_x + box_width * (i + 1.5)
+                    pos = max_x + box_width * (i*1.3 + 1.5)
+                    box_positions.append(pos)
                     bp = ax.boxplot(b_data, positions=[pos], widths=box_width, patch_artist=True, showfliers=False)
                     for patch in bp['boxes']:
                         patch.set_facecolor(b_color)
                         patch.set_alpha(0.65)
                     for median in bp['medians']:
                         median.set_color('black')
+                
+                current_ticks = ax.get_xticks()
+                valid_step_ticks = [t for t in current_ticks if 0 <= t <= max_x]
+                all_ticks = valid_step_ticks + box_positions
+                all_labels = [str(int(t)) for t in valid_step_ticks] + [str(v) for v in box_votes]
+                ax.set_xticks(all_ticks)
+                ax.set_xticklabels(all_labels)
+                ax.set_xlim(left=0, right=box_positions[-1] + box_width * 2)
                         
             ax.set_ylim(-0.03, 1.03)
-            ax.set_xlabel("step")
+            ax.set_xlabel("step / vote_msg") 
             ax.grid(alpha=0.25)
             
         axes[0].set_ylabel("Cohesion")
         
-        # 6. Costruzione della Legenda Unificata
-        handles = list(legend_lines.values())
+        # Explicit alphanumeric sorting for legend handles
+        handles = sorted(list(legend_lines.values()), key=lambda x: int(x.get_label().split("m=")[-1]))
         for c_val in sorted(comms_in_plot):
             handles.append(Line2D([], [], color='black', linestyle=comm_styles.get(c_val, '-'), label=f"ARGoS: {comm_labels.get(c_val, 'Unknown')}"))
         if has_python:
-            handles.append(Patch(facecolor='gray', edgecolor='black', alpha=0.6, label='Python BoxPlot (Media ultimi 10)'))
+            handles.append(Patch(facecolor='gray', edgecolor='black', alpha=0.6, label='Python BoxPlot'))
             
         axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=8)
         
@@ -481,7 +537,6 @@ def plot_accuracy_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "accuracy"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Exclude control_par from base grouping
     exclude_cols = {"eta", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
@@ -567,10 +622,14 @@ def plot_accuracy_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
             title_suffix = f" (Poly ctrl={ctrl_val}, Static ctrl=0.8)" if ctrl_val is not None else ""
             ax.set_title(f"Accuracy by eta{title_suffix}")
             ax.grid(axis="y", alpha=0.25)
+            
             handles, labels = ax.get_legend_handles_labels()
             if handles:
                 uniq = dict(zip(labels, handles))
-                ax.legend(uniq.values(), uniq.keys(), frameon=False, loc="best")
+                # Sort the labels alphanumerically
+                sorted_labels = sorted(uniq.keys())
+                sorted_handles = [uniq[lbl] for lbl in sorted_labels]
+                ax.legend(sorted_handles, sorted_labels, frameon=False, loc="best")
 
             file_name = f"accuracy_{_safe_filename_from_params(curr_meta)}.png"
             fig.tight_layout()
@@ -593,7 +652,6 @@ def plot_time_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> i
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "time"
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Exclude control_par from base grouping
     exclude_cols = {"eta", "vote_msg", "function", "data", "std", "control_par"}
     grouping_cols = [c for c in result_df.columns if c not in exclude_cols]
     image_count = 0
@@ -708,10 +766,13 @@ def plot_time_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> i
             ax.set_yscale("log")
             ax.grid(axis="y", alpha=0.25)
 
+            # Sort the legend items alphanumerically before plotting
             legend_items = [
                 Line2D([0], [0], color=pair_colors[p], lw=0, marker='o', markersize=8, label=f"{p[0]} m:{p[1]}")
                 for p in pair_colors
             ]
+            legend_items.sort(key=lambda x: x.get_label())
+
             if legend_items:
                 ax.legend(handles=legend_items, frameon=False, loc="best")
 
@@ -732,9 +793,7 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
     output_path = Path(os.path.abspath("")) / "proc_data" / "pareto" / sub_folder
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Identify constant metadata columns for grouping
     plot_vars = {"eta", "coh_f", "coh_s", "val_f", "val_s", "vote_msg", "function"}
-    # Remove any unwanted columns derived from merge (data_x, data_y etc)
     grouping_cols = [c for c in merged_df.columns if c not in plot_vars and "data" not in c and "std" not in c and c != "control_par"]
     
     image_count = 0
@@ -742,7 +801,6 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
     
     file_meta = file_meta or {}
     for group_key, base_df in merged_df.groupby(grouping_cols, dropna=False):
-        # Create metadata dict for filename
         base_meta = dict(zip(grouping_cols, group_key)) if isinstance(group_key, tuple) else {grouping_cols[0]: group_key}
         
         for ctrl in sorted(base_df["control_par"].unique()):
@@ -789,7 +847,7 @@ def plot_pareto_base(merged_df, x_col, x_err_col, y_col, y_err_col, x_label, y_l
             if "time" in str(output_path):
                 ax.set_xlim(1,15000)
                 ax.set_xscale("log")
-            # Use the new safe filename function
+            
             curr_meta = {**base_meta, **file_meta, "control_par": ctrl}
             filename = f"pareto_{_safe_filename_from_params(curr_meta)}.png"
             fig.savefig(output_path / filename, dpi=150, bbox_inches="tight")
@@ -858,12 +916,6 @@ def count_configuration_overlaps():
         'msg_per_step': 'vote_msg'
     }
 
-    pyth_rename_map = {
-        'r_shape': 'function',
-        'sigmd_par': 'control_par',
-        'msg_per_step': 'vote_msg',
-    }
-
     argos_clean_list = []
     pyth_clean_list = []
 
@@ -871,7 +923,6 @@ def count_configuration_overlaps():
     for df, meta in coh_sets:
         if not df.empty:
             df_clean = df.drop(columns=[c for c in coh_drop_cols if c in df.columns])
-            # (Manteniamo il filtro di validità di option_id per consistenza)
             if 'option_id' in df_clean.columns:
                 df_clean = df_clean[df_clean['option_id'] != -1]
             argos_clean_list.append(df_clean)
@@ -907,34 +958,23 @@ def count_configuration_overlaps():
     pyth_master = pd.concat(pyth_clean_list, ignore_index=True)
 
     # --- 4. DEFINIZIONE CHIAVI DI OVERLAP DINAMICHE ---
-    # Intersezione matematica delle colonne disponibili
     common_cols = set(argos_master.columns).intersection(set(pyth_master.columns))
-    
-    # Insieme di colonne da ignorare durante il match
     exclude_cols = {'data', 'std', 'run_id'}
-    
-    # La nostra chiave di overlap C
     overlap_keys = list(common_cols - exclude_cols)
-    overlap_keys.sort() # Ordine alfabetico per estetica
+    overlap_keys.sort() 
 
-    # Conversione tipi (sicurezza per evitare che float 1.0 non matchi con int 1)
     for col in overlap_keys:
         argos_master[col] = pd.to_numeric(argos_master[col], errors='ignore')
         pyth_master[col] = pd.to_numeric(pyth_master[col], errors='ignore')
 
-    # Estrazione configurazioni uniche
     argos_configs = argos_master[overlap_keys].drop_duplicates()
     pyth_configs = pyth_master[overlap_keys].drop_duplicates()
 
-    # Join matematico per trovare l'intersezione pura
     overlap_df = pd.merge(argos_configs, pyth_configs, on=overlap_keys, how='inner')
-    
-    # Ordinamento finale per una visualizzazione pulita
     sort_cols = [c for c in ['options', 'function', 'eta', 'vote_msg', 'control_par'] if c in overlap_df.columns]
     if sort_cols:
         overlap_df = overlap_df.sort_values(by=sort_cols).reset_index(drop=True)
 
-    # --- OUTPUT ---
     print("\n" + "="*90)
     print(f" CHIAVI UTILIZZATE PER IL MATCH: {overlap_keys}")
     print("="*90)
@@ -960,7 +1000,6 @@ def main():
         print("Error: One or both directories failed to load files. Check your paths!")
         return
 
-    # Drop Columns
     coh_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
         'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
@@ -979,7 +1018,6 @@ def main():
         'msg_per_step': 'vote_msg'
     }
 
-    # --- Processa Baseline ARGoS ---
     argos_list = []
     for df, meta in coh_sets:
         if not df.empty:
@@ -990,7 +1028,6 @@ def main():
             
     argos_df = pd.concat(argos_list, ignore_index=True) if argos_list else pd.DataFrame()
 
-    # --- Processa Python ---
     pyth_list = []
     for df, meta in pyth_sets:
         if not df.empty:
@@ -1019,6 +1056,31 @@ def main():
     if not argos_df.empty:
         total_imgs += plot_hybrid_cohesion(argos_df, pyth_df)
         
+    print(f"\nHybrid plot finished with {total_imgs} images")
+
+    # total_imgs = 0
+    # file_meta_keys = {"spatcorr"}
+    # coh_sets = load_pickles_with_file_meta("proc_data/cohesion", file_meta_keys)
+    # acc_sets = load_pickles_with_file_meta("proc_data/accuracy", file_meta_keys)
+    # time_sets = load_pickles_with_file_meta("proc_data/time", file_meta_keys)
+    # for df_coh, meta in coh_sets:
+    #     if not df_coh.empty:
+    #         total_imgs += plot_cohesion_df(df_coh, file_meta=meta)
+    # for df_acc, meta in acc_sets:
+    #     if not df_acc.empty:
+    #         total_imgs += plot_accuracy_df(df_acc, file_meta=meta)
+    # for df_time, meta in time_sets:
+    #     if not df_time.empty:
+    #         total_imgs += plot_time_df(df_time, file_meta=meta)
+
+    # if not df_coh.empty and not df_acc.empty:
+    #     print("Generating Pareto: Cohesion vs Accuracy...")
+    #     total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
+        
+    # if not df_coh.empty and not df_time.empty:
+    #     print("Generating Pareto: Cohesion vs Time...")
+    #     total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
+
     print(f"\nExecution finished. Total images saved: {total_imgs}")
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ fi
 #######################################
 ### experiment_length is in seconds ###
 #######################################
-gossip=""
+hop_count=""
 msgs_n_hops="0"
 eta_init=""
 eta_stop=""
@@ -122,11 +122,11 @@ for exp_len_par in $experiment_length; do
                                     mkdir $comm_dir
                                 fi
                                 if [[ $comm_type == "anon" ]]; then
-                                    gossip="0"
+                                    hop_count="0"
                                 elif [[ $comm_par == "1" ]]; then
-                                    gossip="1"
+                                    hop_count="1"
                                 else
-                                    gossip="0"
+                                    hop_count="0"
                                 fi
                                 for adaptive_par in $adaptive_set; do
                                     if [[ $comm_type == "anon" && $adaptive_par != "0" ]]; then
@@ -198,7 +198,7 @@ for exp_len_par in $experiment_length; do
                                                                     sed -i "s|__SEED__|$i|g" $config
                                                                     sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
                                                                     sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
-                                                                    sed -i "s|__GOSSIP__|$gossip|g" $config
+                                                                    sed -i "s|__hop_count__|$hop_count|g" $config
                                                                     sed -i "s|__N_OPTIONS__|$options_par|g" $config
                                                                     sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
                                                                     sed -i "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" $config
