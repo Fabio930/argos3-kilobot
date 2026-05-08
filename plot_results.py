@@ -1,10 +1,11 @@
-import os, ast, re
+import os, re
 from typing import Optional
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -77,16 +78,38 @@ def _safe_filename_from_metadata(values: dict) -> str:
     return "_".join(safe_parts) if safe_parts else "plot"
 
 def metadata_from_filename(file_name: str) -> dict:
-    """Extracts metadata dictionary from a pickle filename."""
+    """Extracts metadata dictionary from a pickle filename and aligns keys."""
     stem = Path(file_name).stem
-    if "resume_" not in stem: return {}
     metadata = {}
-    metadata_section = stem.split("resume_", 1)[1]
+    
+    if "resume_" in stem:
+        metadata_section = stem.split("resume_", 1)[1]
+    elif "results_processed_" in stem:
+        metadata_section = stem.split("results_processed_", 1)[1]
+        # Clean up the trailing identifiers in Python filenames
+        metadata_section = metadata_section.split("_residence_data")[0]
+    else:
+        return {}
+
+    # Define the bijective mapping T: K_{python} -> K_{argos}
+    key_translation = {
+        "o": "options",
+        "r_shape": "function",
+        "msg_per_step": "vote_msg",
+        "sigmd_par": "control_par",
+    }
+
     parts = metadata_section.split("_")
     for part in parts:
         if "#" not in part: continue
         col_name, col_value = part.split("#", 1)
-        metadata[col_name] = _cast_metadata_value(col_value)
+        
+        # Translate the key to match ARGoS standards
+        mapped_key = key_translation.get(col_name, col_name)
+        parsed_value = _cast_metadata_value(col_value)
+            
+        metadata[mapped_key] = parsed_value
+        
     return metadata
 
 def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
@@ -94,7 +117,7 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
     base_path = Path(os.path.abspath("")) / proc_dir
     if not base_path.exists():
         return []
-    all_files = sorted(base_path.glob("*resume_*.pkl"))
+    all_files = sorted(base_path.glob("*resume_*.pkl"))+sorted(base_path.glob("*results_processed_*.pkl"))
     datasets = []
     for file_path in all_files:
         try:
@@ -261,175 +284,189 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
 
     return image_count
 
-def plot_comparative_cohesion_df(baseline_df: pd.DataFrame, new_method_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
+def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     """
-    Cohesion line plots with std shadow comparing two datasets.
-    Baseline is plotted with solid lines and solid fill.
-    New Method is plotted with dashed lines and hatched fill.
+    Traccia le linee temporali per ARGoS e i Box Plot per Python per l'ultimo istante temporale.
+    Base raggruppamento: ['control_par', 'eta', 'init_distr']
+    Aggrega le opzioni Python > 0 se presenti (es. init_distr = 0.2).
     """
-    # 1. Combine DataFrames and add the 'Method' column
-    baseline_df = baseline_df.copy()
-    new_method_df = new_method_df.copy()
-    
-    baseline_df['Method'] = 'Baseline'
-    new_method_df['Method'] = 'New Method'
-    
-    combined_df = pd.concat([baseline_df, new_method_df], ignore_index=True)
-
-    # Ensure required columns are present
-    required_cols = {"option_id", "vote_msg", "data", "std", "function", "control_par", "Method"}
-    missing = required_cols.difference(combined_df.columns)
-    if missing:
-        raise ValueError(f"plot_comparative_cohesion_df missing required columns: {sorted(missing)}")
-
-    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion_comparison"
+    output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion_hybrid"
     output_path.mkdir(parents=True, exist_ok=True)
-
-    # Exclude columns not used for grouping the base plots
-    exclude_cols = {"option_id", "vote_msg", "function", "data", "std", "control_par", "Method"}
-    grouping_cols = [c for c in combined_df.columns if c not in exclude_cols]
     image_count = 0
+    
+    # 1. Aggregazione Python: Trasforma l'array di ogni run nella media degli ultimi 10 elementi
+    py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'option_id', 'communication']
+    if not pyth_df.empty:
+        pyth_df['data_arr'] = pyth_df['data'].apply(m_array_from_cell)
+        
+        py_group_cols = [c for c in py_group_cols if c in pyth_df.columns]
+        
+        def aggregate_python_runs(group):
+            box_pts = []
+            for d in group['data_arr']:
+                if len(d) >= 10:
+                    box_pts.append(np.mean(d[-10:]))
+                elif len(d) > 0:
+                    raise ValueError(f"Not enough data: {len(d)}")
+            return pd.Series({'box_data': np.array(box_pts)})
+        
+        pyth_agg = pyth_df.groupby(py_group_cols, dropna=False).apply(aggregate_python_runs).reset_index()
+    else:
+        pyth_agg = pd.DataFrame()
 
+    # 2. Definisci le configurazioni di base sui dati ARGoS
+    base_group_cols = ['control_par', 'eta', 'init_distr']
+    base_group_cols = [c for c in base_group_cols if c in argos_df.columns]
+    
     function_cmaps = {
         "static": plt.get_cmap("Reds"),
         "polynomial": plt.get_cmap("Blues"),
         "linear": plt.get_cmap("Greens")
     }
-
-    file_meta = file_meta or {}
     
-    # We iterate over groups (e.g., combinations of agents, eta, etc., excluding control_par for now)
-    for group_meta, gdf in _iter_groups(combined_df, grouping_cols):
+    comm_styles = {0: '-', 1: '--', 2: ':'}
+    comm_labels = {0: 'IDB', 1: 'hIDRi', 2: 'IDRf'}
+    
+    # --- CICLO DI PLOTTING PRINCIPALE ---
+    for group_vals, argos_group in argos_df.groupby(base_group_cols, dropna=False):
+        group_dict = dict(zip(base_group_cols, group_vals)) if isinstance(group_vals, tuple) else {base_group_cols[0]: group_vals}
         
-        # In this example, we'll plot all available control_pars for the polynomial function,
-        # compared against a static baseline if that's your goal.
-        # Alternatively, you can just plot the groups as they are if control_par is a grouping col.
+        # Filtriamo il dataframe Python aggregato per abbinarlo al setting corrente
+        pyth_group = pyth_agg
+        for k, v in group_dict.items():
+            if not pyth_group.empty and k in pyth_group.columns:
+                if isinstance(v, (float, np.floating)):
+                    pyth_group = pyth_group[np.isclose(pyth_group[k].astype(float), float(v))]
+                else:
+                    pyth_group = pyth_group[pyth_group[k] == v]
         
-        # Let's assume you want to plot each unique 'control_par' separately for clarity in comparison
-        ctrl_vals = sorted(gdf["control_par"].dropna().unique().tolist())
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+        legend_lines = {}
+        comms_in_plot = set()
+        has_python = False
         
-        # If control_par isn't a list of numbers but strings, adjust the sorting/filtering accordingly.
-        
-        for ctrl_val in ctrl_vals:
-            # Filter the group for this specific control parameter (and maybe a static baseline)
-            # This logic might need tweaking based on exactly which subsets you are comparing.
-            # Here we just take the data for the current control_val.
-            plot_df = gdf[gdf["control_par"] == ctrl_val]
+        # Iteriamo sulle Opzioni 0 e 1 (i due pannelli)
+        for option_id, ax in zip([0, 1], axes):
+            # Logica per gestire N opzioni nel plot di destra
+            if option_id == 0:
+                ax.set_title("Option 0 (Best)")
+                argos_opt = argos_group[argos_group['option_id'] == 0]
+                pyth_opt = pyth_group[pyth_group['option_id'] == 0] if not pyth_group.empty else pd.DataFrame()
+            else:
+                # Gestione accorpamento per Plot Destra (Opzioni >= 1)
+                argos_opt = argos_group[argos_group['option_id'] == 1]
+                
+                if not pyth_group.empty:
+                    # Se abbiamo più di 2 opzioni (ID > 1), sommiamo i dati
+                    if pyth_group['option_id'].max() > 1:
+                        ax.set_title("Other Options (Combined)")
+                        others = pyth_group[pyth_group['option_id'] >= 1]
+                        # Sommiamo box_data raggruppando per tutte le altre colonne meta
+                        sum_cols = [c for c in py_group_cols if c != 'option_id' and c in others.columns]
+                        pyth_opt = others.groupby(sum_cols, dropna=False)['box_data'].apply(
+                            lambda x: np.sum(np.stack(x.values), axis=0)
+                        ).reset_index()
+                    else:
+                        ax.set_title("Option 1")
+                        pyth_opt = pyth_group[pyth_group['option_id'] == 1]
+                else:
+                    ax.set_title("Option 1")
+                    pyth_opt = pd.DataFrame()
             
-            if plot_df.empty: 
-                continue
-
-            group_meta_dict = group_key if isinstance(group_key, dict) else dict(zip(grouping_cols, group_key))
-            curr_meta = {**group_meta_dict, **file_meta, "control_par": ctrl_val}
-
-            # Prepare subplots for options 0 and 1
-            option_1_df = plot_df[plot_df["option_id"] == 0]
-            option_2_df = plot_df[plot_df["option_id"] == 1]
-            
-            if option_1_df.empty and option_2_df.empty:
-                continue
-
-            fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
-            panel_data = [(0, option_1_df, axes[0]), (1, option_2_df, axes[1])] # Assuming option_ids are 0 and 1
-
-            legend_lines = {}
-            methods_in_plot = set()
-
-            for option_id, opt_df, ax in panel_data:
-                if opt_df.empty:
-                    ax.set_title(f"Option {option_id} (No data)")
-                    ax.set_xlabel("step")
-                    ax.grid(alpha=0.25)
-                    continue
-
-                for function_name in sorted(opt_df["function"].astype(str).unique().tolist()):
-                    fn_df = opt_df[opt_df["function"].astype(str) == function_name]
-                    votes = sorted(fn_df["vote_msg"].dropna().unique().tolist())
-                    
-                    cmap = function_cmaps.get(function_name, plt.get_cmap("Greys"))
-                    vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
-                    vote_to_color = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
-
-                    for _, row in fn_df.iterrows():
-                        method = row['Method']
-                        methods_in_plot.add(method)
-                        
-                        try:
-                            data_arr = m_array_from_cell(row["data"])
-                            std_arr = m_array_from_cell(row["std"])
-                        except ValueError as e:
-                            logging.warning(f"Skipping row due to array conversion error: {e}")
-                            continue
-
-                        n_steps = min(len(data_arr), len(std_arr))
-                        if n_steps == 0: 
-                            continue
-
-                        x = np.arange(n_steps)
-                        y = data_arr[:n_steps]
-                        s = std_arr[:n_steps]
-                        
-                        vote = row["vote_msg"]
-                        color = vote_to_color.get(vote, cmap(0.7))
-
-                        # --- STYLE LOGIC ---
-                        if method == 'Baseline': 
-                            ls = '-'
-                            alpha_fill = 0.2
-                            hatch = None
-                            fc = color
-                        else: # New Method
-                            ls = '--'
-                            alpha_fill = 0.5  # Slightly higher alpha for the hatch lines to be visible
-                            hatch = '///'
-                            fc = 'none' # Transparent background for the hatch to let baseline show through
-
-                        # Plot line
-                        ax.plot(x, y, color=color, linewidth=2.0, linestyle=ls)
-                        
-                        # Plot std dev shadow
-                        ax.fill_between(x, y - s, y + s, facecolor=fc, edgecolor=color, hatch=hatch, alpha=alpha_fill)
-                        
-                        # Build unified legend items
-                        label_key = f"{function_name} | m={vote}"
-                        if label_key not in legend_lines:
-                            legend_lines[label_key] = mlines.Line2D([], [], color=color, linewidth=2.0, label=label_key)
-
-                ax.set_ylim(-0.03, 1.03)
-                ax.set_title(f"Option {option_id}")
-                ax.set_xlabel("step")
+            if argos_opt.empty and pyth_opt.empty:
                 ax.grid(alpha=0.25)
-
-            axes[0].set_ylabel("Cohesion")
+                continue
+                
+            max_x = 0
+            boxes_to_draw = []
+            box_colors = []
             
-            # --- UNIFIED LEGEND ---
-            handles = list(legend_lines.values())
+            funcs_argos = argos_opt['function'].unique() if 'function' in argos_opt.columns else []
+            funcs_pyth = pyth_opt['function'].unique() if 'function' in pyth_opt.columns else []
+            funcs = sorted(set(funcs_argos).union(set(funcs_pyth)))
             
-            # Add Method indicators to legend
-            if 'Baseline' in methods_in_plot:
-                handles.append(mlines.Line2D([], [], color='black', linewidth=2.0, linestyle='-', label='Baseline'))
-            if 'New Method' in methods_in_plot:
-                handles.append(mlines.Line2D([], [], color='black', linewidth=2.0, linestyle='--', label='New Method'))
-
-            axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=8)
-
-            title_suffix = f" (ctrl={ctrl_val})"
-            fig.suptitle(f"Comparative Cohesion{title_suffix}")
-
-            # Define a safe filename
-            # Note: you might need to adjust _safe_filename_from_params to handle the new dictionary structure
-            safe_str = ""
-            for k,v in curr_meta.items():
-               if isinstance(v, (int, float, str)):
-                   safe_str += f"{k}_{v}_"
+            for f_name in funcs:
+                cmap = function_cmaps.get(str(f_name), plt.get_cmap("Greys"))
+                votes_a = argos_opt[argos_opt['function'] == f_name]['vote_msg'].unique() if 'function' in argos_opt.columns else []
+                votes_p = pyth_opt[pyth_opt['function'] == f_name]['vote_msg'].unique() if 'function' in pyth_opt.columns else []
+                votes = sorted(set(votes_a).union(set(votes_p)))
+                
+                vote_shades = np.linspace(0.45, 0.9, max(1, len(votes)))
+                vote_colors = {v: cmap(vote_shades[idx]) for idx, v in enumerate(votes)}
+                
+                for vote in votes:
+                    color = vote_colors[vote]
+                    label_key = f"{f_name} | m={vote}"
+                    if label_key not in legend_lines:
+                        legend_lines[label_key] = Line2D([], [], color=color, linewidth=2.0, label=label_key)
+                    
+                    # 3. Disegna le curve continue ARGoS
+                    if not argos_opt.empty:
+                        a_mask = (argos_opt['function'] == f_name) & (argos_opt['vote_msg'] == vote)
+                        for _, row in argos_opt[a_mask].iterrows():
+                            try:
+                                data_arr = m_array_from_cell(row['data'])
+                                std_arr = m_array_from_cell(row['std'])
+                            except: continue
+                                
+                            n_steps = min(len(data_arr), len(std_arr))
+                            if n_steps == 0: continue
+                            max_x = max(max_x, n_steps)
+                            
+                            x, y, s = np.arange(n_steps), data_arr[:n_steps], std_arr[:n_steps]
+                            comm = int(row.get('communication', 0))
+                            comms_in_plot.add(comm)
+                            ls = comm_styles.get(comm, '-')
+                            
+                            ax.plot(x, y, color=color, linestyle=ls, linewidth=2.0)
+                            ax.fill_between(x, y-s, y+s, facecolor=color, alpha=0.15)
+                            
+                    # 4. Prepara i Box Plot Python 
+                    if not pyth_opt.empty:
+                        p_mask = (pyth_opt['function'] == f_name) & (pyth_opt['vote_msg'] == vote)
+                        for _, row in pyth_opt[p_mask].iterrows():
+                            if 'box_data' in row and len(row['box_data']) > 0:
+                                boxes_to_draw.append(row['box_data'])
+                                box_colors.append(color)
+                                has_python = True
+                                
+            # 5. Esegui il Rendering dei Box Plot
+            if boxes_to_draw:
+                if max_x == 0: max_x = 100
+                box_width = max(1, max_x * 0.03)
+                for i, (b_data, b_color) in enumerate(zip(boxes_to_draw, box_colors)):
+                    pos = max_x + box_width * (i + 1.5)
+                    bp = ax.boxplot(b_data, positions=[pos], widths=box_width, patch_artist=True, showfliers=False)
+                    for patch in bp['boxes']:
+                        patch.set_facecolor(b_color)
+                        patch.set_alpha(0.65)
+                    for median in bp['medians']:
+                        median.set_color('black')
+                        
+            ax.set_ylim(-0.03, 1.03)
+            ax.set_xlabel("step")
+            ax.grid(alpha=0.25)
             
-            file_name = f"comp_cohesion_{safe_str}.png"
+        axes[0].set_ylabel("Cohesion")
+        
+        # 6. Costruzione della Legenda Unificata
+        handles = list(legend_lines.values())
+        for c_val in sorted(comms_in_plot):
+            handles.append(Line2D([], [], color='black', linestyle=comm_styles.get(c_val, '-'), label=f"ARGoS: {comm_labels.get(c_val, 'Unknown')}"))
+        if has_python:
+            handles.append(Patch(facecolor='gray', edgecolor='black', alpha=0.6, label='Python BoxPlot (Media ultimi 10)'))
             
-            fig.tight_layout()
-            fig.savefig(output_path / file_name, dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            image_count += 1
-
+        axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=8)
+        
+        title_parts = [f"{k}={v}" for k, v in group_dict.items()]
+        fig.suptitle(f"Hybrid Cohesion | {' | '.join(title_parts)}")
+        
+        safe_str = "_".join(title_parts).replace(".", "_").replace(" ", "")
+        fig.tight_layout()
+        fig.savefig(output_path / f"hybrid_cohesion_{safe_str}.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        image_count += 1
+        
     return image_count
 
 def plot_accuracy_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) -> int:
@@ -792,32 +829,196 @@ def plot_cohesion_time_pareto(coh_df, time_df, file_meta: Optional[dict] = None)
 # 6. MAIN EXECUTION
 ##################################################################################
 
+def count_configuration_overlaps():
+    """Conta i match esatti tra le configurazioni escludendo le colonne di dati e ID opzione/run."""
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 1000)
+    
+    file_meta_keys = {'options'}
+    
+    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
+    pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp", file_meta_keys)
+    
+    
+    coh_drop_cols = [
+        'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
+        'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
+        'time',  'runs', 'arena', 'agents', 'spatcorr', 'options'
+    ]
+    pyth_drop_cols = [
+        'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model', 
+        'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step', 
+        '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
+        'options', 'n_options'
+    ]
+
+    pyth_rename_map = {
+        'r_shape': 'function',
+        'sigmd_par': 'control_par',
+        'msg_per_step': 'vote_msg'
+    }
+
+    pyth_rename_map = {
+        'r_shape': 'function',
+        'sigmd_par': 'control_par',
+        'msg_per_step': 'vote_msg',
+    }
+
+    argos_clean_list = []
+    pyth_clean_list = []
+
+    # --- 1. PULIZIA ARGOS ---
+    for df, meta in coh_sets:
+        if not df.empty:
+            df_clean = df.drop(columns=[c for c in coh_drop_cols if c in df.columns])
+            # (Manteniamo il filtro di validità di option_id per consistenza)
+            if 'option_id' in df_clean.columns:
+                df_clean = df_clean[df_clean['option_id'] != -1]
+            argos_clean_list.append(df_clean)
+
+    # --- 2. PULIZIA PYTHON ---
+    for df, meta in pyth_sets:
+        if not df.empty:
+            df_clean = df.drop(columns=[c for c in pyth_drop_cols if c in df.columns])
+            df_clean = df_clean.rename(columns=pyth_rename_map)
+            
+            if 'option_id' in df_clean.columns:
+                df_clean = df_clean[df_clean['option_id'] != -1]
+            
+            if 'function' in df_clean.columns:
+                df_clean['function'] = df_clean['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
+            if 'r_type' in df_clean.columns:
+                df_clean.loc[df_clean['r_type'] == 'static', 'function'] = 'static'
+                df_clean = df_clean.drop(columns=['r_type', 'r_value'], errors='ignore')
+
+            if 'static_v' in df_clean.columns:
+                static_mask = df_clean['function'] == 'static'
+                df_clean.loc[static_mask, 'control_par'] = df_clean.loc[static_mask, 'static_v']
+                df_clean = df_clean.drop(columns=['static_v'])
+                
+            pyth_clean_list.append(df_clean)
+
+    if not argos_clean_list or not pyth_clean_list:
+        print("Errore: Impossibile trovare dati validi da confrontare.")
+        return
+
+    # --- 3. CREAZIONE MATRICI MASTER ---
+    argos_master = pd.concat(argos_clean_list, ignore_index=True)
+    pyth_master = pd.concat(pyth_clean_list, ignore_index=True)
+
+    # --- 4. DEFINIZIONE CHIAVI DI OVERLAP DINAMICHE ---
+    # Intersezione matematica delle colonne disponibili
+    common_cols = set(argos_master.columns).intersection(set(pyth_master.columns))
+    
+    # Insieme di colonne da ignorare durante il match
+    exclude_cols = {'data', 'std', 'run_id'}
+    
+    # La nostra chiave di overlap C
+    overlap_keys = list(common_cols - exclude_cols)
+    overlap_keys.sort() # Ordine alfabetico per estetica
+
+    # Conversione tipi (sicurezza per evitare che float 1.0 non matchi con int 1)
+    for col in overlap_keys:
+        argos_master[col] = pd.to_numeric(argos_master[col], errors='ignore')
+        pyth_master[col] = pd.to_numeric(pyth_master[col], errors='ignore')
+
+    # Estrazione configurazioni uniche
+    argos_configs = argos_master[overlap_keys].drop_duplicates()
+    pyth_configs = pyth_master[overlap_keys].drop_duplicates()
+
+    # Join matematico per trovare l'intersezione pura
+    overlap_df = pd.merge(argos_configs, pyth_configs, on=overlap_keys, how='inner')
+    
+    # Ordinamento finale per una visualizzazione pulita
+    sort_cols = [c for c in ['options', 'function', 'eta', 'vote_msg', 'control_par'] if c in overlap_df.columns]
+    if sort_cols:
+        overlap_df = overlap_df.sort_values(by=sort_cols).reset_index(drop=True)
+
+    # --- OUTPUT ---
+    print("\n" + "="*90)
+    print(f" CHIAVI UTILIZZATE PER IL MATCH: {overlap_keys}")
+    print("="*90)
+    print(f" -> Configurazioni uniche totali in ARGoS  : {len(argos_configs)}")
+    print(f" -> Configurazioni uniche totali in Python : {len(pyth_configs)}")
+    print(f" -> MATCH ESATTI TROVATI                   : {len(overlap_df)}")
+    print("="*90)
+    
+    if not overlap_df.empty:
+        print("\nElenco delle configurazioni sovrapposte:")
+        print(overlap_df)
+    print("="*90 + "\n")
+
 def main():
     total_imgs = 0
-    file_meta_keys = {"spatcorr"}
-    coh_sets = load_pickles_with_file_meta("proc_data/cohesion", file_meta_keys)
+    
+    file_meta_keys = {"eta", "options", "communication", "function"}
+    
+    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
     pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp", file_meta_keys)
-    # acc_sets = load_pickles_with_file_meta("proc_data/accuracy", file_meta_keys)
-    # time_sets = load_pickles_with_file_meta("proc_data/time", file_meta_keys)
-    for df_coh, meta in coh_sets:
-        if not df_coh.empty:
-            total_imgs += plot_cohesion_df(df_coh, file_meta=meta)
-    total_imgs += plot_comparative_cohesion_df(coh_sets, pyth_sets)
-    # for df_acc, meta in acc_sets:
-    #     if not df_acc.empty:
-    #         total_imgs += plot_accuracy_df(df_acc, file_meta=meta)
-    # for df_time, meta in time_sets:
-    #     if not df_time.empty:
-    #         total_imgs += plot_time_df(df_time, file_meta=meta)
+    
+    if not coh_sets or not pyth_sets:
+        print("Error: One or both directories failed to load files. Check your paths!")
+        return
 
-    # if not df_coh.empty and not df_acc.empty:
-    #     print("Generating Pareto: Cohesion vs Accuracy...")
-    #     total_imgs += plot_cohesion_accuracy_pareto(df_coh, df_acc)
+    # Drop Columns
+    coh_drop_cols = [
+        'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
+        'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
+        'time',  'runs', 'arena', 'agents', 'spatcorr', 'options'
+    ]
+    pyth_drop_cols = [
+        'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model', 
+        'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step', 
+        '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
+        'options', 'n_options'
+    ]
+
+    pyth_rename_map = {
+        'r_shape': 'function',
+        'sigmd_par': 'control_par',
+        'msg_per_step': 'vote_msg'
+    }
+
+    # --- Processa Baseline ARGoS ---
+    argos_list = []
+    for df, meta in coh_sets:
+        if not df.empty:
+            df = df.drop(columns=[c for c in coh_drop_cols if c in df.columns])
+            if 'option_id' in df.columns:
+                df = df[df['option_id'] != -1]
+            argos_list.append(df)
+            
+    argos_df = pd.concat(argos_list, ignore_index=True) if argos_list else pd.DataFrame()
+
+    # --- Processa Python ---
+    pyth_list = []
+    for df, meta in pyth_sets:
+        if not df.empty:
+            df = df.drop(columns=[c for c in pyth_drop_cols if c in df.columns])
+            df = df.rename(columns=pyth_rename_map)
+            
+            if 'option_id' in df.columns:
+                df = df[df['option_id'] != -1]
+            
+            if 'function' in df.columns:
+                df['function'] = df['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
+            if 'r_type' in df.columns:
+                df.loc[df['r_type'] == 'static', 'function'] = 'static'
+                df = df.drop(columns=['r_type', 'r_value'], errors='ignore')
+
+            if 'static_v' in df.columns:
+                static_mask = df['function'] == 'static'
+                df.loc[static_mask, 'control_par'] = df.loc[static_mask, 'static_v']
+                df = df.drop(columns=['static_v'])
+                
+            df['communication'] = 0
+            pyth_list.append(df)
+            
+    pyth_df = pd.concat(pyth_list, ignore_index=True) if pyth_list else pd.DataFrame()
+
+    if not argos_df.empty:
+        total_imgs += plot_hybrid_cohesion(argos_df, pyth_df)
         
-    # if not df_coh.empty and not df_time.empty:
-    #     print("Generating Pareto: Cohesion vs Time...")
-    #     total_imgs += plot_cohesion_time_pareto(df_coh, df_time)
-
     print(f"\nExecution finished. Total images saved: {total_imgs}")
 
 if __name__ == "__main__":
