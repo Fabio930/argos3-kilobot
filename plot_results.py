@@ -312,10 +312,10 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     image_count = 0
     
     eta_mapping = {
-        0.4: [0.38, 0.42],
-        0.5: [0.46, 0.5, 0.54],
-        0.7: [0.66, 0.7, 0.74],
-        0.8: [0.78, 0.82]
+        0.4: [0.4],
+        0.5: [0.5],
+        0.7: [0.7],
+        0.8: [0.8]
     }
     
     # 1. Aggregazione Python
