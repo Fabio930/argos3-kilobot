@@ -90,8 +90,8 @@ def main():
 
     prefix_map = {
         "ExperimentLength": ("exp_length", int),
-        "VariationTime": ("variation_time", float),
-        "SpatCorr": ("spat_corr", int),
+        "VariationTime": ("variation_time", int),
+        "SpatCorr": ("spat_corr", float),
         "Options": ("n_options", int),
         "Eta": ("eta", float),
         "EtaStop": ("eta_stop", float),
