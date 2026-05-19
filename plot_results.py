@@ -287,7 +287,7 @@ def plot_cohesion_df(result_df: pd.DataFrame, file_meta: Optional[dict] = None) 
                     linear_group = sorted(linear_group, key=lambda x: int(x.split("m:")[-1]))
                     sorted_handles = [uniq[lbl] for lbl in static_group]+[uniq[lbl] for lbl in linear_group]+[uniq[lbl] for lbl in polynomial_group]
                     sorted_labels = static_group + linear_group + polynomial_group
-                    ax.legend(sorted_handles, sorted_labels, loc="best", frameon=False, fontsize=8)
+                    ax.legend(sorted_handles, sorted_labels, loc="best", frameon=False, fontsize=plt.rcParams.get("font.size"))
 
             axes[0].set_ylabel("cohesion")
             
@@ -412,7 +412,7 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     }
     
     comm_styles = {0: '-', 1: '--', 2: ':'}
-    comm_labels = {0: 'IDB', 1: 'hIDRi', 2: 'IDRf'}
+    comm_labels = {0: 'IDB', 1: r'$h-IDR_i$', 2: r'$IDR_f$'}
     
     # --- 2. MAIN PLOTTING LOOP ---
     for group_vals, argos_group in argos_df.groupby(base_group_cols, dropna=False):
@@ -557,7 +557,7 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
         if has_python:
             handles.append(Patch(facecolor='gray', edgecolor='black', alpha=0.6, label='Python BoxPlot'))
             
-        axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=8)
+        axes[1].legend(handles=handles, loc="best", frameon=False, fontsize=plt.rcParams.get("font.size"))
         
         title_parts = [f"{k}={v}" for k, v in group_dict.items()]
         fig.suptitle(f"Cohesion | {' | '.join(title_parts)}")
@@ -581,14 +581,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 (ONLY if init_distr == 0.2). Insets are shifted to avoid covering boxplots,
                 share exact axis limits with the main panel, and hide tick labels.
     """
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as mcolors
-    from matplotlib.lines import Line2D
-    from matplotlib.patches import Patch
-    import numpy as np
-    import pandas as pd
-    import os, re
-    from pathlib import Path
 
     # 1. Sanitize init_distr
     for df in [argos_df, pyth_df]:
@@ -674,7 +666,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     
     # Styles and Labels
     comm_styles = {0: '-', 1: '-', 2: '-'}
-    comm_labels = {0: 'IDB', 1: r'h-IDR_i', 2: r'IDR_f'}
+    comm_labels = {0: 'IDB', 1: r'$h-IDR_i$', 2: r'$IDR_f$'}
     for val in unique_comms:
         if val not in comm_styles: comm_styles[val] = '-'
         if val not in comm_labels: comm_labels[val] = f'Comm {val}'
@@ -691,7 +683,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         
         # Directive: Insets are only required if init_distr == 0.2
         init_d = float(g_dict.get('init_distr', 0.5))
-        draw_inset = np.isclose(init_d, 0.2, atol=1e-3)
+        draw_inset = False # np.isclose(init_d, 0.2, atol=1e-3)
         
         # Filter python data for this specific group
         py_g = pyth_agg.copy()
@@ -745,7 +737,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                     inset_loc = [0.35, 0.05, 0.45, 0.4] if final_opt0_val > 0.5 else [0.35, 0.55, 0.45, 0.4]
                     ax_in = ax.inset_axes(inset_loc)
                     ax_in.grid(alpha=0.2)
-                    # ax_in.set_title(r"$\bar{\rho}^*$", fontsize=8, pad=2)
+                    # ax_in.set_title(r"$\bar{\rho}^*$", fontsize=plt.rcParams.get("font.size"), pad=2)
 
                 # Plot ARGoS Data
                 for _, row in a_cell.iterrows():
@@ -822,10 +814,10 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 
                 if c_idx == 0:
                     ax.set_ylabel(r"$\rho^*$")
-                    ax.text(-0.25, 0.5, r_conf['label'], transform=ax.transAxes, ha='right', va='center', rotation=90, fontsize=12)
+                    ax.text(-0.25, 0.5, r_conf['label'], transform=ax.transAxes, ha='right', va='center', rotation=90, fontsize=plt.rcParams.get("font.size"))
                 if r_idx == len(row_configs) - 1:
                     ax.set_xlabel("T")
-                    ax.text(0.5, -0.3, rf"$m={c_val}$", transform=ax.transAxes, ha='center', va='top', fontsize=12)
+                    ax.text(0.5, -0.3, rf"$m={c_val}$", transform=ax.transAxes, ha='center', va='top', fontsize=plt.rcParams.get("font.size"))
 
         if not has_data:
             plt.close(fig)
@@ -838,7 +830,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         ]
         legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
         
-        fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=len(unique_comms)+1, frameon=False, fontsize=10)
+        fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=len(unique_comms)+1, frameon=False, fontsize=plt.rcParams.get("font.size"))
         
         title_parts = [f"{k}={v}" for k, v in g_dict.items()]
         safe_str = "_".join(title_parts).replace(".", "_").replace(" ", "")
@@ -1378,8 +1370,8 @@ def main():
     pyth_df = pd.concat(pyth_list, ignore_index=True) if pyth_list else pd.DataFrame()
 
     if not argos_df.empty:
-        total_imgs += plot_hybrid_cohesion(argos_df, pyth_df)
-        # total_imgs += plot_condensed_hybrid_cohesion(argos_df, pyth_df)
+        # total_imgs += plot_hybrid_cohesion(argos_df, pyth_df)
+        total_imgs += plot_condensed_hybrid_cohesion(argos_df, pyth_df)
         
     print(f"\nHybrid plot finished with {total_imgs} images")
 
