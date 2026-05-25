@@ -1,4 +1,4 @@
-import os, re
+import os, re, logging
 from typing import Optional
 import numpy as np
 import pandas as pd
@@ -7,6 +7,8 @@ from pathlib import Path
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+plt.rcParams.update({"font.size": 14})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -573,15 +575,12 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
 def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
     """
     Condensed Grid Layout for Hybrid Cohesion Plots.
-    - Generates one file per unique combination of (options, init_distr, eta).
-    - Rows: Static (ctrl=0.8), Linear (ctrl=0.0), Polynomial (ctrl=0.5), Polynomial (ctrl=0.7).
-    - Columns: m = 3, 5, 9, 15.
-    - Colors/Styles: Mapped to 'communication' type using Viridis. Python boxplots are grey.
-    - Insets: option_id = 1 is plotted inside the main option_id = 0 axes to save space 
-                (ONLY if init_distr == 0.2). Insets are shifted to avoid covering boxplots,
-                share exact axis limits with the main panel, and hide tick labels.
+    - Generates exactly 2 images: one for n_options=2, one for n_options=5.
+    - option_id=1 is completely removed from the final plots. We only plot option_id=0.
+    - Main panels use eta=0.5 (for opts=2) or eta=0.8 (for opts=5).
+    - Insets use eta=0.4 (for opts=2) or eta=0.7 (for opts=5).
+    - Filters entirely by eta value to guarantee data is found.
     """
-
     # 1. Sanitize init_distr
     for df in [argos_df, pyth_df]:
         if not df.empty and 'init_distr' in df.columns:
@@ -593,8 +592,15 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     output_path.mkdir(parents=True, exist_ok=True)
     image_count = 0
     
-    # 2. Dynamic Python Aggregation
-    py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'communication', 'options']
+    # We can safely pre-filter ARGoS for memory, but we MUST keep all options 
+    # for the Python dataframe to calculate the symmetric winners correctly!
+    if not argos_df.empty:
+        argos_df = argos_df[argos_df['option_id'] == 0].copy()
+    if not pyth_df.empty:
+        pyth_df = pyth_df.copy()
+
+    # 2. Dynamic Python Aggregation (Restored original logic for argmax)
+    py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'communication', 'options', 'n_options', 'n_opts', 'N']
     if not pyth_df.empty:
         pyth_df['data_arr'] = pyth_df['data'].apply(m_array_from_cell) 
         py_group_cols_exist = [c for c in py_group_cols if c in pyth_df.columns]
@@ -625,24 +631,51 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             eta_val = float(group['eta'].iloc[0]) if 'eta' in group.columns else 0.5
             is_symmetric = np.isclose(eta_val, (N - 1.0) / N, atol=1e-3)
             
+            # This is the crucial logic that was missing: 
+            # calculating the winner for symmetric plots (Main panels)
             if is_symmetric:
                 winning_indices = np.argmax(stacked, axis=0)
                 run_indices = np.arange(min_runs)
                 opt0_vals = stacked[winning_indices, run_indices]
-                opt1_vals = np.sum(stacked, axis=0) - opt0_vals if len(opts) > 1 else np.array([])
             else:
                 opt0_vals = opt_data[0] if 0 in opt_data else np.zeros(min_runs)
-                others = [opt_data[o] for o in opts if o > 0]
-                opt1_vals = np.sum(np.stack(others), axis=0) if others else np.array([])
                     
             res = []
-            if len(opt0_vals) > 0: res.append({'option_id': 0, 'box_data': opt0_vals})
-            if len(opt1_vals) > 0: res.append({'option_id': 1, 'box_data': opt1_vals})
+            if len(opt0_vals) > 0: 
+                # We only append option 0 because we only plot option 0 now
+                res.append({'option_id': 0, 'box_data': opt0_vals})
             return pd.DataFrame(res)
         
-        pyth_agg = pyth_df.groupby(py_group_cols_exist, dropna=False).apply(process_python_config).reset_index()
+        pyth_agg = pyth_df.groupby(py_group_cols_exist, dropna=False).apply(process_python_config, include_groups=False).reset_index()
     else:
         pyth_agg = pd.DataFrame()
+
+    # Mask purely based on eta
+    def get_mask(df, target_eta, target_func, target_ctrl, target_vote):
+        if df.empty:
+            return pd.Series(False, index=df.index)
+        
+        mask = pd.Series(True, index=df.index)
+        
+        if 'eta' in df.columns:
+            eta_mask = np.isclose(pd.to_numeric(df['eta'], errors='coerce'), target_eta, atol=1e-2)
+            mask = mask & eta_mask
+        else:
+            return pd.Series(False, index=df.index)
+            
+        if 'function' in df.columns:
+            func_mask = df['function'].astype(str).str.strip().str.lower() == target_func.lower()
+            mask = mask & func_mask
+            
+        if 'control_par' in df.columns:
+            ctrl_mask = np.isclose(pd.to_numeric(df['control_par'], errors='coerce'), target_ctrl, atol=1e-3)
+            mask = mask & ctrl_mask
+            
+        if 'vote_msg' in df.columns:
+            vote_mask = pd.to_numeric(df['vote_msg'], errors='coerce') == target_vote
+            mask = mask & vote_mask
+            
+        return mask
 
     # 3. Grid Configurations & Styling
     row_configs = [
@@ -653,7 +686,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     ]
     col_configs = [3, 5, 9, 15]
     
-    # Determine unique communication values to map colors dynamically via Viridis
     if 'communication' in argos_df.columns:
         unique_comms = sorted(argos_df['communication'].dropna().astype(int).unique().tolist())
     else:
@@ -661,10 +693,9 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         
     num_comms = len(unique_comms)
     cmap_vir = plt.get_cmap('viridis')
-    norm = mcolors.Normalize(vmin=0, vmax=num_comms)
+    norm = mcolors.Normalize(vmin=0, vmax=num_comms if num_comms > 0 else 1)
     comm_colors = {val: cmap_vir(norm(i)) for i, val in enumerate(unique_comms)}
     
-    # Styles and Labels
     comm_styles = {0: '-', 1: '-', 2: '-'}
     comm_labels = {0: 'IDB', 1: r'$h-IDR_i$', 2: r'$IDR_f$'}
     for val in unique_comms:
@@ -673,30 +704,11 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         
     pyth_color = 'tab:gray' 
 
-    base_group_cols = ['options', 'eta', 'init_distr']
-    valid_cols = [c for c in base_group_cols if c in argos_df.columns]
-    
     # 4. Main Plotting Loop
-    for group_vals, argos_group in argos_df.groupby(valid_cols, dropna=False):
-        g_dict = dict(zip(valid_cols, group_vals)) if isinstance(group_vals, tuple) else {valid_cols[0]: group_vals}
-        n_opts = g_dict.get('options', 2)
+    for n_opts in [2, 5]:
+        eta_main = 0.5 if n_opts == 2 else 0.8
+        eta_inset = 0.4 if n_opts == 2 else 0.7
         
-        # Directive: Insets are only required if init_distr == 0.2
-        init_d = float(g_dict.get('init_distr', 0.5))
-        draw_inset = False # np.isclose(init_d, 0.2, atol=1e-3)
-        
-        # Filter python data for this specific group
-        py_g = pyth_agg.copy()
-        for k, v in g_dict.items():
-            if not py_g.empty and k in py_g.columns:
-                if k == 'eta':
-                    py_g = py_g[np.isclose(pd.to_numeric(py_g[k], errors='coerce'), float(v), atol=1e-3)]
-                else:
-                    if isinstance(v, (float, int)):
-                        py_g = py_g[np.isclose(pd.to_numeric(py_g[k], errors='coerce'), float(v), atol=1e-3)]
-                    else:
-                        py_g = py_g[py_g[k].astype(str) == str(v)]
-
         fig, axes = plt.subplots(len(row_configs), len(col_configs), figsize=(15, 12), sharex='col', sharey='row')
         has_data = False
         
@@ -704,15 +716,19 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             for c_idx, c_val in enumerate(col_configs):
                 ax = axes[r_idx, c_idx]
                 
-                # Filter data for this cell
-                a_cell = argos_group[(argos_group['function'] == r_conf['func']) & 
-                                        (np.isclose(argos_group['control_par'].astype(float), r_conf['ctrl'])) &
-                                        (argos_group['vote_msg'] == c_val)]
-                p_cell = py_g[(py_g['function'] == r_conf['func']) & 
-                                (np.isclose(py_g['control_par'].astype(float), r_conf['ctrl'])) &
-                                (py_g['vote_msg'] == c_val)] if not py_g.empty else pd.DataFrame()
-                
-                if a_cell.empty and p_cell.empty:
+                # Filter data for this cell (Main Eta)
+                mask_a_main = get_mask(argos_df, eta_main, r_conf['func'], r_conf['ctrl'], c_val)
+                a_main = argos_df[mask_a_main]
+                mask_p_main = get_mask(pyth_agg, eta_main, r_conf['func'], r_conf['ctrl'], c_val)
+                p_main = pyth_agg[mask_p_main] if not pyth_agg.empty else pd.DataFrame()
+
+                # Filter data for this cell (Inset Eta)
+                mask_a_inset = get_mask(argos_df, eta_inset, r_conf['func'], r_conf['ctrl'], c_val)
+                a_inset = argos_df[mask_a_inset]
+                mask_p_inset = get_mask(pyth_agg, eta_inset, r_conf['func'], r_conf['ctrl'], c_val)
+                p_inset = pyth_agg[mask_p_inset] if not pyth_agg.empty else pd.DataFrame()
+
+                if a_main.empty and p_main.empty and a_inset.empty and p_inset.empty:
                     ax.grid(alpha=0.25)
                     continue
                     
@@ -720,65 +736,51 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 max_x = 0
                 final_opt0_val = 0.5 
                 
-                a_opt0 = a_cell[a_cell['option_id'] == 0]
-                a_opt1 = a_cell[a_cell['option_id'] == 1]
-                p_opt0 = p_cell[p_cell['option_id'] == 0] if not p_cell.empty else pd.DataFrame()
-                p_opt1 = p_cell[p_cell['option_id'] == 1] if not p_cell.empty else pd.DataFrame()
-                
-                if not a_opt0.empty:
+                if not a_main.empty:
                     end_vals = []
-                    for _, row in a_opt0.iterrows():
+                    for _, row in a_main.iterrows():
                         arr = m_array_from_cell(row['data'])
                         if len(arr) > 0: end_vals.append(arr[-1])
                     if end_vals: final_opt0_val = np.mean(end_vals)
                 
-                ax_in = None
-                if draw_inset:
-                    inset_loc = [0.35, 0.05, 0.45, 0.4] if final_opt0_val > 0.5 else [0.35, 0.55, 0.45, 0.4]
-                    ax_in = ax.inset_axes(inset_loc)
-                    ax_in.grid(alpha=0.2)
-                    # ax_in.set_title(r"$\bar{\rho}^*$", fontsize=plt.rcParams.get("font.size"), pad=2)
-
-                # Plot ARGoS Data
-                for _, row in a_cell.iterrows():
-                    opt_id = row['option_id']
-                    if opt_id == 1 and not draw_inset:
-                        continue
+                inset_loc = [0.35, 0.05, 0.45, 0.4] if final_opt0_val > 0.5 else [0.35, 0.55, 0.45, 0.4]
+                ax_in = ax.inset_axes(inset_loc)
+                ax_in.grid(alpha=0.2)
+                
+                def plot_target(a_df, p_df, target_ax):
+                    nonlocal max_x
+                    for _, row in a_df.iterrows():
+                        try:
+                            y = m_array_from_cell(row['data'])
+                            s = m_array_from_cell(row['std'])
+                        except Exception: continue
                         
-                    target_ax = ax if opt_id == 0 else ax_in
+                        n_steps = min(len(y), len(s))
+                        if n_steps == 0: continue
+                        max_x = max(max_x, n_steps)
+                        
+                        comm = int(row.get('communication', 0))
+                        c_color = comm_colors.get(comm, 'black')
+                        c_style = comm_styles.get(comm, '-')
+                        
+                        x_arr = np.arange(n_steps)
+                        target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=c_style, linewidth=1.5)
+                        target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
                     
-                    try:
-                        y = m_array_from_cell(row['data'])
-                        s = m_array_from_cell(row['std'])
-                    except Exception: continue
-                    
-                    n_steps = min(len(y), len(s))
-                    if n_steps == 0: continue
-                    max_x = max(max_x, n_steps)
-                    
-                    comm = int(row.get('communication', 0))
-                    c_color = comm_colors.get(comm, 'black')
-                    c_style = comm_styles.get(comm, '-')
-                    
-                    x_arr = np.arange(n_steps)
-                    target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=c_style, linewidth=1.5)
-                    target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
+                    merged_box = []
+                    if not p_df.empty:
+                        for _, row in p_df.iterrows():
+                            if 'box_data' in row and len(row['box_data']) > 0:
+                                merged_box.extend(row['box_data'])
+                    return merged_box
 
-                # Plot Python Data
+                box_main = plot_target(a_main, p_main, ax)
+                box_inset = plot_target(a_inset, p_inset, ax_in)
+
                 box_width = max(1, max_x * 0.05)
                 box_pos = max_x + box_width * 1.5
                 
-                targets = [(p_opt0, ax)]
-                if draw_inset:
-                    targets.append((p_opt1, ax_in))
-                    
-                for p_df, target_ax in targets:
-                    if p_df.empty: continue
-                    merged_box = []
-                    for _, row in p_df.iterrows():
-                        if 'box_data' in row and len(row['box_data']) > 0:
-                            merged_box.extend(row['box_data'])
-                            
+                for merged_box, target_ax in [(box_main, ax), (box_inset, ax_in)]:
                     if merged_box:
                         bp = target_ax.boxplot(merged_box, positions=[box_pos], widths=box_width, patch_artist=True, showfliers=False)
                         for patch in bp['boxes']:
@@ -787,28 +789,20 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                         for median in bp['medians']:
                             median.set_color('black')
                             
-                # --- X-Axis Limits and Ticks Logic ---
                 ax.set_xlim(left=0, right=box_pos + box_width * 2)
                 ax.set_ylim(-0.03, 1.03)
                 
-                line_ticks = np.arange(0, max_x + 1, 1000)
+                line_ticks = np.arange(0, max_x + 1, 1500)
                 all_ticks = list(line_ticks) + [box_pos]
-                
-                # Labels: explicit string for steps, empty string for the boxplot tick
                 all_labels = [str(int(t*.1)) for t in line_ticks] + [""]
                 
                 ax.set_xticks(all_ticks)
                 ax.set_xticklabels(all_labels)
                 
-                if ax_in:
-                    # Synchronize limits explicitly
-                    ax_in.set_xlim(ax.get_xlim())
-                    ax_in.set_ylim(ax.get_ylim())
-                    ax_in.set_xticks(all_ticks)
-                    
-                    # Completely hide tick labels on the inset while maintaining the grid structure
-                    ax_in.tick_params(labelbottom=False, labelleft=False, labeltop=False, labelright=False)
-                # -------------------------------------
+                ax_in.set_xlim(ax.get_xlim())
+                ax_in.set_ylim(ax.get_ylim())
+                ax_in.set_xticks(all_ticks)
+                ax_in.tick_params(labelbottom=False, labelleft=False, labeltop=False, labelright=False)
                 
                 ax.grid(alpha=0.25)
                 
@@ -823,7 +817,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             plt.close(fig)
             continue
             
-        # Global Legend
         legend_elements = [
             Line2D([0], [0], color=comm_colors[k], linestyle=comm_styles.get(k, '-'), lw=2, label=f"{comm_labels.get(k, 'Unknown')}") 
             for k in unique_comms
@@ -831,11 +824,10 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
         
         fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=len(unique_comms)+1, frameon=False, fontsize=plt.rcParams.get("font.size"))
+        fig.suptitle(rf"Options: $n={n_opts}$ (Main: $\eta={eta_main}$, Inset: $\eta={eta_inset}$)", fontsize=16, y=1.02)
         
-        title_parts = [f"{k}={v}" for k, v in g_dict.items()]
-        safe_str = "_".join(title_parts).replace(".", "_").replace(" ", "")
         fig.tight_layout()
-        fig.savefig(output_path / f"condensed_hybrid_{safe_str}.png", dpi=150, bbox_inches="tight")
+        fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}.png", dpi=150, bbox_inches="tight")
         plt.close(fig)
         image_count += 1
         
