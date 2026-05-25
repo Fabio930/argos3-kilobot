@@ -725,7 +725,7 @@ class Data:
             legend_elements = handles_l + handles_r
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.58, -0.08), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.80, -0.09), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
