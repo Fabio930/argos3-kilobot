@@ -572,18 +572,10 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
         
     return image_count
 
-# Assuming m_array_from_cell is defined elsewhere in your scope
-# def m_array_from_cell(cell): ...
-
-def plot_condensed_hybrid_cohesion(
-    argos_df: pd.DataFrame, 
-    pyth_df: pd.DataFrame, 
-    omit_m: list = None, #[3,7], 
-    omit_labels: list = None
-) -> int:
+def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, omit_m: list = [15], omit_labels: list = None) -> int:
     """
     Condensed Grid Layout for Hybrid Cohesion Plots.
-    - Inverted: m values are rows, configurations are columns.
+    - Grid is transposed: configurations are rows, m values are columns.
     - Allows omitting specific m values via `omit_m` (e.g., [9, 15]).
     - Allows omitting specific configurations via `omit_labels` (e.g., ['Linear']).
     - Generates exactly 2 images: one for n_options=2, one for n_options=5.
@@ -717,18 +709,18 @@ def plot_condensed_hybrid_cohesion(
         
     pyth_color = 'tab:gray' 
 
-    # 4. Main Plotting Loop (Inverted outer/inner loops)
+    # 4. Main Plotting Loop (configs as rows, m as columns)
     for n_opts in [2, 5]:
         eta_main = 0.5 if n_opts == 2 else 0.8
         eta_inset = 0.4 if n_opts == 2 else 0.7
         
         # Squeeze=False ensures axes is always a 2D array, even if row/col length is 1
-        fig, axes = plt.subplots(len(m_values), len(configs), figsize=(16, 12), sharex='col', sharey='row', squeeze=False)
+        fig, axes = plt.subplots(len(configs), len(m_values), figsize=(16, 12), sharex='col', sharey='row', squeeze=False)
         has_data = False
         
-        # Iterate over m_values for rows and configs for columns
-        for r_idx, m_val in enumerate(m_values):
-            for c_idx, c_conf in enumerate(configs):
+        # Iterate over configs for rows and m_values for columns
+        for r_idx, c_conf in enumerate(configs):
+            for c_idx, m_val in enumerate(m_values):
                 ax = axes[r_idx, c_idx]
                 
                 # Filter data for this cell (Main Eta)
@@ -824,11 +816,11 @@ def plot_condensed_hybrid_cohesion(
                 # Axes Labels
                 if c_idx == 0:
                     ax.set_ylabel(r"$\rho^*$")
-                if c_idx == len(configs) - 1:
-                    ax.text(1.1, 0.5, rf"$m={m_val}$", transform=ax.transAxes, ha='right', va='center', rotation=270)
                 if r_idx == 0:
-                    ax.text(0.5, 1.125, c_conf['label'], transform=ax.transAxes, ha='center', va='top')
-                if r_idx == len(m_values) - 1:
+                    ax.text(0.5, 1.125, rf"$m={m_val}$", transform=ax.transAxes, ha='center', va='top')
+                if c_idx == len(m_values) - 1:
+                    ax.text(1.05, 0.5, c_conf['label'], transform=ax.transAxes, ha='left', va='center', rotation=270)
+                if r_idx == len(configs) - 1:
                     ax.set_xlabel("T")
 
         if not has_data:
@@ -841,10 +833,10 @@ def plot_condensed_hybrid_cohesion(
         ]
         legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
         
-        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, .015), ncol=len(unique_comms)+1)
+        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.96, .015), ncol=len(unique_comms)+1)
         
         fig.tight_layout()
-        fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}.png", dpi=150, bbox_inches="tight")
+        fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}.pdf", dpi=150, bbox_inches="tight")
         plt.close(fig)
         image_count += 1
         
