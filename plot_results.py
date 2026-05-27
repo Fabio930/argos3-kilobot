@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 14})
+plt.rcParams.update({"font.size": 16})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -572,15 +572,32 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
         
     return image_count
 
-def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
+# Assuming m_array_from_cell is defined elsewhere in your scope
+# def m_array_from_cell(cell): ...
+
+def plot_condensed_hybrid_cohesion(
+    argos_df: pd.DataFrame, 
+    pyth_df: pd.DataFrame, 
+    omit_m: list = None, #[3,7], 
+    omit_labels: list = None
+) -> int:
     """
     Condensed Grid Layout for Hybrid Cohesion Plots.
+    - Inverted: m values are rows, configurations are columns.
+    - Allows omitting specific m values via `omit_m` (e.g., [9, 15]).
+    - Allows omitting specific configurations via `omit_labels` (e.g., ['Linear']).
     - Generates exactly 2 images: one for n_options=2, one for n_options=5.
     - option_id=1 is completely removed from the final plots. We only plot option_id=0.
     - Main panels use eta=0.5 (for opts=2) or eta=0.8 (for opts=5).
     - Insets use eta=0.4 (for opts=2) or eta=0.7 (for opts=5).
     - Filters entirely by eta value to guarantee data is found.
     """
+    
+    if omit_m is None:
+        omit_m = []
+    if omit_labels is None:
+        omit_labels = []
+
     # 1. Sanitize init_distr
     for df in [argos_df, pyth_df]:
         if not df.empty and 'init_distr' in df.columns:
@@ -592,14 +609,12 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     output_path.mkdir(parents=True, exist_ok=True)
     image_count = 0
     
-    # We can safely pre-filter ARGoS for memory, but we MUST keep all options 
-    # for the Python dataframe to calculate the symmetric winners correctly!
     if not argos_df.empty:
         argos_df = argos_df[argos_df['option_id'] == 0].copy()
     if not pyth_df.empty:
         pyth_df = pyth_df.copy()
 
-    # 2. Dynamic Python Aggregation (Restored original logic for argmax)
+    # 2. Dynamic Python Aggregation
     py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'communication', 'options', 'n_options', 'n_opts', 'N']
     if not pyth_df.empty:
         pyth_df['data_arr'] = pyth_df['data'].apply(m_array_from_cell) 
@@ -631,8 +646,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             eta_val = float(group['eta'].iloc[0]) if 'eta' in group.columns else 0.5
             is_symmetric = np.isclose(eta_val, (N - 1.0) / N, atol=1e-3)
             
-            # This is the crucial logic that was missing: 
-            # calculating the winner for symmetric plots (Main panels)
             if is_symmetric:
                 winning_indices = np.argmax(stacked, axis=0)
                 run_indices = np.arange(min_runs)
@@ -642,7 +655,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                     
             res = []
             if len(opt0_vals) > 0: 
-                # We only append option 0 because we only plot option 0 now
                 res.append({'option_id': 0, 'box_data': opt0_vals})
             return pd.DataFrame(res)
         
@@ -650,42 +662,43 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     else:
         pyth_agg = pd.DataFrame()
 
-    # Mask purely based on eta
     def get_mask(df, target_eta, target_func, target_ctrl, target_vote):
         if df.empty:
             return pd.Series(False, index=df.index)
-        
         mask = pd.Series(True, index=df.index)
         
         if 'eta' in df.columns:
-            eta_mask = np.isclose(pd.to_numeric(df['eta'], errors='coerce'), target_eta, atol=1e-2)
-            mask = mask & eta_mask
+            mask &= np.isclose(pd.to_numeric(df['eta'], errors='coerce'), target_eta, atol=1e-2)
         else:
             return pd.Series(False, index=df.index)
             
         if 'function' in df.columns:
-            func_mask = df['function'].astype(str).str.strip().str.lower() == target_func.lower()
-            mask = mask & func_mask
+            mask &= df['function'].astype(str).str.strip().str.lower() == target_func.lower()
             
         if 'control_par' in df.columns:
-            ctrl_mask = np.isclose(pd.to_numeric(df['control_par'], errors='coerce'), target_ctrl, atol=1e-3)
-            mask = mask & ctrl_mask
+            mask &= np.isclose(pd.to_numeric(df['control_par'], errors='coerce'), target_ctrl, atol=1e-3)
             
         if 'vote_msg' in df.columns:
-            vote_mask = pd.to_numeric(df['vote_msg'], errors='coerce') == target_vote
-            mask = mask & vote_mask
+            mask &= pd.to_numeric(df['vote_msg'], errors='coerce') == target_vote
             
         return mask
 
-    # 3. Grid Configurations & Styling
-    row_configs = [
+    # 3. Grid Configurations & Filtering
+    all_configs = [
         {'label': r'Static ($r=0.8$)', 'func': 'static', 'ctrl': 0.8},
         {'label': 'Linear', 'func': 'linear', 'ctrl': 0.0},
         {'label': r'Poly ($X_0=0.5$)', 'func': 'polynomial', 'ctrl': 0.5},
         {'label': r'Poly ($X_0=0.7$)', 'func': 'polynomial', 'ctrl': 0.7}
     ]
-    col_configs = [3, 5, 9, 15]
-    
+    all_m_values = [3, 5, 9, 15]
+
+    configs = [c for c in all_configs if c['label'] not in omit_labels]
+    m_values = [m for m in all_m_values if m not in omit_m]
+
+    if not configs or not m_values:
+        print("Error: Grid is empty due to omitted values.")
+        return 0
+
     if 'communication' in argos_df.columns:
         unique_comms = sorted(argos_df['communication'].dropna().astype(int).unique().tolist())
     else:
@@ -704,28 +717,30 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         
     pyth_color = 'tab:gray' 
 
-    # 4. Main Plotting Loop
+    # 4. Main Plotting Loop (Inverted outer/inner loops)
     for n_opts in [2, 5]:
         eta_main = 0.5 if n_opts == 2 else 0.8
         eta_inset = 0.4 if n_opts == 2 else 0.7
         
-        fig, axes = plt.subplots(len(row_configs), len(col_configs), figsize=(15, 12), sharex='col', sharey='row')
+        # Squeeze=False ensures axes is always a 2D array, even if row/col length is 1
+        fig, axes = plt.subplots(len(m_values), len(configs), figsize=(16, 12), sharex='col', sharey='row', squeeze=False)
         has_data = False
         
-        for r_idx, r_conf in enumerate(row_configs):
-            for c_idx, c_val in enumerate(col_configs):
+        # Iterate over m_values for rows and configs for columns
+        for r_idx, m_val in enumerate(m_values):
+            for c_idx, c_conf in enumerate(configs):
                 ax = axes[r_idx, c_idx]
                 
                 # Filter data for this cell (Main Eta)
-                mask_a_main = get_mask(argos_df, eta_main, r_conf['func'], r_conf['ctrl'], c_val)
+                mask_a_main = get_mask(argos_df, eta_main, c_conf['func'], c_conf['ctrl'], m_val)
                 a_main = argos_df[mask_a_main]
-                mask_p_main = get_mask(pyth_agg, eta_main, r_conf['func'], r_conf['ctrl'], c_val)
+                mask_p_main = get_mask(pyth_agg, eta_main, c_conf['func'], c_conf['ctrl'], m_val)
                 p_main = pyth_agg[mask_p_main] if not pyth_agg.empty else pd.DataFrame()
 
                 # Filter data for this cell (Inset Eta)
-                mask_a_inset = get_mask(argos_df, eta_inset, r_conf['func'], r_conf['ctrl'], c_val)
+                mask_a_inset = get_mask(argos_df, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)
                 a_inset = argos_df[mask_a_inset]
-                mask_p_inset = get_mask(pyth_agg, eta_inset, r_conf['func'], r_conf['ctrl'], c_val)
+                mask_p_inset = get_mask(pyth_agg, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)
                 p_inset = pyth_agg[mask_p_inset] if not pyth_agg.empty else pd.DataFrame()
 
                 if a_main.empty and p_main.empty and a_inset.empty and p_inset.empty:
@@ -806,25 +821,27 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 
                 ax.grid(alpha=0.25)
                 
+                # Axes Labels
                 if c_idx == 0:
                     ax.set_ylabel(r"$\rho^*$")
-                    ax.text(-0.25, 0.5, r_conf['label'], transform=ax.transAxes, ha='right', va='center', rotation=90, fontsize=plt.rcParams.get("font.size"))
-                if r_idx == len(row_configs) - 1:
+                if c_idx == len(configs) - 1:
+                    ax.text(1.1, 0.5, rf"$m={m_val}$", transform=ax.transAxes, ha='right', va='center', rotation=270)
+                if r_idx == 0:
+                    ax.text(0.5, 1.125, c_conf['label'], transform=ax.transAxes, ha='center', va='top')
+                if r_idx == len(m_values) - 1:
                     ax.set_xlabel("T")
-                    ax.text(0.5, -0.3, rf"$m={c_val}$", transform=ax.transAxes, ha='center', va='top', fontsize=plt.rcParams.get("font.size"))
 
         if not has_data:
             plt.close(fig)
             continue
             
         legend_elements = [
-            Line2D([0], [0], color=comm_colors[k], linestyle=comm_styles.get(k, '-'), lw=2, label=f"{comm_labels.get(k, 'Unknown')}") 
+            Line2D([0], [0], color=comm_colors[k], ls='None', marker='s', markersize=8, label=f"{comm_labels.get(k, 'Unknown')}") 
             for k in unique_comms
         ]
         legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
         
-        fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=len(unique_comms)+1, frameon=False, fontsize=plt.rcParams.get("font.size"))
-        fig.suptitle(rf"Options: $n={n_opts}$ (Main: $\eta={eta_main}$, Inset: $\eta={eta_inset}$)", fontsize=16, y=1.02)
+        fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, .015), ncol=len(unique_comms)+1)
         
         fig.tight_layout()
         fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}.png", dpi=150, bbox_inches="tight")
