@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 16})
+plt.rcParams.update({"font.size": 18})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -708,7 +708,9 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         if val not in comm_labels: comm_labels[val] = f'Comm {val}'
         
     pyth_color = 'tab:gray' 
-
+    for df in [argos_df, pyth_agg]:
+        if 'eta' in df.columns:
+            df['eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
     # 4. Main Plotting Loop (configs as rows, m as columns)
     for n_opts in [2, 5]:
         eta_main = 0.5 if n_opts == 2 else 0.8
@@ -750,7 +752,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                         if len(arr) > 0: end_vals.append(arr[-1])
                     if end_vals: final_opt0_val = np.mean(end_vals)
                 
-                inset_loc = [0.35, 0.05, 0.45, 0.4] if final_opt0_val > 0.5 else [0.35, 0.55, 0.45, 0.4]
+                inset_loc = [0.45, 0.05, 0.45, 0.5] if final_opt0_val > 0.5 else [0.45, 0.45, 0.45, 0.5]
                 ax_in = ax.inset_axes(inset_loc)
                 ax_in.grid(alpha=0.2)
                 
@@ -795,9 +797,10 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                             patch.set_alpha(0.7)
                         for median in bp['medians']:
                             median.set_color('black')
-                            
+                y_ticks = np.linspace(0, 1.0, 5) # Creates [0.0, 0.25, 0.5, 0.75, 1.0]      
                 ax.set_xlim(left=0, right=box_pos + box_width * 2)
                 ax.set_ylim(-0.03, 1.03)
+                ax.set_yticks(y_ticks)
                 
                 line_ticks = np.arange(0, max_x + 1, 1500)
                 all_ticks = list(line_ticks) + [box_pos]
@@ -807,9 +810,10 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 ax.set_xticklabels(all_labels)
                 
                 ax_in.set_xlim(ax.get_xlim())
-                ax_in.set_ylim(ax.get_ylim())
                 ax_in.set_xticks(all_ticks)
-                ax_in.tick_params(labelbottom=False, labelleft=False, labeltop=False, labelright=False)
+                ax_in.set_ylim(-0.03, 1.03)
+                ax_in.set_yticks(y_ticks)
+                ax_in.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=True, left=True, length=2)
                 
                 ax.grid(alpha=0.25)
                 
