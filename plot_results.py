@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 18})
+plt.rcParams.update({"font.size": 16})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -572,7 +572,7 @@ def plot_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame) -> int:
         
     return image_count
 
-def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, omit_m: list = [15], omit_labels: list = None) -> int:
+def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, omit_m: list = None, omit_labels: list = None) -> int:
     """
     Condensed Grid Layout for Hybrid Cohesion Plots.
     - Grid is transposed: configurations are rows, m values are columns.
@@ -583,6 +583,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     - Main panels use eta=0.5 (for opts=2) or eta=0.8 (for opts=5).
     - Insets use eta=0.4 (for opts=2) or eta=0.7 (for opts=5).
     - Filters entirely by eta value to guarantee data is found.
+    - Dynamically limits to 3 rows by filtering polynomial parameters based on n_opts.
     """
     
     if omit_m is None:
@@ -677,17 +678,18 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
 
     # 3. Grid Configurations & Filtering
     all_configs = [
-        {'label': r'Static ($r=0.8$)', 'func': 'static', 'ctrl': 0.8},
-        {'label': 'Linear', 'func': 'linear', 'ctrl': 0.0},
-        {'label': r'Poly ($X_0=0.5$)', 'func': 'polynomial', 'ctrl': 0.5},
-        {'label': r'Poly ($X_0=0.7$)', 'func': 'polynomial', 'ctrl': 0.7}
+        {'label': r'$r=0.8$', 'func': 'static', 'ctrl': 0.8},
+        {'label': r'r(q)=q', 'func': 'linear', 'ctrl': 0.0},
+        {'label': r'$p(q,0.5)$', 'func': 'polynomial', 'ctrl': 0.5},
+        {'label': r'$p(q,0.7)$', 'func': 'polynomial', 'ctrl': 0.7}
     ]
     all_m_values = [3, 5, 9, 15]
 
-    configs = [c for c in all_configs if c['label'] not in omit_labels]
+    # Base configurations before option-specific filtering
+    base_configs = [c for c in all_configs if c['label'] not in omit_labels]
     m_values = [m for m in all_m_values if m not in omit_m]
 
-    if not configs or not m_values:
+    if not base_configs or not m_values:
         print("Error: Grid is empty due to omitted values.")
         return 0
 
@@ -711,17 +713,28 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
     for df in [argos_df, pyth_agg]:
         if 'eta' in df.columns:
             df['eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
+            
     # 4. Main Plotting Loop (configs as rows, m as columns)
     for n_opts in [2, 5]:
         eta_main = 0.5 if n_opts == 2 else 0.8
         eta_inset = 0.4 if n_opts == 2 else 0.7
         
+        # Dynamically filter polynomial configurations based on the current number of options
+        active_configs = []
+        for c in base_configs:
+            if c['func'] == 'polynomial':
+                if n_opts == 2 and np.isclose(c['ctrl'], 0.7):
+                    continue  # Skip X_0=0.7 when options are 2
+                if n_opts == 5 and np.isclose(c['ctrl'], 0.5):
+                    continue  # Skip X_0=0.5 when options are 5
+            active_configs.append(c)
+        
         # Squeeze=False ensures axes is always a 2D array, even if row/col length is 1
-        fig, axes = plt.subplots(len(configs), len(m_values), figsize=(16, 12), sharex='col', sharey='row', squeeze=False)
+        fig, axes = plt.subplots(len(active_configs), len(m_values), figsize=(16, 12), sharex='col', sharey='row', squeeze=False)
         has_data = False
         
-        # Iterate over configs for rows and m_values for columns
-        for r_idx, c_conf in enumerate(configs):
+        # Iterate over active_configs for rows and m_values for columns
+        for r_idx, c_conf in enumerate(active_configs):
             for c_idx, m_val in enumerate(m_values):
                 ax = axes[r_idx, c_idx]
                 
@@ -773,7 +786,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                         c_style = comm_styles.get(comm, '-')
                         
                         x_arr = np.arange(n_steps)
-                        target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=c_style, linewidth=1.5)
+                        target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=c_style, linewidth=3)
                         target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
                     
                     merged_box = []
@@ -824,7 +837,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                     ax.text(0.5, 1.125, rf"$m={m_val}$", transform=ax.transAxes, ha='center', va='top')
                 if c_idx == len(m_values) - 1:
                     ax.text(1.05, 0.5, c_conf['label'], transform=ax.transAxes, ha='left', va='center', rotation=270)
-                if r_idx == len(configs) - 1:
+                if r_idx == len(active_configs) - 1:
                     ax.set_xlabel("T")
 
         if not has_data:
@@ -832,7 +845,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             continue
             
         legend_elements = [
-            Line2D([0], [0], color=comm_colors[k], ls='None', marker='s', markersize=8, label=f"{comm_labels.get(k, 'Unknown')}") 
+            Line2D([0], [0], color=comm_colors[k], ls='None', marker='s', markersize=14, label=f"{comm_labels.get(k, 'Unknown')}") 
             for k in unique_comms
         ]
         legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
