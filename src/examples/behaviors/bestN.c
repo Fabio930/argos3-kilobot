@@ -649,7 +649,7 @@ void loop(){
     ticks_elapsed = kilo_ticks;
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
-    if(my_state != 255){
+    if(my_state != 255 && init_received_C){
         random_way_point_model();
         decision();
         talk();

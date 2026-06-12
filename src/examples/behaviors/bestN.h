@@ -96,7 +96,7 @@ bool init_received_C = false;
 
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
-const uint16_t decision_ticks = TICKS_PER_SEC * .5;
+const uint16_t decision_ticks = TICKS_PER_SEC * 5;
 uint32_t last_decision_ticks = 0;
 uint8_t broadcasting_flag = 0;
 uint8_t adaptive_comm = 0;

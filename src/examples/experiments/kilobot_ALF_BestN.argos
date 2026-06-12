@@ -59,7 +59,7 @@
             priority_sampling_k = "0"
             init_distr = "0.5"
             options = "2"
-            eta_init = "0.6"
+            eta_init = "0.5"
             eta_stop = "0.8"
             variation_time = "0"
             grid_rows = "20"
@@ -67,7 +67,7 @@
             options_distribution = "random"
             spatial_correlation = "0"
             control = "polynomial"
-            voting_msgs = "3"
+            voting_msgs = "5"
             control_parameter = "0.5">
         </bestN>
 
