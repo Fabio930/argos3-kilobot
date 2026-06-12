@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 16})
+plt.rcParams.update({"font.size": 20})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -683,7 +683,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         {'label': r'$p(q,0.5)$', 'func': 'polynomial', 'ctrl': 0.5},
         {'label': r'$p(q,0.7)$', 'func': 'polynomial', 'ctrl': 0.7}
     ]
-    all_m_values = [3, 5, 9, 15]
+    all_m_values = [3, 5, 9]
 
     # Base configurations before option-specific filtering
     base_configs = [c for c in all_configs if c['label'] not in omit_labels]
@@ -722,11 +722,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         # Dynamically filter polynomial configurations based on the current number of options
         active_configs = []
         for c in base_configs:
-            if c['func'] == 'polynomial':
-                if n_opts == 2 and np.isclose(c['ctrl'], 0.7):
-                    continue  # Skip X_0=0.7 when options are 2
-                if n_opts == 5 and np.isclose(c['ctrl'], 0.5):
-                    continue  # Skip X_0=0.5 when options are 5
             active_configs.append(c)
         
         # Squeeze=False ensures axes is always a 2D array, even if row/col length is 1
@@ -815,7 +810,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 ax.set_ylim(-0.03, 1.03)
                 ax.set_yticks(y_ticks)
                 
-                line_ticks = np.arange(0, max_x + 1, 1500)
+                line_ticks = np.arange(0, max_x + 1, 4000)
                 all_ticks = list(line_ticks) + [box_pos]
                 all_labels = [str(int(t*.1)) for t in line_ticks] + [""]
                 
