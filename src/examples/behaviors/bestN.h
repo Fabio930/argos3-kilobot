@@ -117,8 +117,8 @@ uint16_t selected_msg_indx = 0b1111111111111111;
 quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 
-extern generic_fifo_t rebroadcast_fifo;
-extern generic_fifo_t vote_fifo;
+generic_fifo_t rebroadcast_fifo;
+generic_fifo_t vote_fifo;
 
 char log_title[30];
 uint8_t led = RGB(0,0,0);
@@ -126,9 +126,11 @@ uint8_t led = RGB(0,0,0);
 control_type control_mode = f_static;
 uint8_t voting_msgs = 0;
 uint8_t control_parameter_q = 0;
-float control_parameter = 0.0f;
-float control_value = 0.0f;
-float quorum_value = 0.0f;
+
+int control_parameter = 0;
+int control_value = 0;
+int quorum_value = 0;
+
 bool init_control_received = false;
 uint8_t gps_max_x_q = 105;
 uint8_t gps_max_y_q = 105;
@@ -149,8 +151,8 @@ void broadcast();
 void rnd_rebroadcast();
 void compute_msg_hops();
 float random_in_range(float min, float max);
-float compute_quorum_value();
-float compute_r_threshold(float quorum_value);
+int compute_quorum_value();
+int compute_r_threshold(int quorum_value);
 int majority_vote();
 void select_new_point(bool force);
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);

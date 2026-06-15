@@ -1,8 +1,5 @@
 #include "bestN.h"
 
-generic_fifo_t rebroadcast_fifo;
-generic_fifo_t vote_fifo;
-
 void generic_fifo_init(generic_fifo_t* fifo) {
     fifo->head = 0;
     fifo->tail = 0;
@@ -232,9 +229,9 @@ void compute_msg_hops(){
     }
 }
 
-float compute_quorum_value(){
+int compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
-    if(quorum_array == NULL || eligible < min_quorum_length) return 2.0f;
+    if(quorum_array == NULL || eligible < min_quorum_length) return 200; // Represents 2.00
     uint16_t agreeing = 1;
     uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
@@ -242,28 +239,34 @@ float compute_quorum_value(){
             ++agreeing;
         }
     }
-    return (float)agreeing / (float)(eligible + 1);
+    float q_val_f = (float)agreeing / (float)(eligible + 1);
+    return (int)roundf(q_val_f * 100.0f);
 }
 
-float compute_r_threshold(float quorum_value){
-    if(control_mode == f_static) return clamp01(control_parameter);
-    if(quorum_value > 1.0f) return 0.0f;
+int compute_r_threshold(int q_value_int){
+    // Reconvert to float locally for the algorithm
+    float quorum_val = q_value_int / 100.0f;
+    float ctrl_param = control_parameter / 100.0f;
+    
+    if(control_mode == f_static) return (int)roundf(clamp01(ctrl_param) * 100.0f);
+    if(quorum_val > 1.0f) return 0;
+    
     switch(control_mode){
         case f_linear:
-            return clamp01(quorum_value);
+            return (int)roundf(clamp01(quorum_val) * 100.0f);
         case f_sigmoid:
         {
-            const float num = quorum_value;
-            const float den = 1.0f + expf(-10.0*(quorum_value - control_parameter));
-            return clamp01(num / den);
+            const float num = quorum_val;
+            const float den = 1.0f + expf(-10.0*(quorum_val - ctrl_param));
+            return (int)roundf(clamp01(num / den) * 100.0f);
         }
         case f_polynomial:
         {
-            const float polynomial = (1.0f - control_parameter) * powf(quorum_value,3.0f) + control_parameter;
-            return clamp01(polynomial);
+            const float polynomial = (1.0f - ctrl_param) * powf(quorum_val,3.0f) + ctrl_param;
+            return (int)roundf(clamp01(polynomial) * 100.0f);
         }
         default:
-            return clamp01(control_parameter);
+            return (int)roundf(clamp01(ctrl_param) * 100.0f);
     }
 }
 
@@ -381,7 +384,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 }
                 else if(kb_index == 2){
                     control_parameter_q = (uint8_t)(sa_payload & 0x7F);
-                    control_parameter = control_parameter_q / 127.0f;
+                    float temp_cp = control_parameter_q / 127.0f;
+                    control_parameter = (int)roundf(temp_cp * 100.0f);
                 }
             }
             break;
@@ -585,9 +589,14 @@ void decision(){
         last_decision_ticks = kilo_ticks;
         quorum_value = compute_quorum_value();
         control_value = compute_r_threshold(quorum_value);
+        
+        // Reconvert for purpose
+        float control_value_f = control_value / 100.0f;
         float p = rand_hard()/255.0;
-        if(p < control_value) my_state = majority_vote();
+        
+        if(p < control_value_f) my_state = majority_vote();
         else my_state = gps_floor_color;
+        
         update_debug_led();
     }
 }
@@ -654,7 +663,9 @@ void loop(){
         decision();
         talk();
     }
-    fprintf(fp,"%d\t %d\t %f\t %f\n",my_state,true_quorum_items,quorum_value,control_value);
+    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    printf("id: %d\tstate: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+           kilo_uid, my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
 
 void deallocate_memory(){
