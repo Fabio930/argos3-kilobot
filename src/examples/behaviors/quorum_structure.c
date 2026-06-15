@@ -123,24 +123,18 @@ void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
     }
 }
 
-void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
-    for(uint8_t i=0;i<buffer_length;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
-    free(*Array);
-    num_quorum_items = 0;
-    if(*Myquorum != NULL){
-        while(1){
-            if((*Myquorum)->next != NULL){
-                *Myquorum = (*Myquorum)->next;
-                free((*Myquorum)->prev);
-                (*Myquorum)->prev = NULL;
-            }
-            else{
-                free(*Myquorum);
-                break;
-            }
+void destroy_quorum_memory(quorum_a **Array[], quorum_a **Myquorum){
+    for(uint8_t i=0; i<buffer_length; i++){
+        if((*Array)[i]!=NULL){
+            free((*Array)[i]);
+            (*Array)[i] = NULL;
         }
-        *Myquorum=NULL;
     }
+    free(*Array);
+    *Array = NULL;
+    num_quorum_items = 0;
+    
+    *Myquorum = NULL;
 }
 
 uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t hop_count){

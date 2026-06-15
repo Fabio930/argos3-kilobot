@@ -263,28 +263,6 @@ class Results:
                 vote_msg=vote_msg, ctrl_par=ctrl_par, num_runs=num_runs, arenaS=arenaS,
                 option_id=state_id, data_type="ctrl"
             )
-
-        # Salvo l'Accuracy come valore percentuale globale (se eta != crit_eta)
-        accuracy_val = self.compute_accuracy(state_m, n_options, eta)
-        if accuracy_val is not None:
-            # Salviamo il singolo scalare in data_in. Impostiamo "-" in data_std.
-            self.dump_resume_csv(
-                data_in=accuracy_val, data_std="-", exp_length=exp_length, communication=communication,
-                adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
-                n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
-                spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
-                init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
-                num_runs=num_runs, arenaS=arenaS, data_type="accuracy" )
-
-        # Salvo le metriche globali (indipendenti dall'opzione)
-        time_mean = self.compute_exit_time(state_m, n_options)
-        self.dump_resume_csv(
-            data_in=time_mean, data_std="-", exp_length=exp_length, communication=communication,
-            adaptive_com=adaptive_com, comm_type=comm_type, id_aware=id_aware, priority_k=priority_k,
-            n_agents=n_agents, msg_exp_time=msg_exp_time, msg_hops=msg_hops, variation_time=variation_time,
-            spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
-            init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
-            num_runs=num_runs, arenaS=arenaS, data_type="time" )
         
         msgs_mean, msgs_std = self.compute_overall_average_through_run(msgs_m)
         self.dump_resume_csv(
@@ -348,21 +326,16 @@ class Results:
         final_stds = []
 
         for group_counts, group_sums, group_sq_sums in groups:
-            if is_quorum:
-                # Quorum: diviso SEMPRE per il totale agenti del sistema
-                safe_div = np.where(total_valid_agents > 0, total_valid_agents, 1.0)
-                mean_opt = group_sums / safe_div
-                mean_sq_opt = group_sq_sums / safe_div
-            else:
-                # Ctrl: diviso per gli agenti in QUEL gruppo (vincitori o restanti)
-                safe_div = np.where(group_counts > 0, group_counts, 1.0)
-                mean_opt = group_sums / safe_div
-                mean_sq_opt = group_sq_sums / safe_div
-                
-                mean_opt = np.where(group_counts > 0, mean_opt, 0.0)
-                mean_sq_opt = np.where(group_counts > 0, mean_sq_opt, 0.0)
+            # Both Quorum and Ctrl must be divided by the number of agents in THAT group
+            safe_div = np.where(group_counts > 0, group_counts, 1.0)
+            mean_opt = group_sums / safe_div
+            mean_sq_opt = group_sq_sums / safe_div
+            
+            # Zero out means where there are no agents to avoid artifacts
+            mean_opt = np.where(group_counts > 0, mean_opt, 0.0)
+            mean_sq_opt = np.where(group_counts > 0, mean_sq_opt, 0.0)
 
-            # Varianza aggregata (Pooled Variance)
+            # Pooled Variance
             variance = mean_sq_opt - (mean_opt**2)
             variance = np.where(variance > 0, variance, 0.0)
             std_opt = np.sqrt(variance)

@@ -209,15 +209,15 @@ def main():
                         break
         for key in to_remove:
             process = active_processes.pop(key)
-            if process[1][10] == 100: h_counter -= 2
+            if process[1][10] == 100: h_counter -= 4
             elif process[1][10] == 25: h_counter -= 1
             logging.info(f"Process {key} for task {process[1][1]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 8072:
             try:
                 task = queue.get(block=False)
                 start = True
                 if task[10] == 100:
-                    if h_counter < 15 : h_counter += 2
+                    if h_counter < 15 : h_counter += 4
                     else:
                         queue.put(task)
                         start = False
