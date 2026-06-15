@@ -36,15 +36,12 @@ RUNS=100
 options="$3"
 options_distrib="random"
 spatial_correlation="0"
-# if [[ $options_distrib == "random" ]]; then
-#     spatial_correlation="0 1 2 5"
-# fi
 numrobots="100"
 comm_type_set="id_aware"
 rebroadcast="2"
 adaptive_set="0"
 priority_k_set="0"
-msgs_timeout="180"
+msgs_timeout="60"
 control="static linear polynomial"
 voting_msgs="3 5 9 15"
 

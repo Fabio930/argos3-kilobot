@@ -598,6 +598,7 @@ void decision(){
         else my_state = gps_floor_color;
         
         update_debug_led();
+        generic_fifo_init(&vote_fifo);
     }
 }
 
@@ -663,8 +664,8 @@ void loop(){
         decision();
         talk();
     }
-    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    printf("id: %d\tstate: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    // printf("id: %d\tstate: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
            kilo_uid, my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
 
