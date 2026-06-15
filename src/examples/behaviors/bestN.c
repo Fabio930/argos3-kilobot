@@ -229,7 +229,7 @@ void compute_msg_hops(){
     }
 }
 
-int compute_quorum_value(){
+uint8_t compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
     if(quorum_array == NULL || eligible < min_quorum_length) return 200; // Represents 2.00
     uint16_t agreeing = 1;
@@ -240,33 +240,33 @@ int compute_quorum_value(){
         }
     }
     float q_val_f = (float)agreeing / (float)(eligible + 1);
-    return (int)roundf(q_val_f * 100.0f);
+    return (uint8_t)roundf(q_val_f * 100.0f);
 }
 
-int compute_r_threshold(int q_value_int){
+uint8_t compute_r_threshold(uint8_t q_value_int){
     // Reconvert to float locally for the algorithm
     float quorum_val = q_value_int / 100.0f;
     float ctrl_param = control_parameter / 100.0f;
     
-    if(control_mode == f_static) return (int)roundf(clamp01(ctrl_param) * 100.0f);
+    if(control_mode == f_static) return (uint8_t)roundf(clamp01(ctrl_param) * 100.0f);
     if(quorum_val > 1.0f) return 0;
     
     switch(control_mode){
         case f_linear:
-            return (int)roundf(clamp01(quorum_val) * 100.0f);
+            return (uint8_t)roundf(clamp01(quorum_val) * 100.0f);
         case f_sigmoid:
         {
             const float num = quorum_val;
             const float den = 1.0f + expf(-10.0*(quorum_val - ctrl_param));
-            return (int)roundf(clamp01(num / den) * 100.0f);
+            return (uint8_t)roundf(clamp01(num / den) * 100.0f);
         }
         case f_polynomial:
         {
             const float polynomial = (1.0f - ctrl_param) * powf(quorum_val,3.0f) + ctrl_param;
-            return (int)roundf(clamp01(polynomial) * 100.0f);
+            return (uint8_t)roundf(clamp01(polynomial) * 100.0f);
         }
         default:
-            return (int)roundf(clamp01(ctrl_param) * 100.0f);
+            return (uint8_t)roundf(clamp01(ctrl_param) * 100.0f);
     }
 }
 
@@ -385,7 +385,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                 else if(kb_index == 2){
                     control_parameter_q = (uint8_t)(sa_payload & 0x7F);
                     float temp_cp = control_parameter_q / 127.0f;
-                    control_parameter = (int)roundf(temp_cp * 100.0f);
+                    control_parameter = (uint8_t)roundf(temp_cp * 100.0f);
                 }
             }
             break;
@@ -588,9 +588,9 @@ void decision(){
     if (kilo_ticks > last_decision_ticks + decision_ticks){
         last_decision_ticks = kilo_ticks;
         quorum_value = compute_quorum_value();
+        uint8_t majority_state = majority_vote();
         control_value = compute_r_threshold(quorum_value);
         
-        // Reconvert for purpose
         float control_value_f = control_value / 100.0f;
         float p = rand_hard()/255.0;
         
@@ -602,7 +602,7 @@ void decision(){
     }
 }
 
-int majority_vote() {
+uint8_t majority_vote() {
     if (vote_fifo.count == 0 || voting_msgs == 0) return my_state;
     uint8_t sample_target = voting_msgs;
     if(sample_target > FIFO_BUFFER_SIZE) return my_state;

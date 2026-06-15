@@ -127,9 +127,9 @@ control_type control_mode = f_static;
 uint8_t voting_msgs = 0;
 uint8_t control_parameter_q = 0;
 
-int control_parameter = 0;
-int control_value = 0;
-int quorum_value = 0;
+uint8_t control_parameter = 0;
+uint8_t control_value = 0;
+uint8_t quorum_value = 0;
 
 bool init_control_received = false;
 uint8_t gps_max_x_q = 105;
@@ -151,9 +151,9 @@ void broadcast();
 void rnd_rebroadcast();
 void compute_msg_hops();
 float random_in_range(float min, float max);
-int compute_quorum_value();
-int compute_r_threshold(int quorum_value);
-int majority_vote();
+uint8_t compute_quorum_value();
+uint8_t compute_r_threshold(uint8_t quorum_value);
+uint8_t majority_vote();
 void select_new_point(bool force);
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
 void update_messages(const uint8_t Msg_n_hops);
