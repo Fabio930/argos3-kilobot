@@ -587,10 +587,8 @@ void random_way_point_model(){
 void decision(){
     if (kilo_ticks > last_decision_ticks + decision_ticks){
         last_decision_ticks = kilo_ticks;
-        quorum_value = compute_quorum_value();
-        uint8_t majority_state = majority_vote();
-        control_value = compute_r_threshold(quorum_value);
         
+        uint8_t majority_state = majority_vote();
         float control_value_f = control_value / 100.0f;
         float p = rand_hard()/255.0;
         
@@ -661,10 +659,12 @@ void loop(){
     erase_expired_items(&quorum_array,&quorum_list);
     if(my_state != 255 && init_received_C){
         random_way_point_model();
+        quorum_value = compute_quorum_value();
+        control_value = compute_r_threshold(quorum_value);
         decision();
         talk();
     }
-    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
     // printf("id: %d\tstate: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
     //        kilo_uid, my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
