@@ -681,7 +681,7 @@ void decision(){
 
 uint8_t majority_vote() {
     uint8_t buffer[6] = {0};
-    if (vote_fifo.count < voting_msgs || voting_msgs == 0) {return my_state;}
+    if (vote_fifo.count < voting_msgs || voting_msgs == 0) {return gps_floor_color;}
     for(uint8_t i = 0; i < voting_msgs; ++i){
         uint8_t idx = (vote_fifo.tail + FIFO_BUFFER_SIZE - 1 - i) % FIFO_BUFFER_SIZE;
         uint8_t state = vote_fifo.buffer[idx].agent_state;
