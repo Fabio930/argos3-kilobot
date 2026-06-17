@@ -8,18 +8,12 @@ void generic_fifo_init(generic_fifo_t* fifo) {
 
 void sync_rebroadcast_fifo() {
     uint8_t initial_count = rebroadcast_fifo.count;
-    
-    // Iteriamo esattamente per il numero di elementi correnti
     for (uint8_t i = 0; i < initial_count; i++) {
         fifo_item_t item;
         generic_fifo_peek(&rebroadcast_fifo, &item);
-        generic_fifo_dequeue(&rebroadcast_fifo); // Rimuove dalla testa
-        
-        // Se l'agente è ANCORA presente e valido nel quorum_array, lo ri-accodiamo.
-        // Essendo fatto in sequenza, l'ordine FIFO originale rimane intatto!
+        generic_fifo_dequeue(&rebroadcast_fifo);
         if (find_quorum_index_by_id(item.agent_id) != 0b1111111111111111) {
-            // id_aware_flag a 0 perché sappiamo che l'abbiamo appena rimosso e non ci sono duplicati
-            generic_fifo_update(&rebroadcast_fifo, item.agent_id, item.agent_state, item.msg_n_hops, buffer_length, 0);
+            generic_fifo_update(&rebroadcast_fifo, item.agent_id, item.agent_state, item.msg_n_hops, buffer_length, id_aware);
         }
     }
 }
@@ -29,12 +23,10 @@ void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_s
         generic_fifo_init(fifo);
         return;
     }
-
     while(fifo->count > capacity) {
         fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
         fifo->count--;
     }
-
     if (!id_aware_flag) {
         if (fifo->count >= capacity) {
             fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
@@ -47,7 +39,6 @@ void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_s
         fifo->count++;
         return;
     }
-
     int16_t found = -1;
     for(uint8_t i = 0; i < fifo->count; ++i) {
         uint8_t idx = (uint8_t)((fifo->head + i) % FIFO_BUFFER_SIZE);
@@ -56,7 +47,6 @@ void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_s
             break;
         }
     }
-
     if(found < 0) {
         if (fifo->count >= capacity) {
             fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
@@ -210,7 +200,6 @@ void broadcast(){
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
     
-    // Pack the current 32-bit kilo_ticks into bytes 3 to 6
     uint32_t current_time = (uint32_t)kilo_ticks;
     my_message.data[3] = (uint8_t)((current_time >> 24) & 0xFF);
     my_message.data[4] = (uint8_t)((current_time >> 16) & 0xFF);
@@ -275,7 +264,7 @@ void compute_msg_hops(){
 
 uint8_t compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
-    if(quorum_array == NULL || eligible < min_quorum_length) return 200; // Represents 2.00
+    if(quorum_array == NULL || eligible < min_quorum_length) return 200;
     uint16_t agreeing = 1;
     uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
@@ -288,7 +277,6 @@ uint8_t compute_quorum_value(){
 }
 
 uint8_t compute_r_threshold(uint8_t q_value_int){
-    // Reconvert to float locally for the algorithm
     float quorum_val = q_value_int / 100.0f;
     float ctrl_param = control_parameter / 100.0f;
     
@@ -398,9 +386,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_position.position_y = y_q * 0.01f * 2.0f;
             gps_angle = angle_q * (360.0f / 256.0f);
             gps_floor_color = color_q;
-
             global_state_percentage = data[3];
-
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
@@ -537,7 +523,6 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                     }
                     update_arena_from_received_bounds();
                 }
-
             }
             break;
         case MSG_B:
@@ -653,10 +638,8 @@ void decision(){
         uint8_t majority_state = majority_vote();
         float control_value_f = control_value / 100.0f;
         float p = rand_hard()/255.0;
-        
         if(p <= control_value_f) my_state = majority_state;
         else my_state = gps_floor_color;
-        
         update_debug_led();
     }
 }
@@ -721,9 +704,9 @@ void loop(){
         decision();
         talk();
     }
-    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-           kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
+    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    // printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+    //        kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 
 }
 
