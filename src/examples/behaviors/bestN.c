@@ -397,8 +397,9 @@ void update_messages(const uint8_t Msg_n_hops){
     uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,hop_count);
     if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
     sort_q(&quorum_array);
-    
-    generic_fifo_update(&vote_fifo, received_id, received_committed, 0, voting_msgs, id_aware);
+    if (result == 1 || result == 2) {
+        generic_fifo_update(&vote_fifo, received_id, received_committed, 0, voting_msgs, 1);
+    }
     
     if(id_aware && broadcasting_flag == 2){
         if(result == 1 || result == 2) {
@@ -596,27 +597,36 @@ void decision(){
         else my_state = gps_floor_color;
         
         update_debug_led();
-        generic_fifo_init(&vote_fifo);
     }
 }
 
 uint8_t majority_vote() {
-    if (vote_fifo.count == 0 || voting_msgs == 0) return my_state;
-    uint8_t sample_target = voting_msgs;
-    if(sample_target > FIFO_BUFFER_SIZE) return my_state;
-    if(vote_fifo.count < sample_target) return my_state;
     uint8_t buffer[6] = {0};
-    uint8_t start_offset = (uint8_t)(vote_fifo.count - sample_target);
-    uint8_t idx = (uint8_t)((vote_fifo.head + start_offset) % FIFO_BUFFER_SIZE);
-    for(uint8_t i = 0; i < sample_target; ++i){
-        uint8_t state = vote_fifo.buffer[idx].agent_state;
-        idx = (uint8_t)((idx + 1) % FIFO_BUFFER_SIZE);
-        if(state < sizeof(buffer)){
-            buffer[state]++;
+    uint8_t valid_votes = 0;
+
+    if (vote_fifo.count == 0) return my_state;
+
+    // The FIFO count is automatically capped at voting_msgs by generic_fifo_update
+    for(uint8_t i = 0; i < vote_fifo.count; ++i){
+        uint8_t idx = (vote_fifo.head + i) % FIFO_BUFFER_SIZE;
+        uint8_t a_id = vote_fifo.buffer[idx].agent_id;
+        
+        // Cross-reference with the quorum array to guarantee synchronisation
+        uint16_t q_idx = find_quorum_index_by_id(a_id);
+        if (q_idx != 0b1111111111111111) {
+            uint8_t state = quorum_array[q_idx]->agent_state;
+            if(state < sizeof(buffer)){
+                buffer[state]++;
+                valid_votes++;
+            }
         }
     }
+
+    if (valid_votes == 0) return my_state;
+
     uint8_t max = 0;
     uint8_t selection = 0;
+    
     for (uint8_t i = 0; i < sizeof(buffer); i++) {
         if (buffer[i] > max) {
             max = buffer[i];
@@ -665,8 +675,8 @@ void loop(){
         talk();
     }
     // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    // printf("id: %d\tstate: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-    //        kilo_uid, my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
+    printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+           kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
 
 void deallocate_memory(){
