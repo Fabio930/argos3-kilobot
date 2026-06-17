@@ -6,6 +6,24 @@ void generic_fifo_init(generic_fifo_t* fifo) {
     fifo->count = 0;
 }
 
+void sync_rebroadcast_fifo() {
+    uint8_t initial_count = rebroadcast_fifo.count;
+    
+    // Iteriamo esattamente per il numero di elementi correnti
+    for (uint8_t i = 0; i < initial_count; i++) {
+        fifo_item_t item;
+        generic_fifo_peek(&rebroadcast_fifo, &item);
+        generic_fifo_dequeue(&rebroadcast_fifo); // Rimuove dalla testa
+        
+        // Se l'agente è ANCORA presente e valido nel quorum_array, lo ri-accodiamo.
+        // Essendo fatto in sequenza, l'ordine FIFO originale rimane intatto!
+        if (find_quorum_index_by_id(item.agent_id) != 0b1111111111111111) {
+            // id_aware_flag a 0 perché sappiamo che l'abbiamo appena rimosso e non ci sono duplicati
+            generic_fifo_update(&rebroadcast_fifo, item.agent_id, item.agent_state, item.msg_n_hops, buffer_length, 0);
+        }
+    }
+}
+
 void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint32_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag) {
     if (capacity == 0) {
         generic_fifo_init(fifo);
@@ -383,45 +401,6 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 
             global_state_percentage = data[3];
 
-            uint32_t received_timestamp = ((uint32_t)data[4] << 8) | data[5];
-
-            uint32_t packed_data = (uint32_t)data[6] |
-                                   ((uint32_t)data[7] << 8) |
-                                   ((uint32_t)data[8] << 16);
-
-            uint8_t actual_m = (voting_msgs > 2) ? 2 : voting_msgs;
-
-            for (uint8_t i = 0; i < actual_m; ++i) {
-                uint16_t combined = (packed_data >> (i * 10)) & 0x3FF;
-                uint8_t s_id = (combined >> 3) & 0x7F;
-                uint8_t s_state = combined & 0x07;
-
-                uint16_t q_idx = find_quorum_index_by_id(s_id);
-                bool should_update = false;
-
-                if (q_idx == 0b1111111111111111) {
-                    should_update = true;
-                } else if (quorum_array[q_idx]->msg_n_hops <= received_timestamp) {
-                    should_update = true;
-                }
-
-                if (should_update) {
-                    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-                    uint8_t result = update_q(&quorum_array, &quorum_list, NULL, s_id, s_state, expiring_time, received_timestamp, hop_count);
-                    
-                    q_idx = find_quorum_index_by_id(s_id);
-                    if (q_idx != 0b1111111111111111) {
-                        quorum_array[q_idx]->msg_n_hops = received_timestamp;
-                    }
-                    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
-                    sort_q(&quorum_array);
-                    
-                    if(result == 1 || result == 2) {
-                        generic_fifo_update(&vote_fifo, s_id, s_state, received_timestamp, voting_msgs, 1);
-                    }
-                }
-            }
-
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
@@ -477,6 +456,9 @@ void update_messages(const uint32_t received_timestamp){
         }
         if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
         sort_q(&quorum_array);
+        if(result == 1 || result == 2) {
+            generic_fifo_update(&vote_fifo, received_id, received_committed, received_timestamp, voting_msgs, id_aware);
+        }
         if(id_aware && broadcasting_flag == 2){
             if(result == 1 || result == 2) {
                 generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, received_timestamp, buffer_length, 1);
@@ -731,16 +713,17 @@ void loop(){
     ticks_elapsed = kilo_ticks;
     decrement_quorum_counter(&quorum_array, delta_elapsed);
     erase_expired_items(&quorum_array,&quorum_list);
+    sync_rebroadcast_fifo();
     if(my_state != 255 && init_received_C){
         random_way_point_model();
-        quorum_value = global_state_percentage;// compute_quorum_value();
+        quorum_value = global_state_percentage; //compute_quorum_value();
         control_value = compute_r_threshold(quorum_value);
         decision();
-        // talk();
+        talk();
     }
-    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    // printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-    //        kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
+    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+           kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 
 }
 
