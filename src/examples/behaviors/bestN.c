@@ -413,7 +413,7 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                     if (q_idx != 0b1111111111111111) {
                         quorum_array[q_idx]->msg_n_hops = received_timestamp;
                     }
-                    
+                    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
                     sort_q(&quorum_array);
                     
                     if(result == 1 || result == 2) {
@@ -681,9 +681,8 @@ void decision(){
 
 uint8_t majority_vote() {
     uint8_t buffer[6] = {0};
-    if (vote_fifo.count == 0) return gps_floor_color;
-    uint8_t count_to_check = (vote_fifo.count > voting_msgs) ? voting_msgs : vote_fifo.count;
-    for(uint8_t i = 0; i < count_to_check; ++i){
+    if (vote_fifo.count < voting_msgs || voting_msgs == 0) {return gps_floor_color;}
+    for(uint8_t i = 0; i < voting_msgs; ++i){
         uint8_t idx = (vote_fifo.tail + FIFO_BUFFER_SIZE - 1 - i) % FIFO_BUFFER_SIZE;
         uint8_t state = vote_fifo.buffer[idx].agent_state;
         if(state < sizeof(buffer)){
@@ -739,9 +738,9 @@ void loop(){
         decision();
         // talk();
     }
-    // fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-           kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
+    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    // printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+    //        kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 
 }
 
