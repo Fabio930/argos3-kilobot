@@ -51,10 +51,10 @@
 
         <bestN
             id_aware = "1"
-            hop_count = "0"
+            hop_count = "1"
             rebroadcast = "2"
             msgs_n_hops = "0"
-            msgs_timeout = "60"
+            msgs_timeout = "180"
             adaptive_comm = "0"
             priority_sampling_k = "0"
             init_distr = "0.5"

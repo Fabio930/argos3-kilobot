@@ -53,7 +53,7 @@ typedef struct position{
 typedef struct {
     uint8_t agent_id;
     uint8_t agent_state;
-    uint8_t msg_n_hops;
+    uint32_t msg_n_hops;
 } fifo_item_t;
 
 typedef struct {
@@ -65,7 +65,9 @@ typedef struct {
 
 uint64_t delta_elapsed = 0;
 uint64_t ticks_elapsed = 0;
-
+uint8_t global_state_percentage = 0;
+uint8_t simulator_sampled_states[10] = {0};
+uint8_t simulator_sampled_count = 0;
 motion_t current_motion_type = STOP;
 motion_t prev_motion_type = STOP;
 
@@ -81,7 +83,7 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 uint8_t my_state;
-uint8_t msg_n_hops;
+uint32_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -102,7 +104,7 @@ uint8_t broadcasting_flag = 0;
 uint8_t adaptive_comm = 0;
 uint32_t buff_ticks_sec = TICKS_PER_SEC * .2;
 uint32_t buff_ticks = 0;
-uint8_t msg_n_hops_rnd = 0;
+uint32_t msg_n_hops_rnd = 0;
 uint64_t buffer_update_rng = 0;
 
 bool sending_msg = false;
@@ -137,10 +139,10 @@ uint8_t gps_max_y_q = 105;
 uint8_t gps_floor_color = 0;
 
 void generic_fifo_init(generic_fifo_t* fifo);
-void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag);
+void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint32_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag);
 uint8_t generic_fifo_peek(generic_fifo_t* fifo, fifo_item_t* item_out);
 uint8_t generic_fifo_dequeue(generic_fifo_t* fifo);
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint32_t msg_hops);
 
 void decision();
 void set_motion( motion_t new_motion_type);
@@ -156,7 +158,7 @@ uint8_t compute_r_threshold(uint8_t quorum_value);
 uint8_t majority_vote();
 void select_new_point(bool force);
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
-void update_messages(const uint8_t Msg_n_hops);
+void update_messages(const uint32_t Msg_n_hops);
 void parse_kilo_message(uint8_t data[9]);
 void parse_smart_arena_broadcast(uint8_t data[9]);
 uint8_t led_from_color_value(uint8_t color_value);

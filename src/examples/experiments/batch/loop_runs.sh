@@ -32,7 +32,7 @@ init_distr=""
 control_parameter=""
 experiment_length="2000"
 variation_time="0"
-RUNS=100
+RUNS=10
 options="$3"
 options_distrib="random"
 spatial_correlation="0"
@@ -41,9 +41,9 @@ comm_type_set="id_aware"
 rebroadcast="2"
 adaptive_set="0"
 priority_k_set="0"
-msgs_timeout="60"
-control="static linear polynomial"
-voting_msgs="3 5 9 15"
+msgs_timeout="180"
+control="polynomial"
+voting_msgs="5"
 
 for exp_len_par in $experiment_length; do
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
@@ -61,10 +61,10 @@ for exp_len_par in $experiment_length; do
                 mkdir $options_dir
             fi
             if [[ $options_par == "2" ]]; then
-                eta_init="0.4 0.5"
+                eta_init="0.5"
                 init_distr="0.5"
             else
-                eta_init="0.7 0.8"
+                eta_init="0.8"
                 init_distr="0.2"
             fi
             eta_init_list=($eta_init)
@@ -123,7 +123,7 @@ for exp_len_par in $experiment_length; do
                                 elif [[ $comm_par == "1" ]]; then
                                     hop_count="1"
                                 else
-                                    hop_count="0"
+                                    hop_count="1"
                                 fi
                                 for adaptive_par in $adaptive_set; do
                                     if [[ $comm_type == "anon" && $adaptive_par != "0" ]]; then
@@ -166,7 +166,7 @@ for exp_len_par in $experiment_length; do
                                                         elif [[ $control_par == "linear" ]]; then
                                                             control_parameter="0.0"
                                                         else
-                                                            control_parameter="0.5 0.7"
+                                                            control_parameter="0.5"
                                                         fi
                                                         for voting_msgs_par in $voting_msgs; do
                                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par

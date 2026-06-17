@@ -396,6 +396,15 @@ void CBestN_ALF::UpdateKilobotState(CKilobotEntity &c_kilobot_entity){
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
     m_vecKilobotPositions[unKilobotID] = GetKilobotPosition(c_kilobot_entity);
     m_vecKilobotOrientations[unKilobotID] = ToDegrees(GetKilobotOrientation(c_kilobot_entity)).UnsignedNormalize();
+    
+    /* NEW: Extract the current state by reading the LED colour */
+    CColor cLed = c_kilobot_entity.GetLEDEquippedEntity().GetLED(0).GetColor();
+    if(cLed.GetRed() > 0 && cLed.GetGreen() == 0 && cLed.GetBlue() == 0) m_vecKilobotState[unKilobotID] = 0;
+    else if(cLed.GetRed() == 0 && cLed.GetGreen() > 0 && cLed.GetBlue() == 0) m_vecKilobotState[unKilobotID] = 1;
+    else if(cLed.GetRed() == 0 && cLed.GetGreen() == 0 && cLed.GetBlue() > 0) m_vecKilobotState[unKilobotID] = 2;
+    else if(cLed.GetRed() > 0 && cLed.GetGreen() > 0 && cLed.GetBlue() == 0) m_vecKilobotState[unKilobotID] = 3;
+    else if(cLed.GetRed() == 0 && cLed.GetGreen() > 0 && cLed.GetBlue() > 0) m_vecKilobotState[unKilobotID] = 4;
+    else if(cLed.GetRed() > 0 && cLed.GetGreen() == 0 && cLed.GetBlue() > 0) m_vecKilobotState[unKilobotID] = 5;
 }
 
 /****************************************/
@@ -498,7 +507,6 @@ void CBestN_ALF::SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity){
 
 /****************************************/
 /****************************************/
-
 void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
@@ -533,9 +541,41 @@ void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 16) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload >> 8) & 0xFFu);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(unPayload & 0xFFu);
+    
+    /* Calculate and append the true global percentage of agents sharing this agent's state */
+    UInt8 myState = m_vecKilobotState[unKilobotID];
+    UInt32 matchingCount = 0;
+    for(UInt8 s : m_vecKilobotState) {
+        if (s == myState) matchingCount++;
+    }
+    UInt8 percentage = static_cast<UInt8>(std::round((static_cast<float>(matchingCount) / m_vecKilobotState.size()) * 100.0f));
+    m_tMessages[unKilobotID].data[3] = percentage;
+
+    /* NEW: Embed 16-bit Simulation Clock as Timestamp */
+    UInt16 unSimulationClock = static_cast<UInt16>(GetSpace().GetSimulationClock());
+    m_tMessages[unKilobotID].data[4] = static_cast<UInt8>((unSimulationClock >> 8) & 0xFF);
+    m_tMessages[unKilobotID].data[5] = static_cast<UInt8>(unSimulationClock & 0xFF);
+
+    /* NEW: Pack up to 2 samples (10 bits each) in the remaining 3 bytes */
+    UInt8 actual_m = Min<UInt8>(voting_msgs, 2);
+    UInt32 packed_data = 0;
+
+    if (actual_m > 0 && !m_vecKilobotState.empty()) {
+        for (UInt8 i = 0; i < actual_m; ++i) {
+            UInt32 random_idx = c_rng->Uniform(CRange<UInt32>(0, m_vecKilobotState.size()));
+            UInt8 state = m_vecKilobotState[random_idx] & 0x07; // Max 3 bits
+            UInt8 id = random_idx & 0x7F; // Max 7 bits (up to 127 kilobots)
+            UInt16 combined = (id << 3) | state; // 10 bits per block
+            packed_data |= (static_cast<UInt32>(combined) << (i * 10));
+        }
+    }
+
+    m_tMessages[unKilobotID].data[6] = static_cast<UInt8>((packed_data >> 0) & 0xFF);
+    m_tMessages[unKilobotID].data[7] = static_cast<UInt8>((packed_data >> 8) & 0xFF);
+    m_tMessages[unKilobotID].data[8] = static_cast<UInt8>((packed_data >> 16) & 0xFF);
+
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
-
 /****************************************/
 /****************************************/
 void CBestN_ALF::SendStateInformation(CKilobotEntity &c_kilobot_entity){
