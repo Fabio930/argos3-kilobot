@@ -246,7 +246,7 @@ void compute_msg_hops(){
 
 uint8_t compute_quorum_value(){
     uint8_t eligible = eligible_quorum_items();
-    if(quorum_array == NULL || eligible < min_quorum_length) return 200;
+    if(quorum_array == NULL || eligible < min_quorum_length) return 0;
     uint16_t agreeing = 1;
     uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
@@ -263,7 +263,6 @@ uint8_t compute_r_threshold(uint8_t q_value_int){
     float ctrl_param = control_parameter / 100.0f;
     
     if(control_mode == f_static) return (uint8_t)roundf(clamp01(ctrl_param) * 100.0f);
-    if(quorum_val > 1.0f) return 0;
     
     switch(control_mode){
         case f_linear:
