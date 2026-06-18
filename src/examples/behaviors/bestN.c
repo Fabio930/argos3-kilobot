@@ -191,15 +191,13 @@ void talk(){
 }
 
 void broadcast(){
-    sa_type = 0; 
+    sa_type = 0;
     sa_id = kilo_uid;
     sa_payload = my_state;
     for (uint8_t i = 0; i < 9; ++i) my_message.data[i] = 0;
-    
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-    
     uint32_t current_time = (uint32_t)kilo_ticks;
     my_message.data[3] = (uint8_t)((current_time >> 24) & 0xFF);
     my_message.data[4] = (uint8_t)((current_time >> 16) & 0xFF);
@@ -622,7 +620,7 @@ void decision(){
         uint8_t majority_state = majority_vote();
         float control_value_f = control_value / 100.0f;
         float p = rand_hard()/255.0;
-        if(p <= control_value_f) my_state = majority_state;
+        if(p < control_value_f) my_state = majority_state;
         else my_state = gps_floor_color;
         update_debug_led();
     }
