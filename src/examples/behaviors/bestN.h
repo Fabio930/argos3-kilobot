@@ -120,7 +120,6 @@ quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 
 generic_fifo_t rebroadcast_fifo;
-generic_fifo_t vote_fifo;
 
 char log_title[30];
 uint8_t led = RGB(0,0,0);

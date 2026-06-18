@@ -424,31 +424,15 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
 }
 
 void update_messages(const uint32_t received_timestamp){
-    uint16_t q_idx = find_quorum_index_by_id(received_id);
-    bool should_update = false;
-    if (q_idx == 0b1111111111111111) {
-        should_update = true;
-    } else {
-        if (quorum_array[q_idx]->msg_n_hops <= received_timestamp) {
-            should_update = true;
-        }
+    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
+    uint8_t result = update_q(&quorum_array, &quorum_list, NULL, received_id, received_committed, expiring_time, (uint8_t)received_timestamp, hop_count);
+    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) {
+        buffer_update_rng += 1;
     }
-    if (should_update) {
-        uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-        uint8_t result = update_q(&quorum_array, &quorum_list, NULL, received_id, received_committed, expiring_time, (uint8_t)received_timestamp, hop_count);
-        q_idx = find_quorum_index_by_id(received_id);
-        if (q_idx != 0b1111111111111111) {
-            quorum_array[q_idx]->msg_n_hops = received_timestamp;
-        }
-        if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
-        sort_q(&quorum_array);
+    sort_q(&quorum_array);
+    if(id_aware && broadcasting_flag == 2){
         if(result == 1 || result == 2) {
-            generic_fifo_update(&vote_fifo, received_id, received_committed, received_timestamp, voting_msgs, id_aware);
-        }
-        if(id_aware && broadcasting_flag == 2){
-            if(result == 1 || result == 2) {
-                generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, received_timestamp, buffer_length, 1);
-            }
+            generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, received_timestamp, buffer_length, 1);
         }
     }
 }
@@ -645,13 +629,28 @@ void decision(){
 }
 
 uint8_t majority_vote() {
+    uint8_t eligible = eligible_quorum_items();
+    if (quorum_array == NULL || eligible == 0) return my_state;
+    uint8_t valid_states[FIFO_BUFFER_SIZE];
+    uint8_t vote_count = 0;
+    uint8_t start = buffer_skip_prefix();
+    for(uint8_t i = start; i < num_quorum_items; ++i){
+        if(quorum_array[i] != NULL){
+            valid_states[vote_count] = quorum_array[i]->agent_state;
+            vote_count++;
+        }
+    }
+    if (vote_count < voting_msgs || voting_msgs == 0) return my_state;
+    for (uint8_t i = 0; i < voting_msgs; i++) {
+        uint8_t random_idx = i + (rand_hard() % (vote_count - i));
+        uint8_t temp = valid_states[i];
+        valid_states[i] = valid_states[random_idx];
+        valid_states[random_idx] = temp;
+    }
     uint8_t buffer[6] = {0};
-    if (vote_fifo.count < voting_msgs || voting_msgs == 0) {return my_state;}
-    for(uint8_t i = 0; i < voting_msgs; ++i){
-        uint8_t idx = (vote_fifo.tail + FIFO_BUFFER_SIZE - 1 - i) % FIFO_BUFFER_SIZE;
-        uint8_t state = vote_fifo.buffer[idx].agent_state;
-        if(state < sizeof(buffer)){
-            buffer[state]++;
+    for (uint8_t i = 0; i < voting_msgs; i++) {
+        if (valid_states[i] < sizeof(buffer)) {
+            buffer[valid_states[i]]++;
         }
     }
     uint8_t max = 0;
@@ -688,7 +687,6 @@ void setup(){
     fp = fopen(log_title,"a");
     set_motion(STOP);
     generic_fifo_init(&rebroadcast_fifo);
-    generic_fifo_init(&vote_fifo);
 }
 
 void loop(){
@@ -705,9 +703,8 @@ void loop(){
         talk();
     }
     fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    // printf("id: %d\tstate: %d\tvote fifo items: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-    //        kilo_uid, my_state, vote_fifo.count, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
-
+    // printf("id: %d\tstate: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tglobal quorum: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
+    //        kilo_uid, my_state, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, global_state_percentage / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
 
 void deallocate_memory(){
