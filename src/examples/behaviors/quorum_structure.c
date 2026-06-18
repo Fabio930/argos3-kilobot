@@ -86,17 +86,6 @@ void init_array_qrm(quorum_a **Array[], uint8_t N){
     true_quorum_items = 0;
 }
 
-void print_q(quorum_a **Array[],uint8_t id){
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
-        else printf("NULL\n");
-    }
-}
-
-void increment_quorum_counter(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
-}
-
 void decrement_quorum_counter(quorum_a **Array[], uint64_t ticks){
     for (uint8_t i = 0; i < num_quorum_items; i++){
         if((*Array)[i]->counter>ticks) (*Array)[i]->counter = (*Array)[i]->counter-ticks;
@@ -143,7 +132,8 @@ uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const ui
         quorum_a *cursor = *Myquorum;
         while(cursor != NULL){
             if(cursor->agent_id == Agent_id){
-                if((!hop_count && received_state != cursor->agent_state) || (hop_count && Msg_n_hops >= cursor->msg_n_hops)){
+                if((!hop_count && received_state != cursor->agent_state) ||
+                (hop_count && Msg_n_hops <= cursor->msg_n_hops)){
                     cursor->counter = expiring_time;
                     cursor->agent_state = received_state;
                     cursor->delivered = 0;
@@ -197,33 +187,9 @@ uint16_t select_a_random_message(){
     return (uint16_t)(start + (rand_hard() % eligible));
 }
 
-uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops){
-    if(num_quorum_items == 0) return 0b1111111111111111;
-    uint8_t start = priority_sampling_k;
-    if(start >= num_quorum_items) return 0b1111111111111111;
-
-    if(expiring_ticks_quorum == 0){
-        for(uint8_t i = start; i < num_quorum_items; i++){
-            if((*Array)[i] == NULL) continue;
-            if(check_4_hops == 0){
-                if((*Array)[i]->delivered == 0) return i;
-            }
-            else{
-                if((*Array)[i]->delivered == 0 && (*Array)[i]->msg_n_hops > 0) return i;
-            }
-        }
+void print_q(quorum_a **Array[],uint8_t id){
+    for (uint8_t i = 0; i < num_quorum_items; i++){
+        if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
+        else printf("NULL\n");
     }
-    else{
-        for(uint8_t i = num_quorum_items; i > start; i--){
-            uint8_t idx = (uint8_t)(i - 1);
-            if((*Array)[idx] == NULL) continue;
-            if(check_4_hops == 0){
-                if((*Array)[idx]->delivered == 0) return idx;
-            }
-            else{
-                if((*Array)[idx]->delivered == 0 && (*Array)[idx]->msg_n_hops > 0) return idx;
-            }
-        }
-    }
-    return 0b1111111111111111;
 }

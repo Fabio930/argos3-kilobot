@@ -131,12 +131,10 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
 # 3. VISUALIZATION UTILS
 ##################################################################################
 
-def _function_colormap(function_names):
-    cmap_cycle = ["Blues", "Oranges", "Greens", "Purples", "Reds", "Greys", "YlGnBu", "YlOrBr"]
-    mapping = {}
-    for idx, fn in enumerate(sorted(function_names)):
-        mapping[fn] = plt.get_cmap(cmap_cycle[idx % len(cmap_cycle)])
-    return mapping
+def _function_colormap(cmap_name:str,function_names):
+    cmap = plt.get_cmap(cmap_name)
+    norm = mcolors.Normalize(vmin=0, vmax=len(function_names) + 1 if len(function_names) > 0 else 1)
+    return {val: cmap(norm(i)) for i, val in enumerate(function_names)}
 
 ##################################################################################
 # 4. STANDARD PLOTTING
@@ -284,25 +282,16 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             unique_comms = sorted(cur_argos['communication'].dropna().astype(int).unique().tolist())
         else:
             unique_comms = [0]
-            
-        num_comms = len(unique_comms)
-        cmap_vir = plt.get_cmap('viridis')
-        norm = mcolors.Normalize(vmin=0, vmax=num_comms if num_comms > 0 else 1)
-        comm_colors = {val: cmap_vir(norm(i)) for i, val in enumerate(unique_comms)}
         comm_labels = {0: 'IDB', 1: r'$h-IDR_i$', 2: r'$IDR_f$'}
-            
         pyth_color = 'tab:gray' 
         for df in [cur_argos, cur_quorum, cur_ctrl, cur_msgs, pyth_agg]:
             if df is not None and not df.empty and 'eta' in df.columns:
                 df['eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
-                
         for n_opts in [2, 5]:
             eta_main = 0.5 if n_opts == 2 else 0.8
             eta_inset = 0.4 if n_opts == 2 else 0.7
-            
             active_configs = [c for c in base_configs]
             valid_panels = []
-            
             # Identify valid parameter configurations first
             for c_conf in active_configs:
                 for m_val in m_values:
@@ -339,7 +328,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             axes_flat = axes.flatten()
             
             has_data = True
-            
+            colors = None
             for i, panel in enumerate(valid_panels):
                 ax = axes_flat[i]
                 c_conf = panel['c_conf']
@@ -380,15 +369,18 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 else:
                     ax_in = None
                 
-                def plot_target(a_df, q_df, c_df, msg_df, p_df, target_ax):
+                # 1. Modifica la definizione e il return di plot_target
+                def plot_target(a_df, q_df, c_df, msg_df, p_df, target_ax, colors):
                     nonlocal max_x
+                    c_oput = None
                     datasets = [
                         ('cohesion', a_df, '-'), 
                         ('quorum', q_df, '--'), 
                         ('ctrl', c_df, ':'),
                         ('msgs', msg_df, '-.')
                     ]
-                    
+                    colorset = _function_colormap('viridis', list(zip(*datasets))[0])
+                    c_oput = colorset 
                     for d_name, d_df, d_style in datasets:
                         if d_df is None or d_df.empty: continue
                         for _, row in d_df.iterrows():
@@ -396,34 +388,29 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                                 y = m_array_from_cell(row['data'])
                                 s = m_array_from_cell(row['std'])
                             except Exception: continue
-                            
                             n_steps = min(len(y), len(s))
                             if n_steps == 0: continue
                             max_x = max(max_x, n_steps)
-                            
-                            comm = int(row.get('communication', 0))
-                            c_color = comm_colors.get(comm, 'black')
-                            
+                            c_color = colorset.get(d_name, 'black')
                             x_arr = np.arange(n_steps)
-                            target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
-                            
                             if d_name == 'cohesion':
+                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
                                 target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
-                    
+                            else:
+                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, alpha=0.4, linewidth=2)
                     merged_box = []
                     if p_df is not None and not p_df.empty:
                         for _, row in p_df.iterrows():
                             if 'box_data' in row and len(row['box_data']) > 0:
                                 merged_box.extend(row['box_data'])
-                    return merged_box
-
-                box_main = plot_target(a_main, q_main, c_main, m_main, p_main, ax)
+                    return merged_box, c_oput
+                box_main, tmp_colors = plot_target(a_main, q_main, c_main, m_main, p_main, ax,colors)
                 
                 if has_inset_data:
-                    box_inset = plot_target(a_inset, q_inset, c_inset, m_inset, p_inset, ax_in)
+                    box_inset, tmp_colors = plot_target(a_inset, q_inset, c_inset, m_inset, p_inset, ax_in,colors)
                 else:
                     box_inset = []
-
+                if colors is None and tmp_colors is not None: colors = tmp_colors
                 box_width = max(1, max_x * 0.05)
                 box_pos = max_x + box_width * 1.5
                 
@@ -483,31 +470,26 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             if not has_data:
                 plt.close(fig)
                 continue
-                
+            if colors is None:
+                logging.error("Bad colors\n")
+                exit(0)
             legend_elements = [
-                Line2D([0], [0], color=comm_colors[k], ls='-', marker='s', markersize=14, label=f"{comm_labels.get(k, 'Unknown')}") 
-                for k in unique_comms
-            ]
-            legend_elements.append(Line2D([0], [0], color='black', ls='-', lw=2, label='Cohesion'))
-            
+                Line2D([0], [0], color='black', ls='None',marker='s', markersize=14, label=f"{comm_labels.get(k, 'Unknown')}") for k in unique_comms]
+            legend_elements.append(Line2D([0], [0], color=colors.get('cohesion'), ls='-', lw=2, label='Cohesion'))            
             if cur_quorum is not None and not cur_quorum.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Quorum'))
+                legend_elements.append(Line2D([0], [0], color=colors.get('quorum'), ls='--', lw=2, label='Quorum'))
             if cur_ctrl is not None and not cur_ctrl.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls=':', lw=2, label='Control'))
+                legend_elements.append(Line2D([0], [0], color=colors.get('ctrl'), ls=':', lw=2, label='Control'))
             if cur_msgs is not None and not cur_msgs.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='-.', lw=2, label='Messages'))
+                legend_elements.append(Line2D([0], [0], color=colors.get('msgs'), ls='-.', lw=2, label='Messages'))
             if enable_python:
                 legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
-            
             fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.96, .015), ncol=len(legend_elements))
-                
             fig.tight_layout()
-            
             runs_suffix = f"_runs{int(current_run)}" if current_run is not None else ""
             fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.pdf", dpi=150, bbox_inches="tight")
             plt.close(fig)
             image_count += 1
-            
     return image_count
 
 

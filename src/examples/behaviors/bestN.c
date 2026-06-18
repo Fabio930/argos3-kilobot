@@ -18,7 +18,7 @@ void sync_rebroadcast_fifo() {
     }
 }
 
-void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint32_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag) {
+void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag) {
     if (capacity == 0) {
         generic_fifo_init(fifo);
         return;
@@ -91,7 +91,7 @@ uint8_t generic_fifo_dequeue(generic_fifo_t* fifo) {
 }
 
 float random_in_range(float min, float max){
-    float r = (float)rand_hard() / 255.0;
+    float r = (float)rand_hard() / 256.0f;
     return min + (r*(max-min));
 }
 
@@ -173,7 +173,6 @@ void talk(){
                                 generic_fifo_dequeue(&rebroadcast_fifo);
                             }
                         }
-                        
                         if (!found_valid) {
                             broadcast();
                         }
@@ -194,52 +193,37 @@ void broadcast(){
     sa_type = 0;
     sa_id = kilo_uid;
     sa_payload = my_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i] = 0;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-    uint32_t current_time = (uint32_t)kilo_ticks;
-    my_message.data[3] = (uint8_t)((current_time >> 24) & 0xFF);
-    my_message.data[4] = (uint8_t)((current_time >> 16) & 0xFF);
-    my_message.data[5] = (uint8_t)((current_time >> 8) & 0xFF);
-    my_message.data[6] = (uint8_t)(current_time & 0xFF);
 }
 
 void rnd_rebroadcast(){
-    sa_type = quorum_array[selected_msg_indx]->msg_n_hops;
+    sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
     sa_id = quorum_array[selected_msg_indx]->agent_id;
     sa_payload = quorum_array[selected_msg_indx]->agent_state;
-    uint32_t saved_time = quorum_array[selected_msg_indx]->msg_n_hops; 
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i] = 0;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
-    
+    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-    my_message.data[3] = (uint8_t)((saved_time >> 24) & 0xFF);
-    my_message.data[4] = (uint8_t)((saved_time >> 16) & 0xFF);
-    my_message.data[5] = (uint8_t)((saved_time >> 8) & 0xFF);
-    my_message.data[6] = (uint8_t)(saved_time & 0xFF);
 }
 
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint32_t msg_hops){
-    uint32_t sa_type_local = msg_hops;
-    sa_type = 0; 
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops){
+    sa_type = sat_inc_u8(msg_hops);
     sa_id = agent_id;
     sa_payload = agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i] = 0;
+    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
     my_message.data[0] = sa_id;
     my_message.data[1] = sa_type;
     my_message.data[2] = sa_payload;
-    my_message.data[3] = (uint8_t)((sa_type_local >> 24) & 0xFF);
-    my_message.data[4] = (uint8_t)((sa_type_local >> 16) & 0xFF);
-    my_message.data[5] = (uint8_t)((sa_type_local >> 8) & 0xFF);
-    my_message.data[6] = (uint8_t)(sa_type_local & 0xFF);
 
     uint16_t q_idx = find_quorum_index_by_id(agent_id);
     if(q_idx != 0b1111111111111111){
         quorum_array[q_idx]->delivered = sat_inc_u8(quorum_array[q_idx]->delivered);
-        quorum_array[q_idx]->msg_n_hops = sa_type_local;
+        quorum_array[q_idx]->msg_n_hops = sa_type;
     }
     return 1;
 }
@@ -287,7 +271,7 @@ uint8_t compute_r_threshold(uint8_t q_value_int){
         case f_sigmoid:
         {
             const float num = quorum_val;
-            const float den = 1.0f + expf(-10.0*(quorum_val - ctrl_param));
+            const float den = 1.0f + expf(-10.0f*(quorum_val - ctrl_param));
             return (uint8_t)roundf(clamp01(num / den) * 100.0f);
         }
         case f_polynomial:
@@ -318,7 +302,7 @@ void update_debug_led(){
 }
 
 void select_new_point(bool force){
-    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01<.02) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01<.02))){
+    if (force || ((abs((int16_t)((gps_position.position_x-goal_position.position_x)*100))*.01f<.02f) && (abs((int16_t)((gps_position.position_y-goal_position.position_y)*100))*.01f<.02f))){
         goal_position.position_x = random_in_range(the_arena->tlX,the_arena->brX);
         goal_position.position_y = random_in_range(the_arena->tlY,the_arena->brY);
         expiring_dist = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
@@ -327,18 +311,18 @@ void select_new_point(bool force){
     else{
         if(avoid_tmmts==0){
             uint32_t flag = (uint32_t)sqrt(pow((gps_position.position_x-goal_position.position_x)*100,2)+pow((gps_position.position_y-goal_position.position_y)*100,2));
-            if(flag >= expiring_dist + 0.01){
+            if(flag >= expiring_dist + 0.01f){
                 avoid_tmmts=1;
                 float angleToGoal = AngleToGoal();
-                float p = rand_hard()/255.0;
+                float p = rand_hard()/256.0f;
                 if(p < .33){
                     last_motion_ticks = kilo_ticks;
-                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0f));
                     set_motion(TURN_LEFT);
                 }
                 else if(p < .66){
                     last_motion_ticks = kilo_ticks;
-                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) ((fabs(angleToGoal))/(RotSpeed*32.0f));
                     set_motion(TURN_RIGHT);
                 }
                 else avoid_tmmts=0;
@@ -384,7 +368,6 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_position.position_y = y_q * 0.01f * 2.0f;
             gps_angle = angle_q * (360.0f / 256.0f);
             gps_floor_color = color_q;
-            global_state_percentage = data[3];
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
                 select_new_point(true);
@@ -421,32 +404,26 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-void update_messages(const uint32_t received_timestamp){
+void update_messages(const uint8_t Msg_n_hops){
     uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    uint8_t result = update_q(&quorum_array, &quorum_list, NULL, received_id, received_committed, expiring_time, (uint8_t)received_timestamp, hop_count);
-    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) {
-        buffer_update_rng += 1;
-    }
+    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,hop_count);
+    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
     sort_q(&quorum_array);
     if(id_aware && broadcasting_flag == 2){
         if(result == 1 || result == 2) {
-            generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, received_timestamp, buffer_length, 1);
+            generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, Msg_n_hops, buffer_length, 1);
         }
     }
 }
 
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
-    if(sa_id != (uint8_t)kilo_uid){
+    if(sa_id!=(uint8_t)kilo_uid){
         sa_type = data[1];
         sa_payload = data[2];
-        uint32_t received_timestamp = ((uint32_t)data[3] << 24) | 
-                                      ((uint32_t)data[4] << 16) | 
-                                      ((uint32_t)data[5] << 8)  | 
-                                      (uint32_t)data[6];
         received_id = sa_id;
         received_committed = (uint8_t)sa_payload;
-        update_messages(received_timestamp);
+        update_messages(sa_type);
     }
     else sa_id = 0;
 }
@@ -584,11 +561,11 @@ void random_way_point_model(){
                 last_motion_ticks = kilo_ticks;
                 if(angleToGoal > 0){
                     set_motion(TURN_LEFT);
-                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0f));
                 }
                 else{
                     set_motion(TURN_RIGHT);
-                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0));
+                    turning_ticks = (uint32_t) (fabs(angleToGoal)/(RotSpeed*32.0f));
                 }
             }
             switch(current_motion_type){
@@ -619,7 +596,7 @@ void decision(){
         last_decision_ticks = kilo_ticks;
         uint8_t majority_state = majority_vote();
         float control_value_f = control_value / 100.0f;
-        float p = rand_hard()/255.0;
+        float p = rand_hard()/256.0f;
         if(p < control_value_f) my_state = majority_state;
         else my_state = gps_floor_color;
         update_debug_led();
@@ -659,7 +636,7 @@ uint8_t majority_vote() {
             selection = i;
         }
         else if (max != 0 && buffer[i] == max) {
-            float p = rand_hard() / 255.0;
+            float p = rand_hard() / 256.0f;
             if (p < 0.5) selection = i;
         }
     }
@@ -695,7 +672,7 @@ void loop(){
     sync_rebroadcast_fifo();
     if(my_state != 255 && init_received_C){
         random_way_point_model();
-        quorum_value = global_state_percentage; //compute_quorum_value();
+        quorum_value = compute_quorum_value();
         control_value = compute_r_threshold(quorum_value);
         decision();
         talk();
