@@ -54,7 +54,7 @@
             hop_count = "0"
             rebroadcast = "2"
             msgs_n_hops = "0"
-            msgs_timeout = "60"
+            msgs_timeout = "10"
             adaptive_comm = "0"
             priority_sampling_k = "0"
             init_distr = "0.5"

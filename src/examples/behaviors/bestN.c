@@ -255,15 +255,14 @@ uint8_t compute_quorum_value(){
         }
     }
     float q_val_f = (float)agreeing / (float)(eligible + 1);
+    control_value = compute_r_threshold(quorum_value);
     return (uint8_t)roundf(q_val_f * 100.0f);
 }
 
 uint8_t compute_r_threshold(uint8_t q_value_int){
     float quorum_val = q_value_int / 100.0f;
-    float ctrl_param = control_parameter / 100.0f;
-    
-    if(control_mode == f_static) return (uint8_t)roundf(clamp01(ctrl_param) * 100.0f);
-    
+    float ctrl_param = control_parameter / 100.0f;    
+    if(control_mode == f_static) return (uint8_t)roundf(clamp01(ctrl_param) * 100.0f);    
     switch(control_mode){
         case f_linear:
             return (uint8_t)roundf(clamp01(quorum_val) * 100.0f);
@@ -672,7 +671,7 @@ void loop(){
     if(my_state != 255 && init_received_C){
         random_way_point_model();
         quorum_value = compute_quorum_value();
-        control_value = compute_r_threshold(quorum_value);
+        // control_value = compute_r_threshold(quorum_value);
         decision();
         talk();
     }

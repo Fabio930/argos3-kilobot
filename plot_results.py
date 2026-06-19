@@ -405,10 +405,12 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                             c_color = comm_colors.get(comm, 'black')
                             
                             x_arr = np.arange(n_steps)
-                            target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
                             
                             if d_name == 'cohesion':
+                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
                                 target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
+                            elif d_name == 'msgs':
+                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
                     
                     merged_box = []
                     if p_df is not None and not p_df.empty:
@@ -485,15 +487,15 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 continue
                 
             legend_elements = [
-                Line2D([0], [0], color=comm_colors[k], ls='-', marker='s', markersize=14, label=f"{comm_labels.get(k, 'Unknown')}") 
+                Line2D([0], [0], color=comm_colors[k], ls='-', marker='s', markersize=12, label=f"{comm_labels.get(k, 'Unknown')}") 
                 for k in unique_comms
             ]
             legend_elements.append(Line2D([0], [0], color='black', ls='-', lw=2, label='Cohesion'))
             
-            if cur_quorum is not None and not cur_quorum.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Quorum'))
-            if cur_ctrl is not None and not cur_ctrl.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls=':', lw=2, label='Control'))
+            # if cur_quorum is not None and not cur_quorum.empty:
+            #     legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Quorum'))
+            # if cur_ctrl is not None and not cur_ctrl.empty:
+            #     legend_elements.append(Line2D([0], [0], color='black', ls=':', lw=2, label='Control'))
             if cur_msgs is not None and not cur_msgs.empty:
                 legend_elements.append(Line2D([0], [0], color='black', ls='-.', lw=2, label='Messages'))
             if enable_python:
@@ -615,11 +617,11 @@ def main():
     
     file_meta_keys = {"eta", "options", "communication", "function"}
     
-    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
-    quorum_sets = load_pickles_with_file_meta("./proc_data/quorum", file_meta_keys)
-    ctrl_sets = load_pickles_with_file_meta("./proc_data/ctrl", file_meta_keys)
-    msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
-    pyth_sets = {} 
+    coh_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/cohesion", file_meta_keys)
+    quorum_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/quorum", file_meta_keys)
+    ctrl_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/ctrl", file_meta_keys)
+    msgs_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/msgs", file_meta_keys)
+    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
 
     argos_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
