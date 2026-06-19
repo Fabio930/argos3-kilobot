@@ -498,7 +498,6 @@ void CBestN_ALF::SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity){
 
 /****************************************/
 /****************************************/
-
 void CBestN_ALF::SendInformationGPS(CKilobotEntity &c_kilobot_entity){
     /* Get the kilobot ID */
     UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);

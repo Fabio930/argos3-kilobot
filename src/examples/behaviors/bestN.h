@@ -65,7 +65,6 @@ typedef struct {
 
 uint64_t delta_elapsed = 0;
 uint64_t ticks_elapsed = 0;
-
 motion_t current_motion_type = STOP;
 motion_t prev_motion_type = STOP;
 
@@ -118,7 +117,6 @@ quorum_a *quorum_list = NULL;
 quorum_a **quorum_array;
 
 generic_fifo_t rebroadcast_fifo;
-generic_fifo_t vote_fifo;
 
 char log_title[30];
 uint8_t led = RGB(0,0,0);
@@ -140,7 +138,7 @@ void generic_fifo_init(generic_fifo_t* fifo);
 void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag);
 uint8_t generic_fifo_peek(generic_fifo_t* fifo, fifo_item_t* item_out);
 uint8_t generic_fifo_dequeue(generic_fifo_t* fifo);
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
+uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops);
 
 void decision();
 void set_motion( motion_t new_motion_type);

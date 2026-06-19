@@ -45,6 +45,18 @@ double exponential_distribution(double lambda)
   return (x);
 }
 
+double normal_distribution(double lambda)
+{
+    double u1, u2, z0, x;
+    do {
+        u1 = uniform_distribution(0.0, 1.0);
+    } while (u1 == 0.0);
+    u2 = uniform_distribution(0.0, 1.0);
+    z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * 3.14159265358979323846 * u2);
+    x = lambda + z0;
+    return x;
+}
+
 /* The stable Levy probability distributions have the form
 
    p(x) dx = (1/(2 pi)) \int dt exp(- it x - |c t|^alpha)
