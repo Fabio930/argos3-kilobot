@@ -384,9 +384,9 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                     nonlocal max_x
                     datasets = [
                         ('cohesion', a_df, '-'), 
-                        ('quorum', q_df, '--'), 
-                        ('ctrl', c_df, ':'),
-                        ('msgs', msg_df, '-.')
+                        ('quorum', q_df, ':'), 
+                        ('ctrl', c_df, '-.'),
+                        ('msgs', msg_df, '--')
                     ]
                     
                     for d_name, d_df, d_style in datasets:
@@ -487,7 +487,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 continue
                 
             legend_elements = [
-                Line2D([0], [0], color=comm_colors[k], ls='-', marker='s', markersize=12, label=f"{comm_labels.get(k, 'Unknown')}") 
+                Line2D([0], [0], color=comm_colors[k], ls='none', marker='s', markersize=6, label=f"{comm_labels.get(k, 'Unknown')}") 
                 for k in unique_comms
             ]
             legend_elements.append(Line2D([0], [0], color='black', ls='-', lw=2, label='Cohesion'))
@@ -617,11 +617,11 @@ def main():
     
     file_meta_keys = {"eta", "options", "communication", "function"}
     
-    coh_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/cohesion", file_meta_keys)
-    quorum_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/quorum", file_meta_keys)
-    ctrl_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/ctrl", file_meta_keys)
-    msgs_sets = load_pickles_with_file_meta("../proc_data_minBatch_dec_check/msgs", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
+    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
+    quorum_sets = load_pickles_with_file_meta("./proc_data/quorum", file_meta_keys)
+    ctrl_sets = load_pickles_with_file_meta("./proc_data/ctrl", file_meta_keys)
+    msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
+    pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
 
     argos_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
