@@ -43,32 +43,6 @@ EXCLUDED_FILENAME_KEYS = {
     "id_aware", "msg_hops", "priority_k", "runs", "spatcorr", "time", "variation_time"
 }
 
-def _safe_filename_from_params(values: dict) -> str:
-    allowed_params = {
-        "communication", "msg_exp_time", "eta", "eta_stop", "control_par", "options"
-    }
-    safe_parts = []
-    priority_order = ["communication", "msg_exp_time", "eta", "eta_stop", "control_par", "options"]
-    for key in priority_order:
-        if key in values and key in allowed_params and key not in EXCLUDED_FILENAME_KEYS:
-            val = values[key]
-            if not isinstance(val, (list, np.ndarray, pd.Series)):
-                clean = f"{key}#{val}".replace("/", "-").replace(" ", "").replace(":", "-")
-                safe_parts.append(clean)
-    return "_".join(safe_parts) if safe_parts else "plot"
-
-def _safe_filename_from_metadata(values: dict) -> str:
-    safe_parts = []
-    for key in sorted(values.keys()):
-        if key in EXCLUDED_FILENAME_KEYS:
-            continue
-        val = values[key]
-        if isinstance(val, (list, tuple, np.ndarray, pd.Series, dict, set)):
-            continue
-        clean = f"{key}#{val}".replace("/", "-").replace(" ", "").replace(":", "-")
-        safe_parts.append(clean)
-    return "_".join(safe_parts) if safe_parts else "plot"
-
 def metadata_from_filename(file_name: str) -> dict:
     stem = Path(file_name).stem
     metadata = {}
@@ -390,7 +364,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                             n_steps = min(len(y), len(s))
                             if n_steps == 0 or n_runs < 2: continue 
                             max_x = max(max_x, n_steps)
-                            # comm = int(row.get('communication', 0))
                             c_color = 'black'
                             x_arr = np.arange(n_steps)
                             if d_name == 'cohesion':
