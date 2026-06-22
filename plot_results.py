@@ -121,7 +121,7 @@ def _vote_color_map(vote_values):
     cmap = plt.get_cmap("tab10")
     return {vote: cmap(idx % 10) for idx, vote in enumerate(sorted(vote_values))}
 
-def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = None, omit_labels: list = None,enable_python: bool = True) -> int:
+def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = [15], omit_labels: list = None,enable_python: bool = True) -> int:
     if omit_m is None: omit_m = []
     if omit_labels is None: omit_labels = []
 
