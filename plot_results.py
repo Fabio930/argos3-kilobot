@@ -2,8 +2,9 @@ import os, re, logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path
 import matplotlib.colors as mcolors
+from scipy import stats
+from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
@@ -127,16 +128,6 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
             print(f"Error loading {file_path.name}: {e}")
     return datasets
 
-##################################################################################
-# 3. VISUALIZATION UTILS
-##################################################################################
-
-def _function_colormap(function_names):
-    cmap_cycle = ["Blues", "Oranges", "Greens", "Purples", "Reds", "Greys", "YlGnBu", "YlOrBr"]
-    mapping = {}
-    for idx, fn in enumerate(sorted(function_names)):
-        mapping[fn] = plt.get_cmap(cmap_cycle[idx % len(cmap_cycle)])
-    return mapping
 
 ##################################################################################
 # 4. STANDARD PLOTTING
@@ -294,7 +285,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
         pyth_color = 'tab:gray' 
         for df in [cur_argos, cur_quorum, cur_ctrl, cur_msgs, pyth_agg]:
             if df is not None and not df.empty and 'eta' in df.columns:
-                df['eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
+                df.loc[:, 'eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
                 
         for n_opts in [2, 5]:
             eta_main = 0.5 if n_opts == 2 else 0.8
@@ -303,7 +294,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             active_configs = [c for c in base_configs]
             valid_panels = []
             
-            # Identify valid parameter configurations first
             for c_conf in active_configs:
                 for m_val in m_values:
                     a_main = cur_argos[get_mask(cur_argos, eta_main, c_conf['func'], c_conf['ctrl'], m_val)]
@@ -329,7 +319,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             if n_panels == 0:
                 continue
                 
-            # Recalculate dimensions to avoid empty grids
             n_cols = min(n_panels, len(m_values))
             n_rows = int(np.ceil(n_panels / n_cols))
             sem_0x = True if (n_rows > 1) else False
@@ -395,23 +384,28 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                             try:
                                 y = m_array_from_cell(row['data'])
                                 s = m_array_from_cell(row['std'])
+                                n_runs = int(row.get('runs', 1))
                             except Exception: continue
                             
                             n_steps = min(len(y), len(s))
-                            if n_steps == 0: continue
+                            if n_steps == 0 or n_runs < 2: continue 
                             max_x = max(max_x, n_steps)
-                            
-                            comm = int(row.get('communication', 0))
-                            c_color = comm_colors.get(comm, 'black')
-                            
+                            # comm = int(row.get('communication', 0))
+                            c_color = 'black'
                             x_arr = np.arange(n_steps)
-                            
                             if d_name == 'cohesion':
                                 target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
-                                target_ax.fill_between(x_arr, y[:n_steps]-s[:n_steps], y[:n_steps]+s[:n_steps], facecolor=c_color, alpha=0.15)
+                                t_crit = stats.t.ppf(0.975, df=n_runs - 1)
+                                ci_margin = t_crit * (s[:n_steps] / np.sqrt(n_runs))
+                                target_ax.fill_between(
+                                    x_arr, 
+                                    y[:n_steps] - ci_margin, 
+                                    y[:n_steps] + ci_margin, 
+                                    facecolor=c_color, 
+                                    alpha=0.25
+                                )
                             elif d_name == 'msgs':
                                 target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
-                    
                     merged_box = []
                     if p_df is not None and not p_df.empty:
                         for _, row in p_df.iterrows():
@@ -497,7 +491,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             # if cur_ctrl is not None and not cur_ctrl.empty:
             #     legend_elements.append(Line2D([0], [0], color='black', ls=':', lw=2, label='Control'))
             if cur_msgs is not None and not cur_msgs.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='-.', lw=2, label='Messages'))
+                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Messages'))
             if enable_python:
                 legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
             
@@ -621,7 +615,7 @@ def main():
     quorum_sets = load_pickles_with_file_meta("./proc_data/quorum", file_meta_keys)
     ctrl_sets = load_pickles_with_file_meta("./proc_data/ctrl", file_meta_keys)
     msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
+    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
 
     argos_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
