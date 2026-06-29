@@ -107,7 +107,7 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
 # 4. STANDARD PLOTTING
 ##################################################################################
 
-def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = [15], omit_labels: list = None,enable_python: bool = True) -> int:
+def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = None, omit_labels: list = None,enable_python: bool = True) -> int:
     if omit_m is None: omit_m = []
     if omit_labels is None: omit_labels = []
 
