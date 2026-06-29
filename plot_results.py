@@ -8,7 +8,7 @@ from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 10})
+plt.rcParams.update({"font.size": 18})
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -106,20 +106,6 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
 ##################################################################################
 # 4. STANDARD PLOTTING
 ##################################################################################
-
-def _iter_groups(df: pd.DataFrame, grouping_cols: list):
-    if not grouping_cols:
-        yield {}, df
-        return
-    for group_key, group_df in df.groupby(grouping_cols, dropna=False):
-        if isinstance(group_key, tuple):
-            yield dict(zip(grouping_cols, group_key)), group_df
-        else:
-            yield {grouping_cols[0]: group_key}, group_df
-
-def _vote_color_map(vote_values):
-    cmap = plt.get_cmap("tab10")
-    return {vote: cmap(idx % 10) for idx, vote in enumerate(sorted(vote_values))}
 
 def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = [15], omit_labels: list = None,enable_python: bool = True) -> int:
     if omit_m is None: omit_m = []
@@ -337,7 +323,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 )
                 
                 if has_inset_data:
-                    inset_loc = [0.45, 0.05, 0.45, 0.5] if final_opt0_val > 0.5 else [0.45, 0.45, 0.45, 0.5]
+                    inset_loc = [0.275, 0.05, 0.45, 0.5] if final_opt0_val > 0.5 else [0.275, 0.45, 0.45, 0.5]
                     ax_in = ax.inset_axes(inset_loc)
                     ax_in.grid(alpha=0.2)
                 else:
@@ -414,17 +400,28 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 ax.set_ylim(-0.03, 1.03)
                 ax.set_yticks(y_ticks)
                 
-                line_ticks = np.arange(0, max_x + 1, 4000)
-                all_ticks = list(line_ticks) + [box_pos]
-                all_labels = [str(int(t*.1)) for t in line_ticks] + [""]
+                # 1. Define steps in data-space (accounting for the *0.1 label factor)
+                major_step = 9000  # Labelled as multiples of 900
+                minor_step = 3000  # Spaced as multiples of 300
                 
-                ax.set_xticks(all_ticks)
-                ax.set_xticklabels(all_labels)
-                ax.grid(alpha=0.25)
+                major_line_ticks = np.arange(0, max_x + 1, major_step)
+                all_major_ticks = list(major_line_ticks) + [box_pos]
+                all_major_labels = [str(int(t * 0.1)) for t in major_line_ticks] + [""]
                 
+                minor_ticks = np.arange(0, max_x + 1, minor_step)
+                
+                # 2. Apply to main axis
+                ax.set_xticks(all_major_ticks)
+                ax.set_xticklabels(all_major_labels)
+                ax.set_xticks(minor_ticks, minor=True)
+                ax.grid(which='major', ls="--", alpha=0.4)
+                ax.grid(which='minor', ls="--", alpha=0.4)
+                
+                # 3. Apply to inset axis
                 if has_inset_data:
                     ax_in.set_xlim(ax.get_xlim())
-                    ax_in.set_xticks(all_ticks)
+                    ax_in.set_xticks(all_major_ticks)
+                    ax_in.set_xticks(minor_ticks, minor=True)
                     ax_in.set_ylim(-0.03, 1.03)
                     ax_in.set_yticks(y_ticks)
                     ax_in.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=True, left=True, length=2)
@@ -433,14 +430,14 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 row_idx = i // n_cols
                 col_idx = i % n_cols
                 
-                if col_idx == 0: 
-                    ax.set_ylabel(r"$\rho^*$")
+                # if col_idx == 0: 
+                #     ax.set_ylabel(r"$\rho^*$")
                 
                 if row_idx == 0: 
-                    ax.set_title(rf"$m={m_val}$", fontsize=16)
+                    ax.set_title(rf"$m={m_val}$")
                     
                 if col_idx == n_cols - 1 or i == n_panels - 1: 
-                    ax.text(1.05, 0.5, c_conf['label'], transform=ax.transAxes, ha='left', va='center', rotation=270, fontsize=16)
+                    ax.text(1.05, 0.5, c_conf['label'], transform=ax.transAxes, ha='left', va='center', rotation=270)
                     
                 if row_idx == n_rows - 1 or (i + n_cols >= n_panels): 
                     ax.set_xlabel("T")
@@ -453,18 +450,14 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 plt.close(fig)
                 continue
                 
-            legend_elements = [
-                Line2D([0], [0], color=comm_colors[k], ls='none', marker='s', markersize=6, label=f"{comm_labels.get(k, 'Unknown')}") 
-                for k in unique_comms
-            ]
-            legend_elements.append(Line2D([0], [0], color='black', ls='-', lw=2, label='Cohesion'))
+            # legend_elements = [
+            #     Line2D([0], [0], color=comm_colors[k], ls='none', marker='s', markersize=6, label=f"{comm_labels.get(k, 'Unknown')}") 
+            #     for k in unique_comms
+            # ]
+            legend_elements = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$')]
             
-            # if cur_quorum is not None and not cur_quorum.empty:
-            #     legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Quorum'))
-            # if cur_ctrl is not None and not cur_ctrl.empty:
-            #     legend_elements.append(Line2D([0], [0], color='black', ls=':', lw=2, label='Control'))
             if cur_msgs is not None and not cur_msgs.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=2, label='Messages'))
+                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=4, label=r'$\|\mathcal{B}\|$'))
             if enable_python:
                 legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
             
