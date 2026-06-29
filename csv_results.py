@@ -855,7 +855,6 @@ class Data:
         self._apply_plot_style(ax, nrows, columns, is_messages=True)
 
         handles_r = []
-        handles_r.append(mlines.Line2D([], [], color="black", linestyle=':', linewidth=4, label=r"$\min|\mathcal{B}|$"))
         for r_name, (r_label, r_style) in used_roots.items():
             handles_r.append(mlines.Line2D([], [], color='black', linestyle=r_style, lw=4, label=r_label))
         for p in diff_protocols:
