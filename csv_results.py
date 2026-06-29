@@ -1117,7 +1117,7 @@ class Data:
                                 mbs_list = mbs_global_map.get(ag, [])
                                 s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
                                 cmap_k = plt.get_cmap('cool_r')
-                                k_color_ts = [0.0, 0.36, 0.72]
+                                k_color_ts = [0.25, 0.5, 0.75]
                                 
                                 for m_idx, val_mbs in enumerate(mbs_list):
                                     mask = (s_float - val_mbs).abs() < 1e-3
@@ -1153,7 +1153,7 @@ class Data:
 
             legend_elements = []
             cmap_k = plt.get_cmap('cool_r')
-            k_color_ts = [0.0, 0.36, 0.72]
+            k_color_ts = [0.25, 0.5, 0.75]
             k_labels = [r"K_1", r"K_2", r"K_3"]
             
             for pid in protocols_order:
@@ -1212,7 +1212,7 @@ class Data:
                         mbs_list = mbs_global_map.get(ag, [])
                         s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
                         cmap_k = plt.get_cmap('cool_r')
-                        k_color_ts = [0.0, 0.36, 0.72]
+                        k_color_ts = [0.25, 0.5, 0.75]
                         
                         for m_idx, val_mbs in enumerate(mbs_list):
                             mask = (s_float - val_mbs).abs() < 1e-3
@@ -1239,7 +1239,7 @@ class Data:
 
         legend_elements = []
         cmap_k = plt.get_cmap('cool_r')
-        k_color_ts = [0.0, 0.36, 0.72]
+        k_color_ts = [0.25, 0.5, 0.75]
         k_labels = [r"K_1", r"K_2", r"K_3"]
         
         for pid in protocols_order:
@@ -2226,7 +2226,7 @@ class Data:
                         if min(diffs) < 1e-3:
                             m_idx = diffs.index(min(diffs))
                             cmap_k = plt.get_cmap('cool_r')
-                            k_color_ts = [0.0, 0.36, 0.72]
+                            k_color_ts = [0.25, 0.5, 0.75]
                             c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
                             c_val = cmap_k(c_t)
 
@@ -2303,7 +2303,7 @@ class Data:
                         if min(diffs) < 1e-3:
                             m_idx = diffs.index(min(diffs))
                             cmap_k = plt.get_cmap('cool_r')
-                            k_color_ts = [0.0, 0.36, 0.72]
+                            k_color_ts = [0.25, 0.5, 0.75]
                             c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
                             c_val = cmap_k(c_t)
 
@@ -2389,7 +2389,7 @@ class Data:
         handler_map = {}
         
         cmap_k = plt.get_cmap('cool_r')
-        k_color_ts = [0.0, 0.36, 0.72]
+        k_color_ts = [0.25, 0.5, 0.75]
         k_labels = [r"K_1", r"K_2", r"K_3"]
 
         for p in self.protocols:
