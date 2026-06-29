@@ -106,7 +106,7 @@ class Data:
             "protocols": [
                 {"id": "P.0", "label": r"$AN$", "color": "red"},
                 {"id": "P.1.0", "label": r"$AN_{t}$", "color": "viridis:0"},
-                {"id": "P.1.1", "label": r"$AN_{t}^{k}$", "color": "orange"},
+                {"id": "P.1.1", "label": r"$AN_{t}^{K}$", "color": "orange"},
                 {"id": "O.0.0", "label": r"$ID+B$", "color": "viridis:1"},
                 {"id": "O.2.0", "label": r"$ID+R_{f}$", "color": "viridis:2"},
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
@@ -1022,7 +1022,6 @@ class Data:
         
         protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
 
-        # Define specific markers for each protocol
         marker_map = {
             'P.0': 'o',      # AN: circle
             'P.1.0': 's',    # ANt: square
@@ -1062,117 +1061,126 @@ class Data:
         if df.empty: return
         
         df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
-        
         mbs_global_map = {}
         for ag in df['Agents'].unique():
-            mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
-            mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
+            mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].dropna().unique()
+            sorted_mbs = sorted([float(x) for x in mbs_vals if str(x).strip() != ''], reverse=True)
+            mbs_global_map[ag] = sorted_mbs[:3]
 
         real_tm_vals = sorted([m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0])
         main_tm_list = self._plot_tm_values(real_tm_vals)
         insert_tm_list = self._get_valid_insert_tm()
         
-        combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
         densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+        v_events = df[df['Events'] > 0]['Events']
+        v_times = df[df['Time'] > 0]['Time']
+        g_e_min = v_events.min() if not v_events.empty else 0.5
+        g_e_max = df['Events'].max() if not df.empty else 100.0
+        g_t_min = v_times.min() if not v_times.empty else 0.5
+        g_t_max = df['Time'].max() if not df.empty else 100.0
+        pad_factor = 1
+        xlim_global = (0.5, g_e_max * pad_factor)
+        ylim_global = (g_t_min / pad_factor, 1100)
+        # -----------------------------------------------------------
 
         def save_short(subset):
             if subset.empty: return
-            # Figsize stretto e aspect ratio bloccato garantiscono grafici perfettamente quadrati
-            fig, axes = plt.subplots(1, 3, figsize=(22, 8))
+            msg_list = sorted(main_tm_list)
+            if 60 in msg_list:
+                msg_list = [60] + [m for m in msg_list if m != 60]
+            if not msg_list: return
+            nrows = len(msg_list)
+            ncols = len(densities)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(22, 7.3 * nrows), squeeze=False, sharex=True, sharey=True)
 
-            for col_idx, (dens_label, arena, ag) in enumerate(densities):
-                cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
+            for i, tm_val in enumerate(msg_list):
+                for j, (dens_label, arena, ag) in enumerate(densities):
+                    ax = axes[i, j]
+                    cell = subset[(subset['Arena'] == arena) & (subset['Agents'] == ag)]
 
-                ax = axes[col_idx]
-                ax.set_title(dens_label)
-                ax.set_box_aspect(1)
-                
-                def draw_pass(target_ax, target_type):
-                    for k, pid in enumerate(protocols_order):
-                        is_p0 = (pid == 'P.0')
-                        marker = marker_map.get(pid, 'o')
-                        
-                        if is_p0:
-                            tms = [main_tm_list[0]] if target_type == "main" and main_tm_list else []
-                            if target_type == "inset" and insert_tm_list: tms = [insert_tm_list[0]]
-                        else:
-                            tms = main_tm_list if target_type == "main" else insert_tm_list
+                    ax.set_box_aspect(1)
+                    ax.set_yscale('log')
+                    ax.set_xscale('log')
+                    ax.set_xlim(xlim_global)
+                    ax.set_ylim(ylim_global)
 
-                        for tm_val in tms:
-                            if is_p0:
-                                p_data = cell[cell['VariantKey'] == pid]
-                            else:
-                                p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == tm_val)]
+                    def draw_pass(target_ax, target_tm, tt_type):
+                        for pid in protocols_order:
+                            is_p0 = (pid == 'P.0')
+                            marker = marker_map.get(pid, 'o')
+                            t_tm = 60 if is_p0 else target_tm
+                            p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == t_tm)]
                             
                             if p_data.empty: continue
+                            
                             if pid == "P.1.1":
                                 mbs_list = mbs_global_map.get(ag, [])
-                                n_mbs_total = len(mbs_list)
-                                if n_mbs_total > 0:
-                                    for m_idx, val_mbs in enumerate(mbs_list):
-                                        d_mbs_row = p_data[p_data['MBS'] == val_mbs]
-                                        ratio = (m_idx + 1) / n_mbs_total
-                                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
-                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                        if not d_mbs_row.empty:
-                                            self._draw_scatter_internal(target_ax, d_mbs_row, c_val, target_type, marker)
-                                else:
-                                    self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], target_type, marker)
+                                s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
+                                cmap_k = plt.get_cmap('cool_r')
+                                k_color_ts = [0.0, 0.36, 0.72]
+                                
+                                for m_idx, val_mbs in enumerate(mbs_list):
+                                    mask = (s_float - val_mbs).abs() < 1e-3
+                                    d_row = p_data[mask.fillna(False)]
+                                    if not d_row.empty:
+                                        c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
+                                        self._draw_scatter_internal(target_ax, d_row, cmap_k(c_t), tt_type, marker)
                             else:
-                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], target_type, marker)
+                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], tt_type, marker)
 
-                ax.set_ylim(1,500)
-                ax.set_yscale('log')
-                ax.set_xlim(0.3,500)
-                ax.set_xscale('log')
-                draw_pass(ax, "main")
-                
-                if col_idx == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
-                elif col_idx > 0: ax.set_yticklabels('' for _ in ax.get_yticks())
-                ax.set_xlabel(r"$E_{r}$",fontsize=28)
+                    draw_pass(ax, tm_val, "main")
+                    
+                    if i == 0: ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
+                    if j == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
+                    if i == nrows - 1: ax.set_xlabel(r"$E_{r}$", fontsize=28)
+                    if j == ncols - 1:
+                        ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
+                                    rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
-                ax.set_axisbelow(True)
-                ax.grid(True, ls=':', zorder=0)
+                    ax.set_axisbelow(True)
+                    ax.grid(True, ls=':', zorder=0)
 
-                if insert_tm_list:
-                    best_box = [1.0 - 0.44 - 0.03, 1.0 - 0.44 - 0.03, 0.44, 0.44]
-                    # self.find_emptiest_inset_position(ax, width=0.45, height=0.45) if col_idx>0 else
-                    # Condividendo nativamente gli assi eliminiamo ogni problema di overlap e tick extra
-                    ins = ax.inset_axes(best_box, sharex=ax, sharey=ax)
-                    ins.autoscale(False) # Evita che l'inset sovrascriva i limiti del genitore 
-                    
-                    draw_pass(ins, "inset")
-                    
-                    # Rimuove le labels sull'inset per evitare collisioni grafiche
-                    ins.tick_params(labelbottom=False, labeltop=False, labelleft=False, labelright=False)
-                    
-                    # Garantisce che il pannello genitore mantenga sempre le proprie labels (sharex potrebbe averle nascoste)
-                    ax.tick_params(labelbottom=True)
-                    if col_idx == 0:
-                        ax.tick_params(labelleft=True)
-                    
-                    ins.set_axisbelow(True)
-                    ins.grid(True, ls=':', color='silver', zorder=0)
+                    if insert_tm_list:
+                        best_box = [1.0 - 0.44 - 0.03, 1.0 - 0.44 - 0.03, 0.44, 0.44]
+                        ins = ax.inset_axes(best_box, sharex=ax, sharey=ax)
+                        ins.autoscale(False)
+                        draw_pass(ins, insert_tm_list[0], "inset")
+                        ins.tick_params(labelbottom=False, labeltop=False, labelleft=False, labelright=False)
+                        if i == nrows - 1: ax.tick_params(labelbottom=True)
+                        if j == 0: ax.tick_params(labelleft=True)
+                        ins.set_axisbelow(True)
+                        ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
+            cmap_k = plt.get_cmap('cool_r')
+            k_color_ts = [0.0, 0.36, 0.72]
+            k_labels = [r"K_1", r"K_2", r"K_3"]
+            
             for pid in protocols_order:
-                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
+                if pid == "P.1.1":
+                    base_lbl = variant_map[pid][0]
+                    for m_idx in range(3):
+                        c_t = k_color_ts[m_idx]
+                        lbl_k = k_labels[m_idx]
+                        if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
+                        elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
+                        else: lbl = rf"{base_lbl} (${lbl_k}$)"
+                        legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker=marker_map.get(pid, 'D'), linestyle='None', markersize=14, label=lbl))
+                else:
+                    legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=6, 
-                       bbox_to_anchor=(0.56, -0.11))
-            
-            fig.tight_layout()
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.7, 0.015))
+            fig.tight_layout(rect=[0, 0.05, 1, 1])
             fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
 
         save_short(df)
-        self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map)
+        self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global)
 
 ###################################################
-    def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map):
+    def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global):
         images_dir = os.path.join(self.base, "compressed_data", "images")
         
-        # Bypass the exclude_tm filter to force all available T_m values to be plotted
         raw_tms = [m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0]
         msg_list = sorted(raw_tms)
         
@@ -1184,12 +1192,8 @@ class Data:
         nrows = len(msg_list)
         ncols = len(densities)
         
-        # Establish global Y limit for Time, but calculate specific X limits for each column (Density)
-        time_max = df["Time"].max()
-        event_max_per_col = [df[(df['Arena'] == arena) & (df['Agents'] == ag)]["Events"].max() for _, arena, ag in densities]
-        
-        # sharex='col' is CRITICAL here: it allows different columns to have different x-axis scales
-        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*8, nrows*8), squeeze=False, sharex='col', sharey=True)
+        # Using sharex=True to ensure uniform min/max across all columns
+        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*8, nrows*8), squeeze=False, sharex=True, sharey=True)
 
         for i, tm_val in enumerate(msg_list):
             for j, (dens_label, arena, ag) in enumerate(densities):
@@ -1206,43 +1210,52 @@ class Data:
                     
                     if pid == "P.1.1":
                         mbs_list = mbs_global_map.get(ag, [])
-                        n_mbs_total = len(mbs_list)
-                        if n_mbs_total > 0:
-                            for m_idx, val_mbs in enumerate(mbs_list):
-                                d_mbs_row = p_data[p_data['MBS'] == val_mbs]
-                                ratio = (m_idx + 1) / n_mbs_total
-                                h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
-                                c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
-                                if not d_mbs_row.empty:
-                                    self._draw_scatter_internal(ax, d_mbs_row, c_val, 'main', marker)
-                        else:
-                            self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
+                        s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
+                        cmap_k = plt.get_cmap('cool_r')
+                        k_color_ts = [0.0, 0.36, 0.72]
+                        
+                        for m_idx, val_mbs in enumerate(mbs_list):
+                            mask = (s_float - val_mbs).abs() < 1e-3
+                            d_row = p_data[mask.fillna(False)]
+                            if not d_row.empty:
+                                c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
+                                self._draw_scatter_internal(ax, d_row, cmap_k(c_t), 'main', marker)
                     else:
                         self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
 
-                ax.set_ylim(self.time_axis_limits(time_max)[:2])
                 ax.set_yscale('log')
-                ax.set_xlim(0.3,101)
                 ax.set_xscale('log')
+                ax.set_xlim(xlim_global)
+                ax.set_ylim(ylim_global)
 
-                # Apply the specific maximum for this column using the index 'j'
                 ax.grid(True, ls=':', zorder=0)
 
-                if i == 0: 
-                    ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
-                if j == 0:
-                    ax.set_ylabel(r"$T_{r}$", fontsize=28)
-                if i == nrows - 1:
-                    ax.set_xlabel(r"$E_{r}$", fontsize=28)
+                if i == 0: ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
+                if j == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
+                if i == nrows - 1: ax.set_xlabel(r"$E_{r}$", fontsize=28)
                 if j == ncols - 1:
                     ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
                                 rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
         legend_elements = []
+        cmap_k = plt.get_cmap('cool_r')
+        k_color_ts = [0.0, 0.36, 0.72]
+        k_labels = [r"K_1", r"K_2", r"K_3"]
+        
         for pid in protocols_order:
-            legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
+            if pid == "P.1.1":
+                base_lbl = variant_map[pid][0]
+                for m_idx in range(3):
+                    c_t = k_color_ts[m_idx]
+                    lbl_k = k_labels[m_idx]
+                    if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
+                    elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
+                    else: lbl = rf"{base_lbl} (${lbl_k}$)"
+                    legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker=marker_map.get(pid, 'D'), linestyle='None', markersize=14, label=lbl))
+            else:
+                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-        fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.56, 0.035))
+        fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.7, 0.03))
         fig.tight_layout(rect=[0, 0.05, 1, 1])
         fig.savefig(os.path.join(images_dir, f"scatter_recovery_all_tm.pdf"), bbox_inches='tight')
         plt.close(fig)
@@ -2177,14 +2190,15 @@ class Data:
         
         inset_axes_dict = {}
 
+        # Filtro esclusivo su P.1.1 per impedire che i buffer di altri protocolli alterino gli indici
         mbs_per_agent = {}
-        for dk_key in dk_tot_msgs.keys():
-            dicts = dk_tot_msgs.get(dk_key)
-            for k in dicts.keys():
-                ag_val = int(k[1])
-                if ag_val not in mbs_per_agent: mbs_per_agent[ag_val] = set()
-                if len(k) > 3 and k[3] != "": mbs_per_agent[ag_val].add(float(k[3]))
-        mbs_sorted_map = {ag: sorted(list(mbs_per_agent[ag])) for ag in mbs_per_agent}
+        for dk_key, dicts in dk_tot_msgs.items():
+            if dk_key == "P.1.1" or dk_key.startswith("P.1.1"):
+                for k in dicts.keys():
+                    ag_val = int(k[1])
+                    if ag_val not in mbs_per_agent: mbs_per_agent[ag_val] = set()
+                    if len(k) > 3 and k[3] != "": mbs_per_agent[ag_val].add(float(k[3]))
+        mbs_sorted_map = {ag: sorted(list(mbs_per_agent[ag]), reverse=True) for ag in mbs_per_agent}
 
         for dk in dk_tot_msgs.keys():
             if not self._protocol_enabled(dk):
@@ -2208,9 +2222,13 @@ class Data:
                     val_mbs = float(key[3])
                     mbs_list = mbs_sorted_map.get(num_agents, [])
                     if mbs_list:
-                        ratio = (mbs_list.index(val_mbs) + 1) / len(mbs_list)
-                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
-                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                        diffs = [abs(val_mbs - x) for x in mbs_list]
+                        if min(diffs) < 1e-3:
+                            m_idx = diffs.index(min(diffs))
+                            cmap_k = plt.get_cmap('cool_r')
+                            k_color_ts = [0.0, 0.36, 0.72]
+                            c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
+                            c_val = cmap_k(c_t)
 
                 destinations = []
                 if is_p0:
@@ -2225,7 +2243,6 @@ class Data:
                         target_ax = ax[0][col_idx]
                     else:
                         if (0, col_idx) not in inset_axes_dict:
-                            # INCREASED INSET SIZE (0.45x0.45)
                             ins = ax[0][col_idx].inset_axes([0.52, 0.03, 0.45, 0.45])
                             ins.set_xlim(0, 901); ins.set_ylim(-0.01, 1.01)
                             ins.tick_params(labelbottom=False, labelleft=False)
@@ -2279,11 +2296,16 @@ class Data:
 
                 c_val = base_color
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
+                    val_mbs = float(key[3])
                     mbs_list = mbs_sorted_map.get(num_agents, [])
                     if mbs_list:
-                        ratio = (mbs_list.index(float(key[3])) + 1) / len(mbs_list)
-                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
-                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                        diffs = [abs(val_mbs - x) for x in mbs_list]
+                        if min(diffs) < 1e-3:
+                            m_idx = diffs.index(min(diffs))
+                            cmap_k = plt.get_cmap('cool_r')
+                            k_color_ts = [0.0, 0.36, 0.72]
+                            c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
+                            c_val = cmap_k(c_t)
 
                 destinations = []
                 if is_p0: destinations.extend(["main", "inset"])
@@ -2364,34 +2386,26 @@ class Data:
         ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$G$"); ax[2][0].set_ylabel(r"$T_c$")
         
         legend_elements = []
-        # if main_tm_list: 
-        #     legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Main $T_m={main_tm_list[0]}$'))
-        # if insert_tm_list: 
-        #     legend_elements.append(Line2D([], [], color='none', marker='none', label=rf'Inset $T_m={insert_tm_list[0]}$'))
-        
-        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='--', label='Q=0.2'))
-        # legend_elements.append(Line2D([0], [0], color='black', lw=4, ls='-', label='Q=0.8'))
-        # legend_elements.append(Line2D([], [], color="black", lw=4, ls='-.', label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$'))
         handler_map = {}
-        # grad_rect = Rectangle((0, 0), 1, 1, label="k-sampling")
-        # legend_elements.append(grad_rect)
-        # try:
-        #     handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys_r"))
-        # except NameError:
-        #     pass
         
+        cmap_k = plt.get_cmap('cool_r')
+        k_color_ts = [0.0, 0.36, 0.72]
+        k_labels = [r"K_1", r"K_2", r"K_3"]
+
         for p in self.protocols:
             p_id = p.get("id")
             if self._protocol_enabled(p_id):
-                legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
-                    
-        # if use_gradient:
-        #     grad_rect = Rectangle((0, 0), 1, 1, label=r"$T_m$")
-        #     legend_elements.append(grad_rect)
-        #     try:
-        #         handler_map[Rectangle] = GradientHandler(plt.get_cmap("Greys"))
-        #     except NameError:
-        #         pass 
+                if p_id == "P.1.1":
+                    base_lbl = p.get("label", p_id)
+                    for m_idx in range(3):
+                        c_t = k_color_ts[m_idx]
+                        lbl_k = k_labels[m_idx]
+                        if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
+                        elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
+                        else: lbl = rf"{base_lbl} (${lbl_k}$)"
+                        legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker='s', linestyle='None', markersize=16, label=lbl))
+                else:
+                    legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
 
         fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0), ncol=7, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
