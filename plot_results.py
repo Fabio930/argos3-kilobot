@@ -167,7 +167,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                     opt_rows = group[group['option_id'] == opt]
                     vals = []
                     for d in opt_rows['data_arr']:
-                        if len(d) >= 10: vals.append(np.mean(d[-10:]))
+                        if len(d) >= 10: vals.append(np.mean(d[-1:]))
                         elif len(d) > 0: vals.append(np.mean(d)) 
                     opt_data[opt] = np.array(vals)
                     
@@ -484,7 +484,7 @@ def count_configuration_overlaps():
     file_meta_keys = {'options'}
     
     coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../quorum_sensing_Best_of_N/compressed_data_argos_comp", file_meta_keys)
+    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys)
     
     coh_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
@@ -581,7 +581,7 @@ def main():
     quorum_sets = load_pickles_with_file_meta("./proc_data/quorum", file_meta_keys)
     ctrl_sets = load_pickles_with_file_meta("./proc_data/ctrl", file_meta_keys)
     msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/compressed_data_argos_comp_dec", file_meta_keys) 
+    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys) 
 
     argos_drop_cols = [
         'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
