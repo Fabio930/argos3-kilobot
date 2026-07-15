@@ -25,10 +25,10 @@ public:
         if(Rows == 0 || Cols == 0 || ColorId.empty()) {
             return 225;
         }
-        UInt32 c = static_cast<UInt32>((p.GetX() - XMin) * InvCellSizeX);
-        UInt32 r = static_cast<UInt32>((p.GetY() - YMin) * InvCellSizeY);
-        c = std::max<UInt32>(0, std::min<UInt32>(c, static_cast<UInt32>(Cols) - 1));
-        r = std::max<UInt32>(0, std::min<UInt32>(r, static_cast<UInt32>(Rows) - 1));
+        SInt32 c = static_cast<SInt32>(std::floor((p.GetX() - XMin) * InvCellSizeX));
+        SInt32 r = static_cast<SInt32>(std::floor((p.GetY() - YMin) * InvCellSizeY));
+        c = std::max<SInt32>(0, std::min<SInt32>(c, static_cast<SInt32>(Cols) - 1));
+        r = std::max<SInt32>(0, std::min<SInt32>(r, static_cast<SInt32>(Rows) - 1));
         return ColorId[Index(r, c)];
     }
 

@@ -57,18 +57,18 @@
             msgs_timeout = "10"
             adaptive_comm = "0"
             priority_sampling_k = "0"
-            init_distr = "0.5"
-            options = "2"
-            eta_init = "0.5"
+            init_distr = "0.2"
+            options = "5"
+            eta_init = "0.8"
             eta_stop = "0.8"
             variation_time = "0"
             grid_rows = "20"
             grid_cols = "20"
             options_distribution = "random"
-            spatial_correlation = "0"
+            spatial_correlation = "1"
             control = "polynomial"
             voting_msgs = "5"
-            control_parameter = "0.5">
+            control_parameter = "0.7">
         </bestN>
 
     </loop_functions>
@@ -120,7 +120,7 @@
         <distribute>
             <position method="uniform" min="-.25,-0.25,0" max="0.25,0.25,0" />
             <orientation method="uniform" min="0,0,0" max="360,0,0" />
-            <entity quantity="25" max_trials="100">
+            <entity quantity="50" max_trials="100">
                 <kilobot id="kb">
                     <controller config="bestN"/> <dynamics2d friction="0.7" />
                 </kilobot>
