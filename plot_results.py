@@ -466,7 +466,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             fig.tight_layout()
             
             runs_suffix = f"_runs{int(current_run)}" if current_run is not None else ""
-            fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.pdf", dpi=150, bbox_inches="tight")
+            fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.pdf", dpi=300, bbox_inches="tight")
             plt.close(fig)
             image_count += 1
             
