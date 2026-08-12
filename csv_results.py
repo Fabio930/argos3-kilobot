@@ -526,8 +526,8 @@ class Data:
                     else: ax[i][j].set_xlabel(r"$T$")
                     if j > 0: ax[i][j].set_yticklabels([])
             
-            ax[0][0].set_ylabel(r"$Q(G,\tau)$")
-            ax[1][0].set_ylabel(r"$Q(G,\tau)$")
+            ax[0][0].set_ylabel(r"$Q(T)$")
+            ax[1][0].set_ylabel(r"$Q(T)$")
             
             # Add GT info as labels to the rightmost axes
             if gt_068_092:
@@ -554,7 +554,7 @@ class Data:
                     handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
             
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.58, -0.08), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
+            fig.legend(handles=handles_r, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.52, -0.08), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
             
             # Save the final consolidated file
             fig.savefig(f"{path}{thr}_diff_short_grid.pdf", bbox_inches='tight')
@@ -700,8 +700,8 @@ class Data:
                     if j > 0:
                         ax[i][j].set_yticklabels([])
             
-            ax[0][0].set_ylabel(r"$Q(G,\tau)$")
-            ax[1][0].set_ylabel(r"$Q(G,\tau)$")
+            ax[0][0].set_ylabel(r"$Q(T)$")
+            ax[1][0].set_ylabel(r"$Q(T)$")
             
             ax_right1 = ax[0][2].twinx()
             ax_right1.set_yticks([])
@@ -725,7 +725,7 @@ class Data:
             legend_elements = handles_l + handles_r
             handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
             
-            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.80, -0.09), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
+            fig.legend(handles=legend_elements, handler_map=handler_map, loc='lower center', bbox_to_anchor=(0.60, -0.09), framealpha=0.7, fontsize=plt.rcParams.get("font.size"), ncol=7)
             fig.savefig(f"{path}{thr}_short_grid.pdf", bbox_inches='tight')
             plt.close(fig)
 
@@ -744,7 +744,7 @@ class Data:
                 ax[x][y].set_xlim(0, 1201)
                 ax[x][y].set_ylim(-0.03, 1.03)
                 if y == 0:
-                    ax[x][y].set_ylabel(r"$M$" if is_messages else r"$Q(G,\tau)$")
+                    ax[x][y].set_ylabel(r"$M$" if is_messages else r"$Q(T)$")
                 else:
                     ax[x][y].set_yticklabels([])
                 if x == nrows - 1:
@@ -954,7 +954,7 @@ class Data:
 
                 if handles_r:
                     handler_map = {Rectangle: GradientHandler(plt.cm.Greys_r)}
-                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.56, 0.005), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
+                    fig.legend(handles=handles_r, handler_map=handler_map, ncols=6, loc='upper center', bbox_to_anchor=(0.52, 0.005), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
                 
                 fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
