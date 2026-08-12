@@ -512,7 +512,7 @@ class Data:
                                     
                                     if col == 0: # Left Column: Show Y-axis labels
                                         cax[k_idx][col].set_yticks(np.arange(0,1.01,.1)); uax[k_idx][col].set_yticks(np.arange(0,1.01,.1))
-                                        cax[k_idx][col].set_ylabel(r"$Q(G,\tau)$"); uax[k_idx][col].set_ylabel(r"$Q(G,\tau)$")
+                                        cax[k_idx][col].set_ylabel(r"$Q(T)$"); uax[k_idx][col].set_ylabel(r"$Q(T)$")
                                     
                                     elif col == 2: # Right Column: Show Tm labels
                                         cax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
@@ -594,7 +594,7 @@ class Data:
                                 
                                 if col == 0:
                                     ax[k_idx][col].set_yticks(np.arange(0,1.01,.1))
-                                    ax[k_idx][col].set_ylabel(r"$Q(G,\tau)$")
+                                    ax[k_idx][col].set_ylabel(r"$Q(T)$")
                                 elif col == 2:
                                     ax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
                                     axt = ax[k_idx][col].twinx()
@@ -821,25 +821,24 @@ class Data:
             return
 
         combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
-        use_gradient = len(main_tm_list) > 1 and not insert_tm_list
+        use_gradient = False
 
         scalarMap = cmx.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=5), cmap=plt.get_cmap('viridis'))
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         
-        tm_norm = colors.LogNorm(vmin=min(combined_tm), vmax=max(combined_tm)) if use_gradient else None
+        pos_tm = [v for v in combined_tm if v > 0]
+        tm_norm = colors.LogNorm(vmin=min(pos_tm), vmax=max(pos_tm)) if (use_gradient and pos_tm) else None
 
         def get_tm_color(pid, tm_val, k_val=None, ag=None):
             if pid == 'P.1.1' and k_val is not None and ag is not None:
                 return self._get_p11_color(k_val, ag)
             base_color = protocol_colors.get(pid, 'gray')
-            if not use_gradient: return base_color
-            if pid == 'P.0': return base_color
+            if not use_gradient or tm_norm is None: return base_color
+            if pid == 'P.0' or tm_val <= 0: return base_color
             rgb_base = colors.to_rgb(base_color)
             h, l, s = colorsys.rgb_to_hls(*rgb_base)
             norm_val = tm_norm(tm_val)
-            if tm_val <= 0: norm_val = tm_norm(max(combined_tm))
-            if np.ma.is_masked(norm_val): norm_val = 0.0
             if tm_val == max(combined_tm):
                 new_l, new_s = l, s
             else:
@@ -954,7 +953,7 @@ class Data:
                     if y > 0: 
                         ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
             
-                ax[x][0].set_ylabel(r"$Q(G,\tau)$")
+                ax[x][0].set_ylabel(r"$Q(T)$")
                 
                 ayt = ax[x][2].twinx()
                 ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
