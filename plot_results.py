@@ -29,7 +29,6 @@ def main():
     if use_short:
         csv_res._assign_config("short_plot_config.json")
         
-    # Aggiornata la condizione e la chiamata a funzione
     if exclude_protocols or exclude_tm or insert_tm:
         csv_res.apply_plot_overrides(
             ["active", "messages", "decisions"],
@@ -72,7 +71,7 @@ def main():
                 for file in _select_files(base):
                     if "images" not in file:
                         file_path=os.path.join(base, file)
-                        tot_msgs = csv_res.read_msgs_csv(file_path)
+                        tot_msgs = csv_res.read_msgs_csv_w_std(file_path)
         csv_res.plot_compressed_table(tot_st,tot_times,tot_msgs)
     else:
         for base in csv_res.bases:
@@ -113,12 +112,12 @@ def main():
                         tot_msgs = csv_res.read_msgs_csv(file_path)
                         messages_dict,stds_dict = csv_res.plot_messages(tot_msgs)
                         csv_res.print_messages(messages_dict,stds_dict)
-            # if base.split('/')[-1] == "dec_data":
-            #     for file in sorted(os.listdir(base)):
-            #         if "images" not in file:
-            #             file_path=os.path.join(base, file)
-            #             tot_dec = csv_res.read_msgs_csv(file_path)
-            #             csv_res.plot_decisions(tot_dec)
+            if base.split('/')[-1] == "dec_data":
+                for file in sorted(os.listdir(base)):
+                    if "images" not in file:
+                        file_path=os.path.join(base, file)
+                        tot_dec = csv_res.read_msgs_csv(file_path)
+                        csv_res.plot_decisions(tot_dec)
 
 ##################################################################################
 if __name__ == "__main__":

@@ -241,51 +241,82 @@ class Data:
 ###################################################
     def wb_get_mean_and_std(self, wf:WeibullFitter):
         scale, shape = wf.summary.loc['lambda_','coef'], wf.summary.loc['rho_','coef']
-
         mean = scale*gamma(1 + 1/shape)
         variance = (scale ** 2) * (gamma(1 + 2 / shape) - (gamma(1 + 1 / shape)) ** 2)
         std = np.sqrt(variance)
-        
         return [mean, std]
     
 ###################################################
-    def fit_recovery(self,algo,arena,n_agents,buf_dim,gt,thr,comunication,msg_hops,data_in):
-        buff_starts     = data_in[0]
-        durations       = data_in[1]
-        event_observed  = data_in[2]
-        # if not os.path.exists(self.base+"/weib_images/"):
-        #     os.mkdir(self.base+"/weib_images/")
-        # path = self.base+"/weib_images/"
-
-        durations_by_buffer = self.dull_division(buff_starts,durations,event_observed)
-        durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
-        adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
+    def fit_recovery(self, setting_key, runs_data):
+        algo, arena, time_val, comm, agents, buf_dim, msgs, hops, gt, thr = setting_key
+        
+        path = self.base + "/weib_images/"
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+            
         wf = WeibullFitter()
         kmf = KaplanMeierFitter()
+        run_means = []
+        run_events = []
+        
+        for run_id, run_data in runs_data.items():
+            buff_starts = run_data[0]
+            durations = run_data[1]
+            event_observed = run_data[2]
+            
+            durations_by_buffer = self.dull_division(buff_starts, durations, event_observed)
+            durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
+            adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
+            
+            for k in adapted_durations.keys():
+                a_data = adapted_durations.get(k)[0]
+                a_censoring = adapted_durations.get(k)[1]
+                a_buffers = adapted_durations.get(k)[2]
+                
+                if len(a_data) > 20:
+                    try:
+                        wf.fit(a_data, event_observed=a_censoring)
+                        if run_id==1:
+                            kmf.fit(a_data, event_observed=a_censoring)
+                            fig, ax = plt.subplots(figsize=(10,8))
+                            ax.plot(wf.cumulative_density_, label="wf "+k)
+                            ax.plot(kmf.cumulative_density_, label="kmf "+k)
+                            fig.tight_layout()
+                            
+                            filename = f"{algo}_{comm}_{hops}_{agents}_{arena}_{buf_dim}_{gt}_{thr}_run{run_id}_{k}.png"
+                            fig.savefig(os.path.join(path, filename))
+                            plt.close(fig)
+                        
+                        mean_val, _ = self.wb_get_mean_and_std(wf)
+                        if not np.isnan(mean_val) and not np.isinf(mean_val):
+                            run_means.append(mean_val)
+                            run_events.append(len(a_buffers) - 1)
+                    except Exception:
+                        pass
+                        
         estimates = {}
-        for k in adapted_durations.keys():
-            a_data = adapted_durations.get(k)[0]
-            a_censoring = adapted_durations.get(k)[1]
-            a_buffers = adapted_durations.get(k)[2]
-            if len(a_data)>100:
-                wf.fit(a_data, event_observed=a_censoring,label="wf "+k)
-                kmf.fit(a_data, event_observed=a_censoring,label="kmf "+k)
-                # fig, ax = plt.subplots(figsize=(10,8))
-                # ax.plot(wf.cumulative_density_)
-                # ax.plot(kmf.cumulative_density_)
-                # fig.tight_layout()
-                # fig.savefig(path+algo+'_'+comunication+'_'+msg_hops+'_'+n_agents+'_'+arena+'_'+buf_dim+'_'+gt+'_'+thr+'_'+k+'.png')
-                estimates.update({k:[self.wb_get_mean_and_std(wf),len(a_buffers)-1]})
+        if len(run_means) > 10:
+            run_means_arr = np.array(run_means)
+            run_events_arr = np.array(run_events)
+            n_runs = len(run_means_arr)
+            
+            mean_of_means = run_means_arr.mean()
+            ci_time = 1.96 * (run_means_arr.std(ddof=1) / np.sqrt(n_runs)) if n_runs > 1 else 0.0
+            
+            mean_events = run_events_arr.mean()
+            ci_events = 1.96 * (run_events_arr.std(ddof=1) / np.sqrt(n_runs)) if n_runs > 1 else 0.0
+            
+            estimates["all"] = [[mean_of_means, ci_time], [mean_events, ci_events]]
+            
         return estimates
-
 ###################################################
     def fit_recovery_raw_data(self,data_in):
         fitted_data = {}
         for i in range(len(data_in)):
             for k in data_in[i].keys():
-                estimates = self.fit_recovery(k[0],k[1],k[4],k[5],k[8],k[9],k[3],k[7],data_in[i].get(k))
+                estimates = self.fit_recovery(k, data_in[i].get(k))
                 for z in estimates.keys():
-                    fitted_data.update({(k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],k[9],z):estimates.get(z)})
+                    fitted_data.update({(*k, z): estimates.get(z)})
         return fitted_data
     
 ###################################################
@@ -366,7 +397,7 @@ class Data:
         messages_dict.update({"P.1.1":dict_park_t1})
         stds_dict.update({"P.1.1":std_dict_park_t1})
         messages_dict.update({"O.0.0":dict_adam})
-        stds_dict.update({"O.0.0":dict_adam})
+        stds_dict.update({"O.0.0":std_dict_adam})
         messages_dict.update({"O.2.0":dict_fifo})
         stds_dict.update({"O.2.0":std_dict_fifo})
         messages_dict.update({"O.1.1":dict_rnd})
@@ -379,41 +410,61 @@ class Data:
 
 ###################################################
     def plot_decisions(self,data):
-        decisions_dict = {}
+        decisions_dict, ci_dict = {}, {}
         dict_park, dict_park_t1, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{},{}
+        ci_park, ci_park_t1, ci_park_real_fifo, ci_adam, ci_fifo,ci_rnd,ci_rnd_inf = {},{},{},{},{},{},{}
         for k in data.keys():
             algo = str(k[1]).strip().lower()
             n_agents = int(k[3]) if len(k) > 3 else 0
             buf_dim = int(k[4]) if len(k) > 4 else 0
             max_buff_size = k[6] if len(k) > 6 else str(max(0, n_agents - 1))
             is_priority_sampling = algo == 'ps' or (algo == 'p' and buf_dim == max(0, n_agents - 2))
+            
+            mean_vals = data.get(k)[0]
+            ci_vals = data.get(k)[1]
 
             if is_priority_sampling and buf_dim > 0:
-                dict_park_t1.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                dict_park_t1.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park_t1.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
             elif is_priority_sampling and buf_dim == 0:
-                dict_park_real_fifo.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                dict_park_real_fifo.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park_real_fifo.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
             elif k[1]=='P' and int(k[4]) > 0:
-                dict_park.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                dict_park.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
             elif k[1]=='P' and int(k[4]) == 0:
-                dict_park_real_fifo.update({(k[0],k[3],"60",max_buff_size):data.get(k)})
+                dict_park_real_fifo.update({(k[0],k[3],"60",max_buff_size):mean_vals})
+                ci_park_real_fifo.update({(k[0],k[3],"60",max_buff_size):ci_vals})
             else:
                 if k[2]=="0":
-                    dict_adam.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                    dict_adam.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                    ci_adam.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
                 elif k[2]=="2":
-                    dict_fifo.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                    dict_fifo.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                    ci_fifo.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
                 else:
                     if k[5] == "1":
-                        dict_rnd.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                        dict_rnd.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                        ci_rnd.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
                     else:
-                        dict_rnd_inf.update({(k[0],k[3],k[4],max_buff_size):data.get(k)})
+                        dict_rnd_inf.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                        ci_rnd_inf.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+                        
         decisions_dict.update({"P.0":dict_park_real_fifo})
+        ci_dict.update({"P.0":ci_park_real_fifo})
         decisions_dict.update({"P.1.0":dict_park})
+        ci_dict.update({"P.1.0":ci_park})
         decisions_dict.update({"P.1.1":dict_park_t1})
+        ci_dict.update({"P.1.1":ci_park_t1})
         decisions_dict.update({"O.0.0":dict_adam})
+        ci_dict.update({"O.0.0":ci_adam})
         decisions_dict.update({"O.2.0":dict_fifo})
+        ci_dict.update({"O.2.0":ci_fifo})
         decisions_dict.update({"O.1.1":dict_rnd})
+        ci_dict.update({"O.1.1":ci_rnd})
         decisions_dict.update({"O.1.0":dict_rnd_inf})
-        self.print_decisions(decisions_dict)
+        ci_dict.update({"O.1.0":ci_rnd_inf})
+        self.print_decisions(decisions_dict, ci_dict)
 
 ###################################################
     def read_msgs_csv(self, path):
@@ -424,56 +475,9 @@ class Data:
             if not header:
                 return data
             header_idx = {name: i for i, name in enumerate(header)}
-            data_idx = header_idx.get("data", len(header) - 1)
-            arena_idx = header_idx.get("arena_size", 0)
-            algo_idx = header_idx.get("algo", 1)
-            broadcast_idx = header_idx.get("broadcast", 2)
-            n_agents_idx = header_idx.get("n_agents", 3)
-            buff_idx = header_idx.get("buff_dim", 4)
-            msg_hops_idx = header_idx.get("msg_hops", 5)
-            eff_idx = header_idx.get("buff_dim_eff", header_idx.get("max_buff_size"))
-            parse_float = self._parse_float_list 
-            for row in reader:
-                if len(row) <= data_idx:
-                    continue
-                algo_val = row[algo_idx] if len(row) > algo_idx else ""
-                buff_val = row[buff_idx] if len(row) > buff_idx else ""
-                n_agents_val = row[n_agents_idx] if len(row) > n_agents_idx else ""
-                eff_val = None
-                if eff_idx is not None and len(row) > eff_idx:
-                    eff_val = row[eff_idx]
-                elif eff_idx is None and len(row) > len(header):
-                    eff_val = row[-1]
-                max_buff_val = eff_val
-                if max_buff_val in (None, "", "-", "nan"):
-                    try:
-                        max_buff_val = str(int(float(n_agents_val)) - 1)
-                    except Exception:
-                        max_buff_val = ""
-                        
-                key = (
-                    row[arena_idx] if len(row) > arena_idx else "",
-                    algo_val,
-                    row[broadcast_idx] if len(row) > broadcast_idx else "",
-                    n_agents_val,
-                    buff_val,
-                    row[msg_hops_idx] if len(row) > msg_hops_idx else "",
-                    max_buff_val,
-                )
-                data[key] = (parse_float(row[data_idx]), [])
-        return data
-    
-###################################################
-    def read_msgs_csv_w_std(self, path):
-        data = {}
-        with open(path, 'r', newline='', encoding='utf-8') as f:
-            reader = csv.reader(f, delimiter='\t')
-            header = next(reader, None)
-            if not header:
-                return data
-            header_idx = {name: i for i, name in enumerate(header)}
             data_idx = header_idx.get("data", len(header) - 2)
-            std_idx = header_idx.get("std", data_idx + 1)
+            # Fetch ci_95 if present, fallback to std, then data_idx + 1
+            std_idx = header_idx.get("ci_95", header_idx.get("std", data_idx + 1))
             arena_idx = header_idx.get("arena_size", 0)
             algo_idx = header_idx.get("algo", 1)
             broadcast_idx = header_idx.get("broadcast", 2)
@@ -514,7 +518,7 @@ class Data:
                     parse_float(row[std_idx], allow_dash=True)
                 )
         return data
-
+    
 ###################################################
     def read_recovery_csv(self, path, algo, arena):
         data = {}
@@ -529,14 +533,19 @@ class Data:
                 b_idx = len(header) - 3
             d_idx = b_idx + 1
             e_idx = b_idx + 2
-            key_end = min(b_idx, d_idx, e_idx)
+            run_idx = header.index("run_id") if "run_id" in header else -1
             parse_int = self._parse_int_list
             for row in reader:
                 if len(row) <= e_idx:
                     continue
-                
-                key = (algo, arena, *row[:key_end])
-                data[key] = (
+                run_id = int(row[run_idx]) if run_idx != -1 else 0
+                key_list = row[:b_idx]
+                if run_idx != -1 and run_idx < b_idx:
+                    key_list.pop(run_idx)
+                key = (algo, arena, *key_list)
+                if key not in data:
+                    data[key] = {}
+                data[key][run_id] = (
                     parse_int(row[b_idx]),
                     parse_int(row[d_idx]),
                     parse_int(row[e_idx])
@@ -662,7 +671,12 @@ class Data:
         rows = []
         
         for key, value in data_in.items():
-            mean, std, events = float(value[0]), float(value[1]), float(value[2])
+            # Spacchettamento robusto: cattura sia la vecchia struttura a 3 valori che la nuova a 4
+            mean_time = float(value[0])
+            ci_time = float(value[1]) if len(value) > 1 else 0.0
+            mean_events = float(value[2]) if len(value) > 2 else 0.0
+            ci_events = float(value[3]) if len(value) > 3 else 0.0
+            
             k = [str(x) for x in key]
             alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
             
@@ -679,10 +693,12 @@ class Data:
             if not self._protocol_enabled(variant_key): continue
             
             label, color = variant_map.get(variant_key, ('UNK', 'black'))
+            
+            # I valori CI non vengono passati al DataFrame, mantenendo i grafici originali
             rows.append({
                 'Arena': str(arena), 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': events / (100 * int(agents)),
-                'Time': mean, 'VariantKey': variant_key, 'Label': label, 'Color': color, 'MBS': mbs
+                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 'Color': color, 'MBS': mbs
             })
             
         df = pd.DataFrame(rows)
@@ -716,7 +732,6 @@ class Data:
                 for j, (arena_type, ag_num) in enumerate(grid):
                     ax = axes[i, j]
                     
-                    # Strict .loc filtering to avoid empty fragments
                     mask_base = (subset['Arena'] == arena_type) & (subset['Agents'] == ag_num)
                     base_cell = subset.loc[mask_base]
                     pos_idx = 1
@@ -777,7 +792,6 @@ class Data:
                         tick_labels.append(variant_map[pid][0])
                         pos_idx += 1
                     
-                    # Force X-limits to guarantee boxes are visible within bounds
                     ax.set_xlim(0.5, pos_idx - 0.5)
                     
                     ax.set_xticks(tick_pos)
@@ -837,7 +851,11 @@ class Data:
 
         rows = []
         for key, value in data_in.items():
-            mean, std, events = float(value[0]), float(value[1]), float(value[2])
+            mean_time = float(value[0])
+            ci_time = float(value[1]) if len(value) > 1 else 0.0
+            mean_events = float(value[2]) if len(value) > 2 else 0.0
+            ci_events = float(value[3]) if len(value) > 3 else 0.0
+            
             k = [str(x) for x in key]
             alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
             
@@ -853,11 +871,13 @@ class Data:
 
             if not self._protocol_enabled(variant_key): continue
             
+            label, color = variant_map.get(variant_key, ('UNK', 'black'))
+            
             rows.append({
                 'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': events / (100 * int(agents)),
-                'Time': mean, 'VariantKey': variant_key, 'Label': variant_map[variant_key][0], 
-                'Color': variant_map[variant_key][1], 'MBS': mbs
+                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 
+                'Color': color, 'MBS': mbs
             })
 
         df = pd.DataFrame(rows)
@@ -965,7 +985,6 @@ class Data:
                         ins.set_ylim(ax.get_ylim())
                         ins.set_yticklabels([])
                         
-                        # ins.set_axisbelow(True)
                         ins.grid(True, ls=':', color='silver', zorder=0)
 
             fig.tight_layout()
@@ -976,39 +995,6 @@ class Data:
         else:
             save_short(df[df['Error'] <= 0.05], "le05", False)
             save_short(df[df['Error'] > 0.05], "gt05", False)
-
-###################################################
-    def _get_pareto_front(self, xs, ys):
-        points = np.column_stack((xs, ys))
-        # Rimuove eventuali NaN
-        points = points[~np.isnan(points).any(axis=1)]
-        if len(points) == 0:
-            return [], []
-        
-        # Rimuove duplicati per ottimizzare
-        points = np.unique(points, axis=0)
-        pareto_front = []
-        
-        for i, p1 in enumerate(points):
-            is_dominated = False
-            for j, p2 in enumerate(points):
-                if i == j: continue
-                # p2 domina p1 se ha valori <= in tutte le dimensioni e < in almeno una
-                if (p2[0] <= p1[0] and p2[1] <= p1[1]) and (p2[0] < p1[0] or p2[1] < p1[1]):
-                    is_dominated = True
-                    break
-            if not is_dominated:
-                pareto_front.append(p1)
-                
-        if not pareto_front:
-            return [], []
-            
-        pareto_front = np.array(pareto_front)
-        # Ordina per l'asse X per disegnare correttamente la linea continua
-        sort_idx = np.argsort(pareto_front[:, 0])
-        pareto_front = pareto_front[sort_idx]
-        
-        return pareto_front[:, 0], pareto_front[:, 1]
 
 ###################################################
     def plot_recovery_pareto(self, data_in):
@@ -1023,18 +1009,22 @@ class Data:
         protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
 
         marker_map = {
-            'P.0': 'o',      # AN: circle
-            'P.1.0': 's',    # ANt: square
-            'P.1.1': 'D',    # ANt^k: diamond 
-            'O.0.0': 'P',    # IDB: plus/filled cross
-            'O.2.0': '^',    # IDRf: triangle up
-            'O.1.1': 'v',    # IDR1: triangle down
-            'O.1.0': 'X'     # IDR_inf: cross
+            'P.0': 'o',      
+            'P.1.0': 's',    
+            'P.1.1': 'D',    
+            'O.0.0': 'P',    
+            'O.2.0': '^',    
+            'O.1.1': 'v',    
+            'O.1.0': 'X'     
         }
 
         rows = []
         for key, value in data_in.items():
-            mean, std, events = float(value[0]), float(value[1]), float(value[2])
+            mean_time = float(value[0])
+            ci_time = float(value[1]) if len(value) > 1 else 0.0
+            mean_events = float(value[2]) if len(value) > 2 else 0.0
+            ci_events = float(value[3]) if len(value) > 3 else 0.0
+            
             k = [str(x) for x in key]
             alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = k[:10]
             
@@ -1050,11 +1040,13 @@ class Data:
 
             if not self._protocol_enabled(variant_key): continue
             
+            label, color = variant_map.get(variant_key, ('UNK', 'black'))
+            
             rows.append({
                 'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': events / (100 * int(agents)),
-                'Time': mean, 'VariantKey': variant_key, 'Label': variant_map[variant_key][0], 
-                'Color': variant_map[variant_key][1], 'MBS': mbs
+                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 
+                'Color': color, 'MBS': mbs
             })
 
         df = pd.DataFrame(rows)
@@ -1081,7 +1073,6 @@ class Data:
         pad_factor = 1
         xlim_global = (0.5, g_e_max * pad_factor)
         ylim_global = (g_t_min / pad_factor, 1100)
-        # -----------------------------------------------------------
 
         def save_short(subset):
             if subset.empty: return
@@ -1176,6 +1167,39 @@ class Data:
 
         save_short(df)
         self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global)
+
+###################################################
+    def _get_pareto_front(self, xs, ys):
+        points = np.column_stack((xs, ys))
+        # Rimuove eventuali NaN
+        points = points[~np.isnan(points).any(axis=1)]
+        if len(points) == 0:
+            return [], []
+        
+        # Rimuove duplicati per ottimizzare
+        points = np.unique(points, axis=0)
+        pareto_front = []
+        
+        for i, p1 in enumerate(points):
+            is_dominated = False
+            for j, p2 in enumerate(points):
+                if i == j: continue
+                # p2 domina p1 se ha valori <= in tutte le dimensioni e < in almeno una
+                if (p2[0] <= p1[0] and p2[1] <= p1[1]) and (p2[0] < p1[0] or p2[1] < p1[1]):
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                pareto_front.append(p1)
+                
+        if not pareto_front:
+            return [], []
+            
+        pareto_front = np.array(pareto_front)
+        # Ordina per l'asse X per disegnare correttamente la linea continua
+        sort_idx = np.argsort(pareto_front[:, 0])
+        pareto_front = pareto_front[sort_idx]
+        
+        return pareto_front[:, 0], pareto_front[:, 1]
 
 ###################################################
     def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global):
@@ -1336,41 +1360,19 @@ class Data:
         path = self.base+"/rec_data/"
         out_path = os.path.join(path, "recovery_data.csv")
         write_header = not os.path.exists(out_path) or os.path.getsize(out_path) == 0
-        ground_T, threshlds, msg_hops, jolly        = [],[],[],[]
-        algo, arena, time, comm, agents, buf_dim ,msgs_time   = [],[],[],[],[],[],[]
-        da_K = data_in.keys()
-        for k0 in da_K:
-            if k0[0] not in algo: algo.append(k0[0])
-            if k0[1] not in arena: arena.append(k0[1])
-            if k0[2] not in time: time.append(k0[2])
-            if k0[3] not in comm: comm.append(k0[3])
-            if k0[4] not in agents: agents.append(k0[4])
-            if k0[5] not in buf_dim: buf_dim.append(k0[5])
-            if k0[6] not in msgs_time: msgs_time.append(k0[6])
-            if k0[7] not in msg_hops: msg_hops.append(k0[7])
-            if k0[8] not in ground_T: ground_T.append(k0[8])
-            if k0[9] not in threshlds: threshlds.append(k0[9])
-            if k0[10] not in jolly: jolly.append(k0[10])
         rows = []
-        for a in algo:
-            for a_s in arena:
-                for et in time:
-                    for c in comm:
-                        for m_h in msg_hops:
-                            for n_a in agents:
-                                for m_b_d in buf_dim:
-                                    for met in msgs_time:
-                                        for gt in ground_T:
-                                            for thr in threshlds:
-                                                for jl in jolly:
-                                                    s_data = data_in.get((a,a_s,et,c,n_a,m_b_d,met,m_h,gt,thr,jl))
-                                                    if s_data != None:
-                                                        rows.append([a, a_s, et, c, n_a, m_b_d, met, m_h, gt, thr, s_data[0][0], s_data[0][1], s_data[1]])
+        for k, s_data in data_in.items():
+            a, a_s, et, c, n_a, m_b_d, met, m_h, gt, thr, jl = k
+            mean_time = s_data[0][0]
+            ci_time = s_data[0][1]
+            mean_events = s_data[1][0]
+            ci_events = s_data[1][1]
+            rows.append([a, a_s, et, c, n_a, m_b_d, met, m_h, gt, thr, mean_time, ci_time, mean_events, ci_events])
         if rows:
             with open(out_path, mode='a', newline='', buffering=1024 * 1024) as file:
                 writer = csv.writer(file)
                 if write_header:
-                    writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean', 'Std', 'Events'])
+                    writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean_Time', 'CI_Time', 'Mean_Events', 'CI_Events'])
                 writer.writerows(rows)
 
 ###################################################
@@ -1550,15 +1552,9 @@ class Data:
                     real_x_ticks.append(str(int(np.around(x,0))))
                 else:
                     void_x_ticks.append('')
-        for dk in data_in.keys():
-            dict_dk = data_in.get(dk)
-            for k in dict_dk.keys():
-                tmp = []
-                res = dict_dk.get(k)
-                norm = int(k[1])-1
-                for xi in res:
-                    tmp.append(xi/norm)
-                dict_dk.update({k:tmp})
+                    
+        # RIMOZIONE DEL LOOP DI SOVRASCRITTURA IN-PLACE DEI DIZIONARI
+        
         for k in range(3):
             for z in range(nrows):
                 den = 100 if k==2 else 25
@@ -1608,13 +1604,28 @@ class Data:
                     except Exception:
                         pass
                 
+                norm = int(k[1]) - 1
+                y_vals = np.array(dict_dk.get(k)) / norm
+                
+                raw_ci = None
+                if data_std.get(dk) is not None:
+                    raw_ci = data_std.get(dk).get(k)
+                    
+                if raw_ci is None or len(raw_ci) != len(y_vals):
+                    ci_vals = np.zeros_like(y_vals)
+                else:
+                    ci_vals = np.array(raw_ci)
+                    
+                x_vals = np.arange(len(y_vals))
                 if dk == 'P.0':
                     for r_idx in range(nrows):
-                        ax[r_idx][col].plot(dict_dk.get(k),color=c_val,lw=6)
+                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 else:
                     row = col_index.get(k[2])
                     if row is not None:
-                        ax[row][col].plot(dict_dk.get(k),color=c_val,lw=6)
+                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 
         for x in range(nrows):
             for y in range(2):
@@ -1660,14 +1671,6 @@ class Data:
                 ax[x][y].set_ylim(-0.03,1.03)
 
         fig.tight_layout()
-                
-        # if p11_present:
-        #     cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-        #     grad_rect = Rectangle((0, 0), 1, 1)
-        #     handles_l.append(grad_rect)
-        #     l_list.append("k-sampling")
-        #     handler_map = {Rectangle: GradientHandler(cmap_grey)}
-        # else:
         handler_map = None
 
         if not os.path.exists(self.base+"/msgs_data/images/"):
@@ -1680,7 +1683,7 @@ class Data:
         plt.close(fig)
     
 ###################################################
-    def print_decisions(self,data_in):
+    def print_decisions(self,data_in, data_ci):
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -1793,13 +1796,28 @@ class Data:
                     except Exception:
                         pass
                 
+                # Fetch CI values safely for Decisions
+                y_vals = np.array(dct.get(k))
+                raw_ci = None
+                if data_ci.get(dk) is not None:
+                    raw_ci = data_ci.get(dk).get(k)
+                    
+                if raw_ci is None or len(raw_ci) != len(y_vals):
+                    ci_vals = np.zeros_like(y_vals)
+                else:
+                    ci_vals = np.array(raw_ci)
+                    
+                x_vals = np.arange(len(y_vals))
+
                 if dk == 'P.0':
                     for c_idx in range(ncols):
-                        ax[row][c_idx].plot(dct.get(k),color=c_val,lw=6)
+                        ax[row][c_idx].plot(x_vals, y_vals, color=c_val, lw=6)
+                        ax[row][c_idx].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 else:
                     col = col_index.get(k[2])
                     if col is not None:
-                        ax[row][col].plot(dct.get(k),color=c_val,lw=6)
+                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 
         for x in range(2):
             for y in range(ncols):
@@ -1863,7 +1881,6 @@ class Data:
             fig.legend(handles_r, l_list, bbox_to_anchor=(1, 0), ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
-
 ###################################################
     def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
         typo = [0,1,2,3,4,5]
@@ -2190,7 +2207,6 @@ class Data:
         
         inset_axes_dict = {}
 
-        # Filtro esclusivo su P.1.1 per impedire che i buffer di altri protocolli alterino gli indici
         mbs_per_agent = {}
         for dk_key, dicts in dk_tot_msgs.items():
             if dk_key == "P.1.1" or dk_key.startswith("P.1.1"):
@@ -2215,7 +2231,7 @@ class Data:
                 if not (current_tm in combined_tm or is_p0): continue
                 
                 num_agents = int(key[1])
-                col_idx = 2 if num_agents == 100 else 1 if key[0] == "small" and num_agents == 25 else 0
+                col_idx = 2 if num_agents == 100 else 1 if key[0] == "smallA" and num_agents == 25 else 0
                 
                 c_val = base_color
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
@@ -2253,7 +2269,12 @@ class Data:
                             inset_axes_dict[(0, col_idx)] = ins
                         target_ax = inset_axes_dict[(0, col_idx)]
 
-                    target_ax.plot(np.array(msg_series) / (num_agents - 1), color=c_val, lw=6, alpha=0.75)
+                    y_vals = np.array(msg_series) / (num_agents - 1)
+                    ci_vals = np.array(dk_stds_dict.get(dk).get(key)) / (num_agents - 1)
+                    x_vals = np.arange(len(y_vals))
+
+                    target_ax.plot(x_vals, y_vals, color=c_val, lw=6, alpha=0.75)
+                    target_ax.fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
 
                 if min_buf_plotted[col_idx] == 0:
                     min_buf_plotted[col_idx] = 1

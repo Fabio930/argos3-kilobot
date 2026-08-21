@@ -75,13 +75,13 @@ class Results:
             'ground_truth': gt,
             'threshold': thr
         }
-        t_starts, t_ends, b_starts = [], [], []
-        ends_cens = []
-        censored = 0
         q_arr = np.asarray(quorums)
         b_arr = np.asarray(buffers)
         wrong_is_one = gt < thr
         for i in range(q_arr.shape[0]):
+            t_starts, t_ends, b_starts = [], [], []
+            ends_cens = []
+            censored = 0
             for j in range(q_arr.shape[1]):
                 b = b_arr[i, j] - 1
                 q = q_arr[i, j]
@@ -104,17 +104,18 @@ class Results:
                 if np.any(cens_mask):
                     censored += int(np.count_nonzero(cens_mask))
                 ends_cens.extend((~cens_mask).astype(int).tolist())
-        if len(t_starts) > 0:
-            durations = [x - y for x, y in zip(t_ends, t_starts)]
-            self.dump_recovery_raw(external_data,[b_starts,durations,ends_cens])
+            if len(t_starts) > 0:
+                durations = [x - y for x, y in zip(t_ends, t_starts)]
+                external_data['current_run'] = i + 1
+                self.dump_recovery_raw(external_data,[b_starts,durations,ends_cens])
 
 ##########################################################################################################
     def compute_meaningfulMsgs_decidinAgents(self,data,buf_limit):
         n_agents = len(data)
         n_runs = len(data[0])
         ticks = len(data[0][0])
-        msgs_sum = np.zeros(ticks, dtype=float)
-        msgs_std_sum = np.zeros(ticks, dtype=float)
+        run_msgs_means = np.zeros((n_runs, ticks), dtype=float)
+        run_decisions_means = np.zeros((n_runs, ticks), dtype=float)
         idx = None
         for rn in range(n_runs):
             run_data = np.stack([data[ag][rn] for ag in range(n_agents)], axis=0)
@@ -122,6 +123,8 @@ class Results:
                 idx = np.arange(run_data.shape[2])
             valid_mask = run_data != -1
             cnt = valid_mask.sum(axis=2)
+            decisions_mask = cnt >= self.min_buff_dim
+            run_decisions_means[rn] = decisions_mask.mean(axis=0)
             start = cnt - buf_limit
             mask = (idx < cnt[..., None]) & (idx >= start[..., None])
             masked = np.where(mask, run_data, -1)
@@ -131,26 +134,24 @@ class Results:
                 uniq = diff.sum(axis=2) + (sorted_rows[...,0] != -1)
             else:
                 uniq = (sorted_rows[...,0] != -1).astype(int)
-            msgs_sum += uniq.sum(axis=0)
-            msgs_std_sum += np.std(uniq, axis=0)
-        run_ag = n_agents * n_runs
-        msgs_summation = np.round(msgs_sum / run_ag, 3).tolist()
-        msgs_std = np.round(msgs_std_sum / n_agents, 3).tolist()
-        decisions = [0.0 for _ in range(ticks)]
-        return msgs_summation,decisions,msgs_std
+            run_msgs_means[rn] = uniq.mean(axis=0)
+        msgs_summation = np.round(run_msgs_means.mean(axis=0), 3).tolist()
+        msgs_ci = np.round(1.96 * (run_msgs_means.std(axis=0, ddof=1) / np.sqrt(n_runs)), 3).tolist()
+        decisions_summation = np.round(run_decisions_means.mean(axis=0), 3).tolist()
+        decisions_ci = np.round(1.96 * (run_decisions_means.std(axis=0, ddof=1) / np.sqrt(n_runs)), 3).tolist()
+        return msgs_summation, decisions_summation, msgs_ci, decisions_ci
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
         x = 1
-        # if n_agents == 100: x = 40
         max_buff_size = n_agents - x
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
-        msgs_M = [None] * num_runs  # x num_samples
+        msgs_M = [None] * num_runs
         agents_count = [0] * n_agents
-        info_vec    = sub_path.split('/')
-        algo    = ""
-        arenaS  = ""
+        info_vec = sub_path.split('/')
+        algo = ""
+        arenaS = ""
         for iv in info_vec:
             iv_lower = iv.lower()
             if "results_loop" in iv_lower:
@@ -164,30 +165,24 @@ class Results:
                     agent_id = int(selem[0].split('_')[2].split('#')[-1])
                     seed = int(selem[0].split('_')[3].split('#')[-1])
                     agents_count[agent_id] += 1
-                    with open(os.path.join(sub_path, elem), newline='', buffering=1024 * 1024) as f:
-                        log_count = 0
-                        msgs_list = []
-                        int_cast = int
-                        for line in f:
-                            log_count += 1
-                            if log_count % self.ticks_per_sec != 0:
-                                continue
-                            msgs = []
-                            for val in line.rstrip('\n').split(','):
-                                if '\t' in val:
-                                    val = val.split('\t', 1)[0]
-                                if val and val != '-':
-                                    msgs.append(int_cast(val))
-                            if len(msgs) < max_buff_size:
-                                msgs.extend([-1] * (max_buff_size - len(msgs)))
-                            elif len(msgs) > max_buff_size:
-                                # Clamp oversize rows to avoid ragged arrays
-                                msgs = msgs[:max_buff_size]
-                            msgs_list.append(msgs)
-                        msgs_arr = np.asarray(msgs_list, dtype=int)
-                        msgs_M[seed-1] = msgs_arr
+                    with open(os.path.join(sub_path, elem), 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    sampled_lines = lines[self.ticks_per_sec - 1 :: self.ticks_per_sec]
+                    msgs_list = []
+                    for line in sampled_lines:
+                        vals = [
+                            int(v.split('\t', 1)[0]) 
+                            for v in line.rstrip('\n').split(',') 
+                            if v and v != '-'
+                        ]
+                        v_len = len(vals)
+                        if v_len < max_buff_size:
+                            vals.extend([-1] * (max_buff_size - v_len))
+                        elif v_len > max_buff_size:
+                            vals = vals[:max_buff_size]
+                        msgs_list.append(vals)
+                    msgs_M[seed-1] = np.asarray(msgs_list, dtype=int)
                     if msgs_M[seed-1].shape[0] < max_steps:
-                        missing = max_steps - msgs_M[seed-1].shape[0]
                         padded = np.full((max_steps, max_buff_size), -1, dtype=int)
                         if msgs_M[seed-1].shape[0] > 0:
                             padded[-msgs_M[seed-1].shape[0]:] = msgs_M[seed-1]
@@ -198,11 +193,12 @@ class Results:
                     if agents_count[agent_id]==num_runs:
                         msgs_bigM[agent_id] = msgs_M
                         msgs_M = [None] * num_runs
-        messages,decisions,msg_std = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM,max_buff_size)
+        messages, decisions, msg_ci, dec_ci = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM, max_buff_size)
         algo_lower = str(algo).strip().lower()
         buff_dim_eff = max_buff_size if algo_lower == "ps" else "-"
-        # self.dump_decisions("decisions_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,decisions,buff_dim_eff])
-        self.dump_msgs("messages_resume.csv",[arenaS,algo,communication,n_agents,msg_exp_time,msg_hops,messages,msg_std,buff_dim_eff])
+        self.dump_decisions("decisions_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, decisions, dec_ci, buff_dim_eff])
+        self.dump_msgs("messages_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, messages, msg_ci, buff_dim_eff])
+        
         for gt in range(len(self.ground_truth)):
             results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
             for thr in self.thresholds.get(self.ground_truth[gt]):
@@ -210,10 +206,9 @@ class Results:
                 self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
                 self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
                 self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
-
 ##########################################################################################################
     def dump_recovery_raw(self,external_data,data):
-        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_exp_time", "msg_hops", "ground_truth", "threshold", "buff_starts", "durations", "events"]
+        header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_exp_time", "msg_hops", "ground_truth", "threshold", "run_id", "buff_starts", "durations", "events"]
         filename = os.path.abspath("")+"/proc_data"
         if not os.path.exists(filename):
             os.mkdir(filename)
@@ -231,6 +226,7 @@ class Results:
                 external_data['msg_hops'],
                 external_data['ground_truth'],
                 external_data['threshold'],
+                external_data['current_run'],
                 data[0],
                 data[1],
                 data[2],
@@ -239,7 +235,7 @@ class Results:
 
 ##########################################################################################################
     def dump_decisions(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "buff_dim_eff"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "ci_95", "buff_dim_eff"]
         out_dir = os.path.join(os.path.abspath(""), "dec_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
@@ -251,7 +247,7 @@ class Results:
 
 ##########################################################################################################
     def dump_msgs(self, file_name, data):
-        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "std", "max_buff_size"]
+        header = ["arena_size", "algo", "broadcast", "n_agents", "buff_dim", "msg_hops", "data", "ci_95", "max_buff_size"]
         out_dir = os.path.join(os.path.abspath(""), "msgs_data")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, file_name)
@@ -262,7 +258,7 @@ class Results:
             fw.write("\t".join(map(str, data)) + "\n")
 
 ##########################################################################################################
-    def dump_resume_csv(self,algo,indx,bias,data_in,data_std,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,n_runs,max_buff_size):    
+    def dump_resume_csv(self,algo,indx,bias,data_in,data_ci,base,path,COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,n_runs,max_buff_size):    
         static_fields=["committed_perc","threshold","min_buff_dim","msg_exp_time","msg_hops","max_buff_size"]
         static_values=[COMMIT,THRESHOLD,MINS,MSG_EXP_TIME,msg_hops,max_buff_size]
         if not os.path.exists(os.path.abspath("")+"/proc_data"):
@@ -285,7 +281,7 @@ class Results:
             values.append(static_values[i])
         name_fields.append("type")
         name_fields.append("data")
-        name_fields.append("std")
+        name_fields.append("ci_95")
         if indx+bias==-1:
             values.append("times")
         elif indx+bias==0:
@@ -301,7 +297,7 @@ class Results:
         elif indx+bias==5:
             values.append("update_buffer")
         values.append(data_in)
-        values.append(data_std)
+        values.append(data_ci)
         out_path = os.path.abspath("")+"/proc_data/"+file_name
         with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
             if write_header == 1:
@@ -311,13 +307,15 @@ class Results:
 ##########################################################################################################
     def dump_quorum(self,algo,bias,data_in,BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,max_buff_size):
         data_arr = np.asarray(data_in, dtype=float)
-        flag2 = data_arr.mean(axis=1).mean(axis=0)
-        fstd3 = np.median(np.std(data_arr, axis=1), axis=0)
+        run_means = data_arr.mean(axis=1)
+        flag2 = run_means.mean(axis=0)
+        runs_count = data_arr.shape[0]
+        fci_95 = 1.96 * (run_means.std(axis=0, ddof=1) / np.sqrt(runs_count))
         self.dump_resume_csv(
             algo,0,bias,
             np.around(flag2,decimals=2).tolist(),
-            np.around(fstd3,decimals=3).tolist(),
-            BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in),max_buff_size
+            np.around(fci_95,decimals=3).tolist(),
+            BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,runs_count,max_buff_size
         )
 
 ##########################################################################################################
@@ -334,31 +332,11 @@ class Results:
         self.dump_resume_csv(algo,-1,bias,times,'-',BASE,PATH,COMMIT,THR,MINS,MSG_EXP_TIME,msg_hops,len(data_in),max_buff_size)
 
 ##########################################################################################################
-    def assign_states(self,n_agents,num_runs):
-        # assign randomly the state to agents at each run
-        states_by_gt = [np.array([])]*len(self.ground_truth)
-        for gt in range(len(self.ground_truth)):
-            runs_states = [np.array([])]*num_runs
-            num_committed = math.ceil(n_agents*self.ground_truth[gt])
-            for i in range(num_runs):
-                ones = 0
-                agents_state = [0]*n_agents
-                while(1):
-                    for j in range(n_agents):
-                        if agents_state[j]==0:
-                            tmp = np.random.random_integers(0,1)
-                            if tmp==1:
-                                if ones<num_committed:
-                                    ones+=1
-                                    agents_state[j] = tmp
-                        if ones >= num_committed: break
-                    if ones >= num_committed: break
-                if len(runs_states[0]) == 0:
-                    runs_states = [np.array(agents_state)]
-                else:
-                    runs_states = np.append(runs_states,[agents_state],axis=0)
-            if len(states_by_gt[0]) == 0:
-                states_by_gt = [runs_states]
-            else:
-                states_by_gt = np.append(states_by_gt,[runs_states],axis=0)
+    def assign_states(self, n_agents, num_runs):
+        states_by_gt = np.zeros((len(self.ground_truth), num_runs, n_agents), dtype=int)
+        for gt_idx, gt_value in enumerate(self.ground_truth):
+            num_committed = math.ceil(n_agents * gt_value)
+            for run_idx in range(num_runs):
+                committed_indices = np.random.choice(n_agents, num_committed, replace=False)
+                states_by_gt[gt_idx, run_idx, committed_indices] = 1
         return states_by_gt

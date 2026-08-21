@@ -128,7 +128,7 @@ def main():
         for key in to_remove:
             process = active_processes.pop(key)
             logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 3072:
+        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 10072:
             try:
                 task = queue.get(block=False)
                 p = Process(target=process_file, args=(task,))
