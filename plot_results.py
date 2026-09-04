@@ -4,9 +4,10 @@ import csv_results as CSVres
 
 ##################################################################################
 def main():
-    parser = argparse.ArgumentParser(description="Plot results with optional protocol/Tm exclusions.")
+    parser = argparse.ArgumentParser(description="Plot results with optional protocol/Tm/column exclusions.")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude (e.g. P.0,O.2.0)")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude (e.g. 60,120)")
+    parser.add_argument("--exclude-columns", default="", help="Comma-separated column labels to exclude (e.g. LD25, HD25, HD100)")
     
     parser.add_argument("--short", nargs='?', const="combined", default=False, 
                         help="Usa '--short' per uniti (3x3), oppure '--short split_interface' per dividere LI e SI.")
@@ -14,16 +15,18 @@ def main():
     
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
+    exclude_columns = [s.strip() for s in args.exclude_columns.split(",") if s.strip()]
 
     csv_res = CSVres.Data(use_short=bool(args.short))
     
-    # Applichiamo le regole di esclusione in modo globale
-    if exclude_protocols or exclude_tm:
+    if exclude_protocols or exclude_tm or exclude_columns:
         csv_res.apply_plot_overrides(
             ["all"],
             exclude_protocols=exclude_protocols or None,
             exclude_tm=exclude_tm or None,
+            exclude_columns=exclude_columns or None,
         )
+        
     tot_st      = []
     tot_times   = []
     tot_stbc    = []
@@ -68,6 +71,13 @@ def main():
         else:
             print("Attenzione: per la modalità short servono dati sia da proc_data che da msgs_data.")
     else:
+        print("Esecuzione modalità STANDARD (grafici separati)...")
+        if tot_st:
+            csv_res.plot_active_w_gt_thr(tot_st, tot_times)
+            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
+            
+        if tot_msgs:
+            csv_res.plot_messages(tot_msgs)
         print("Esecuzione modalità STANDARD (grafici separati)...")
         if tot_st:
             csv_res.plot_active_w_gt_thr(tot_st, tot_times)

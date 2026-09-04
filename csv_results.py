@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 30})
+plt.rcParams.update({"font.size": 18})
 
 class HandlerKGrad(HandlerBase):
     def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
@@ -66,7 +66,7 @@ class Data:
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
                 {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
             ],
-            "plots": {"exclude_protocols": [], "exclude_tm": []},
+            "plots": {"exclude_protocols": [], "exclude_tm": [], "exclude_columns": []},
         }
 
 ##########################################################################################################
@@ -104,13 +104,15 @@ class Data:
             return cfg
 
 ##########################################################################################################
-    def apply_plot_overrides(self, plot_names, exclude_protocols=None, exclude_tm=None):
+    def apply_plot_overrides(self, plot_names, exclude_protocols=None, exclude_tm=None, exclude_columns=None):
         if not plot_names: return
         plot_cfg = self.plot_config.setdefault("plots", {})
         if exclude_protocols is not None:
             plot_cfg["exclude_protocols"] = exclude_protocols
         if exclude_tm is not None:
             plot_cfg["exclude_tm"] = exclude_tm
+        if exclude_columns is not None:
+            plot_cfg["exclude_columns"] = exclude_columns
 
 ##########################################################################################################
     def _normalize_tm(self, val):
@@ -444,14 +446,34 @@ class Data:
         self.print_messages("tot_average", sq_tot, rt_tot, keys_list)
         self.print_dif_messages("dif_commit_average", sq_com, sq_unc, rt_com, rt_unc, keys_list)
 
+###########################################################################################################
+    def _get_col_mapping(self):
+        plot_cfg = self.plot_config.get("plots", {})
+        raw_excluded = plot_cfg.get("exclude_columns", [])
+        
+        label_to_idx = {"LD25": 0, "HD25": 1, "HD100": 2}
+        excluded = []
+        for x in raw_excluded:
+            val = str(x).strip().upper()
+            if val in label_to_idx:
+                excluded.append(label_to_idx[val])
+            elif val.isdigit():
+                excluded.append(int(val))
+                
+        active_cols = [c for c in [0, 1, 2] if c not in excluded]
+        return len(active_cols), {orig: new for new, orig in enumerate(active_cols)}
+
 ##########################################################################################################
     def print_evolutions_by_commit(self, path, ground_T, threshlds, sq_c, sq_u, rt_c, rt_u, keys, more_k, msg_hop):
+        ncols, col_map = self._get_col_mapping()
+        if ncols == 0: return
+
         typo = [0,1,2,3,4,5]
         scalarMap = cmx.ScalarMappable(norm=colors.Normalize(vmin=typo[0], vmax=typo[-1]), cmap=plt.get_cmap('viridis'))
         
         o_k = self._plot_tm_values(sorted(list(keys)))
         if not o_k: return
-        nrows = len(o_k) # Number of Tm values
+        nrows = len(o_k)
         
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
@@ -465,7 +487,6 @@ class Data:
             handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
         legend_elements = handles_l + handles_r
-        legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
         
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
         svoid_x_ticks = ['' for x in range(0,901,50)]
@@ -474,14 +495,17 @@ class Data:
 
         for gt in ground_T:
             for thr in threshlds:
-                cfig, cax = plt.subplots(nrows=nrows, ncols=3, figsize=(24, 6*nrows), squeeze=False)
-                ufig, uax = plt.subplots(nrows=nrows, ncols=3, figsize=(24, 6*nrows), squeeze=False)
+                cfig, cax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
+                ufig, uax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
                 for m_h in msg_hop:
                     for a in more_k[0]:
                         agents_list = [25] if a in ["0_500;0_500", "1_000;0_250"] else more_k[1]
                         for ag in agents_list:
-                            col = self._get_row(a, ag) # Column corresponds to Scenario
-                            for k_idx, tm in enumerate(o_k): # Row corresponds to Tm
+                            col = self._get_row(a, ag)
+                            if col not in col_map: continue
+                            c_idx = col_map[col]
+                            
+                            for k_idx, tm in enumerate(o_k):
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
                                     base_key = (a, ag, 0 if pid == "P.0" else tm, m_h, gt, thr)
@@ -490,49 +514,52 @@ class Data:
                                         lines_sq = self._get_lines_to_plot(sq_dict, pid, base_key, ag, protocol_colors)
                                         lines_rt = self._get_lines_to_plot(rt_dict, pid, base_key, ag, protocol_colors)
                                         
-                                        for data, color in lines_sq: target_ax[k_idx][col].plot(data, color=color, lw=6, ls='-')
-                                        for data, color in lines_rt: target_ax[k_idx][col].plot(data, color=color, lw=6, ls='--')
+                                        for data, color in lines_sq: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-')
+                                        for data, color in lines_rt: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--')
 
-                                    cax[k_idx][col].set_xlim(0, 901); uax[k_idx][col].set_xlim(0, 901)
-                                    cax[k_idx][col].set_ylim(-0.03, 1.03); uax[k_idx][col].set_ylim(-0.03, 1.03)
+                                    cax[k_idx][c_idx].set_xlim(0, 901); uax[k_idx][c_idx].set_xlim(0, 901)
+                                    cax[k_idx][c_idx].set_ylim(-0.03, 1.03); uax[k_idx][c_idx].set_ylim(-0.03, 1.03)
 
-                                    if k_idx == 0: # Top Row: Show Scenario labels
-                                        caxt, uaxt = cax[k_idx][col].twiny(), uax[k_idx][col].twiny()
+                                    if k_idx == 0:
+                                        caxt, uaxt = cax[k_idx][c_idx].twiny(), uax[k_idx][c_idx].twiny()
                                         caxt.set_xticklabels(['']*len(caxt.get_xticklabels())); uaxt.set_xticklabels(['']*len(uaxt.get_xticklabels()))
                                         lbl = "LD25" if col == 0 else "HD25" if col == 1 else "HD100"
                                         caxt.set_xlabel(lbl); uaxt.set_xlabel(lbl)
                                     
-                                    if k_idx == nrows - 1: # Bottom Row: Show X-axis labels
-                                        cax[k_idx][col].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); cax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                        uax[k_idx][col].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); uax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                        cax[k_idx][col].set_xlabel(r"$T$"); uax[k_idx][col].set_xlabel(r"$T$")
+                                    if k_idx == nrows - 1:
+                                        cax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); cax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                        uax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6]); uax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                        cax[k_idx][c_idx].set_xlabel(r"$T$"); uax[k_idx][c_idx].set_xlabel(r"$T$")
                                     else:
-                                        cax[k_idx][col].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); cax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                        uax[k_idx][col].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); uax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                        cax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); cax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                        uax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6]); uax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
                                     
-                                    if col == 0: # Left Column: Show Y-axis labels
-                                        cax[k_idx][col].set_yticks(np.arange(0,1.01,.1)); uax[k_idx][col].set_yticks(np.arange(0,1.01,.1))
-                                        cax[k_idx][col].set_ylabel(r"$Q(T)$"); uax[k_idx][col].set_ylabel(r"$Q(T)$")
+                                    if c_idx == 0:
+                                        cax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1)); uax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1))
+                                        cax[k_idx][c_idx].set_ylabel(r"$Q(T)$"); uax[k_idx][c_idx].set_ylabel(r"$Q(T)$")
                                     
-                                    elif col == 2: # Right Column: Show Tm labels
-                                        cax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
-                                        caxt, uaxt = cax[k_idx][col].twinx(), uax[k_idx][col].twinx()
+                                    elif c_idx == ncols - 1:
+                                        cax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
+                                        caxt, uaxt = cax[k_idx][c_idx].twinx(), uax[k_idx][c_idx].twinx()
                                         caxt.set_yticklabels(['']*len(caxt.get_yticklabels())); uaxt.set_yticklabels(['']*len(uaxt.get_yticklabels()))
                                         caxt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30); uaxt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30)
                                     else:
-                                        cax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
+                                        cax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
                                     
-                                    cax[k_idx][col].grid(True, which='major'); uax[k_idx][col].grid(True, which='major')
+                                    cax[k_idx][c_idx].grid(True, which='major'); uax[k_idx][c_idx].grid(True, which='major')
 
                 cfig.tight_layout(); ufig.tight_layout()
-                cfig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                ufig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                # cfig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                # ufig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
                 cfig.savefig(path + f"T{thr}_G{gt}_activation_committed.pdf", bbox_inches='tight')
                 ufig.savefig(path + f"T{thr}_G{gt}_activation_uncommitted.pdf", bbox_inches='tight')
                 plt.close(cfig); plt.close(ufig)
 
 ##########################################################################################################
     def print_evolutions(self, path, ground_T, threshlds, sq_d, sq_t, rt_d, rt_t, keys, more_k, msg_hop):
+        ncols, col_map = self._get_col_mapping()
+        if ncols == 0: return
+
         typo = [0,1,2,3,4,5]
         scalarMap = cmx.ScalarMappable(norm=colors.Normalize(vmin=typo[0], vmax=typo[-1]), cmap=plt.get_cmap('viridis'))
         
@@ -552,7 +579,6 @@ class Data:
             handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
         legend_elements = handles_l + handles_r
-        legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
         
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
         svoid_x_ticks = ['' for x in range(0,901,50)]
@@ -561,12 +587,15 @@ class Data:
 
         for gt in ground_T:
             for thr in threshlds:
-                fig, ax = plt.subplots(nrows=nrows, ncols=3, figsize=(24, 6*nrows), squeeze=False)
+                fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
                 for m_h in msg_hop:
                     for a in more_k[0]:
                         agents_list = [25] if a in ["0_500;0_500", "1_000;0_250"] else more_k[1]
                         for ag in agents_list:
                             col = self._get_row(a, ag)
+                            if col not in col_map: continue
+                            c_idx = col_map[col]
+
                             for k_idx, tm in enumerate(o_k):
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
@@ -575,42 +604,45 @@ class Data:
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
-                                    for data, color in lines_sq: ax[k_idx][col].plot(data, color=color, lw=6, ls='-')
-                                    for data, color in lines_rt: ax[k_idx][col].plot(data, color=color, lw=6, ls='--')
+                                    for data, color in lines_sq: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-')
+                                    for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--')
 
-                                ax[k_idx][col].set_xlim(0, 901); ax[k_idx][col].set_ylim(-0.03, 1.03)
+                                ax[k_idx][c_idx].set_xlim(0, 901); ax[k_idx][c_idx].set_ylim(-0.03, 1.03)
 
-                                if k_idx == 0:
-                                    axt = ax[k_idx][col].twiny()
-                                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                                    axt.set_xlabel("LD25" if col == 0 else "HD25" if col == 1 else "HD100")
+                                # if k_idx == 0:
+                                #     axt = ax[k_idx][c_idx].twiny()
+                                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                                #     axt.set_xlabel("LD25" if col == 0 else "HD25" if col == 1 else "HD100")
                                 if k_idx == nrows - 1:
-                                    ax[k_idx][col].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6])
-                                    ax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
-                                    ax[k_idx][col].set_xlabel(r"$T$")
+                                    ax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6])
+                                    ax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                    ax[k_idx][c_idx].set_xlabel(r"$T$")
                                 else:
-                                    ax[k_idx][col].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6])
-                                    ax[k_idx][col].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
+                                    ax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=svoid_x_ticks[::6])
+                                    ax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
                                 
-                                if col == 0:
-                                    ax[k_idx][col].set_yticks(np.arange(0,1.01,.1))
-                                    ax[k_idx][col].set_ylabel(r"$Q(T)$")
-                                elif col == 2:
-                                    ax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
-                                    axt = ax[k_idx][col].twinx()
-                                    axt.set_yticklabels(['']*len(axt.get_yticklabels()))
-                                    axt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30)
+                                if c_idx == 0:
+                                    ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1))
+                                    ax[k_idx][c_idx].set_ylabel(r"$Q(T)$")
+                                # elif c_idx == ncols - 1:
+                                #     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
+                                #     axt = ax[k_idx][c_idx].twinx()
+                                #     axt.set_yticklabels(['']*len(axt.get_yticklabels()))
+                                #     axt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30)
                                 else:
-                                    ax[k_idx][col].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
-                                ax[k_idx][col].grid(True, which='major')
+                                    ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
+                                ax[k_idx][c_idx].grid(True, which='major')
 
                 fig.tight_layout()
-                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                fig.savefig(path + f"T{thr}_G{gt}_activation.pdf", bbox_inches='tight')
+                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                fig.savefig(path + f"T{thr}_G{gt}_activation.png", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
     def print_messages(self, c_type, sq_d, rt_d, keys):
+        ncols, col_map = self._get_col_mapping()
+        if ncols == 0: return
+
         arena, thr, gt, agents, buffer = keys
         rows_tm = self._plot_tm_values(sorted(list(buffer)))
         if not rows_tm: return
@@ -630,7 +662,6 @@ class Data:
             handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
         legend_elements = handles_l + handles_r
-        legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
 
         for d_target in [sq_d, rt_d]:
             for pid, subdict in d_target.items():
@@ -644,25 +675,28 @@ class Data:
 
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=nrows, ncols=3, figsize=(24, 6*nrows), squeeze=False)
+                fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
                 for a in arena:
                     for ag in agents:
                         col = self._get_row(a, ag)
+                        if col not in col_map: continue
+                        c_idx = col_map[col]
+
                         for b in buffer:
                             row = row_index.get(b)
                             if row is not None:
-                                ax[row][col].plot([5/(int(ag)-1)] * 900, color="black", lw=4, ls=":")
+                                ax[row][c_idx].plot([5/(int(ag)-1)] * 900, color="black", lw=4, ls=":")
                                 for pid in protocols_order + ["adp_rnd"]:
                                     if pid != "adp_rnd" and not self._protocol_enabled(pid): continue
                                     base_key = (a, t, g, ag, 0 if pid == "P.0" else b)
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
-                                    for data, color in lines_sq: ax[row][col].plot(data, color=color, lw=6, ls='-')
-                                    for data, color in lines_rt: ax[row][col].plot(data, color=color, lw=6, ls='--')
+                                    for data, color in lines_sq: ax[row][c_idx].plot(data, color=color, lw=6, ls='-')
+                                    for data, color in lines_rt: ax[row][c_idx].plot(data, color=color, lw=6, ls='--')
 
                 for x in range(nrows):
-                    for y in range(3):
+                    for y in range(ncols):
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
                         ax[x][y].set_ylim(-0.03,1.03)
@@ -671,27 +705,30 @@ class Data:
                         if y > 0:
                             ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
                 
-                for idx in range(3):
-                    axt = ax[0][idx].twiny()
-                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                    axt.set_xlabel("LD25" if idx == 0 else "HD25" if idx == 1 else "HD100")
+                # for orig_col, c_idx in col_map.items():
+                #     axt = ax[0][c_idx].twiny()
+                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                #     axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
                 
                 for r_idx, tm_val in enumerate(rows_tm):
-                    ayt = ax[r_idx][2].twinx()
-                    ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
-                    ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
+                    # ayt = ax[r_idx][ncols - 1].twinx()
+                    # ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
+                    # ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
                     ax[r_idx][0].set_ylabel(r"$M$")
-                for y in range(3): ax[nrows-1][y].set_xlabel(r"$T\, s$")
+                for y in range(ncols): ax[nrows-1][y].set_xlabel(r"$T$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
                 os.makedirs(path, exist_ok=True)
-                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
                 fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
     def print_dif_messages(self, c_type, sq_c, sq_u, rt_c, rt_u, keys):
+        ncols, col_map = self._get_col_mapping()
+        if ncols == 0: return
+
         arena, thr, gt, agents, buffer = keys
         rows_tm = self._plot_tm_values(sorted(list(buffer)))
         if not rows_tm: return
@@ -711,7 +748,6 @@ class Data:
             handles_l.append(grad_rect_k)
             handler_map[grad_rect_k] = HandlerKGrad()
         legend_elements = handles_l + handles_r
-        legend_cols = len(legend_elements) if len(legend_elements) < 6 else int(np.ceil(len(legend_elements)/2.0))
 
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
         svoid_x_ticks = ['' for x in range(0,901,50)]
@@ -719,10 +755,13 @@ class Data:
 
         for t in thr:
             for g in gt:
-                fig, ax = plt.subplots(nrows=nrows, ncols=3, figsize=(24, 6*nrows), squeeze=False)
+                fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
                 for a in arena:
                     for ag in agents:
                         col = self._get_row(a, ag)
+                        if col not in col_map: continue
+                        c_idx = col_map[col]
+
                         for b in buffer:
                             row = row_index.get(b)
                             if row is not None:
@@ -737,14 +776,14 @@ class Data:
                                     
                                     for (c_data, c_color), (u_data, _) in zip(sc_lines, su_lines):
                                         flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][col].plot(flag, color=c_color, lw=6, ls='--')
+                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='--')
                                         
                                     for (c_data, c_color), (u_data, _) in zip(rc_lines, ru_lines):
                                         flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][col].plot(flag, color=c_color, lw=6, ls='-')
+                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='-')
 
                 for x in range(nrows):
-                    for y in range(3):
+                    for y in range(ncols):
                         ax[x][y].grid(True)
                         ax[x][y].set_xlim(0,900)
                         ax[x][y].set_ylim(-0.03,0.73)
@@ -753,27 +792,30 @@ class Data:
                         if y > 0:
                             ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
                 
-                for idx in range(3):
-                    axt = ax[0][idx].twiny()
-                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                    axt.set_xlabel("LD25" if idx == 0 else "HD25" if idx == 1 else "HD100")
+                # for orig_col, c_idx in col_map.items():
+                #     axt = ax[0][c_idx].twiny()
+                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                #     axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
                 
                 for r_idx, tm_val in enumerate(rows_tm):
-                    ayt = ax[r_idx][2].twinx()
-                    ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
-                    ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
+                    # ayt = ax[r_idx][ncols - 1].twinx()
+                    # ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
+                    # ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
                     ax[r_idx][0].set_ylabel(r"$\Delta M$")
-                for y in range(3): ax[nrows-1][y].set_xlabel(r"$T\, s$")
+                for y in range(ncols): ax[nrows-1][y].set_xlabel(r"$T$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
                 os.makedirs(path, exist_ok=True)
-                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.pdf", bbox_inches='tight')
+                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.png", bbox_inches='tight')
                 plt.close(fig)
-                
+
 ##########################################################################################################
     def plot_short(self, msgs_data, proc_data, mode="combined"):
+        ncols, col_map = self._get_col_mapping()
+        if ncols == 0: return
+
         path = os.path.join(self.base, "short_data", "images") + "/"
         os.makedirs(path, exist_ok=True)
         
@@ -859,7 +901,7 @@ class Data:
 
         for interface in interfaces_to_plot:
             n_rows = len(gt_sorted)
-            fig, ax = plt.subplots(nrows=n_rows, ncols=3, figsize=(24, 6 * n_rows), squeeze=False, constrained_layout=True)
+            fig, ax = plt.subplots(nrows=n_rows, ncols=ncols, figsize=(8*ncols, 6 * n_rows), squeeze=False, constrained_layout=True)
             inset_axes_dict = {}
             
             handles_r = [mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markersize=14, label=self.protocols_by_id[pid].get("label", pid)) for pid in protocols_order if self._protocol_enabled(pid)]
@@ -877,7 +919,6 @@ class Data:
                         for a in arena:
                             is_sq_arena = (a.split(';')[0] == a.split(';')[1])
                             
-                            # Fixed Logic: Correctly filter out the opposite interface
                             if interface == "SI" and is_sq_arena:
                                 continue
                             if interface == "LI" and not is_sq_arena:
@@ -885,6 +926,8 @@ class Data:
                                 
                             for ag in agents:
                                 col = self._get_row(a, ag)
+                                if col not in col_map: continue
+                                c_idx = col_map[col]
                                 
                                 for tm_val in combined_tm:
                                     is_main = tm_val in main_tm_list
@@ -911,17 +954,16 @@ class Data:
                                             
                                             targets = []
                                             if is_main or is_p0:
-                                                targets.append(ax[r_idx][col])
+                                                targets.append(ax[r_idx][c_idx])
                                                 
-                                            # Added check to ensure insert_tm_list is not empty
                                             if insert_tm_list and (is_insert or is_p0):
-                                                if (r_idx, col) not in inset_axes_dict:
+                                                if (r_idx, c_idx) not in inset_axes_dict:
                                                     if g >= 0.8:
                                                         best_box = [0.62, 0.03, 0.35, 0.35]
                                                     else:
                                                         best_box = [0.62, 0.62, 0.35, 0.35]
                                                     
-                                                    ins_ax = ax[r_idx][col].inset_axes(best_box)
+                                                    ins_ax = ax[r_idx][c_idx].inset_axes(best_box)
                                                     ins_ax.set_xlim(0, 901)
                                                     ins_ax.set_ylim(-0.03, 1.03)
                                                     ins_ax.set_yticks([0.0, 0.5, 1.0])
@@ -930,11 +972,10 @@ class Data:
                                                     ins_ax.set_xticks([0, 300, 600, 900])
                                                     ins_ax.tick_params(labelbottom=False, labelleft=False)
                                                     ins_ax.grid(True, ls=':', color='silver')
-                                                    inset_axes_dict[(r_idx, col)] = ins_ax
+                                                    inset_axes_dict[(r_idx, c_idx)] = ins_ax
                                                     
-                                                targets.append(inset_axes_dict[(r_idx, col)])
+                                                targets.append(inset_axes_dict[(r_idx, c_idx)])
                                                 
-                                            # Fixed Logic: Strictly assign '-' to squared and '--' to rectangular
                                             for t_ax in targets:
                                                 if is_sq_arena and v_sq_a is not None:
                                                     t_ax.plot(v_sq_a, color=color, lw=6, ls='-')
@@ -942,7 +983,7 @@ class Data:
                                                     t_ax.plot(v_rt_a, color=color, lw=6, ls='--' if mode =='combined' else '-')
 
             for x in range(n_rows):
-                for y in range(3):
+                for y in range(ncols):
                     ax[x][y].grid(True)
                     ax[x][y].set_xlim(0, 900)
                     ax[x][y].set_ylim(-0.03, 1.03)
@@ -955,15 +996,15 @@ class Data:
             
                 ax[x][0].set_ylabel(r"$Q(T)$")
                 
-                ayt = ax[x][2].twinx()
+                ayt = ax[x][ncols - 1].twinx()
                 ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
                 ayt.set_ylabel(rf"$G = {gt_sorted[x]}$", rotation=270, labelpad=35)
-                    
-            ax[0][0].set_title("LD25", pad=20)
-            ax[0][1].set_title("HD25", pad=20)
-            ax[0][2].set_title("HD100", pad=20)
+
+            for orig_col, c_idx in col_map.items():
+                title = "LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100"
+                ax[0][c_idx].set_title(title, pad=20)
             
-            for y in range(3): 
+            for y in range(ncols): 
                 ax[n_rows - 1][y].set_xlabel(r"$T$")
 
             legend_elements = []
