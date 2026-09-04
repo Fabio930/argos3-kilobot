@@ -108,7 +108,7 @@ def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
 ##################################################################################
 
 def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = None, omit_labels: list = None,enable_python: bool = True) -> int:
-    if omit_m is None: omit_m = []
+    if omit_m is None: omit_m = [15]
     if omit_labels is None: omit_labels = []
 
     if not enable_python:
@@ -335,7 +335,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                         ('cohesion', a_df, '-'), 
                         ('quorum', q_df, ':'), 
                         ('ctrl', c_df, '-.'),
-                        ('msgs', msg_df, '--')
+                        ('msgs', msg_df, (0, (5, 5)))
                     ]
                     
                     for d_name, d_df, d_style in datasets:
@@ -467,6 +467,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             
             runs_suffix = f"_runs{int(current_run)}" if current_run is not None else ""
             fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.pdf", dpi=300, bbox_inches="tight")
+            fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.png", dpi=300, bbox_inches="tight")
             plt.close(fig)
             image_count += 1
             
