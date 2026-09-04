@@ -13,7 +13,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 30})
+plt.rcParams.update({"font.size": 18})
 csv.field_size_limit(sys.maxsize)
 
 ##########################################################################################################
@@ -1479,210 +1479,6 @@ class Data:
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
-    def print_messages(self,data_in,data_std):
-        typo = [0,1,2,3,4,5]
-        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
-        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
-        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
-        real_x_ticks = []
-        void_x_ticks = []
-        svoid_x_ticks = []
-        handles_l = []
-        handles_r = []
-        l_list = []
-        r_list = []
-        
-        all_cols = set()
-        p11_present = False
-        all_agents = set()
-        mbs_per_agent = {}
-        
-        for dk in data_in.keys():
-            if dk == "P.1.1" or dk.startswith("P.1.1"): p11_present = True
-            dicts = data_in.get(dk)
-            for k in dicts.keys():
-                try:
-                    all_cols.add(int(k[2]))
-                    ag_val = int(k[1])
-                    all_agents.add(ag_val)
-                    if dk == "P.1.1" or dk.startswith("P.1.1"):
-                        if len(k) > 3 and k[3] != "":
-                            if ag_val not in mbs_per_agent: mbs_per_agent[ag_val] = set()
-                            mbs_per_agent[ag_val].add(float(k[3]))
-                except Exception:
-                    continue
-                    
-        mbs_sorted = {ag: sorted(list(mbs_per_agent[ag])) for ag in mbs_per_agent}
-                    
-        for pid in protocols_order:
-            if not self._protocol_enabled( pid):
-                continue
-            protocol = self.protocols_by_id.get(pid)
-            handles_r.append(
-                mlines.Line2D(
-                    [], [],
-                    color=protocol_colors.get(pid, "black"),
-                    marker='s',
-                    linestyle='None',
-                    markeredgewidth=0,
-                    markersize=16,
-                )
-            )
-            r_list.append(protocol.get("label", pid) if protocol else pid)
-                
-        handles_l.append(min_dim)
-        l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
-        
-        rows = [60, 120, 180, 300, 600]
-        rows = self._plot_tm_values( rows)
-        if not rows:
-            return
-        col_index = {str(c): i for i, c in enumerate(rows)}
-        nrows = len(rows)
-        
-        fig, ax = plt.subplots(nrows=nrows, ncols=3,figsize=(24,nrows*7),sharex=True,sharey=True, squeeze=False)
-        
-        if len(real_x_ticks)==0:
-            for x in range(0,901,50):
-                if x%300 == 0:
-                    svoid_x_ticks.append('')
-                    void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.around(x,0))))
-                else:
-                    void_x_ticks.append('')
-                    
-        # RIMOZIONE DEL LOOP DI SOVRASCRITTURA IN-PLACE DEI DIZIONARI
-        
-        for k in range(3):
-            for z in range(nrows):
-                den = 100 if k==2 else 25
-                val_min_buf = 5 / den
-                ax[z][k].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
-                
-        for dk in data_in.keys():
-            dict_dk = data_in.get(dk)
-            for k in dict_dk.keys():
-                if not self._protocol_enabled( dk):
-                    continue
-                
-                if dk != 'P.0' and k[2] not in col_index:
-                    continue
-                    
-                col = 0
-                if k[0]=='big' and k[1]=='25':
-                    col = 0
-                elif k[0]=='big' and k[1]=='100':
-                    col = 2
-                elif k[0]=='small':
-                    col = 1
-                    
-                c_val = protocol_colors.get(dk,"gray")
-                is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
-                if is_p11 and len(k) > 3:
-                    try:
-                        m_b_s = k[3]
-                        ag_val = int(k[1])
-                        if m_b_s != "" and ag_val in mbs_sorted and len(mbs_sorted[ag_val]) > 0:
-                            val = float(m_b_s)
-                            N_vals = len(mbs_sorted[ag_val])
-                            idx = mbs_sorted[ag_val].index(val)
-                            ratio = (idx + 1) / N_vals
-                        else:
-                            ratio = 1.0
-                            
-                        ratio = max(0.0, min(1.0, ratio))
-                        
-                        rgb_base = colors.to_rgb(c_val)
-                        h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
-                        diff = 1.0 - ratio
-                        new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
-                        new_s = s_c * (1.0 - (diff * 0.3))
-                        raw_rgb = colorsys.hls_to_rgb(h_c, new_l, new_s)
-                        c_val = tuple(np.clip(raw_rgb, 0, 1))
-                    except Exception:
-                        pass
-                
-                norm = int(k[1]) - 1
-                y_vals = np.array(dict_dk.get(k)) / norm
-                
-                raw_ci = None
-                if data_std.get(dk) is not None:
-                    raw_ci = data_std.get(dk).get(k)
-                    
-                if raw_ci is None or len(raw_ci) != len(y_vals):
-                    ci_vals = np.zeros_like(y_vals)
-                else:
-                    ci_vals = np.array(raw_ci)
-                    
-                x_vals = np.arange(len(y_vals))
-                if dk == 'P.0':
-                    for r_idx in range(nrows):
-                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
-                else:
-                    row = col_index.get(k[2])
-                    if row is not None:
-                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
-                
-        for x in range(nrows):
-            for y in range(2):
-                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                
-        for y in range(3):
-            ax[4][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
-            ax[4][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-            
-        for idx, col_val in enumerate(["LD25","HD25","HD100"]):
-            axt=ax[0][idx].twiny()
-            axt.tick_params(labeltop=False, labelbottom=False)
-            axt.set_xlabel(f"{col_val}")
-            
-        last_col = 2
-        ayt0=ax[0][last_col].twinx()
-        ayt1=ax[1][last_col].twinx()
-        ayt2=ax[2][last_col].twinx()
-        ayt3=ax[3][last_col].twinx()
-        ayt4=ax[4][last_col].twinx()
-        
-        ayt0.tick_params(labelright=False)
-        ayt1.tick_params(labelright=False)
-        ayt2.tick_params(labelright=False)
-        ayt3.tick_params(labelright=False)
-        ayt4.tick_params(labelright=False)
-        ays=[ayt0,ayt1,ayt2,ayt3,ayt4]
-        for idx, row_val in enumerate(rows):
-            ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
-
-        ax[0][0].set_ylabel(r"$M$")
-        ax[1][0].set_ylabel(r"$M$")
-        ax[2][0].set_ylabel(r"$M$")
-        ax[3][0].set_ylabel(r"$M$")
-        ax[4][0].set_ylabel(r"$M$")
-        for y in range(3):
-            ax[4][y].set_xlabel(r"$T$")
-        for x in range(nrows):
-            for y in range(3):
-                ax[x][y].grid(True,ls=':')
-                ax[x][y].set_xlim(0,900)
-                ax[x][y].set_ylim(-0.03,1.03)
-
-        fig.tight_layout()
-        handler_map = None
-
-        if not os.path.exists(self.base+"/msgs_data/images/"):
-            os.mkdir(self.base+"/msgs_data/images/")
-        if handles_r:
-            fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.01), ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
-            
-        fig_path = self.base+"/msgs_data/images/messages.pdf"
-        fig.savefig(fig_path, bbox_inches='tight')
-        plt.close(fig)
-    
-###################################################
     def print_decisions(self,data_in, data_ci):
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
@@ -1882,16 +1678,225 @@ class Data:
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
 ###################################################
-    def print_borders(self,path,_type,t_type,ground_T,threshlds,data_in,times_in,keys,more_k):
+
+    def print_messages(self, data_in, data_std, exclude_protocols=None, exclude_rows=None, exclude_cols=["LD25", "HD25"]):
+        if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
+        if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
+        if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
+
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        po_k = keys
+        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
+        real_x_ticks = []
+        void_x_ticks = []
+        svoid_x_ticks = []
+        handles_l = []
+        handles_r = []
+        l_list = []
+        r_list = []
+        
+        all_cols = set()
+        p11_present = False
+        all_agents = set()
+        mbs_per_agent = {}
+        
+        for dk in data_in.keys():
+            if dk == "P.1.1" or dk.startswith("P.1.1"): p11_present = True
+            dicts = data_in.get(dk)
+            for k in dicts.keys():
+                try:
+                    all_cols.add(int(k[2]))
+                    ag_val = int(k[1])
+                    all_agents.add(ag_val)
+                    if dk == "P.1.1" or dk.startswith("P.1.1"):
+                        if len(k) > 3 and k[3] != "":
+                            if ag_val not in mbs_per_agent: mbs_per_agent[ag_val] = set()
+                            mbs_per_agent[ag_val].add(float(k[3]))
+                except Exception:
+                    continue
+                    
+        mbs_sorted = {ag: sorted(list(mbs_per_agent[ag])) for ag in mbs_per_agent}
+                    
+        for pid in protocols_order:
+            if pid in exclude_protocols or not self._protocol_enabled(pid):
+                continue
+            protocol = self.protocols_by_id.get(pid)
+            handles_r.append(
+                mlines.Line2D(
+                    [], [],
+                    color=protocol_colors.get(pid, "black"),
+                    marker='s',
+                    linestyle='None',
+                    markeredgewidth=0,
+                    markersize=16,
+                )
+            )
+            r_list.append(protocol.get("label", pid) if protocol else pid)
+                
+        handles_l.append(min_dim)
+        l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
+        
+        rows = [60, 120, 180, 300, 600]
+        rows = [r for r in rows if str(r) not in exclude_rows]
+        rows = self._plot_tm_values(rows)
+        if not rows:
+            return
+        col_index = {str(c): i for i, c in enumerate(rows)}
+        nrows = len(rows)
+        
+        active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
+        ncols = len(active_cols)
+        if ncols == 0: return
+        
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,nrows*7),sharex=True,sharey=True, squeeze=False)
+        
+        if len(real_x_ticks)==0:
+            for x in range(0,901,50):
+                if x%300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.around(x,0))))
+                else:
+                    void_x_ticks.append('')
+                    
+        for k in range(ncols):
+            for z in range(nrows):
+                col_name = active_cols[k]
+                den = 100 if col_name == "HD100" else 25
+                val_min_buf = 5 / den
+                ax[z][k].plot([val_min_buf for _ in range(901)],color="black",ls='--',lw=3)
+                
+        for dk in data_in.keys():
+            if dk in exclude_protocols or not self._protocol_enabled(dk):
+                continue
+            dict_dk = data_in.get(dk)
+            for k in dict_dk.keys():
+                if dk != 'P.0' and k[2] not in col_index:
+                    continue
+                    
+                col_name = "LD25"
+                if k[0]=='big' and k[1]=='100': col_name = "HD100"
+                elif k[0]=='small': col_name = "HD25"
+
+                if col_name not in active_cols:
+                    continue
+                col = active_cols.index(col_name)
+                    
+                c_val = protocol_colors.get(dk,"gray")
+                is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
+                if is_p11 and len(k) > 3:
+                    try:
+                        m_b_s = k[3]
+                        ag_val = int(k[1])
+                        if m_b_s != "" and ag_val in mbs_sorted and len(mbs_sorted[ag_val]) > 0:
+                            val = float(m_b_s)
+                            N_vals = len(mbs_sorted[ag_val])
+                            idx = mbs_sorted[ag_val].index(val)
+                            ratio = (idx + 1) / N_vals
+                        else:
+                            ratio = 1.0
+                            
+                        ratio = max(0.0, min(1.0, ratio))
+                        
+                        rgb_base = colors.to_rgb(c_val)
+                        h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
+                        diff = 1.0 - ratio
+                        new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
+                        new_s = s_c * (1.0 - (diff * 0.3))
+                        raw_rgb = colorsys.hls_to_rgb(h_c, new_l, new_s)
+                        c_val = tuple(np.clip(raw_rgb, 0, 1))
+                    except Exception:
+                        pass
+                
+                norm = int(k[1]) - 1
+                y_vals = np.array(dict_dk.get(k)) / norm
+                
+                raw_ci = None
+                if data_std.get(dk) is not None:
+                    raw_ci = data_std.get(dk).get(k)
+                    
+                if raw_ci is None or len(raw_ci) != len(y_vals):
+                    ci_vals = np.zeros_like(y_vals)
+                else:
+                    ci_vals = np.array(raw_ci)
+                    
+                x_vals = np.arange(len(y_vals))
+                if dk == 'P.0':
+                    for r_idx in range(nrows):
+                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        # ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                else:
+                    row = col_index.get(k[2])
+                    if row is not None:
+                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        # ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                
+        for x in range(nrows):
+            for y in range(ncols):
+                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+                
+        for y in range(ncols):
+            ax[nrows-1][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
+            ax[nrows-1][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
+            
+        # for idx, col_val in enumerate(active_cols):
+        #     axt=ax[0][idx].twiny()
+        #     axt.tick_params(labeltop=False, labelbottom=False)
+        #     axt.set_xlabel(f"{col_val}")
+            
+        last_col = ncols - 1
+        ays = []
+        for idx in range(nrows):
+            ayt = ax[idx][last_col].twinx()
+            ayt.tick_params(labelright=False)
+            ays.append(ayt)
+            
+        # for idx, row_val in enumerate(rows):
+        #     ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
+
+        for x in range(nrows):
+            ax[x][0].set_ylabel(r"$M$")
+            
+        for y in range(ncols):
+            ax[nrows-1][y].set_xlabel(r"$T$")
+            
+        for x in range(nrows):
+            for y in range(ncols):
+                ax[x][y].grid(True,ls=':')
+                ax[x][y].set_xlim(0,900)
+                ax[x][y].set_ylim(-0.03,1.03)
+
+        fig.tight_layout()
+        handler_map = None
+
+        if not os.path.exists(self.base+"/msgs_data/images/"):
+            os.mkdir(self.base+"/msgs_data/images/")
+        # if handles_r:
+        #     fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.01), ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+            
+        fig_path = self.base+"/msgs_data/images/messages.png"
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+
+    def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=["LD25", "HD25"]):
+        if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
+        if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
+        if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
+        
+        typo = [0,1,2,3,4,5]
+        cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        
+        po_k = [k for k in keys if str(k) not in exclude_rows]
         o_k = []
         for x in range(len(po_k)):
             o_k.append(int(po_k[x]))
         o_k = sorted(set(o_k))
-        o_k = self._plot_tm_values( o_k)
+        o_k = self._plot_tm_values(o_k)
         if not o_k:
             return
         nrows = len(o_k)
@@ -1913,7 +1918,7 @@ class Data:
             if dk == "P.1.1" or dk.startswith("P.1.1"): p11_present = True
                 
         for pid in protocols_order:
-            if not self._protocol_enabled( pid):
+            if pid in exclude_protocols or not self._protocol_enabled(pid):
                 continue
             protocol = self.protocols_by_id.get(pid)
             handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markeredgewidth=0, markersize=16))
@@ -1921,15 +1926,22 @@ class Data:
                 
         border_font = plt.rcParams.get("font.size", 20) + 4
         
-        fig, ax     = plt.subplots(nrows=nrows, ncols=3,figsize=(26,8*nrows), sharex=False, squeeze=False)
-        tfig, tax   = plt.subplots(nrows=nrows, ncols=3,figsize=(24,7*nrows), sharex=False, squeeze=False)
+        active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
+        ncols = len(active_cols)
+        if ncols == 0: return
+
+        fig, ax     = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
+        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,7*nrows), sharex=False, squeeze=False)
         
-        attributes_row_col = np.zeros((nrows,3))
+        attributes_row_col = np.zeros((nrows,ncols))
 
         for a in arena:
             agents_list = ["25"] if a=="smallA" else more_k[1]
             for ag in agents_list:
-                col = 1 if a=="smallA" else (2 if int(ag)==100 else 0)
+                col_name = "HD25" if a=="smallA" else ("HD100" if int(ag)==100 else "LD25")
+                if col_name not in active_cols:
+                    continue
+                col = active_cols.index(col_name)
                 
                 raw_mbs = set()
                 for dk in data_in.keys():
@@ -1943,6 +1955,9 @@ class Data:
                 for m_b_s in raw_mbs:
                     for k in range(len(o_k)):
                         for dk in data_in.keys():
+                            if dk in exclude_protocols or not self._protocol_enabled(dk):
+                                continue
+                            
                             vals_v2, vals_v8, gts_v2, gts_v8 = [], [], [], []
                             times_v = []
                             
@@ -1987,42 +2002,34 @@ class Data:
                             if m_b_s == list(raw_mbs)[0]:
                                 ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
                                 
-                            if self._protocol_enabled(dk):
-                                c_val = protocol_colors.get(dk, "gray")
-                                if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
-                                    idx_mbs = sorted_valid_mbs.index(float(m_b_s))
-                                    ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
-                                    h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
-                                    c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
+                            c_val = protocol_colors.get(dk, "gray")
+                            if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
+                                idx_mbs = sorted_valid_mbs.index(float(m_b_s))
+                                ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
+                                h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
+                                c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
 
-                                ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
-                                ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
-                                tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
+                            ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
+                            ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
+                            tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
-                                self._borders_attributes(ax, tax, col, k, o_k, border_font, nrows)
+                                self._borders_attributes(ax, tax, col, k, o_k, border_font, nrows, ncols, col_name)
 
         fig.tight_layout()
         tfig.tight_layout()
                 
         handler_map = None
-        # if p11_present:
-        #     cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-        #     handles_l.append(Rectangle((0, 0), 1, 1))
-        #     l_list_l.append("k-sampling")
-        #     handler_map = {Rectangle: GradientHandler(cmap_grey)}
 
-        fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
-        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
+        # fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+        # tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
-        fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
+        fig.savefig(path+_type+"_activation.png", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
         plt.close(fig); plt.close(tfig)
-        # self.plot_protocol_tables(path, o_k, ground_T, threshlds, prot_tables_vals_dict)
 
-###################################################
-    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows):
+    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows, ncols, col_name):
         from matplotlib.ticker import FixedLocator
 
         for a_curr in [ax[k][col], tax[k][col]]:
@@ -2030,22 +2037,21 @@ class Data:
             a_curr.tick_params(axis='both', which='major', labelsize=border_font)
 
         ax[k][col].set_ylim(0.5, 1.0)
-        if col==0: tax[k][col].set_ylim(0, 201)
-        elif col==1: tax[k][col].set_ylim(0, 51)
-        elif col==2: tax[k][col].set_ylim(0, 101)
+        if col_name == "LD25": tax[k][col].set_ylim(0, 201)
+        elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
+        elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
 
         if col == 0:
             ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
             tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
             ax[k][col].yaxis.set_tick_params(labelleft=True)
         else:
-            # tax[k][col].yaxis.set_tick_params(labelleft=False)
             ax[k][col].yaxis.set_tick_params(labelleft=False)
         tax[k][col].yaxis.set_tick_params(labelleft=True)
 
         ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
-        if k == 4:
+        if k == nrows - 1:
             for a_curr in [ax[k][col], tax[k][col]]:
                 a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                 a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
@@ -2055,22 +2061,21 @@ class Data:
                 a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                 a_curr.set_xticklabels([]) 
 
-        if k == 0:
-            axt = ax[k][col].twiny()
-            taxt = tax[k][col].twiny()
-            axt.set_xlim(0.5, 1.0)
-            taxt.set_xlim(0.5, 1.0)
-            axt.set_xticks([])
-            taxt.set_xticks([])
-            label_top = "LD25" if col == 0 else ("HD25" if col == 1 else "HD100")
-            axt.set_xlabel(label_top, fontsize=border_font, labelpad=15)
-            taxt.set_xlabel(label_top, fontsize=border_font, labelpad=15)
+        # if k == 0:
+        #     axt = ax[k][col].twiny()
+        #     taxt = tax[k][col].twiny()
+        #     axt.set_xlim(0.5, 1.0)
+        #     taxt.set_xlim(0.5, 1.0)
+        #     axt.set_xticks([])
+        #     taxt.set_xticks([])
+            # axt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
+            # taxt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
 
-        if col == 2:
-            for a_curr in [ax[k][col], tax[k][col]]:
-                a_right = a_curr.twinx()
-                a_right.set_yticks([])
-                a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+        # if col == ncols - 1:
+        #     for a_curr in [ax[k][col], tax[k][col]]:
+        #         a_right = a_curr.twinx()
+        #         a_right.set_yticks([])
+        #         a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
 
         ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
         tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
