@@ -77,10 +77,10 @@ def main():
     parser.add_argument("--short", action="store_true", help="Genera i grafici uniti in modalità short")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude")
+    parser.add_argument("--exclude-columns", default="", help="Comma-separated column labels to exclude (e.g. LD25, HD25, HD100)")
     args = parser.parse_args()
     
     mode_arg = args.mode.strip().lower()
-    # Resolve hybrid mode
     if args.short and mode_arg == "diff":
         mode = "diff_short"
     else:
@@ -88,11 +88,17 @@ def main():
     
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
+    exclude_columns = [s.strip() for s in args.exclude_columns.split(",") if s.strip()]
 
     csv_res = CSVres.Data(mode=mode)
     
-    if exclude_protocols or exclude_tm:
-        csv_res.apply_plot_overrides(["all"], exclude_protocols=exclude_protocols or None, exclude_tm=exclude_tm or None)
+    if exclude_protocols or exclude_tm or exclude_columns:
+        csv_res.apply_plot_overrides(
+            ["all"], 
+            exclude_protocols=exclude_protocols or None, 
+            exclude_tm=exclude_tm or None,
+            exclude_columns=exclude_columns or None
+        )
     
     if mode == "short":
         tot_st = []
@@ -110,7 +116,6 @@ def main():
         else:
             print("Attenzione: per la modalità short servono dati sia da proc_data che da msgs_data.")
 
-    # --- NEW MODE IMPLEMENTATION ---
     elif mode == "diff_short":
         dict_proc_st = {}
         dict_msgs = {}
