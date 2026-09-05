@@ -536,7 +536,7 @@ class Data:
                                     
                                     if c_idx == 0:
                                         cax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1)); uax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1))
-                                        cax[k_idx][c_idx].set_ylabel(r"$Q(T)$"); uax[k_idx][c_idx].set_ylabel(r"$Q(T)$")
+                                        cax[k_idx][c_idx].set_ylabel(r"$Q$"); uax[k_idx][c_idx].set_ylabel(r"$Q$")
                                     
                                     elif c_idx == ncols - 1:
                                         cax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks); uax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
@@ -623,7 +623,7 @@ class Data:
                                 
                                 if c_idx == 0:
                                     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1))
-                                    ax[k_idx][c_idx].set_ylabel(r"$Q(T)$")
+                                    ax[k_idx][c_idx].set_ylabel(r"$Q$")
                                 # elif c_idx == ncols - 1:
                                 #     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
                                 #     axt = ax[k_idx][c_idx].twinx()
@@ -994,7 +994,7 @@ class Data:
                     if y > 0: 
                         ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
             
-                ax[x][0].set_ylabel(r"$Q(T)$")
+                ax[x][0].set_ylabel(r"$Q$")
                 
                 ayt = ax[x][ncols - 1].twinx()
                 ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
