@@ -926,7 +926,7 @@ class Data:
         
         diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
-
+        protocols_order = [p.get("key") for p in diff_protocols if p.get("key")]
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -971,18 +971,19 @@ class Data:
                     
                     if self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
                         color = self._protocol_color_with_k(p_key, k_samp, k_agents, ps_k_dict, scalarMap)
-                        
+                        z_idx = protocols_order.index(p_key) if p_key in protocols_order else 0
+
                         # Iterate across all rows for P.0
                         if p_key == "P.0":
                             for row in range(nrows):
-                                ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style,alpha=0.4 if l_style=="-" else 1)
+                                ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx, alpha=0.4 if l_style=="-" else 1)
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
                                 used_roots[root_name] = (l_label, l_style)
                         else:
                             if str(k_tm) not in col_index: continue
                             row = col_index[str(k_tm)]
-                            ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style,alpha=0.4 if l_style=="-" else 1)
+                            ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx, alpha=0.4 if l_style=="-" else 1)
                             
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
