@@ -916,7 +916,7 @@ class Data:
                 lbl = p.get("label", pk)
                 handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
         
-        fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
+        fig.savefig(path + "messages_diff.png", bbox_inches='tight')
         plt.close(fig)
 
 ##########################################################################################################
@@ -999,7 +999,7 @@ class Data:
                     if pk in used_protocol_keys and p.get("legend", True):
                         handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
                 
-                fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
+                fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.png", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
