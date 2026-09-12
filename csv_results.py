@@ -584,7 +584,8 @@ class Data:
         svoid_x_ticks = ['' for x in range(0,901,50)]
         void_x_ticks = ['' for x in range(0,901,50)]
         void_y_ticks = ['' for _ in range(0,11,1)]
-
+        z_order_list = protocols_order + ["adp_rnd"]
+        
         for gt in ground_T:
             for thr in threshlds:
                 fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 6*nrows), squeeze=False)
@@ -602,10 +603,11 @@ class Data:
                                     
                                     base_key = (a, ag, 0 if pid == "P.0" else tm, m_h, gt, thr)
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
-                                    lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
+                                    # lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
+                                    z_idx = z_order_list.index(pid)
 
-                                    for data, color in lines_sq: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-')
-                                    for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--')
+                                    for data, color in lines_sq: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
+                                    # for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
 
                                 ax[k_idx][c_idx].set_xlim(0, 901); ax[k_idx][c_idx].set_ylim(-0.03, 1.03)
 
