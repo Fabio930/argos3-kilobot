@@ -28,6 +28,12 @@ class GradientHandler(HandlerBase):
 
 class Data:
 
+    # Keep a single, explicit drawing/legend order across every plot type.
+    PROTOCOL_PRINT_ORDER = (
+        "P.0", "P.1.0", "P.1.1", "O.0",
+        "O.2.0", "O.1.1", "O.1.0", "O.1.a",
+    )
+
     def __init__(self, mode="default") -> None:
         self.mode = mode
         self.bases = []
@@ -38,8 +44,27 @@ class Data:
                 self.bases.append(os.path.join(self.base, elem))
         self._load_diff_bases()
         self.plot_config = self._load_plot_config()
-        self.protocols = self.plot_config.get("protocols", [])
+        self.protocols = self._ordered_protocols(self.plot_config.get("protocols", []))
         self.protocols_by_key = {p.get("key"): p for p in self.protocols if p.get("key") is not None}
+
+    def _protocol_sort_key(self, protocol_key, k_sampling=0):
+        """Return the common protocol order, with k-sampling as a tie-breaker."""
+        try:
+            sampling_order = float(k_sampling)
+        except (TypeError, ValueError):
+            sampling_order = 0.0
+        try:
+            protocol_order = self.PROTOCOL_PRINT_ORDER.index(protocol_key)
+        except ValueError:
+            protocol_order = len(self.PROTOCOL_PRINT_ORDER)
+        return (protocol_order, sampling_order, str(protocol_key))
+
+    def _ordered_protocols(self, protocols):
+        """Order configured protocols independently of the JSON declaration order."""
+        return sorted(
+            protocols or [],
+            key=lambda protocol: self._protocol_sort_key(protocol.get("key")),
+        )
 
     def _read_json_robust(self, path):
         with open(path, "r", encoding="utf-8") as f:
@@ -400,7 +425,7 @@ class Data:
             os.makedirs(self.base + "/compressed_data/images/", exist_ok=True)
         path = self.base + "/compressed_data/images/"
         
-        diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
+        diff_protocols = self._ordered_protocols(self.diff_plot_config.get("protocols", self.protocols))
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
         
         # 1. Aggregate State Data
@@ -477,46 +502,65 @@ class Data:
 
                 for row_idx, gt_val in enumerate([gt_068_092, gt_092_068], start=0):
                     if not gt_val: continue
+
+                    # Collect data from every input folder before drawing.  This is
+                    # important in diff_short: iterating one folder at a time would
+                    # make the protocol order depend on the folder order.
+                    state_items = []
                     for root_name, st_dct in dict_states_aggregated.items():
                         folder_cfg = self._get_diff_folder_cfg(root_name)
                         l_style = folder_cfg.get("line_style", "-")
                         l_label = folder_cfg.get("label", str(root_name) if root_name else "default")
-                        
+
                         for key, s_data in st_dct.items():
                             p_key, st_arena, st_agents, st_tm, st_gt, st_thr, k_samp = key
                             if st_arena != col_cfg["st_arena"] or st_agents != col_cfg["agents"]: continue
                             if st_gt != gt_val or st_thr != thr: continue
-                            
-                            is_p0 = (p_key == "P.0")
-                            is_main = str(st_tm) in main_tm_list or is_p0
-                            is_insert = str(st_tm) in insert_tm_list or (is_p0 and insert_tm_list)
-                            
-                            if not (is_main or is_insert): continue
-                            
-                            if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
-                                used_protocols.add(p_key)
-                                if root_name not in used_roots: used_roots[root_name] = (l_label, l_style)
-                                
-                                c = self._protocol_color_with_k(p_key, k_samp, st_agents, ps_k_dict, scalarMap)
-                                targets = []
-                                
-                                if is_main:
-                                    targets.append(ax[row_idx][col_idx])
-                                    
-                                if is_insert:
-                                    if (row_idx, col_idx) not in inset_axes_dict:
-                                        best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx]) if row_idx<1 else [1.0 - 0.35 - 0.03, 1.0 - 0.35 - 0.03, 0.35, 0.35]
-                                        ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
-                                        ins_ax.set_xlim(0, 1201)
-                                        ins_ax.set_ylim(-0.03, 1.03)
-                                        ins_ax.set_xticks([0, 300, 600, 900, 1200])
-                                        ins_ax.tick_params(labelbottom=False, labelleft=False)
-                                        ins_ax.grid(True, ls=':', color='silver')
-                                        inset_axes_dict[(row_idx, col_idx)] = ins_ax
-                                    targets.append(inset_axes_dict[(row_idx, col_idx)])
-                                    
-                                for t_ax in targets:
-                                    t_ax.plot(s_data, color=c, lw=6, linestyle=l_style, alpha=0.9 if p_key!="O.0" else 0.6)
+                            state_items.append((root_name, key, s_data, l_style, l_label))
+
+                    for root_name, key, s_data, l_style, l_label in sorted(
+                        state_items,
+                        key=lambda item: self._protocol_sort_key(item[1][0], item[1][6]),
+                    ):
+                        p_key, st_arena, st_agents, st_tm, st_gt, st_thr, k_samp = key
+
+                        is_p0 = (p_key == "P.0")
+                        is_main = str(st_tm) in main_tm_list or is_p0
+                        is_insert = str(st_tm) in insert_tm_list or (is_p0 and insert_tm_list)
+
+                        if not (is_main or is_insert): continue
+
+                        if p_key and self._protocol_enabled_diff(p_key, root_name, diff_protocols_by_key):
+                            used_protocols.add(p_key)
+                            if root_name not in used_roots: used_roots[root_name] = (l_label, l_style)
+
+                            c = self._protocol_color_with_k(p_key, k_samp, st_agents, ps_k_dict, scalarMap)
+                            targets = []
+
+                            if is_main:
+                                targets.append(ax[row_idx][col_idx])
+
+                            if is_insert:
+                                if (row_idx, col_idx) not in inset_axes_dict:
+                                    best_box = self.find_emptiest_inset_position(ax[row_idx][col_idx]) if row_idx<1 else [1.0 - 0.35 - 0.03, 1.0 - 0.35 - 0.03, 0.35, 0.35]
+                                    ins_ax = ax[row_idx][col_idx].inset_axes(best_box)
+                                    ins_ax.set_xlim(0, 1201)
+                                    ins_ax.set_ylim(-0.03, 1.03)
+                                    ins_ax.set_xticks([0, 300, 600, 900, 1200])
+                                    ins_ax.tick_params(labelbottom=False, labelleft=False)
+                                    ins_ax.grid(True, ls=':', color='silver')
+                                    inset_axes_dict[(row_idx, col_idx)] = ins_ax
+                                targets.append(inset_axes_dict[(row_idx, col_idx)])
+
+                            for t_ax in targets:
+                                # Both line styles of a protocol share its z-order.
+                                # Thus solid and dashed variants remain on the same
+                                # visual plane while protocols follow the requested order.
+                                t_ax.plot(
+                                    s_data, color=c, lw=6, linestyle=l_style,
+                                    alpha=0.9 if p_key != "O.0" else 0.6,
+                                    zorder=2 + self._protocol_sort_key(p_key)[0],
+                                )
 
             # --- APPLY STYLE ---
             for i in range(2):
@@ -778,19 +822,18 @@ class Data:
                     ax[x][y].set_xticklabels(["0", "300", "600", "900", "1200"])
                 else:
                     ax[x][y].set_xticklabels([])
-                # if y == ncols - 1:
-                #     axt = ax[x][y].twinx()
-                #     axt.set_yticks([])
-                #     axt.set_ylabel(rf"$T_m = {int(rows[x])}\, s$", rotation=270, labelpad=30)
+                if y == ncols - 1:
+                    axt = ax[x][y].twinx()
+                    axt.set_yticks([])
+                    axt.set_ylabel(rf"$T_m = {int(rows[x])}\, s$", rotation=270, labelpad=30)
                     
         labels = {0: "LD25", 1: "HD25", 2: "HD100"}
-        # for orig_col, c_idx in col_map.items():
-        #     ax_right = ax[0][c_idx].twiny()
-        #     ax_right.set_xticks([])
-        #     ax_right.set_xlabel(labels[orig_col])
+        for orig_col, c_idx in col_map.items():
+            ax_right = ax[0][c_idx].twiny()
+            ax_right.set_xticks([])
+            ax_right.set_xlabel(labels[orig_col])
 
 ##########################################################################################################
-    ##########################################################################################################
     def plot_messages_diff(self, dict_msgs):
         ncols, col_map = self._get_col_mapping()
         if ncols == 0: return
@@ -799,7 +842,7 @@ class Data:
             os.makedirs(self.base + "/msgs_data/images/", exist_ok=True)
         path = self.base + "/msgs_data/images/"
 
-        diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
+        diff_protocols = self._ordered_protocols(self.diff_plot_config.get("protocols", self.protocols))
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
 
         typo = [0,1,2,3,4,5]
@@ -864,7 +907,12 @@ class Data:
                 items_to_plot.append((root_name, k, res, l_style, l_label))
                 
         # Z-order sorting
-        items_to_plot.sort(key=lambda x: float(x[1][7]))
+        items_to_plot.sort(
+            key=lambda item: self._protocol_sort_key(
+                self._identify_protocol_key_from_vars(item[1][1], item[1][4], item[1][-1], item[1][5]),
+                item[1][7],
+            )
+        )
 
         for root_name, k, res, l_style, l_label in items_to_plot:
             arena, algo, thr, gt, comm, msg_hops, agents, k_samp, tm = k
@@ -897,13 +945,13 @@ class Data:
                         if min_buf_line[row][c_idx] == 0:
                             ax[row][c_idx].plot([5/norm]*1200, color="black", lw=5, ls=":")
                             min_buf_line[row][c_idx] = 1
-                        ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style,alpha=0.4 if l_style=="-" else 1)
+                        ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style)
                 else:
                     row = col_index[str(tm)]
                     if min_buf_line[row][c_idx] == 0:
                         ax[row][c_idx].plot([5/norm]*1200, color="black", lw=5, ls=":")
                         min_buf_line[row][c_idx] = 1
-                    ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style,alpha=0.4 if l_style=="-" else 1)
+                    ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style)
 
         self._apply_plot_style(ax, nrows, columns, col_map, is_messages=True)
 
@@ -916,7 +964,9 @@ class Data:
                 lbl = p.get("label", pk)
                 handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=lbl))
         
-        fig.savefig(path + "messages_diff.png", bbox_inches='tight')
+        if handles_r:
+            fig.legend(handles=handles_r, ncols=6, loc='upper center', bbox_to_anchor=(0.58, 0.0), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
+        fig.savefig(path + "messages_diff.pdf", bbox_inches='tight')
         plt.close(fig)
 
 ##########################################################################################################
@@ -924,7 +974,7 @@ class Data:
         ncols, col_map = self._get_col_mapping()
         if ncols == 0: return
         
-        diff_protocols = self.diff_plot_config.get("protocols", self.protocols)
+        diff_protocols = self._ordered_protocols(self.diff_plot_config.get("protocols", self.protocols))
         diff_protocols_by_key = {p.get("key"): p for p in diff_protocols if p.get("key") is not None}
         protocols_order = [p.get("key") for p in diff_protocols if p.get("key")]
         typo = [0, 1, 2, 3, 4, 5]
@@ -957,7 +1007,9 @@ class Data:
                         items_to_plot.append((root_name, key, s_data, l_style, l_label))
                         
                 # Z-order sorting
-                items_to_plot.sort(key=lambda x: float(x[1][6]))
+                items_to_plot.sort(
+                    key=lambda item: self._protocol_sort_key(item[1][0], item[1][6])
+                )
 
                 for root_name, key, s_data, l_style, l_label in items_to_plot:
                     p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
@@ -976,14 +1028,14 @@ class Data:
                         # Iterate across all rows for P.0
                         if p_key == "P.0":
                             for row in range(nrows):
-                                ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx, alpha=0.4 if l_style=="-" else 1)
+                                ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx)
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
                                 used_roots[root_name] = (l_label, l_style)
                         else:
                             if str(k_tm) not in col_index: continue
                             row = col_index[str(k_tm)]
-                            ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx, alpha=0.4 if l_style=="-" else 1)
+                            ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx)
                             
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
@@ -999,8 +1051,12 @@ class Data:
                     pk = p.get("key")
                     if pk in used_protocol_keys and p.get("legend", True):
                         handles_r.append(mlines.Line2D([], [], color=self._protocol_color(p, scalarMap), marker='_', linestyle='None', markeredgewidth=18, markersize=18, label=p.get("label", pk)))
+
+                if handles_r:
+                    fig.legend(handles=handles_r, ncols=6, loc='upper center', bbox_to_anchor=(0.54, 0.0), framealpha=0.7, fontsize=plt.rcParams.get("font.size"))
+
                 
-                fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.png", bbox_inches='tight')
+                fig.savefig(f"{path}{thr}_{gt.replace(';','_')}_diff_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
@@ -1238,7 +1294,9 @@ class Data:
                             items_to_plot.append((key, s_data))
                             
                         # Z-order sorting
-                        items_to_plot.sort(key=lambda x: float(x[0][6]))
+                        items_to_plot.sort(
+                            key=lambda item: self._protocol_sort_key(item[0][0], item[0][6])
+                        )
                         
                         for key, s_data in items_to_plot:
                             p_key, k_arena, k_agents, k_tm, k_gt, k_thr, k_samp = key
@@ -1308,7 +1366,9 @@ class Data:
             items_to_plot.append((key, raw_data))
             
         # Z-order sorting
-        items_to_plot.sort(key=lambda x: float(x[0][4]))
+        items_to_plot.sort(
+            key=lambda item: self._protocol_sort_key(item[0][0], item[0][4])
+        )
 
         for key, raw_data in items_to_plot:
             p_key, arena, agents, tm, k_samp = key
@@ -1357,4 +1417,4 @@ class Data:
         dest_dir = os.path.join(self.base, "msgs_data", "images")
         if not os.path.exists(dest_dir): os.makedirs(dest_dir)
         fig.savefig(os.path.join(dest_dir, "messages.pdf"), bbox_inches='tight')
-        plt.close(fig)       
+        plt.close(fig)
