@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 18})
+plt.rcParams.update({"font.size": 30})
 
 class GradientHandler(HandlerBase):
     def __init__(self, cmap, **kw):
