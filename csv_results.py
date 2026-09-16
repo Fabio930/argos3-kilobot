@@ -25,6 +25,13 @@ class HandlerKGrad(HandlerBase):
 class Data:
     _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
     _NP_FLOAT_RE = re.compile(r"(?i)np\.float\d*\(([^)]+)\)")
+    # Canonical order for drawing and legends.  The last two entries are the
+    # identifiers used by this version of the data reader for O.0 and O.1.a.
+    PROTOCOL_PRINT_ORDER = (
+        "P.0", "P.1.0", "P.1.1", "O.0.0",
+        "O.2.0", "O.1.1", "O.1.0", "adp_rnd",
+    )
+    PROTOCOL_ALIASES = {"O.0": "O.0.0", "O.1.a": "adp_rnd"}
 
 ##########################################################################################################
     @staticmethod
@@ -50,9 +57,25 @@ class Data:
             if elem == "proc_data" or elem == "msgs_data":
                 self.bases.append(os.path.join(self.base, elem))
         self.plot_config = self._load_plot_config(use_short)
-        self.protocols = self.plot_config.get("protocols", [])
+        self.protocols = self._ordered_protocols(self.plot_config.get("protocols", []))
         self.protocols_by_id = {p.get("id"): p for p in self.protocols if p.get("id") is not None}
         self.k_samps_per_agent = {}
+
+##########################################################################################################
+    def _protocol_zorder(self, protocol_id):
+        """Return the shared draw level for all variants of one protocol."""
+        canonical_id = self.PROTOCOL_ALIASES.get(protocol_id, protocol_id)
+        try:
+            return 2 + self.PROTOCOL_PRINT_ORDER.index(canonical_id)
+        except ValueError:
+            return 2 + len(self.PROTOCOL_PRINT_ORDER)
+
+##########################################################################################################
+    def _ordered_protocols(self, protocols):
+        return sorted(
+            protocols or [],
+            key=lambda protocol: (self._protocol_zorder(protocol.get("id")), str(protocol.get("id"))),
+        )
 
 ##########################################################################################################
     def _default_plot_config(self):
@@ -513,9 +536,10 @@ class Data:
                                     for target_ax, sq_dict, rt_dict in [(cax, sq_c, rt_c), (uax, sq_u, rt_u)]:
                                         lines_sq = self._get_lines_to_plot(sq_dict, pid, base_key, ag, protocol_colors)
                                         lines_rt = self._get_lines_to_plot(rt_dict, pid, base_key, ag, protocol_colors)
-                                        
-                                        for data, color in lines_sq: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-')
-                                        for data, color in lines_rt: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--')
+
+                                        z_idx = self._protocol_zorder(pid)
+                                        for data, color in lines_sq: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
+                                        for data, color in lines_rt: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
 
                                     cax[k_idx][c_idx].set_xlim(0, 901); uax[k_idx][c_idx].set_xlim(0, 901)
                                     cax[k_idx][c_idx].set_ylim(-0.03, 1.03); uax[k_idx][c_idx].set_ylim(-0.03, 1.03)
@@ -694,8 +718,9 @@ class Data:
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
-                                    for data, color in lines_sq: ax[row][c_idx].plot(data, color=color, lw=6, ls='-')
-                                    for data, color in lines_rt: ax[row][c_idx].plot(data, color=color, lw=6, ls='--')
+                                    z_idx = self._protocol_zorder(pid)
+                                    for data, color in lines_sq: ax[row][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
+                                    for data, color in lines_rt: ax[row][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
 
                 for x in range(nrows):
                     for y in range(ncols):
@@ -778,11 +803,11 @@ class Data:
                                     
                                     for (c_data, c_color), (u_data, _) in zip(sc_lines, su_lines):
                                         flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='--')
+                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='--', zorder=self._protocol_zorder(pid))
                                         
                                     for (c_data, c_color), (u_data, _) in zip(rc_lines, ru_lines):
                                         flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='-')
+                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
 
                 for x in range(nrows):
                     for y in range(ncols):
@@ -980,9 +1005,9 @@ class Data:
                                                 
                                             for t_ax in targets:
                                                 if is_sq_arena and v_sq_a is not None:
-                                                    t_ax.plot(v_sq_a, color=color, lw=6, ls='-')
+                                                    t_ax.plot(v_sq_a, color=color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
                                                 elif not is_sq_arena and v_rt_a is not None:
-                                                    t_ax.plot(v_rt_a, color=color, lw=6, ls='--' if mode =='combined' else '-')
+                                                    t_ax.plot(v_rt_a, color=color, lw=6, ls='--' if mode =='combined' else '-', zorder=self._protocol_zorder(pid))
 
             for x in range(n_rows):
                 for y in range(ncols):
