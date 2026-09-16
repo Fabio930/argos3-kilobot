@@ -549,8 +549,8 @@ class Data:
                                     cax[k_idx][c_idx].grid(True, which='major'); uax[k_idx][c_idx].grid(True, which='major')
 
                 cfig.tight_layout(); ufig.tight_layout()
-                # cfig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                # ufig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                cfig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                ufig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
                 cfig.savefig(path + f"T{thr}_G{gt}_activation_committed.pdf", bbox_inches='tight')
                 ufig.savefig(path + f"T{thr}_G{gt}_activation_uncommitted.pdf", bbox_inches='tight')
                 plt.close(cfig); plt.close(ufig)
@@ -603,18 +603,18 @@ class Data:
                                     
                                     base_key = (a, ag, 0 if pid == "P.0" else tm, m_h, gt, thr)
                                     lines_sq = self._get_lines_to_plot(sq_d, pid, base_key, ag, protocol_colors)
-                                    # lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
+                                    lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
                                     z_idx = z_order_list.index(pid)
 
                                     for data, color in lines_sq: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
-                                    # for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
+                                    for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
 
                                 ax[k_idx][c_idx].set_xlim(0, 901); ax[k_idx][c_idx].set_ylim(-0.03, 1.03)
 
-                                # if k_idx == 0:
-                                #     axt = ax[k_idx][c_idx].twiny()
-                                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                                #     axt.set_xlabel("LD25" if col == 0 else "HD25" if col == 1 else "HD100")
+                                if k_idx == 0:
+                                    axt = ax[k_idx][c_idx].twiny()
+                                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                                    axt.set_xlabel("LD25" if col == 0 else "HD25" if col == 1 else "HD100")
                                 if k_idx == nrows - 1:
                                     ax[k_idx][c_idx].set_xticks(np.arange(0,901,300), labels=real_x_ticks[::6])
                                     ax[k_idx][c_idx].set_xticks(np.arange(0,901,50), labels=void_x_ticks, minor=True)
@@ -626,18 +626,18 @@ class Data:
                                 if c_idx == 0:
                                     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1))
                                     ax[k_idx][c_idx].set_ylabel(r"$Q$")
-                                # elif c_idx == ncols - 1:
-                                #     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
-                                #     axt = ax[k_idx][c_idx].twinx()
-                                #     axt.set_yticklabels(['']*len(axt.get_yticklabels()))
-                                #     axt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30)
+                                elif c_idx == ncols - 1:
+                                    ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
+                                    axt = ax[k_idx][c_idx].twinx()
+                                    axt.set_yticklabels(['']*len(axt.get_yticklabels()))
+                                    axt.set_ylabel(rf"$T_m = {tm}\, s$",rotation=270,labelpad=30)
                                 else:
                                     ax[k_idx][c_idx].set_yticks(np.arange(0,1.01,.1), labels=void_y_ticks)
                                 ax[k_idx][c_idx].grid(True, which='major')
 
                 fig.tight_layout()
-                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                fig.savefig(path + f"T{thr}_G{gt}_activation.png", bbox_inches='tight')
+                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                fig.savefig(path + f"T{thr}_G{gt}_activation.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################
@@ -707,22 +707,22 @@ class Data:
                         if y > 0:
                             ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
                 
-                # for orig_col, c_idx in col_map.items():
-                #     axt = ax[0][c_idx].twiny()
-                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                #     axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
+                for orig_col, c_idx in col_map.items():
+                    axt = ax[0][c_idx].twiny()
+                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                    axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
                 
                 for r_idx, tm_val in enumerate(rows_tm):
-                    # ayt = ax[r_idx][ncols - 1].twinx()
-                    # ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
-                    # ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
+                    ayt = ax[r_idx][ncols - 1].twinx()
+                    ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
+                    ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
                     ax[r_idx][0].set_ylabel(r"$M$")
                 for y in range(ncols): ax[nrows-1][y].set_xlabel(r"$T$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
                 os.makedirs(path, exist_ok=True)
-                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
                 fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.pdf", bbox_inches='tight')
                 plt.close(fig)
 
@@ -794,23 +794,23 @@ class Data:
                         if y > 0:
                             ax[x][y].set_yticklabels(['']*len(ax[x][y].get_yticklabels()))
                 
-                # for orig_col, c_idx in col_map.items():
-                #     axt = ax[0][c_idx].twiny()
-                #     axt.set_xticklabels(['']*len(axt.get_xticklabels()))
-                #     axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
+                for orig_col, c_idx in col_map.items():
+                    axt = ax[0][c_idx].twiny()
+                    axt.set_xticklabels(['']*len(axt.get_xticklabels()))
+                    axt.set_xlabel("LD25" if orig_col == 0 else "HD25" if orig_col == 1 else "HD100")
                 
                 for r_idx, tm_val in enumerate(rows_tm):
-                    # ayt = ax[r_idx][ncols - 1].twinx()
-                    # ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
-                    # ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
+                    ayt = ax[r_idx][ncols - 1].twinx()
+                    ayt.set_yticklabels(['']*len(ayt.get_yticklabels()))
+                    ayt.set_ylabel(rf"$T_m = {tm_val}\, s$",rotation=270,labelpad=30)
                     ax[r_idx][0].set_ylabel(r"$\Delta M$")
                 for y in range(ncols): ax[nrows-1][y].set_xlabel(r"$T$")
 
                 fig.tight_layout()
                 path = os.path.join(self.base, "msgs_data", "images") + "/"
                 os.makedirs(path, exist_ok=True)
-                # fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
-                fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.png", bbox_inches='tight')
+                fig.legend(bbox_to_anchor=(0.96, 0), handles=legend_elements, handler_map=handler_map, ncols=7, loc='upper right', framealpha=0.7, borderaxespad=0)
+                fig.savefig(path + f"{str(g).replace('.','_')}_{c_type}_messages.pdf", bbox_inches='tight')
                 plt.close(fig)
 
 ##########################################################################################################

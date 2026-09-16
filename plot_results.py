@@ -74,14 +74,14 @@ def main():
         print("Esecuzione modalità STANDARD (grafici separati)...")
         if tot_st:
             csv_res.plot_active_w_gt_thr(tot_st, tot_times)
-            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
+            # csv_res.plot_by_commit_w_gt_thr(tot_stbc)
             
         if tot_msgs:
             csv_res.plot_messages(tot_msgs)
         print("Esecuzione modalità STANDARD (grafici separati)...")
         if tot_st:
             csv_res.plot_active_w_gt_thr(tot_st, tot_times)
-            csv_res.plot_by_commit_w_gt_thr(tot_stbc)
+            # csv_res.plot_by_commit_w_gt_thr(tot_stbc)
             
         if tot_msgs:
             csv_res.plot_messages(tot_msgs)
