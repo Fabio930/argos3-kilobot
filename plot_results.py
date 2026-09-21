@@ -118,6 +118,14 @@ def main():
                         file_path=os.path.join(base, file)
                         tot_dec = csv_res.read_msgs_csv(file_path)
                         csv_res.plot_decisions(tot_dec)
+            if base.split('/')[-1] == "encounters_data":
+                for file in sorted(os.listdir(base)):
+                    if "images" not in file:
+                        file_path = os.path.join(base, file)
+                        # Legge usando lo stesso parser dei messaggi
+                        tot_enc = csv_res.read_msgs_csv(file_path)
+                        enc_mean, enc_ci = csv_res.plot_encounters(tot_enc)
+                        csv_res.print_encounters_barplot(enc_mean, enc_ci)
 
 ##################################################################################
 if __name__ == "__main__":

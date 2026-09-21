@@ -196,6 +196,11 @@ class Results:
         messages, decisions, msg_ci, dec_ci = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM, max_buff_size)
         algo_lower = str(algo).strip().lower()
         buff_dim_eff = max_buff_size if algo_lower == "ps" else "-"
+        encounters_mean, encounters_ci = self.compute_unique_encounters_over_deltaT(msgs_bigM, n_agents, max_steps)
+        self.dump_encounters("encounters_resume.csv", [
+            arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, 
+            encounters_mean, encounters_ci, buff_dim_eff
+        ])
         self.dump_decisions("decisions_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, decisions, dec_ci, buff_dim_eff])
         self.dump_msgs("messages_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, messages, msg_ci, buff_dim_eff])
         
@@ -206,6 +211,59 @@ class Results:
                 self.dump_times(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
                 self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
                 self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
+
+##########################################################################################################
+    def compute_unique_encounters_over_deltaT(self, msgs_bigM, n_agents, ticks):
+        num_runs = len(msgs_bigM[0])
+        # prop_runs[rn, dT] contains the mean proportion for run 'rn' and window 'dT'
+        prop_runs = np.zeros((num_runs, ticks), dtype=float)
+        
+        for rn in range(num_runs):
+            run_data = np.stack([msgs_bigM[ag][rn] for ag in range(n_agents)], axis=0)
+            
+            # B tracks if agent i encounters agent j at time t
+            B = np.zeros((n_agents, ticks, n_agents), dtype=bool)
+            
+            valid_mask = run_data != -1
+            ag_idx, tick_idx, buff_idx = np.where(valid_mask)
+            valid_ids = run_data[ag_idx, tick_idx, buff_idx]
+            
+            # Exclude the agent's own ID from being counted as an encounter
+            valid_id_mask = (valid_ids >= 0) & (valid_ids < n_agents) & (valid_ids != ag_idx)
+            B[ag_idx[valid_id_mask], tick_idx[valid_id_mask], valid_ids[valid_id_mask]] = True
+            
+            # Use uint16 for C to minimise memory usage during multiprocessing
+            C = np.zeros((n_agents, ticks + 1, n_agents), dtype=np.uint16)
+            np.cumsum(B, axis=1, out=C[:, 1:, :])
+            
+            for dT in range(ticks):
+                # Calculate unique IDs for ALL windows of size dT
+                window_counts = C[:, dT + 1:, :] - C[:, :-dT - 1, :]
+                unique_counts = (window_counts > 0).sum(axis=2)
+                
+                # Average over all valid starting times t and all agents, normalised by N-1
+                prop_runs[rn, dT] = unique_counts.mean() / (n_agents - 1)
+                
+        # Calculate global mean and 95% confidence interval across runs
+        encounters_mean = np.round(prop_runs.mean(axis=0), 4).tolist()
+        encounters_ci = np.round(1.96 * (prop_runs.std(axis=0, ddof=1) / np.sqrt(num_runs)), 4).tolist()
+        
+        return encounters_mean, encounters_ci
+
+##########################################################################################################
+    def dump_encounters(self, file_name, data):
+        # Stessi header usati per i messaggi e le decisioni
+        header = ["arena_size", "algo", "broadcast", "n_agents", "msg_exp_time", "msg_hops", "data", "ci_95", "max_buff_size"]
+        out_dir = os.path.join(os.path.abspath(""), "encounters_data")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, file_name)
+        
+        write_header = not os.path.exists(out_path)
+        with open(out_path, mode='a', newline='', buffering=1024 * 1024) as fw:
+            if write_header:
+                fw.write("\t".join(header) + "\n")
+            fw.write("\t".join(map(str, data)) + "\n")
+
 ##########################################################################################################
     def dump_recovery_raw(self,external_data,data):
         header = ["experiment_length","broadcast", "n_agents", "buff_dim", "msg_exp_time", "msg_hops", "ground_truth", "threshold", "run_id", "buff_starts", "durations", "events"]

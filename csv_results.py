@@ -13,7 +13,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lifelines import WeibullFitter,KaplanMeierFitter
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 18})
+plt.rcParams.update({"font.size": 30})
 csv.field_size_limit(sys.maxsize)
 
 ##########################################################################################################
@@ -69,7 +69,7 @@ class Data:
         self.bases = []
         self.base = os.path.abspath("")
         for elem in sorted(os.listdir(self.base)):
-            if elem == "msgs_data" or elem == "proc_data" or elem == "rec_data" or elem=="dec_data":
+            if elem in ["msgs_data", "proc_data", "rec_data", "dec_data", "encounters_data"]:
                 self.bases.append(os.path.join(self.base, elem))
         self.plot_config = self._load_plot_config()
         self.protocols = self.plot_config.get("protocols", [])
@@ -354,6 +354,175 @@ class Data:
                 buffers = buffers[order]
             out.update({k:[durations.tolist(),event_observed.tolist(),buffers.tolist()]})
         return out
+
+###################################################
+    def plot_encounters(self, data):
+        encounters_dict, ci_dict = {}, {}
+        dict_park, dict_park_t1, dict_park_real_fifo, dict_adam, dict_fifo,dict_rnd,dict_rnd_inf = {},{},{},{},{},{},{}
+        ci_park, ci_park_t1, ci_park_real_fifo, ci_adam, ci_fifo,ci_rnd,ci_rnd_inf = {},{},{},{},{},{},{}
+        for k in data.keys():
+            algo = str(k[1]).strip().lower()
+            n_agents = int(k[3]) if len(k) > 3 else 0
+            buf_dim = int(k[4]) if len(k) > 4 else 0
+            max_buff_size = k[6] if len(k) > 6 else str(max(0, n_agents - 1))
+            is_priority_sampling = algo == 'ps' or (algo == 'p' and buf_dim == max(0, n_agents - 2))
+            
+            mean_vals = data.get(k)[0]
+            ci_vals = data.get(k)[1]
+
+            if is_priority_sampling and buf_dim > 0:
+                dict_park_t1.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park_t1.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+            elif is_priority_sampling and buf_dim == 0:
+                dict_park_real_fifo.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park_real_fifo.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+            elif k[1]=='P' and int(k[4]) > 0:
+                dict_park.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                ci_park.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+            elif k[1]=='P' and int(k[4]) == 0:
+                dict_park_real_fifo.update({(k[0],k[3],"60",max_buff_size):mean_vals})
+                ci_park_real_fifo.update({(k[0],k[3],"60",max_buff_size):ci_vals})
+            else:
+                if k[2]=="0":
+                    dict_adam.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                    ci_adam.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+                elif k[2]=="2":
+                    dict_fifo.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                    ci_fifo.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+                else:
+                    if k[5] == "1":
+                        dict_rnd.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                        ci_rnd.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+                    else:
+                        dict_rnd_inf.update({(k[0],k[3],k[4],max_buff_size):mean_vals})
+                        ci_rnd_inf.update({(k[0],k[3],k[4],max_buff_size):ci_vals})
+                        
+        encounters_dict.update({"P.0":dict_park_real_fifo})
+        ci_dict.update({"P.0":ci_park_real_fifo})
+        encounters_dict.update({"P.1.0":dict_park})
+        ci_dict.update({"P.1.0":ci_park})
+        encounters_dict.update({"P.1.1":dict_park_t1})
+        ci_dict.update({"P.1.1":ci_park_t1})
+        encounters_dict.update({"O.0.0":dict_adam})
+        ci_dict.update({"O.0.0":ci_adam})
+        encounters_dict.update({"O.2.0":dict_fifo})
+        ci_dict.update({"O.2.0":ci_fifo})
+        encounters_dict.update({"O.1.1":dict_rnd})
+        ci_dict.update({"O.1.1":ci_rnd})
+        encounters_dict.update({"O.1.0":dict_rnd_inf})
+        ci_dict.update({"O.1.0":ci_rnd_inf})
+        
+        return encounters_dict, ci_dict
+
+###################################################
+    def print_encounters_barplot(self, data_in, data_ci, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
+        if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
+        if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
+        if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
+
+        # All possible configurations
+        all_cols = ["LD25", "HD25", "HD100"]
+        
+        # Active configurations to plot
+        active_cols = [c for c in all_cols if c not in exclude_cols]
+        if not active_cols: 
+            return
+
+        # Define colours based on configuration using viridis.
+        # vmax is set to len(all_cols) instead of len(all_cols) - 1 to map
+        # an extra step, effectively excluding the lightest yellow colour at the end.
+        cNorm = colors.Normalize(vmin=0, vmax=len(all_cols))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        
+        config_colors = {
+            col_name: scalarMap.to_rgba(idx) for idx, col_name in enumerate(all_cols)
+        }
+
+        # Determine active rows to correctly filter the data, even for a single panel
+        rows = [60, 120, 180, 300, 600]
+        rows = [r for r in rows if str(r) not in exclude_rows]
+        rows = self._plot_tm_values(rows)
+        if not rows:
+            return
+        row_index = {str(c): i for i, c in enumerate(rows)}
+        
+        # Create a single panel figure
+        fig, ax = plt.subplots(figsize=(10, 7))
+        
+        real_x_ticks, void_x_ticks, svoid_x_ticks = [], [], []
+        if len(real_x_ticks) == 0:
+            for x in range(0, 901, 50):
+                if x % 300 == 0:
+                    svoid_x_ticks.append('')
+                    void_x_ticks.append('')
+                    real_x_ticks.append(str(int(np.around(x, 0))))
+                else:
+                    void_x_ticks.append('')
+                    
+        for dk in data_in.keys():
+            if dk in exclude_protocols or not self._protocol_enabled(dk):
+                continue
+            dct = data_in.get(dk)
+            
+            for k in dct.keys():
+                if dk != 'P.0' and k[2] not in row_index:
+                    continue
+                
+                ag_val_str = str(k[1]).strip()
+                arena_val = str(k[0]).strip().replace('A', '')
+                
+                col_name = "LD25"
+                if arena_val == 'big' and ag_val_str == '100': col_name = "HD100"
+                elif arena_val == 'small': col_name = "HD25"
+
+                if col_name not in active_cols:
+                    continue
+                    
+                c_val = config_colors.get(col_name, "black")
+                y_vals = np.array(dct.get(k))
+                x_vals = np.arange(len(y_vals))
+                
+                # Plot as a thicker line
+                ax.plot(x_vals, y_vals, color=c_val, linewidth=3.0)
+                
+        # Set ticks and labels for the single axis
+        ax.set_xticks(np.arange(0, 901, 300), labels=real_x_ticks)
+        ax.set_xticks(np.arange(0, 901, 50), labels=void_x_ticks, minor=True)
+            
+        ax.set_ylabel(r"C")
+        ax.set_xlabel(r"$\Delta T$")
+            
+        ax.grid(True, ls=':')
+        ax.set_xlim(0, 900)
+        ax.set_ylim(-0.03, 1.03)
+
+        fig.tight_layout()
+        # Adjust layout to make room for the legend at the bottom
+        fig.subplots_adjust(bottom=0.2)
+                    
+        out_dir = os.path.join(self.base, "encounters_data", "images")
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        fig_path = os.path.join(out_dir, "encounters_lineplot.pdf")
+        
+        # Generate the legend with square markers on a single row below the plot
+        legend_handles = []
+        legend_labels = []
+        for col_name in active_cols:
+            c_val = config_colors.get(col_name, "black")
+            legend_handles.append(
+                mlines.Line2D([], [], color=c_val, marker='s', linestyle='None', 
+                              markersize=12, label=col_name)
+            )
+            legend_labels.append(col_name)
+            
+        if legend_handles:
+            fig.legend(legend_handles, legend_labels, loc='lower center', 
+                       bbox_to_anchor=(0.7, -0.05), ncol=len(legend_handles), 
+                       framealpha=0.9, borderaxespad=0)
+        fig.tight_layout()
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
 
 ###################################################
     def plot_messages(self,data):
@@ -698,7 +867,10 @@ class Data:
             rows.append({
                 'Arena': str(arena), 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
                 'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
-                'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 'Color': color, 'MBS': mbs
+                'Time': mean_time, 
+                'CI_Time': ci_time, 
+                'CI_Events': ci_events / int(agents),
+                'VariantKey': variant_key, 'Label': label, 'Color': color, 'MBS': mbs
             })
             
         df = pd.DataFrame(rows)
@@ -1071,7 +1243,7 @@ class Data:
         g_t_min = v_times.min() if not v_times.empty else 0.5
         g_t_max = df['Time'].max() if not df.empty else 100.0
         pad_factor = 1
-        xlim_global = (0.5, g_e_max * pad_factor)
+        xlim_global = (0.5, g_e_max * pad_factor +10)
         ylim_global = (g_t_min / pad_factor, 1100)
 
         def save_short(subset):
@@ -1124,9 +1296,9 @@ class Data:
                     if i == 0: ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
                     if j == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
                     if i == nrows - 1: ax.set_xlabel(r"$E_{r}$", fontsize=28)
-                    if j == ncols - 1:
-                        ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
-                                    rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
+                    # if j == ncols - 1:
+                    #     ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
+                    #                 rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
 
                     ax.set_axisbelow(True)
                     ax.grid(True, ls=':', zorder=0)
@@ -1160,46 +1332,13 @@ class Data:
                 else:
                     legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.7, 0.015))
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.52, -0.1))
             fig.tight_layout(rect=[0, 0.05, 1, 1])
             fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
 
         save_short(df)
         self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global)
-
-###################################################
-    def _get_pareto_front(self, xs, ys):
-        points = np.column_stack((xs, ys))
-        # Rimuove eventuali NaN
-        points = points[~np.isnan(points).any(axis=1)]
-        if len(points) == 0:
-            return [], []
-        
-        # Rimuove duplicati per ottimizzare
-        points = np.unique(points, axis=0)
-        pareto_front = []
-        
-        for i, p1 in enumerate(points):
-            is_dominated = False
-            for j, p2 in enumerate(points):
-                if i == j: continue
-                # p2 domina p1 se ha valori <= in tutte le dimensioni e < in almeno una
-                if (p2[0] <= p1[0] and p2[1] <= p1[1]) and (p2[0] < p1[0] or p2[1] < p1[1]):
-                    is_dominated = True
-                    break
-            if not is_dominated:
-                pareto_front.append(p1)
-                
-        if not pareto_front:
-            return [], []
-            
-        pareto_front = np.array(pareto_front)
-        # Ordina per l'asse X per disegnare correttamente la linea continua
-        sort_idx = np.argsort(pareto_front[:, 0])
-        pareto_front = pareto_front[sort_idx]
-        
-        return pareto_front[:, 0], pareto_front[:, 1]
 
 ###################################################
     def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global):
@@ -1279,7 +1418,7 @@ class Data:
             else:
                 legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-        fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.7, 0.03))
+        fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.58, 0.03))
         fig.tight_layout(rect=[0, 0.05, 1, 1])
         fig.savefig(os.path.join(images_dir, f"scatter_recovery_all_tm.pdf"), bbox_inches='tight')
         plt.close(fig)
@@ -1290,26 +1429,19 @@ class Data:
         alpha_val = 0.3 if target_type == 'main' else 0.2
         d_le = data[data['Error'] <= 0.05]['Events'].values
         t_le = data[data['Error'] <= 0.05]['Time'].values
-        
         if len(d_le) > 0:
             # 1. Draw the scatter points with zorder=2 (above the highlighted area)
             ax.scatter(d_le, t_le, marker=marker_type, s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none', zorder=2)
-            
             # 2. Compute variables for the shaded area
             alpha_fill = 0.15 if target_type == 'main' else 0.05
             alpha_edge = 0.40 if target_type == 'main' else 0.20
-            
             points = np.column_stack((d_le, t_le))
-            
             # Prevent log(0) errors by setting a tiny lower bound for the transformation
             safe_t_le = np.where(t_le > 0, t_le, 1e-10)
-            
             # Transform the Y-axis into logarithmic space strictly for the Hull calculation
             hull_space_points = np.column_stack((d_le, np.log10(safe_t_le)))
-            
             # Remove duplicate points based on the transformed space to prevent Qhull geometry errors
             _, unique_indices = np.unique(hull_space_points, axis=0, return_index=True)
-            
             if len(unique_indices) >= 3:
                 from scipy.spatial import ConvexHull
                 from matplotlib.patches import Polygon
@@ -1479,30 +1611,30 @@ class Data:
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
-    def print_decisions(self,data_in, data_ci):
+    def print_decisions(self, data_in, data_ci, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
+        if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
+        if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
+        if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
+
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
-        min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=6, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
+        
         real_x_ticks = []
         void_x_ticks = []
         svoid_x_ticks = []
         handles_r = []
         l_list = []
         
-        all_cols = set()
-        p11_present = False
         all_agents = set()
         mbs_per_agent = {}
         
         for dk in data_in.keys():
-            if dk == "P.1.1" or dk.startswith("P.1.1"): p11_present = True
             dct = data_in.get(dk)
             for k in dct.keys():
                 try:
-                    all_cols.add(int(k[2]))
                     ag_val = int(k[1])
                     all_agents.add(ag_val)
                     if dk == "P.1.1" or dk.startswith("P.1.1"):
@@ -1515,7 +1647,7 @@ class Data:
         mbs_sorted = {ag: sorted(list(mbs_per_agent[ag])) for ag in mbs_per_agent}
                     
         for pid in protocols_order:
-            if not self._protocol_enabled( pid):
+            if pid in exclude_protocols or not self._protocol_enabled(pid):
                 continue
             protocol = self.protocols_by_id.get(pid)
             handles_r.append(
@@ -1530,52 +1662,58 @@ class Data:
             )
             l_list.append(protocol.get("label", pid) if protocol else pid)
                 
-        handles_r.append(min_dim)
-        
-        columns = [60, 120, 180, 300, 600]
-        columns = self._plot_tm_values( columns)
-        if not columns:
+        rows = [60, 120, 180, 300, 600]
+        rows = [r for r in rows if str(r) not in exclude_rows]
+        rows = self._plot_tm_values(rows)
+        if not rows:
             return
-        col_index = {str(c): i for i, c in enumerate(columns)}
-        ncols = len(columns)
+        row_index = {str(c): i for i, c in enumerate(rows)}
+        nrows = len(rows)
         
-        fig, ax     = plt.subplots(nrows=3, ncols=ncols,figsize=(5.2*ncols + ncols*1.5,5.2*ncols), squeeze=False)
+        active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
+        ncols = len(active_cols)
+        if ncols == 0: return
         
-        if len(real_x_ticks)==0:
-            for x in range(0,901,50):
-                if x%300 == 0:
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, nrows*7), sharex=True, sharey=True, squeeze=False)
+        
+        if len(real_x_ticks) == 0:
+            for x in range(0, 901, 50):
+                if x % 300 == 0:
                     svoid_x_ticks.append('')
                     void_x_ticks.append('')
-                    real_x_ticks.append(str(int(np.around(x,0))))
+                    real_x_ticks.append(str(int(np.around(x, 0))))
                 else:
                     void_x_ticks.append('')
+                    
         for dk in data_in.keys():
+            if dk in exclude_protocols or not self._protocol_enabled(dk):
+                continue
             dct = data_in.get(dk)
             for k in dct.keys():
-                if not self._protocol_enabled( dk):
+                if dk != 'P.0' and k[2] not in row_index:
                     continue
                 
-                if dk != 'P.0' and k[2] not in col_index:
+                ag_val_str = str(k[1]).strip()
+                arena_val = str(k[0]).strip().replace('A', '')
+                
+                col_name = "LD25"
+                if arena_val == 'big' and ag_val_str == '100': col_name = "HD100"
+                elif arena_val == 'small': col_name = "HD25"
+
+                if col_name not in active_cols:
                     continue
+                col = active_cols.index(col_name)
                     
-                row = 0
-                if k[0]=='big' and k[1]=='25':
-                    row = 0
-                elif k[0]=='big' and k[1]=='100':
-                    row = 2
-                elif k[0]=='small':
-                    row = 1
-                    
-                c_val = protocol_colors.get(dk,"gray")
+                c_val = protocol_colors.get(dk, "gray")
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
                 if is_p11 and len(k) > 3:
                     try:
                         m_b_s = k[3]
-                        ag_val = int(k[1])
-                        if m_b_s != "" and ag_val in mbs_sorted and len(mbs_sorted[ag_val]) > 0:
+                        ag_val_int = int(k[1])
+                        if m_b_s != "" and ag_val_int in mbs_sorted and len(mbs_sorted[ag_val_int]) > 0:
                             val = float(m_b_s)
-                            N_vals = len(mbs_sorted[ag_val])
-                            idx = mbs_sorted[ag_val].index(val)
+                            N_vals = len(mbs_sorted[ag_val_int])
+                            idx = mbs_sorted[ag_val_int].index(val)
                             ratio = (idx + 1) / N_vals
                         else:
                             ratio = 1.0
@@ -1592,8 +1730,8 @@ class Data:
                     except Exception:
                         pass
                 
-                # Fetch CI values safely for Decisions
                 y_vals = np.array(dct.get(k))
+                
                 raw_ci = None
                 if data_ci.get(dk) is not None:
                     raw_ci = data_ci.get(dk).get(k)
@@ -1604,79 +1742,63 @@ class Data:
                     ci_vals = np.array(raw_ci)
                     
                 x_vals = np.arange(len(y_vals))
-
+                
                 if dk == 'P.0':
-                    for c_idx in range(ncols):
-                        ax[row][c_idx].plot(x_vals, y_vals, color=c_val, lw=6)
-                        ax[row][c_idx].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                    for r_idx in range(nrows):
+                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
+                        ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 else:
-                    col = col_index.get(k[2])
-                    if col is not None:
+                    row = row_index.get(k[2])
+                    if row is not None:
                         ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
                         ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
                 
-        for x in range(2):
+        for x in range(nrows):
             for y in range(ncols):
-                ax[x][y].set_xticks(np.arange(0,901,300),labels=svoid_x_ticks)
-                ax[x][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-                
-        for x in range(3):
-            for y in range(1,ncols):
-                ax[x][y].tick_params(labelleft=False)
+                ax[x][y].set_xticks(np.arange(0, 901, 300), labels=svoid_x_ticks)
+                ax[x][y].set_xticks(np.arange(0, 901, 50), labels=void_x_ticks, minor=True)
                 
         for y in range(ncols):
-            ax[2][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
-            ax[2][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
-            
-        for idx, col_val in enumerate(columns):
+            ax[nrows-1][y].set_xticks(np.arange(0, 901, 300), labels=real_x_ticks)
+            ax[nrows-1][y].set_xticks(np.arange(0, 901, 50), labels=void_x_ticks, minor=True)
+        for idx, col_val in enumerate(active_cols):
             axt=ax[0][idx].twiny()
             axt.tick_params(labeltop=False, labelbottom=False)
-            axt.set_xlabel(rf"$T_m = {int(col_val)}\, s$")
-            
+            axt.set_xlabel(f"{col_val}")   
+
+        
         last_col = ncols - 1
-        ayt0=ax[0][last_col].twinx()
-        ayt1=ax[1][last_col].twinx()
-        ayt2=ax[2][last_col].twinx()
-        
-        ayt0.tick_params(labelright=False)
-        ayt1.tick_params(labelright=False)
-        ayt2.tick_params(labelright=False)
-        
-        ayt0.set_ylabel("LD25")
-        ayt1.set_ylabel("HD25")
-        ayt2.set_ylabel("HD100")
-        ax[0][0].set_ylabel(r"$D$")
-        ax[1][0].set_ylabel(r"$D$")
-        ax[2][0].set_ylabel(r"$D$")
+        ays = []
+        for idx in range(nrows):
+            ayt = ax[idx][last_col].twinx()
+            ayt.tick_params(labelright=False)
+            ays.append(ayt)
+        for idx, row_val in enumerate(rows):
+            ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
+        for x in range(nrows):
+            ax[x][0].set_ylabel(r"$D$")
+            
         for y in range(ncols):
-            ax[2][y].set_xlabel(r"$T$")
-        for x in range(3):
+            ax[nrows-1][y].set_xlabel(r"$T$")
+            
+        for x in range(nrows):
             for y in range(ncols):
-                ax[x][y].grid(True,ls=':')
-                ax[x][y].set_xlim(0,900)
-                if x==0 or x==1:
-                    ax[x][y].set_ylim(-0.03,1.03)
-                else:
-                    ax[x][y].set_ylim(-0.03,1.03)
+                ax[x][y].grid(True, ls=':')
+                ax[x][y].set_xlim(0, 900)
+                ax[x][y].set_ylim(-0.03, 1.03)
 
         fig.tight_layout()
                     
-        if p11_present:
-            cmap_grey = colors.LinearSegmentedColormap.from_list('custom_grey', ['#2D2D2D','#E0E0E0'])
-            grad_rect = Rectangle((0, 0), 1, 1)
-            handles_r.append(grad_rect)
-            l_list.append("k-sampling")
-            handler_map = {Rectangle: GradientHandler(cmap_grey)}
-        else:
-            handler_map = None
-            
-        if not os.path.exists(self.base+"/dec_data/images/"):
-            os.mkdir(self.base+"/dec_data/images/")
-        fig_path = self.base+"/dec_data/images/decisions.pdf"
+        if not os.path.exists(self.base + "/dec_data/images/"):
+            os.mkdir(self.base + "/dec_data/images/")
+        fig_path = self.base + "/dec_data/images/decisions.pdf"
+        
         if handles_r:
-            fig.legend(handles_r, l_list, bbox_to_anchor=(1, 0), ncols=len(handles_r), loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+            fig.legend(handles_r, l_list, bbox_to_anchor=(0.96, 0.01), ncols=len(handles_r), loc='upper right', framealpha=0.7, borderaxespad=0)
+            
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
+
 ###################################################
 
     def print_messages(self, data_in, data_std, exclude_protocols=None, exclude_rows=None, exclude_cols=["LD25", "HD25"]):
@@ -1843,10 +1965,10 @@ class Data:
             ax[nrows-1][y].set_xticks(np.arange(0,901,300),labels=real_x_ticks)
             ax[nrows-1][y].set_xticks(np.arange(0,901,50),labels=void_x_ticks,minor=True)
             
-        # for idx, col_val in enumerate(active_cols):
-        #     axt=ax[0][idx].twiny()
-        #     axt.tick_params(labeltop=False, labelbottom=False)
-        #     axt.set_xlabel(f"{col_val}")
+        for idx, col_val in enumerate(active_cols):
+            axt=ax[0][idx].twiny()
+            axt.tick_params(labeltop=False, labelbottom=False)
+            axt.set_xlabel(f"{col_val}")
             
         last_col = ncols - 1
         ays = []
@@ -1855,8 +1977,8 @@ class Data:
             ayt.tick_params(labelright=False)
             ays.append(ayt)
             
-        # for idx, row_val in enumerate(rows):
-        #     ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
+        for idx, row_val in enumerate(rows):
+            ays[idx].set_ylabel(rf"$T_m = {row_val}\, s$",rotation=270,labelpad=30)
 
         for x in range(nrows):
             ax[x][0].set_ylabel(r"$M$")
@@ -1875,14 +1997,15 @@ class Data:
 
         if not os.path.exists(self.base+"/msgs_data/images/"):
             os.mkdir(self.base+"/msgs_data/images/")
-        # if handles_r:
-        #     fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.01), ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
+        if handles_r:
+            fig.legend(handles_l+handles_r, l_list+r_list, bbox_to_anchor=(0.96, 0.01), ncols=7, loc='upper right',framealpha=0.7,borderaxespad=0, handler_map=handler_map)
             
-        fig_path = self.base+"/msgs_data/images/messages.png"
+        fig_path = self.base+"/msgs_data/images/messages.pdf"
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
 
-    def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=["LD25", "HD25"]):
+###################################################
+    def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=[]):
         if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
         if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
         if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
@@ -2020,153 +2143,63 @@ class Data:
         fig.tight_layout()
         tfig.tight_layout()
                 
-        handler_map = None
-
-        # fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
-        # tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
+        fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
+        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
-        fig.savefig(path+_type+"_activation.png", bbox_inches='tight')
+        fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
         plt.close(fig); plt.close(tfig)
 
-    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows, ncols, col_name):
-        from matplotlib.ticker import FixedLocator
-
-        for a_curr in [ax[k][col], tax[k][col]]:
-            a_curr.set_xlim(0.5, 1.0)
-            a_curr.tick_params(axis='both', which='major', labelsize=border_font)
-
-        ax[k][col].set_ylim(0.5, 1.0)
-        if col_name == "LD25": tax[k][col].set_ylim(0, 201)
-        elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
-        elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
-
-        if col == 0:
-            ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
-            tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
-            ax[k][col].yaxis.set_tick_params(labelleft=True)
-        else:
-            ax[k][col].yaxis.set_tick_params(labelleft=False)
-        tax[k][col].yaxis.set_tick_params(labelleft=True)
-
-        ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-        
-        if k == nrows - 1:
-            for a_curr in [ax[k][col], tax[k][col]]:
-                a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
-                a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
-                a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
-        else:
-            for a_curr in [ax[k][col], tax[k][col]]:
-                a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
-                a_curr.set_xticklabels([]) 
-
-        # if k == 0:
-        #     axt = ax[k][col].twiny()
-        #     taxt = tax[k][col].twiny()
-        #     axt.set_xlim(0.5, 1.0)
-        #     taxt.set_xlim(0.5, 1.0)
-        #     axt.set_xticks([])
-        #     taxt.set_xticks([])
-            # axt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
-            # taxt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
-
-        # if col == ncols - 1:
-        #     for a_curr in [ax[k][col], tax[k][col]]:
-        #         a_right = a_curr.twinx()
-        #         a_right.set_yticks([])
-        #         a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
-
-        ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
-        tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
-
 ###################################################
-    def plot_protocol_tables(self, save_path, o_k, ground_T, threshlds, vals_dict):
-        """
-        Genera una tabella unica per ogni valore di o_k e protocollo, con valori v2 (rosso) e v8 (verde) nella stessa cella.
-        """
-        for (a, ag), proto_dict in vals_dict.items():
-            for idx, ok_val in enumerate(o_k):
-                if ok_val == 60:
-                    protocols = [
-                        ("anonymous_real_fifo", "pr"),
-                        ("anonymous", "p"),
-                        ("anonymous_ps", "ps"),
-                        ("id_broad", "a"),
-                        ("id_rebroad_fifo", "f"),
-                        ("id_rebroad_rnd", "r"),
-                        ("id_rebroad_rnd_inf", "ri"),
-                    ]
-                else:
-                    protocols = [
-                        ("anonymous", "p"),
-                        ("anonymous_ps", "ps"),
-                        ("id_broad", "a"),
-                        ("id_rebroad_fifo", "f"),
-                        ("id_rebroad_rnd", "r"),
-                        ("id_rebroad_rnd_inf", "ri"),
-                    ]
-                fig, axes = plt.subplots(len(protocols), 1, figsize=(28, 84))
-                if len(protocols) == 1:
-                    axes = [axes]
-                for p_idx, (title, suffix) in enumerate(protocols):
-                    vals2 = proto_dict[f"vals2{suffix}"]
-                    vals8 = proto_dict[f"vals8{suffix}"]
-                    gt_unique = sorted(set(ground_T))[::-1]
-                    cell_text = [[] for _ in gt_unique]
-                    for j, thr in enumerate(threshlds):
-                        for gt_idx, gt in enumerate(gt_unique):
-                            v2_txt = ""
-                            v8_txt = ""
-                            if gt in vals2[idx][j][1]:
-                                pos = vals2[idx][j][1].index(gt)
-                                v2 = vals2[idx][j][0][pos]
-                                v2_txt = f"{v2:.2f}"
-                            if gt in vals8[idx][j][1]:
-                                pos = vals8[idx][j][1].index(gt)
-                                v8 = vals8[idx][j][0][pos]
-                                v8_txt = f"{v8:.2f}"
-                            if v2_txt and v8_txt:
-                                if float(v2_txt) != float(v8_txt):
-                                    cell_text[gt_idx].append("ERR")
-                                else:
-                                    cell_text[gt_idx].append(f"{v2_txt}_B")
-                            elif v2_txt:
-                                cell_text[gt_idx].append(f"{v2_txt}_L")
-                            elif v8_txt:
-                                cell_text[gt_idx].append(f"{v8_txt}_H")
-                            else:
-                                cell_text[gt_idx].append("")
-                    table = axes[p_idx].table(
-                        cellText=cell_text,
-                        colLabels=[f"{t:.2f}" for t in threshlds],
-                        rowLabels=[f"{gt:.2f}" for gt in gt_unique],
-                        loc='center',
-                        cellLoc='center'
-                    )
-                    axes[p_idx].set_title(f"{title} ({a}, {ag})")
-                    axes[p_idx].axis('off')
-                    table.auto_set_font_size(False)
-                    table.set_fontsize(plt.rcParams.get("font.size"))
-                    table.scale(2.5, 4.0)
-                    for (i, j), cell in table.get_celld().items():
-                        if i == 0 or j == -1:
-                            continue
-                        if i > 0 and j >= 0:
-                            txt = cell.get_text().get_text()
-                            if "_" in txt:
-                                if txt.split('_')[-1] == "B":
-                                    cell.get_text().set_text(txt.split("_B")[0])
-                                    cell.set_facecolor("#ffae00")  # arancione
-                                elif txt.split('_')[-1] == "L":
-                                    cell.get_text().set_text(txt.split("_L")[0])
-                                    cell.set_facecolor('#ffcccc')  # rosso
-                                elif txt.split('_')[-1] == "H":
-                                    cell.get_text().set_text(txt.split("_H")[0])
-                                    cell.set_facecolor('#ccffcc')  # verde
-                # fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.png", bbox_inches='tight')
-                fig.savefig(f"{save_path}protocol_tables_{a}_{ag}_buffer_{ok_val}.pdf", bbox_inches='tight')
-                plt.close(fig)
+    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows, ncols, col_name):
+            from matplotlib.ticker import FixedLocator
+    
+            for a_curr in [ax[k][col], tax[k][col]]:
+                a_curr.set_xlim(0.5, 1.0)
+                a_curr.tick_params(axis='both', which='major', labelsize=border_font)
+    
+            ax[k][col].set_ylim(0.5, 1.0)
+            # if col_name == "LD25": tax[k][col].set_ylim(0, 201)
+            # elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
+            # elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
+    
+            if col == 0:
+                ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
+                tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
+                ax[k][col].yaxis.set_tick_params(labelleft=True)
+            else:
+                ax[k][col].yaxis.set_tick_params(labelleft=False)
+            tax[k][col].yaxis.set_tick_params(labelleft=True)
+    
+            ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+            
+            if k == nrows - 1:
+                for a_curr in [ax[k][col], tax[k][col]]:
+                    a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
+                    a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
+                    a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
+            else:
+                for a_curr in [ax[k][col], tax[k][col]]:
+                    a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
+                    a_curr.set_xticklabels([])
+            if k == 0:
+                axt = ax[k][col].twiny()
+                taxt = tax[k][col].twiny()
+                axt.set_xlim(0.5, 1.0)
+                taxt.set_xlim(0.5, 1.0)
+                axt.set_xticks([])
+                taxt.set_xticks([])
+                axt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
+                taxt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
+
+            if col == ncols - 1:
+                for a_curr in [ax[k][col], tax[k][col]]:
+                    a_right = a_curr.twinx()
+                    a_right.set_yticks([])
+                    a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+
+            ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
+            tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
 
 ###################################################
     def _group_tables(self, tot_states, tot_times, tot_msgs):
