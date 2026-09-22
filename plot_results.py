@@ -71,7 +71,7 @@ def main():
                 for file in _select_files(base):
                     if "images" not in file:
                         file_path=os.path.join(base, file)
-                        tot_msgs = csv_res.read_msgs_csv_w_std(file_path)
+                        tot_msgs = csv_res.read_msgs_csv(file_path)
         csv_res.plot_compressed_table(tot_st,tot_times,tot_msgs)
     else:
         for base in csv_res.bases:
@@ -105,6 +105,7 @@ def main():
                 if len(tot_st) > 0:
                     path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents] = csv_res.plot_active(tot_st,tot_times)
                     csv_res.print_borders(path,'avg','median',ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents])
+                    csv_res.print_chronometric_function(tot_times)
             if base.split('/')[-1] == "msgs_data":
                 for file in _select_files(base):
                     if "images" not in file:

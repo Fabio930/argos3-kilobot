@@ -1912,9 +1912,6 @@ class Data:
         ground_T, threshlds , msg_time, msg_hop, max_buff = [],[],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
         o_k                                         = []
-        
-        kmf = KaplanMeierFitter()
-        
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -1930,16 +1927,11 @@ class Data:
                 if k0[9]not in msg_time: msg_time.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
                 if len(k0)>11 and k0[11]not in max_buff: max_buff.append(k0[11])
-        
-        ground_T = sorted(ground_T)
-        threshlds = sorted(threshlds)
-        
         for i in range(len(data_in)):
             for a in algo:
                 for a_s in arena:
                     for n_r in runs:
                         for et in time:
-                            max_ticks = int(et) if str(et).isdigit() else 1000
                             for c in comm:
                                 for n_a in agents:
                                     for m_b_d in buf_dim:
@@ -1954,38 +1946,16 @@ class Data:
                                                         for thr in threshlds:
                                                             s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
                                                             t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
-                                                            
-                                                            if s_data != None and t_data != None:
+                                                            if s_data != None:
                                                                 if m_t not in o_k: o_k.append(m_t)
                                                                 tmp.append(round(np.median(s_data[0]),2))
-                                                                
-                                                                T_durations = t_data[0]
-                                                                # Dati censurati: consideriamo valide solo le run sotto il max_ticks
-                                                                E_observed = [1 if t <= max_ticks else 0 for t in T_durations]
-                                                                
-                                                                if sum(E_observed) > 0:
-                                                                    kmf.fit(T_durations, event_observed=E_observed)
-                                                                    med_surv_time = kmf.median_survival_time_
-                                                                    
-                                                                    # Se la stima di sopravvivenza non converge, restituiamo np.nan per staccare la linea
-                                                                    if np.isinf(med_surv_time):
-                                                                        tmp_tmed.append(np.nan)
-                                                                    else:
-                                                                        tmp_tmed.append(round(med_surv_time, 2))
-                                                                else:
-                                                                    tmp_tmed.append(np.nan)
-                                                            else:
-                                                                if s_data != None:
-                                                                    tmp.append(round(np.median(s_data[0]),2))
-                                                                tmp_tmed.append(np.nan)
-                                                                
+                                                                tmp_tmed.append(round(np.median(t_data[0]),2))
                                                         if len(vals)==0:
                                                             vals            = np.array([tmp])
                                                             times_median    = np.array([tmp_tmed])
                                                         else:
                                                             vals            = np.append(vals,[tmp],axis=0)
                                                             times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                                            
                                                     if a.strip().lower() in ['ps'] and int(c)==0 and m_t in o_k and int(m_t) > 0:
                                                         if len(vals[0])>0:
                                                             dict_park_t1_avg.update({(a_s,n_a,m_t,m_b_s):vals})
@@ -2013,7 +1983,6 @@ class Data:
                                                                 else:
                                                                     dict_rnd_inf_avg.update({(a_s,n_a,m_t,m_b_s):vals})
                                                                     dict_rnd_inf_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                                    
         states_dict.update({"P.0":dict_park_avg_real_fifo})
         times_dict.update({"P.0":dict_park_tmed_real_fifo})
         states_dict.update({"P.1.0":dict_park_avg})
@@ -2066,10 +2035,6 @@ class Data:
         l_list_r = []
         handles_l = []
         l_list_l = []
-        
-        p11_present = False
-        for dk in data_in.keys():
-            if dk == "P.1.1" or dk.startswith("P.1.1"): p11_present = True
                 
         for pid in protocols_order:
             if pid in exclude_protocols or not self._protocol_enabled(pid):
@@ -2085,22 +2050,9 @@ class Data:
         if ncols == 0: return
 
         fig, ax     = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
-        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
+        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,7*nrows), sharex=False, squeeze=False)
         
         attributes_row_col = np.zeros((nrows,ncols))
-
-        g_targets = [0.68, 0.8, 0.92]
-        g_styles = {0.68: '--', 0.8: '-', 0.92: ':'}
-
-        handles_g = []
-        l_list_g = []
-        for g_val in g_targets:
-            handles_g.append(mlines.Line2D([], [], color='black', marker='None', linestyle=g_styles[g_val], linewidth=4))
-            l_list_g.append(f"G={g_val}")
-
-        sorted_th_indices = np.argsort(threshlds)
-        x_plot = np.array(threshlds)[sorted_th_indices]
-        if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
 
         for a in arena:
             agents_list = ["25"] if a=="smallA" else more_k[1]
@@ -2124,49 +2076,61 @@ class Data:
                         for dk in data_in.keys():
                             if dk in exclude_protocols or not self._protocol_enabled(dk):
                                 continue
-                            c_val = protocol_colors.get(dk, "gray")
                             
-                            vals_v2, vals_v8, gts_v2, gts_v8 = [], [], [], []
+                            vals_v2, vals_v8 = [], []
+                            times_v = []
+                            
+                            x_plot = np.array(threshlds)
+                            if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
                             
                             search_tm = "60" if dk == 'P.0' else str(o_k[k])
 
                             for th in range(len(threshlds)):
                                 vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
+                                valst, lim_valst = np.nan, np.nan
                                 
                                 d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
+                                t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
                                 
                                 if d_series is not None:
                                     for pt in range(len(ground_T)):
                                         val = d_series[pt][th]
+                                        tval = t_series[pt][th]
                                         if val is not None:
                                             if val>=0.8:
-                                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val==vals2[0]):
+                                                if ground_T[pt]-threshlds[th] >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
+                                                    valst, lim_valst = tval, ground_T[pt]-threshlds[th]
+                                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val<vals8[1]):
+                                                    vals8[1], gt8[1] = val, ground_T[pt]
+                                            elif val<=0.2:
+                                                if ground_T[pt]-threshlds[th] <= 0 and (vals2[0] is np.nan or val>=vals2[0]):
                                                     vals2[0], gt2[0] = val, ground_T[pt]
                                             else:
                                                 if vals8[0] is np.nan or val>vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
-                                                if vals2[1] is np.nan or val == 0:  vals2[1], gt2[1] = val, ground_T[pt]
-                                               
+                                                if vals2[1] is np.nan or val<vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
+                                                
+                                if vals8[0] is np.nan: vals8[0], gt8[0] = vals8[1], gt8[1]
+                                elif vals8[1] is np.nan: vals8[1], gt8[1] = vals8[0], gt8[0]
+                                if vals2[0] is np.nan: vals2[0], gt2[0] = vals2[1], gt2[1]
+                                elif vals2[1] is np.nan: vals2[1], gt2[1] = vals2[0], gt2[0]
+                                
+                                vals_v2.append(np.around(np.interp([0.2], vals2, gt2, left=np.nan), 3))
+                                vals_v8.append(np.around(np.interp([0.8], vals8, gt8, right=np.nan), 3))
+                                times_v.append(valst)
+
+                            if m_b_s == list(raw_mbs)[0]:
+                                ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
+                                
+                            c_val = protocol_colors.get(dk, "gray")
+                            if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
                                 idx_mbs = sorted_valid_mbs.index(float(m_b_s))
                                 ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
                                 h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
                                 c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
 
-                            # STAMPA AVG ACTIVATION (FIG) - Logica intatta
                             ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
                             ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
-
-                            # STAMPA CHRONOMETRIC (TFIG)
-                            t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
-                            if t_series is not None:
-                                for g_target in g_targets:
-                                    pt_idx = (np.abs(np.array(ground_T) - g_target)).argmin()
-                                    
-                                    times_to_plot = []
-                                    for th in sorted_th_indices:
-                                        tval = t_series[pt_idx][th]
-                                        times_to_plot.append(tval if tval is not None else np.nan)
-                                            
-                                    tax[k][col].plot(x_plot, times_to_plot, color=c_val, lw=4, ls=g_styles[g_target])
+                            tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
@@ -2176,7 +2140,7 @@ class Data:
         tfig.tight_layout()
                 
         fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
-        tfig.legend(handles_g+handles_r, l_list_g+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
+        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
@@ -2191,13 +2155,13 @@ class Data:
                 a_curr.tick_params(axis='both', which='major', labelsize=border_font)
     
             ax[k][col].set_ylim(0.5, 1.0)
-            
-            # Limite fissato per contenere le tolleranze in tax senza perdere il picco
-            tax[k][col].set_ylim(0, 900)
+            if col_name == "LD25": tax[k][col].set_ylim(0, 201)
+            elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
+            elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
     
             if col == 0:
-                ax[k][col].set_ylabel(r"\(G\)", fontsize=border_font)
-                tax[k][col].set_ylabel(r"\(T_c\)", fontsize=border_font)
+                ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
+                tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
                 ax[k][col].yaxis.set_tick_params(labelleft=True)
             else:
                 ax[k][col].yaxis.set_tick_params(labelleft=False)
@@ -2209,7 +2173,7 @@ class Data:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                     a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
-                    a_curr.set_xlabel(r"\(\tau\)", fontsize=border_font)
+                    a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
             else:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
@@ -2228,10 +2192,172 @@ class Data:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_right = a_curr.twinx()
                     a_right.set_yticks([])
-                    a_right.set_ylabel(rf"\(T_m = {int(o_k[k])}\, s\)", fontsize=border_font, rotation=270, labelpad=35)
+                    a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
 
             ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
             tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
+
+###################################################
+    def print_chronometric_function(self, tot_times_in, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
+        if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
+        if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
+        if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
+        target_gts = ['0.8']
+        raw_rows = set()
+        for times_dict in tot_times_in:
+            for k in times_dict.keys():
+                msg_time = k[9]
+                try:
+                    if int(msg_time) > 0: raw_rows.add(int(msg_time))
+                except Exception:
+                    pass
+        rows = sorted(list(raw_rows))
+        rows = [r for r in rows if str(r) not in exclude_rows]
+        rows = self._plot_tm_values(rows)
+        if not rows: 
+            return
+        nrows = len(rows)
+        active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
+        ncols = len(active_cols)
+        if ncols == 0: 
+            return
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8.6 * ncols, 8 * nrows), sharex=False, squeeze=False)
+        cNorm = colors.Normalize(vmin=0, vmax=5)
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
+        
+        gt_handles = [
+            mlines.Line2D([], [], color='black', marker='None', linestyle='-', linewidth=4, label="GT=0.8"),
+            mlines.Line2D([], [], color='black', marker='None', linestyle='--', linewidth=4, label="GT=0.5")
+        ]
+        
+        handles_r, l_list_r = [], []
+        for pid in protocols_order:
+            if pid in exclude_protocols or not self._protocol_enabled(pid): continue
+            protocol = self.protocols_by_id.get(pid)
+            handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markeredgewidth=0, markersize=16))
+            l_list_r.append(protocol.get("label", pid) if protocol else pid)
+        parsed_data = {r: {c: {pid: {gt: {} for gt in target_gts} for pid in protocols_order} for c in active_cols} for r in rows}
+        
+        for times_dict in tot_times_in:
+            for k, v in times_dict.items():
+                algo, arena, n_runs, exp_time, comm, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = k[:11]
+                gt_str = str(gt)
+                if gt_str not in target_gts: 
+                    continue
+                tau = float(thrlds)
+                durations = v[0]
+                if not durations: 
+                    continue
+                alg_lower = str(algo).strip().lower()
+                if alg_lower == 'ps':
+                    variant_key = 'P.1.1'
+                elif alg_lower == 'p':
+                    if int(min_buff_dim) == max(0, int(n_agents) - 2): variant_key = 'P.1.1'
+                    elif int(msg_time) > 0: variant_key = 'P.1.0'
+                    else: variant_key = 'P.0'
+                else:
+                    variant_key = f"{algo}.{int(comm)}.{int(msg_hops)}"
+                if variant_key not in protocols_order or variant_key in exclude_protocols or not self._protocol_enabled(variant_key):
+                    continue
+                arena_val = str(arena).strip().replace('A', '')
+                ag_val_str = str(n_agents).strip()
+                col_name = "LD25"
+                if arena_val == 'big' and ag_val_str == '100': col_name = "HD100"
+                elif arena_val == 'small': col_name = "HD25"
+                if col_name not in active_cols: 
+                    continue
+                if variant_key == 'P.0':
+                    valid_rows = rows
+                else:
+                    if int(msg_time) not in rows: continue
+                    valid_rows = [int(msg_time)]
+                for r in valid_rows:
+                    if tau not in parsed_data[r][col_name][variant_key][gt_str]:
+                        parsed_data[r][col_name][variant_key][gt_str][tau] = []
+                    parsed_data[r][col_name][variant_key][gt_str][tau].extend(durations)
+        kmf = KaplanMeierFitter()
+        border_font = plt.rcParams.get("font.size", 20) + 4
+        from matplotlib.ticker import FixedLocator, MaxNLocator
+        for r_idx, r_val in enumerate(rows):
+            for c_idx, c_val in enumerate(active_cols):
+                curr_ax = ax[r_idx][c_idx]
+                for pid in protocols_order:
+                    if pid in exclude_protocols or not self._protocol_enabled(pid): continue
+                    c_color = protocol_colors.get(pid, "black")
+                    for gt_val in target_gts:
+                        tau_dict = parsed_data[r_val][c_val][pid][gt_val]
+                        taus = sorted(list(tau_dict.keys()))
+                        fitted_times, valid_taus = [], []
+                        for tau in taus:
+                            durs = tau_dict[tau]
+                            if len(durs) > 0: 
+                                observed = [d <= 900 for d in durs]
+                                censored_count = len(durs) - sum(observed)
+                                if censored_count <= 0.25 * len(durs):
+                                    try:
+                                        kmf.fit(durs, event_observed=observed)
+                                        fit_t = kmf.median_survival_time_
+                                        if not np.isinf(fit_t) and not np.isnan(fit_t):
+                                            fitted_times.append(fit_t)
+                                        else:
+                                            fitted_times.append(np.nan)
+                                            
+                                    except Exception:
+                                        fitted_times.append(np.nan)
+                                else:
+                                    fitted_times.append(np.nan)
+                                    
+                                valid_taus.append(tau)
+                        
+                        if valid_taus:
+                            ls = '-' if gt_val == '0.8' else '--'
+                            curr_ax.plot(valid_taus, fitted_times, color=c_color, lw=6, ls=ls)
+                curr_ax.set_xlim(0.5, 1.0)
+                curr_ax.tick_params(axis='both', which='major', labelsize=border_font)
+                if c_idx == 0:
+                    curr_ax.set_ylabel(r"$T_c$", fontsize=border_font)
+                curr_ax.yaxis.set_tick_params(labelleft=True)
+                ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+                curr_ax.xaxis.set_major_locator(FixedLocator(ticks_pos))
+                if r_idx == nrows - 1:
+                    curr_ax.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
+                    curr_ax.set_xlabel(r"$\tau$", fontsize=border_font)
+                else:
+                    curr_ax.set_xticklabels([])
+                if r_idx == 0:
+                    axt = curr_ax.twiny()
+                    axt.set_xlim(0.5, 1.0)
+                    axt.set_xticks([])
+                    axt.set_xlabel(c_val, fontsize=border_font, labelpad=15)
+                if c_idx == ncols - 1:
+                    a_right = curr_ax.twinx()
+                    a_right.set_yticks([])
+                    a_right.set_ylabel(rf"$T_m = {r_val}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+                curr_ax.grid(True, which='major', ls=':', alpha=0.6)
+        for c_idx in range(ncols):
+            y_max = float('-inf')
+            for r_idx in range(nrows):
+                if ax[r_idx][c_idx].has_data():
+                    _, top = ax[r_idx][c_idx].get_ylim()
+                    y_max = max(y_max, top)
+            if y_max == float('-inf') or np.isnan(y_max):
+                y_max = 900  # Fallback for completely empty columns
+            locator = MaxNLocator(nbins=5)
+            col_ticks = locator.tick_values(0, y_max)
+            col_ticks = [t for t in col_ticks if t >= 0]
+            for r_idx in range(nrows):
+                curr_ax = ax[r_idx][c_idx]
+                curr_ax.set_ylim(0, col_ticks[-1])
+                curr_ax.set_yticks(col_ticks)
+        fig.tight_layout()
+        fig.legend(handles_r, l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
+        path = self.base + "/proc_data/images/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        fig.savefig(os.path.join(path, "chronometric_function.pdf"), bbox_inches='tight')
+        plt.close(fig)
 
 ###################################################
     def _group_tables(self, tot_states, tot_times, tot_msgs):
@@ -2244,9 +2370,7 @@ class Data:
         if not os.path.exists(self.base+"/compressed_data/images/"):
             os.makedirs(self.base+"/compressed_data/images/")
         path = self.base+"/compressed_data/images/"
-        
         ground_T, threshlds, dk_tot_states, dk_tot_times, o_k, [arena, agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
-        
         typo = [0,1,2,3,4,5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
