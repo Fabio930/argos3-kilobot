@@ -1506,109 +1506,6 @@ class Data:
                 if write_header:
                     writer.writerow(['Algorithm', 'Arena', 'Time', 'Broadcast', 'Agents', 'Buffer_Dim','Msgs_exp_time','Msg_Hops', 'Ground_T', 'Threshold', 'Mean_Time', 'CI_Time', 'Mean_Events', 'CI_Events'])
                 writer.writerows(rows)
-
-###################################################
-    def plot_active(self,data_in,times):
-        if not os.path.exists(self.base+"/proc_data/images/"):
-            os.mkdir(self.base+"/proc_data/images/")
-        path = self.base+"/proc_data/images/"
-        states_dict, times_dict = {}, {}
-        dict_park_avg,dict_park_t1_avg,dict_park_avg_real_fifo,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg = {},{},{},{},{},{},{}
-        dict_park_tmed,dict_park_t1_tmed,dict_park_tmed_real_fifo,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed = {},{},{},{},{},{},{}
-        ground_T, threshlds , msg_time, msg_hop, max_buff = [],[],[],[],[]
-        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
-        o_k                                         = []
-        for i in range(len(data_in)):
-            da_K = data_in[i].keys()
-            for k0 in da_K:
-                if k0[0]not in algo: algo.append(k0[0])
-                if k0[1]not in arena: arena.append(k0[1])
-                if k0[2]not in runs: runs.append(k0[2])
-                if k0[3]not in time: time.append(k0[3])
-                if k0[4]not in comm: comm.append(k0[4])
-                if k0[5]not in agents: agents.append(k0[5])
-                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
-                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
-                if k0[8]not in buf_dim: buf_dim.append(k0[8])
-                if k0[9]not in msg_time: msg_time.append(k0[9])
-                if k0[10]not in msg_hop: msg_hop.append(k0[10])
-                if len(k0)>11 and k0[11]not in max_buff: max_buff.append(k0[11])
-        for i in range(len(data_in)):
-            for a in algo:
-                for a_s in arena:
-                    for n_r in runs:
-                        for et in time:
-                            for c in comm:
-                                for n_a in agents:
-                                    for m_b_d in buf_dim:
-                                        for m_t in msg_time:
-                                            for m_h in msg_hop:
-                                                for m_b_s in max_buff:
-                                                    vals            = []
-                                                    times_median    = []
-                                                    for gt in ground_T:
-                                                        tmp         = []
-                                                        tmp_tmed    = []
-                                                        for thr in threshlds:
-                                                            s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
-                                                            t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
-                                                            if s_data != None:
-                                                                if m_t not in o_k: o_k.append(m_t)
-                                                                tmp.append(round(np.median(s_data[0]),2))
-                                                                tmp_tmed.append(round(np.median(t_data[0]),2))
-                                                        if len(vals)==0:
-                                                            vals            = np.array([tmp])
-                                                            times_median    = np.array([tmp_tmed])
-                                                        else:
-                                                            vals            = np.append(vals,[tmp],axis=0)
-                                                            times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                                    if a.strip().lower() in ['ps'] and int(c)==0 and m_t in o_k and int(m_t) > 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_t1_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                            dict_park_t1_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                    elif a.strip().lower() == 'p' and int(c)==0 and m_t in o_k and int(m_t) > 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                            dict_park_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                    if a=='P' and int(c)==0 and m_t in o_k and int(m_t) == 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_avg_real_fifo.update({(a_s,n_a,"60",m_b_s):vals})
-                                                            dict_park_tmed_real_fifo.update({(a_s,n_a,"60",m_b_s):times_median})
-                                                    if a=='O' and m_t in o_k:
-                                                        if len(vals[0])>0:
-                                                            if int(c)==0:
-                                                                dict_adms_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                dict_adms_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                            elif int(c)==2:
-                                                                dict_fifo_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                dict_fifo_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                            else:
-                                                                if int(m_h)==1:
-                                                                    dict_rnd_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                    dict_rnd_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                                else:
-                                                                    dict_rnd_inf_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                    dict_rnd_inf_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-        states_dict.update({"P.0":dict_park_avg_real_fifo})
-        times_dict.update({"P.0":dict_park_tmed_real_fifo})
-        states_dict.update({"P.1.0":dict_park_avg})
-        times_dict.update({"P.1.0":dict_park_tmed})
-        states_dict.update({"P.1.1":dict_park_t1_avg})
-        times_dict.update({"P.1.1":dict_park_t1_tmed})
-        states_dict.update({"O.0.0":dict_adms_avg})
-        times_dict.update({"O.0.0":dict_adms_tmed})
-        states_dict.update({"O.2.0":dict_fifo_avg})
-        times_dict.update({"O.2.0":dict_fifo_tmed})
-        states_dict.update({"O.1.1":dict_rnd_avg})
-        times_dict.update({"O.1.1":dict_rnd_tmed})
-        states_dict.update({"O.1.0":dict_rnd_inf_avg})
-        times_dict.update({"O.1.0":dict_rnd_inf_tmed})
-        tmp = []
-        for x in o_k:
-            if int(x)!=0:
-                tmp.append(x)
-        o_k=tmp
-        return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
         
 ###################################################
     def print_decisions(self, data_in, data_ci, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
@@ -2004,6 +1901,109 @@ class Data:
         fig.savefig(fig_path, bbox_inches='tight')
         plt.close(fig)
 
+###################################################
+    def plot_active(self,data_in,times):
+        if not os.path.exists(self.base+"/proc_data/images/"):
+            os.mkdir(self.base+"/proc_data/images/")
+        path = self.base+"/proc_data/images/"
+        states_dict, times_dict = {}, {}
+        dict_park_avg,dict_park_t1_avg,dict_park_avg_real_fifo,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg = {},{},{},{},{},{},{}
+        dict_park_tmed,dict_park_t1_tmed,dict_park_tmed_real_fifo,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed = {},{},{},{},{},{},{}
+        ground_T, threshlds , msg_time, msg_hop, max_buff = [],[],[],[],[]
+        algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
+        o_k                                         = []
+        for i in range(len(data_in)):
+            da_K = data_in[i].keys()
+            for k0 in da_K:
+                if k0[0]not in algo: algo.append(k0[0])
+                if k0[1]not in arena: arena.append(k0[1])
+                if k0[2]not in runs: runs.append(k0[2])
+                if k0[3]not in time: time.append(k0[3])
+                if k0[4]not in comm: comm.append(k0[4])
+                if k0[5]not in agents: agents.append(k0[5])
+                if float(k0[6]) not in ground_T: ground_T.append(float(k0[6]))
+                if float(k0[7]) not in threshlds: threshlds.append(float(k0[7]))
+                if k0[8]not in buf_dim: buf_dim.append(k0[8])
+                if k0[9]not in msg_time: msg_time.append(k0[9])
+                if k0[10]not in msg_hop: msg_hop.append(k0[10])
+                if len(k0)>11 and k0[11]not in max_buff: max_buff.append(k0[11])
+        for i in range(len(data_in)):
+            for a in algo:
+                for a_s in arena:
+                    for n_r in runs:
+                        for et in time:
+                            for c in comm:
+                                for n_a in agents:
+                                    for m_b_d in buf_dim:
+                                        for m_t in msg_time:
+                                            for m_h in msg_hop:
+                                                for m_b_s in max_buff:
+                                                    vals            = []
+                                                    times_median    = []
+                                                    for gt in ground_T:
+                                                        tmp         = []
+                                                        tmp_tmed    = []
+                                                        for thr in threshlds:
+                                                            s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
+                                                            t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
+                                                            if s_data != None:
+                                                                if m_t not in o_k: o_k.append(m_t)
+                                                                tmp.append(round(np.median(s_data[0]),2))
+                                                                tmp_tmed.append(round(np.median(t_data[0]),2))
+                                                        if len(vals)==0:
+                                                            vals            = np.array([tmp])
+                                                            times_median    = np.array([tmp_tmed])
+                                                        else:
+                                                            vals            = np.append(vals,[tmp],axis=0)
+                                                            times_median    = np.append(times_median,[tmp_tmed],axis=0)
+                                                    if a.strip().lower() in ['ps'] and int(c)==0 and m_t in o_k and int(m_t) > 0:
+                                                        if len(vals[0])>0:
+                                                            dict_park_t1_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                            dict_park_t1_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                    elif a.strip().lower() == 'p' and int(c)==0 and m_t in o_k and int(m_t) > 0:
+                                                        if len(vals[0])>0:
+                                                            dict_park_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                            dict_park_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                    if a=='P' and int(c)==0 and m_t in o_k and int(m_t) == 0:
+                                                        if len(vals[0])>0:
+                                                            dict_park_avg_real_fifo.update({(a_s,n_a,"60",m_b_s):vals})
+                                                            dict_park_tmed_real_fifo.update({(a_s,n_a,"60",m_b_s):times_median})
+                                                    if a=='O' and m_t in o_k:
+                                                        if len(vals[0])>0:
+                                                            if int(c)==0:
+                                                                dict_adms_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                                dict_adms_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                            elif int(c)==2:
+                                                                dict_fifo_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                                dict_fifo_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                            else:
+                                                                if int(m_h)==1:
+                                                                    dict_rnd_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                                    dict_rnd_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                                else:
+                                                                    dict_rnd_inf_avg.update({(a_s,n_a,m_t,m_b_s):vals})
+                                                                    dict_rnd_inf_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+        states_dict.update({"P.0":dict_park_avg_real_fifo})
+        times_dict.update({"P.0":dict_park_tmed_real_fifo})
+        states_dict.update({"P.1.0":dict_park_avg})
+        times_dict.update({"P.1.0":dict_park_tmed})
+        states_dict.update({"P.1.1":dict_park_t1_avg})
+        times_dict.update({"P.1.1":dict_park_t1_tmed})
+        states_dict.update({"O.0.0":dict_adms_avg})
+        times_dict.update({"O.0.0":dict_adms_tmed})
+        states_dict.update({"O.2.0":dict_fifo_avg})
+        times_dict.update({"O.2.0":dict_fifo_tmed})
+        states_dict.update({"O.1.1":dict_rnd_avg})
+        times_dict.update({"O.1.1":dict_rnd_tmed})
+        states_dict.update({"O.1.0":dict_rnd_inf_avg})
+        times_dict.update({"O.1.0":dict_rnd_inf_tmed})
+        tmp = []
+        for x in o_k:
+            if int(x)!=0:
+                tmp.append(x)
+        o_k=tmp
+        return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
+    
 ###################################################
     def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=[]):
         if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
