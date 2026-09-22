@@ -1912,6 +1912,9 @@ class Data:
         ground_T, threshlds , msg_time, msg_hop, max_buff = [],[],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
         o_k                                         = []
+        
+        kmf = KaplanMeierFitter()
+        
         for i in range(len(data_in)):
             da_K = data_in[i].keys()
             for k0 in da_K:
@@ -1927,11 +1930,16 @@ class Data:
                 if k0[9]not in msg_time: msg_time.append(k0[9])
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
                 if len(k0)>11 and k0[11]not in max_buff: max_buff.append(k0[11])
+        
+        ground_T = sorted(ground_T)
+        threshlds = sorted(threshlds)
+        
         for i in range(len(data_in)):
             for a in algo:
                 for a_s in arena:
                     for n_r in runs:
                         for et in time:
+                            max_ticks = int(et) if str(et).isdigit() else 1000
                             for c in comm:
                                 for n_a in agents:
                                     for m_b_d in buf_dim:
@@ -1946,16 +1954,38 @@ class Data:
                                                         for thr in threshlds:
                                                             s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
                                                             t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
-                                                            if s_data != None:
+                                                            
+                                                            if s_data != None and t_data != None:
                                                                 if m_t not in o_k: o_k.append(m_t)
                                                                 tmp.append(round(np.median(s_data[0]),2))
-                                                                tmp_tmed.append(round(np.median(t_data[0]),2))
+                                                                
+                                                                T_durations = t_data[0]
+                                                                # Dati censurati: consideriamo valide solo le run sotto il max_ticks
+                                                                E_observed = [1 if t <= max_ticks else 0 for t in T_durations]
+                                                                
+                                                                if sum(E_observed) > 0:
+                                                                    kmf.fit(T_durations, event_observed=E_observed)
+                                                                    med_surv_time = kmf.median_survival_time_
+                                                                    
+                                                                    # Se la stima di sopravvivenza non converge, restituiamo np.nan per staccare la linea
+                                                                    if np.isinf(med_surv_time):
+                                                                        tmp_tmed.append(np.nan)
+                                                                    else:
+                                                                        tmp_tmed.append(round(med_surv_time, 2))
+                                                                else:
+                                                                    tmp_tmed.append(np.nan)
+                                                            else:
+                                                                if s_data != None:
+                                                                    tmp.append(round(np.median(s_data[0]),2))
+                                                                tmp_tmed.append(np.nan)
+                                                                
                                                         if len(vals)==0:
                                                             vals            = np.array([tmp])
                                                             times_median    = np.array([tmp_tmed])
                                                         else:
                                                             vals            = np.append(vals,[tmp],axis=0)
                                                             times_median    = np.append(times_median,[tmp_tmed],axis=0)
+                                                            
                                                     if a.strip().lower() in ['ps'] and int(c)==0 and m_t in o_k and int(m_t) > 0:
                                                         if len(vals[0])>0:
                                                             dict_park_t1_avg.update({(a_s,n_a,m_t,m_b_s):vals})
@@ -1983,6 +2013,7 @@ class Data:
                                                                 else:
                                                                     dict_rnd_inf_avg.update({(a_s,n_a,m_t,m_b_s):vals})
                                                                     dict_rnd_inf_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                                    
         states_dict.update({"P.0":dict_park_avg_real_fifo})
         times_dict.update({"P.0":dict_park_tmed_real_fifo})
         states_dict.update({"P.1.0":dict_park_avg})
@@ -2003,7 +2034,7 @@ class Data:
                 tmp.append(x)
         o_k=tmp
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
-    
+
 ###################################################
     def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=[]):
         if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
@@ -2054,9 +2085,22 @@ class Data:
         if ncols == 0: return
 
         fig, ax     = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
-        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,7*nrows), sharex=False, squeeze=False)
+        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
         
         attributes_row_col = np.zeros((nrows,ncols))
+
+        g_targets = [0.68, 0.8, 0.92]
+        g_styles = {0.68: '--', 0.8: '-', 0.92: ':'}
+
+        handles_g = []
+        l_list_g = []
+        for g_val in g_targets:
+            handles_g.append(mlines.Line2D([], [], color='black', marker='None', linestyle=g_styles[g_val], linewidth=4))
+            l_list_g.append(f"G={g_val}")
+
+        sorted_th_indices = np.argsort(threshlds)
+        x_plot = np.array(threshlds)[sorted_th_indices]
+        if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
 
         for a in arena:
             agents_list = ["25"] if a=="smallA" else more_k[1]
@@ -2080,61 +2124,49 @@ class Data:
                         for dk in data_in.keys():
                             if dk in exclude_protocols or not self._protocol_enabled(dk):
                                 continue
+                            c_val = protocol_colors.get(dk, "gray")
                             
                             vals_v2, vals_v8, gts_v2, gts_v8 = [], [], [], []
-                            times_v = []
-                            
-                            x_plot = np.array(threshlds)
-                            if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
                             
                             search_tm = "60" if dk == 'P.0' else str(o_k[k])
 
                             for th in range(len(threshlds)):
                                 vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
-                                valst, lim_valst = np.nan, np.nan
                                 
                                 d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
-                                t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
                                 
                                 if d_series is not None:
                                     for pt in range(len(ground_T)):
                                         val = d_series[pt][th]
-                                        tval = t_series[pt][th]
                                         if val is not None:
                                             if val>=0.8:
-                                                if ground_T[pt]-threshlds[th] >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
-                                                    valst, lim_valst = tval, ground_T[pt]-threshlds[th]
-                                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val<vals8[1]):
-                                                    vals8[1], gt8[1] = val, ground_T[pt]
-                                            elif val<=0.2:
-                                                if ground_T[pt]-threshlds[th] <= 0 and (vals2[0] is np.nan or val>=vals2[0]):
+                                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val==vals2[0]):
                                                     vals2[0], gt2[0] = val, ground_T[pt]
                                             else:
                                                 if vals8[0] is np.nan or val>vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
-                                                if vals2[1] is np.nan or val<vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
-                                                
-                                if vals8[0] is np.nan: vals8[0], gt8[0] = vals8[1], gt8[1]
-                                elif vals8[1] is np.nan: vals8[1], gt8[1] = vals8[0], gt8[0]
-                                if vals2[0] is np.nan: vals2[0], gt2[0] = vals2[1], gt2[1]
-                                elif vals2[1] is np.nan: vals2[1], gt2[1] = vals2[0], gt2[0]
-                                
-                                vals_v2.append(np.around(np.interp([0.2], vals2, gt2, left=np.nan), 3))
-                                vals_v8.append(np.around(np.interp([0.8], vals8, gt8, right=np.nan), 3))
-                                times_v.append(valst)
-
-                            if m_b_s == list(raw_mbs)[0]:
-                                ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
-                                
-                            c_val = protocol_colors.get(dk, "gray")
-                            if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
+                                                if vals2[1] is np.nan or val == 0:  vals2[1], gt2[1] = val, ground_T[pt]
+                                               
                                 idx_mbs = sorted_valid_mbs.index(float(m_b_s))
                                 ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
                                 h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
                                 c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
 
+                            # STAMPA AVG ACTIVATION (FIG) - Logica intatta
                             ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
                             ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
-                            tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
+
+                            # STAMPA CHRONOMETRIC (TFIG)
+                            t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
+                            if t_series is not None:
+                                for g_target in g_targets:
+                                    pt_idx = (np.abs(np.array(ground_T) - g_target)).argmin()
+                                    
+                                    times_to_plot = []
+                                    for th in sorted_th_indices:
+                                        tval = t_series[pt_idx][th]
+                                        times_to_plot.append(tval if tval is not None else np.nan)
+                                            
+                                    tax[k][col].plot(x_plot, times_to_plot, color=c_val, lw=4, ls=g_styles[g_target])
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
@@ -2144,7 +2176,7 @@ class Data:
         tfig.tight_layout()
                 
         fig.legend(handles_c+handles_r, ["Q=0.8", "Q=0.2"]+l_list_r, bbox_to_anchor=(0.96, 0), ncols=4, loc='upper right', framealpha=0.7, borderaxespad=0)
-        tfig.legend(handles_l+handles_r, l_list_l+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
+        tfig.legend(handles_g+handles_r, l_list_g+l_list_r, bbox_to_anchor=(0.96, 0), ncols=6, loc='upper right', framealpha=0.7, borderaxespad=0)
         
         fig.savefig(path+_type+"_activation.pdf", bbox_inches='tight')
         tfig.savefig(path+t_type+"_time.pdf", bbox_inches='tight')
@@ -2159,13 +2191,13 @@ class Data:
                 a_curr.tick_params(axis='both', which='major', labelsize=border_font)
     
             ax[k][col].set_ylim(0.5, 1.0)
-            # if col_name == "LD25": tax[k][col].set_ylim(0, 201)
-            # elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
-            # elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
+            
+            # Limite fissato per contenere le tolleranze in tax senza perdere il picco
+            tax[k][col].set_ylim(0, 900)
     
             if col == 0:
-                ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
-                tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
+                ax[k][col].set_ylabel(r"\(G\)", fontsize=border_font)
+                tax[k][col].set_ylabel(r"\(T_c\)", fontsize=border_font)
                 ax[k][col].yaxis.set_tick_params(labelleft=True)
             else:
                 ax[k][col].yaxis.set_tick_params(labelleft=False)
@@ -2177,7 +2209,7 @@ class Data:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
                     a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
-                    a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
+                    a_curr.set_xlabel(r"\(\tau\)", fontsize=border_font)
             else:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
@@ -2196,7 +2228,7 @@ class Data:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_right = a_curr.twinx()
                     a_right.set_yticks([])
-                    a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+                    a_right.set_ylabel(rf"\(T_m = {int(o_k[k])}\, s\)", fontsize=border_font, rotation=270, labelpad=35)
 
             ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
             tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
