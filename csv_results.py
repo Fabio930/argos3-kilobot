@@ -2737,3 +2737,162 @@ class Data:
         best_position_key = min(counts, key=counts.get)
         
         return candidates[best_position_key]
+    
+###################################################
+    def process_and_plot_radar_grid(self, raw_data_grid, rows, active_cols):
+        """
+        Parses a grid of raw metric dictionaries, normalises them to [0.15, 1.0] per COLUMN,
+        and plots a grid of radars (rows = Tm, cols = scenarios).
+        """
+        import numpy as np
+        
+        metrics_config = [
+            ('M', True),
+            ('Acc', True),
+            ('Tc', False),
+            ('Er', False),
+            ('Tr', False)
+        ]
+        labels = [r'$M$', 'Accuracy', r'$T_c^{-1}$', r'$E_r^{-1}$', r'$T_r^{-1}$']
+        
+        # 1. Global min/max per column to ensure P.0 remains consistent across rows
+        col_min_max = {col: {m: {'min': float('inf'), 'max': float('-inf')} for m, _ in metrics_config} for col in active_cols}
+        
+        for tm in rows:
+            for col in active_cols:
+                dataset = raw_data_grid.get(tm, {}).get(col, {})
+                for pid, d in dataset.items():
+                    if not self._protocol_enabled(pid): continue
+                    
+                    if all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _ in metrics_config):
+                        for m, _ in metrics_config:
+                            v = d[m]
+                            if v < col_min_max[col][m]['min']: col_min_max[col][m]['min'] = v
+                            if v > col_min_max[col][m]['max']: col_min_max[col][m]['max'] = v
+
+        # 2. Normalize using column bounds
+        norm_data_grid = {tm: {col: {} for col in active_cols} for tm in rows}
+        
+        for tm in rows:
+            for col in active_cols:
+                dataset = raw_data_grid.get(tm, {}).get(col, {})
+                for pid, d in dataset.items():
+                    if not self._protocol_enabled(pid): continue
+                    
+                    # Ensure protocol has all metrics to avoid broken perimeters
+                    if not all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _ in metrics_config):
+                        continue
+                        
+                    norm_data_grid[tm][col][pid] = []
+                    for m, higher_is_better in metrics_config:
+                        min_v = col_min_max[col][m]['min']
+                        max_v = col_min_max[col][m]['max']
+                        v = d[m]
+                        
+                        if max_v == min_v or max_v == float('-inf') or min_v == float('inf'):
+                            norm_val = 1.0  
+                        else:
+                            norm_val = (v - min_v) / (max_v - min_v)
+                            norm_val = max(0.0, min(1.0, norm_val)) # Clip to bounds
+                            if not higher_is_better:
+                                norm_val = 1.0 - norm_val 
+                            
+                            # Shift della scala da [0.0, 1.0] a [0.15, 1.0] per evitare poligoni monchi
+                            norm_val = 0.15 + (0.85 * norm_val)
+                                
+                        norm_data_grid[tm][col][pid].append(norm_val)
+
+        self.print_radar_grid(norm_data_grid, labels, rows, active_cols)
+
+    ###################################################
+    def print_radar_grid(self, norm_data_grid, metrics_labels, rows, active_cols):
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import matplotlib.colors as colors
+        import matplotlib.cm as cm
+        from matplotlib.lines import Line2D
+        import os
+
+        num_vars = len(metrics_labels)
+        angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+        angles += angles[:1]
+        
+        nrows = len(rows)
+        ncols = len(active_cols)
+        if nrows == 0 or ncols == 0:
+            return
+            
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8*ncols, 8*nrows), subplot_kw=dict(polar=True))
+        
+        if nrows == 1 and ncols == 1:
+            axes = np.array([[axes]])
+        elif nrows == 1:
+            axes = axes[np.newaxis, :]
+        elif ncols == 1:
+            axes = axes[:, np.newaxis]
+            
+        cNorm = colors.Normalize(vmin=0, vmax=5)
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        
+        for i, tm in enumerate(rows):
+            for j, col in enumerate(active_cols):
+                ax = axes[i][j]
+                
+                ax.set_theta_offset(np.pi / 2)
+                ax.set_theta_direction(-1)
+                
+                ax.set_xticks(angles[:-1])
+                ax.set_xticklabels(metrics_labels, fontsize=20)
+                ax.set_ylim(0, 1.05)
+                ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+                ax.set_yticklabels([]) 
+                
+                ax.grid(True, ls=':', color='silver', lw=1.5)
+                
+                if i == 0:
+                    ax.set_title(col, size=28, pad=40)
+                
+                dataset = norm_data_grid.get(tm, {}).get(col, {})
+                for pid, values in dataset.items():
+                    if not self._protocol_enabled(pid):
+                        continue
+                    if len(values) != num_vars:
+                        continue
+                        
+                    protocol = self.protocols_by_id.get(pid, {})
+                    c_val = self._protocol_color(protocol, scalarMap)
+                    
+                    # Chiusura del loop per evitare linee spezzate
+                    plot_values = values + values[:1]
+                    
+                    # Aggiunti i marker sui vertici per renderli chiari anche nei casi critici
+                    ax.plot(angles, plot_values, color=c_val, linewidth=4, linestyle='solid')
+                    ax.fill(angles, plot_values, color=c_val, alpha=0.15)
+                    
+        border_font = plt.rcParams.get("font.size", 20) + 4
+        for i, tm in enumerate(rows):
+            ax_right = axes[i][-1]
+            ax_right.text(1.4, 0.5, rf"$T_m = {tm}\, s$", transform=ax_right.transAxes, 
+                          rotation=270, ha='center', va='center', fontsize=border_font)
+                          
+        legend_elements = []
+        protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
+        for pid in protocols_order:
+            if not self._protocol_enabled(pid): continue
+            protocol = self.protocols_by_id.get(pid, {})
+            c_val = self._protocol_color(protocol, scalarMap)
+            label = protocol.get("label", pid)
+            legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=label))
+            
+        fig.legend(handles=legend_elements, loc='lower center', ncol=min(7, len(legend_elements)), 
+                   bbox_to_anchor=(0.5, -0.02 if nrows > 1 else -0.1), fontsize=24, framealpha=0.9, borderaxespad=0)
+        
+        fig.tight_layout()
+        fig.subplots_adjust(right=0.88, bottom=0.08 if nrows > 1 else 0.15)
+        
+        out_dir = os.path.join(self.base, "radar_data", "images")
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        fig_path = os.path.join(out_dir, "radar_grid_synthesis.pdf")
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
