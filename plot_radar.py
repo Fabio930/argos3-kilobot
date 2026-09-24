@@ -12,11 +12,12 @@ WORST_TR = 900.0
 
 def map_col(arena, n_agents):
     """Maps raw arena and agent counts to their respective scenario columns."""
-    if arena == 'bigA' and str(n_agents) == '100': 
+    arena_base = str(arena).strip().replace('A', '')
+    if arena_base == 'big' and str(n_agents) == '100': 
         return "HD100"
-    elif arena == 'smallA' and str(n_agents) == '25': 
+    elif arena_base == 'small' and str(n_agents) == '25': 
         return "HD25"
-    elif arena == 'bigA' and str(n_agents) == '25': 
+    elif arena_base == 'big' and str(n_agents) == '25': 
         return "LD25"
     return None
 
@@ -117,7 +118,13 @@ def main():
                 
             v = v_tuple[0]
             if len(v) > 0:
-                mean_M = np.mean(v) / (float(ag_val_str) - 1)
+                # Applica la divisione (n_agents - 1) su tutti i 900 valori, poi estrae la media
+                norm_factor = float(ag_val_str) - 1.0
+                if norm_factor > 0:
+                    v_array = np.array(v) / norm_factor
+                    mean_M = float(np.mean(v_array))
+                else:
+                    mean_M = WORST_M
             else:
                 mean_M = WORST_M
             
@@ -133,8 +140,7 @@ def main():
                     continue
                 if tm in rows:
                     raw_data_grid[tm][col_name][pid]['M'] = mean_M
-                    
-    # 2. Accuratezza Proporzionale e Latenza Media
+    # 2. Accuratezza (Isolinee) e Latenza Media
     proc_base = os.path.join(csv_res.base, "proc_data")
     tot_st, tot_times = [], []
     for file in _select_files(proc_base, "resume"):
@@ -158,9 +164,9 @@ def main():
             tot_times = np.append(tot_times, [times], axis=0)
             
     if len(tot_st) > 0:
-        # Accumulatori per mediare le distribuzioni (G, tau)
-        acc_accumulator = {tm: {col: {pid: [] for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
-        tc_accumulator = {tm: {col: {pid: [] for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
+        # Matrice per raggruppare i valori Q e T in base a (tau, gt) per l'interpolazione
+        acc_matrix = {tm: {col: {pid: {} for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
+        time_matrix = {tm: {col: {pid: {} for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
 
         for states, times in zip(tot_st, tot_times):
             for k, v in states.items():
@@ -176,35 +182,99 @@ def main():
                 
                 if len(v[0]) > 0:
                     mean_Q = np.mean(v[0])
-                    # Calcolo esatto proporzionale richiesto
-                    accuracy = mean_Q if gt_f >= tau_f else (1.0 - mean_Q)
-                    
                     latencies = times.get(k, ([], []))[0]
-                    valid_latencies = [l for l in latencies if l > 0]
-                    mean_Tc = np.mean(valid_latencies) if valid_latencies else WORST_TC
+                    # La mediana corrisponde alla logica di print_active e print_borders
+                    median_Tc = np.median(latencies) if len(latencies) > 0 else WORST_TC
                     
                     if pid == 'P.0':
-                        for tm in rows:
-                            acc_accumulator[tm][col_name][pid].append(accuracy)
-                            tc_accumulator[tm][col_name][pid].append(mean_Tc)
+                        tms_to_update = rows
                     else:
                         try:
-                            tm = int(float(msg_time))
+                            tms_to_update = [int(float(msg_time))] if int(float(msg_time)) in rows else []
                         except ValueError:
-                            continue
-                        if tm in rows:
-                            acc_accumulator[tm][col_name][pid].append(accuracy)
-                            tc_accumulator[tm][col_name][pid].append(mean_Tc)
+                            tms_to_update = []
 
+                    for tm in tms_to_update:
+                        # Raggruppamento per l'accuratezza e i tempi associati
+                        if tau_f not in acc_matrix[tm][col_name][pid]:
+                            acc_matrix[tm][col_name][pid][tau_f] = {}
+                            time_matrix[tm][col_name][pid][tau_f] = {}
+                        if gt_f not in acc_matrix[tm][col_name][pid][tau_f]:
+                            acc_matrix[tm][col_name][pid][tau_f][gt_f] = []
+                            time_matrix[tm][col_name][pid][tau_f][gt_f] = []
+                        acc_matrix[tm][col_name][pid][tau_f][gt_f].append(mean_Q)
+                        time_matrix[tm][col_name][pid][tau_f][gt_f].append(median_Tc)
+
+        # Processamento delle matrici accumulate
         for tm in rows:
             for col in active_cols:
                 for pid in csv_res.protocols_by_id.keys():
-                    acc_list = acc_accumulator[tm][col][pid]
-                    tc_list = tc_accumulator[tm][col][pid]
-                    if acc_list:
-                        raw_data_grid[tm][col][pid]['Acc'] = np.mean(acc_list)
-                    if tc_list:
-                        raw_data_grid[tm][col][pid]['Tc'] = np.mean(tc_list)
+                    
+                    tau_dict = acc_matrix[tm][col][pid]
+                    t_dict = time_matrix[tm][col][pid]
+                    if not tau_dict:
+                        continue
+                        
+                    total_error = 0.0
+                    valid_taus_count = 0
+                    
+                    valid_times = []
+                    
+                    for tau, gt_dict in tau_dict.items():
+                        gts = np.array(sorted(gt_dict.keys()))
+                        Qs = np.array([np.mean(gt_dict[g]) for g in gts])
+                        
+                        # Estrazione del tempo corrispondente alla logica del bordo
+                        # In print_borders, si registra il tempo quando Q raggiunge 0.8 e (gt - tau) è minimizzato oltre 0.09
+                        valst, lim_valst = np.nan, np.nan
+                        
+                        vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
+                        
+                        for idx in range(len(gts)):
+                            val = Qs[idx]
+                            current_gt = gts[idx]
+                            
+                            tval = np.median(t_dict[tau][current_gt])
+                            
+                            if val >= 0.8:
+                                # Calcolo tempo associato (Replica logica print_borders)
+                                if current_gt - tau >= 0.09 and (np.isnan(valst) or current_gt - tau < lim_valst):
+                                    valst, lim_valst = tval, current_gt - tau
+                                    
+                                if current_gt - tau >= 0 and (np.isnan(vals8[1]) or val < vals8[1]):
+                                    vals8[1], gt8[1] = val, current_gt
+                            elif val <= 0.2:
+                                if current_gt - tau <= 0 and (np.isnan(vals2[0]) or val >= vals2[0]):
+                                    vals2[0], gt2[0] = val, current_gt
+                            else:
+                                if np.isnan(vals8[0]) or val > vals8[0]: vals8[0], gt8[0] = val, current_gt
+                                if np.isnan(vals2[1]) or val < vals2[1]: vals2[1], gt2[1] = val, current_gt
+
+                        if np.isnan(vals8[0]): vals8[0], gt8[0] = vals8[1], gt8[1]
+                        elif np.isnan(vals8[1]): vals8[1], gt8[1] = vals8[0], gt8[0]
+                        if np.isnan(vals2[0]): vals2[0], gt2[0] = vals2[1], gt2[1]
+                        elif np.isnan(vals2[1]): vals2[1], gt2[1] = vals2[0], gt2[0]
+                        
+                        v2_interp = np.interp([0.2], vals2, gt2, left=np.nan)[0]
+                        v8_interp = np.interp([0.8], vals8, gt8, right=np.nan)[0]
+                        
+                        error_v2 = abs(v2_interp - tau) if not np.isnan(v2_interp) else 0.5
+                        error_v8 = abs(v8_interp - tau) if not np.isnan(v8_interp) else 0.5
+                        
+                        total_error += (error_v2 + error_v8)
+                        valid_taus_count += 1
+                        
+                        # Memorizza il tempo di completamento per questa soglia
+                        if not np.isnan(valst):
+                            valid_times.append(valst)
+                        
+                    if valid_taus_count > 0:
+                        mean_error = total_error / valid_taus_count
+                        accuracy = max(0.0, min(1.0, 1.0 - mean_error))
+                        raw_data_grid[tm][col][pid]['Acc'] = accuracy
+                        
+                    if valid_times:
+                        raw_data_grid[tm][col][pid]['Tc'] = np.mean(valid_times)
 
     # 3. Resilienza (Er) e Recovery Time (Tr)
     rec_base = os.path.join(csv_res.base, "rec_data")
@@ -216,9 +286,6 @@ def main():
     for key, value in tot_rec.items():
         alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = key[:10]
         
-        if abs(float(gt) - float(th)) > 0.05: 
-            continue
-            
         pid = get_protocol_id(alg, broadcast, hops, buf, agents, msgs)
         if pid not in csv_res.protocols_by_id: 
             continue
@@ -245,7 +312,6 @@ def main():
                     raw_data_grid[tm][col_name][pid]['Tr'] = []
                 raw_data_grid[tm][col_name][pid]['Er'].append(mean_events)
                 raw_data_grid[tm][col_name][pid]['Tr'].append(mean_time)
-
     # 4. Fallbacks strutturati e normalizzazione finale
     for tm in rows:
         for col in active_cols:
@@ -256,21 +322,31 @@ def main():
                 if raw_data_grid[tm][col][pid]['Acc'] is None:
                     raw_data_grid[tm][col][pid]['Acc'] = WORST_ACC
                     
-                if raw_data_grid[tm][col][pid]['Tc'] is None:
-                    raw_data_grid[tm][col][pid]['Tc'] = WORST_TC
+                # Normalise Tc: linear (1s -> 1.0, 900s -> 0.0)
+                tc_val = raw_data_grid[tm][col][pid]['Tc']
+                if tc_val is None:
+                    raw_data_grid[tm][col][pid]['Tc'] = 0.0
+                else:
+                    raw_data_grid[tm][col][pid]['Tc'] = max(0.0, min(1.0, (900.0 - tc_val) / 899.0))
 
-                if isinstance(raw_data_grid[tm][col][pid]['Er'], list):
-                    lst = raw_data_grid[tm][col][pid]['Er']
-                    raw_data_grid[tm][col][pid]['Er'] = np.mean(lst) if lst else WORST_ER
-                elif raw_data_grid[tm][col][pid]['Er'] is None:
-                    raw_data_grid[tm][col][pid]['Er'] = WORST_ER
+                # Normalise Er: logarithmic (0 errors -> 1.0, 900 errors -> 0.0)
+                er_list = raw_data_grid[tm][col][pid]['Er']
+                if isinstance(er_list, list) and er_list:
+                    mean_er = np.mean(er_list)
+                    # Use Er + 1 to avoid log10(0), max bounds become log10(901)
+                    raw_data_grid[tm][col][pid]['Er'] = max(0.0, min(1.0, 1.0 - (np.log10(mean_er + 1.0) / np.log10(901.0))))
+                else:
+                    raw_data_grid[tm][col][pid]['Er'] = 0.0
 
-                if isinstance(raw_data_grid[tm][col][pid]['Tr'], list):
-                    lst = raw_data_grid[tm][col][pid]['Tr']
-                    raw_data_grid[tm][col][pid]['Tr'] = np.mean(lst) if lst else WORST_TR
-                elif raw_data_grid[tm][col][pid]['Tr'] is None:
-                    raw_data_grid[tm][col][pid]['Tr'] = WORST_TR
-
+                # Normalise Tr: logarithmic (1s -> 1.0, 900s -> 0.0)
+                tr_list = raw_data_grid[tm][col][pid]['Tr']
+                if isinstance(tr_list, list) and tr_list:
+                    mean_tr = np.mean(tr_list)
+                    if mean_tr < 1.0: 
+                        mean_tr = 1.0
+                    raw_data_grid[tm][col][pid]['Tr'] = max(0.0, min(1.0, 1.0 - (np.log10(mean_tr) / np.log10(900.0))))
+                else:
+                    raw_data_grid[tm][col][pid]['Tr'] = 0.0
     csv_res.process_and_plot_radar_grid(raw_data_grid, rows, active_cols)
     print("Radar grid synthesis successfully plotted in radar_data/images/")
 

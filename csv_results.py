@@ -5,7 +5,6 @@ import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib.lines as mlines
 from matplotlib import pyplot as plt
-from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
@@ -2746,17 +2745,20 @@ class Data:
         """
         import numpy as np
         
+        # Configuration now treats ALL metrics as absolute [0, 1] values 
+        # where Higher is Better, as normalisation is pre-calculated in the data extraction.
+        # Format: (Name, higher_is_better, is_absolute)
         metrics_config = [
-            ('M', True),
-            ('Acc', True),
-            ('Tc', False),
-            ('Er', False),
-            ('Tr', False)
+            ('M', True, True),
+            ('Acc', True, True),
+            ('Tc', True, True),
+            ('Er', True, True),
+            ('Tr', True, True)
         ]
-        labels = [r'$M$', 'Accuracy', r'$T_c^{-1}$', r'$E_r^{-1}$', r'$T_r^{-1}$']
+        labels = [r'$M$', 'A', r'$1-T_c$', r'$1-E_r$', r'$1-T_r$']
         
         # 1. Global min/max per column to ensure P.0 remains consistent across rows
-        col_min_max = {col: {m: {'min': float('inf'), 'max': float('-inf')} for m, _ in metrics_config} for col in active_cols}
+        col_min_max = {col: {m: {'min': float('inf'), 'max': float('-inf')} for m, _, _ in metrics_config} for col in active_cols}
         
         for tm in rows:
             for col in active_cols:
@@ -2764,11 +2766,12 @@ class Data:
                 for pid, d in dataset.items():
                     if not self._protocol_enabled(pid): continue
                     
-                    if all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _ in metrics_config):
-                        for m, _ in metrics_config:
-                            v = d[m]
-                            if v < col_min_max[col][m]['min']: col_min_max[col][m]['min'] = v
-                            if v > col_min_max[col][m]['max']: col_min_max[col][m]['max'] = v
+                    if all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _, _ in metrics_config):
+                        for m, _, is_absolute in metrics_config:
+                            if not is_absolute: # Calculate min/max only for relative metrics
+                                v = d[m]
+                                if v < col_min_max[col][m]['min']: col_min_max[col][m]['min'] = v
+                                if v > col_min_max[col][m]['max']: col_min_max[col][m]['max'] = v
 
         # 2. Normalize using column bounds
         norm_data_grid = {tm: {col: {} for col in active_cols} for tm in rows}
@@ -2780,39 +2783,38 @@ class Data:
                     if not self._protocol_enabled(pid): continue
                     
                     # Ensure protocol has all metrics to avoid broken perimeters
-                    if not all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _ in metrics_config):
+                    if not all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _, _ in metrics_config):
                         continue
                         
                     norm_data_grid[tm][col][pid] = []
-                    for m, higher_is_better in metrics_config:
-                        min_v = col_min_max[col][m]['min']
-                        max_v = col_min_max[col][m]['max']
+                    for m, higher_is_better, is_absolute in metrics_config:
                         v = d[m]
                         
-                        if max_v == min_v or max_v == float('-inf') or min_v == float('inf'):
-                            norm_val = 1.0  
-                        else:
-                            norm_val = (v - min_v) / (max_v - min_v)
-                            norm_val = max(0.0, min(1.0, norm_val)) # Clip to bounds
+                        if is_absolute:
+                            norm_val = max(0.0, min(1.0, v))
                             if not higher_is_better:
-                                norm_val = 1.0 - norm_val 
+                                norm_val = 1.0 - norm_val
+                        else:
+                            min_v = col_min_max[col][m]['min']
+                            max_v = col_min_max[col][m]['max']
                             
-                            # Shift della scala da [0.0, 1.0] a [0.15, 1.0] per evitare poligoni monchi
-                            norm_val = 0.15 + (0.85 * norm_val)
-                                
+                            if max_v == min_v or max_v == float('-inf') or min_v == float('inf'):
+                                norm_val = 1.0  
+                            else:
+                                norm_val = (v - min_v) / (max_v - min_v)
+                                norm_val = max(0.0, min(1.0, norm_val)) # Clip to bounds
+                                if not higher_is_better:
+                                    norm_val = 1.0 - norm_val 
+                            
+                        # Scale shift from [0.0, 1.0] to [0.15, 1.0] to prevent clipped polygons
+                        norm_val = 0.15 + (0.85 * norm_val)
+                            
                         norm_data_grid[tm][col][pid].append(norm_val)
 
         self.print_radar_grid(norm_data_grid, labels, rows, active_cols)
 
     ###################################################
     def print_radar_grid(self, norm_data_grid, metrics_labels, rows, active_cols):
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import matplotlib.colors as colors
-        import matplotlib.cm as cm
-        from matplotlib.lines import Line2D
-        import os
-
         num_vars = len(metrics_labels)
         angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
         angles += angles[:1]
@@ -2867,12 +2869,11 @@ class Data:
                     
                     # Aggiunti i marker sui vertici per renderli chiari anche nei casi critici
                     ax.plot(angles, plot_values, color=c_val, linewidth=4, linestyle='solid')
-                    ax.fill(angles, plot_values, color=c_val, alpha=0.15)
                     
         border_font = plt.rcParams.get("font.size", 20) + 4
         for i, tm in enumerate(rows):
             ax_right = axes[i][-1]
-            ax_right.text(1.4, 0.5, rf"$T_m = {tm}\, s$", transform=ax_right.transAxes, 
+            ax_right.text(1.1, 0.5, rf"$T_m = {tm}\, s$", transform=ax_right.transAxes, 
                           rotation=270, ha='center', va='center', fontsize=border_font)
                           
         legend_elements = []
@@ -2885,7 +2886,7 @@ class Data:
             legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=label))
             
         fig.legend(handles=legend_elements, loc='lower center', ncol=min(7, len(legend_elements)), 
-                   bbox_to_anchor=(0.5, -0.02 if nrows > 1 else -0.1), fontsize=24, framealpha=0.9, borderaxespad=0)
+                   bbox_to_anchor=(0.6, 0.05 if nrows > 1 else -0.1), fontsize=24, framealpha=0.9, borderaxespad=0)
         
         fig.tight_layout()
         fig.subplots_adjust(right=0.88, bottom=0.08 if nrows > 1 else 0.15)
