@@ -117,7 +117,7 @@ class Data:
                 {"key": "O.1.0", "id": 6, "label": r"$ID+R_{\infty}$", "color": "viridis:4", "legend": True},
                 {"key": "O.1.a", "id": 7, "label": r"$ID+R_{a}$", "color": "viridis:5", "legend": True}
             ],
-            "plots": { "exclude_protocols": [], "columns": [60, 120, 180, 300, 600] },
+            "plots": { "exclude_protocols": [], "columns": [60, 120, 180, 300, 600], "show_ci": True },
         }
 
 ##########################################################################################################
@@ -244,6 +244,23 @@ class Data:
             except Exception:
                 return "black"
         return color if color else "black"
+
+    @staticmethod
+    def _parse_series(raw):
+        raw = raw.replace('[', '').replace(']', '').strip()
+        return [float(x) for x in raw.split(',')] if raw else []
+
+    def _show_ci(self):
+        return bool(self.plot_config.get("plots", {}).get("show_ci", True))
+
+    def _fill_ci(self, ax, series, ci, color, norm=1.0, zorder=None):
+        # banda del CI 95% attorno alla serie, disattivabile con "show_ci": false nel campo plots
+        if not self._show_ci() or ci is None or len(ci) == 0 or len(ci) != len(series):
+            return
+        y = np.asarray(series, dtype=float)
+        c = np.asarray(ci, dtype=float) / norm
+        kw = {} if zorder is None else {"zorder": zorder}
+        ax.fill_between(np.arange(len(y)), np.maximum(0, y - c), np.minimum(1.0, y + c), color=color, alpha=0.2, lw=0, **kw)
 
     def _protocol_color_with_k(self, p_key, k_samp, n_agents, ps_k_dict, scalarMap):
         if p_key == "P.1.1":
@@ -387,6 +404,7 @@ class Data:
     def _extract_short_data(self, tot_st, tot_msgs):
         msgs_dict = {}
         st_dict = {}
+        st_ci_dict = {}
         ps_k_dict = {}
         
         for k, res in tot_msgs.items():
@@ -410,14 +428,19 @@ class Data:
                     s_key = (p_key, arena, str(agents), str(tm), gt, thr, str(k_samp))
                     if s_key not in st_dict:
                         st_dict[s_key] = []
+                        st_ci_dict[s_key] = []
                     st_dict[s_key].append(res[0])
+                    if res[1]: st_ci_dict[s_key].append(res[1])
                     
         for s_key, lst in st_dict.items():
             min_len = min(len(x) for x in lst)
             arr = np.array([x[:min_len] for x in lst])
             st_dict[s_key] = np.mean(arr, axis=0).tolist()
+            ci_lst = [x[:min_len] for x in st_ci_dict.get(s_key, []) if len(x) >= min_len]
+            # piu' serie per la stessa chiave vengono mediate, cosi' come i loro CI
+            st_ci_dict[s_key] = np.mean(np.array(ci_lst), axis=0).tolist() if ci_lst else []
             
-        return msgs_dict, st_dict, ps_k_dict
+        return msgs_dict, st_dict, ps_k_dict, st_ci_dict
 
 ##########################################################################################################
     def plot_diff_short(self, dict_st_in, dict_msgs):
@@ -430,11 +453,13 @@ class Data:
         
         # 1. Aggregate State Data
         dict_states_aggregated = {}
+        dict_ci_aggregated = {}
         ps_k_dict = {}
         threshlds, ground_T = set(), set()
         
         for root_name, data_list in dict_st_in.items():
             dict_states_aggregated[root_name] = {}
+            dict_ci_aggregated[root_name] = {}
             for data_in in data_list: 
                 for k0, s_data in data_in.items():
                     algo, arena, thr, gt, comm, ag, tm, hops, k_samp = k0[0], k0[1], k0[4], k0[5], k0[6], k0[7], k0[9], k0[10], k0[11]
@@ -447,6 +472,7 @@ class Data:
                         ps_k_dict[ag].add(float(k_samp))
                     key = (p_key, arena, ag, tm, gt, thr, str(k_samp))
                     dict_states_aggregated[root_name][key] = s_data[0]
+                    dict_ci_aggregated[root_name][key] = s_data[1]
 
         # 2. Aggregate Message Data
         dict_msgs_aggregated = {}
@@ -561,6 +587,8 @@ class Data:
                                     alpha=0.9 if p_key != "O.0" else 0.6,
                                     zorder=2 + self._protocol_sort_key(p_key)[0],
                                 )
+                                self._fill_ci(t_ax, s_data, dict_ci_aggregated.get(root_name, {}).get(key), c,
+                                              zorder=2 + self._protocol_sort_key(p_key)[0])
 
             # --- APPLY STYLE ---
             for i in range(2):
@@ -614,7 +642,7 @@ class Data:
             os.makedirs(self.base + "/compressed_data/images/", exist_ok=True)
         path = self.base + "/compressed_data/images/"
         
-        msgs_dict, st_dict, ps_k_dict = self._extract_short_data(tot_st, tot_msgs)
+        msgs_dict, st_dict, ps_k_dict, st_ci_dict = self._extract_short_data(tot_st, tot_msgs)
         
         plot_cfg = self.plot_config.get("plots", {})
         raw_columns = plot_cfg.get("columns", [60, 120, 180, 300, 600])
@@ -706,11 +734,13 @@ class Data:
                                     is_insert = tm in insert_tm_list
                                     if not (is_main or is_insert): continue
                                 
-                                s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], str(tm), gt_val, thr, k_samp))
+                                s_key = (p_key, col_cfg["st_arena"], col_cfg["agents"], str(tm), gt_val, thr, k_samp)
+                                s_data = st_dict.get(s_key)
                                 if not s_data and is_p0:
-                                    s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "60", gt_val, thr, k_samp))
-                                    if not s_data:
-                                        s_data = st_dict.get((p_key, col_cfg["st_arena"], col_cfg["agents"], "0", gt_val, thr, k_samp))
+                                    for p0_tm in ("60", "0"):
+                                        s_key = (p_key, col_cfg["st_arena"], col_cfg["agents"], p0_tm, gt_val, thr, k_samp)
+                                        s_data = st_dict.get(s_key)
+                                        if s_data: break
                                 
                                 if s_data is not None:
                                     c = tm_color(base_color, tm, p_key)
@@ -734,6 +764,7 @@ class Data:
                                     
                                     for t_ax in targets:
                                         t_ax.plot(s_data, color=c, lw=6, alpha=0.9)
+                                        self._fill_ci(t_ax, s_data, st_ci_dict.get(s_key), c)
                                     
             for i in range(2):
                 for j in range(3):
@@ -926,7 +957,8 @@ class Data:
                 try:
                     norm = int(agents) - 1
                     if norm <= 0: norm = 1
-                    norm_data = [xi / norm for xi in res]
+                    norm_data = [xi / norm for xi in res[0]]
+                    res_ci = res[1]
                 except: continue
                 
                 col = -1
@@ -946,12 +978,14 @@ class Data:
                             ax[row][c_idx].plot([5/norm]*1200, color="black", lw=5, ls=":")
                             min_buf_line[row][c_idx] = 1
                         ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style)
+                        self._fill_ci(ax[row][c_idx], norm_data, res_ci, color, norm)
                 else:
                     row = col_index[str(tm)]
                     if min_buf_line[row][c_idx] == 0:
                         ax[row][c_idx].plot([5/norm]*1200, color="black", lw=5, ls=":")
                         min_buf_line[row][c_idx] = 1
                     ax[row][c_idx].plot(norm_data, color=color, lw=6, linestyle=l_style)
+                    self._fill_ci(ax[row][c_idx], norm_data, res_ci, color, norm)
 
         self._apply_plot_style(ax, nrows, columns, col_map, is_messages=True)
 
@@ -970,7 +1004,8 @@ class Data:
         plt.close(fig)
 
 ##########################################################################################################
-    def print_evolutions_diff(self, path, ground_T, threshlds, dict_states, o_k, more_k, ps_k_dict):
+    def print_evolutions_diff(self, path, ground_T, threshlds, dict_states, o_k, more_k, ps_k_dict, dict_ci=None):
+        dict_ci = dict_ci or {}
         ncols, col_map = self._get_col_mapping()
         if ncols == 0: return
         
@@ -1029,6 +1064,7 @@ class Data:
                         if p_key == "P.0":
                             for row in range(nrows):
                                 ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx)
+                                self._fill_ci(ax[row][c_idx], s_data, dict_ci.get(root_name, {}).get(key), color, zorder=z_idx)
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
                                 used_roots[root_name] = (l_label, l_style)
@@ -1036,6 +1072,7 @@ class Data:
                             if str(k_tm) not in col_index: continue
                             row = col_index[str(k_tm)]
                             ax[row][c_idx].plot(s_data, color=color, lw=6, linestyle=l_style, zorder=z_idx)
+                            self._fill_ci(ax[row][c_idx], s_data, dict_ci.get(root_name, {}).get(key), color, zorder=z_idx)
                             
                             used_protocol_keys.add(p_key)
                             if root_name not in used_roots:
@@ -1087,9 +1124,11 @@ class Data:
         arenas, agents = set(), set()
         ps_k_dict = {}
         dict_states_aggregated = {}
+        dict_ci_aggregated = {}
         
         for root_name, data_list in dict_st_in.items():
             dict_states_aggregated[root_name] = {}
+            dict_ci_aggregated[root_name] = {}
             for data_in in data_list: 
                 for k0, s_data in data_in.items():
                     algo, arena, thr, gt, comm, ag, tm, hops, k_samp = k0[0], k0[1], k0[4], k0[5], k0[6], k0[7], k0[9], k0[10], k0[11]
@@ -1107,13 +1146,14 @@ class Data:
                         
                     key = (p_key, arena, ag, tm, gt, thr, str(k_samp))
                     dict_states_aggregated[root_name][key] = s_data[0]
+                    dict_ci_aggregated[root_name][key] = s_data[1]
 
         ground_T = sorted(list(ground_T))
         threshlds = sorted(list(threshlds))
         o_k = sorted(list(o_k))
         more_k = [sorted(list(arenas)), sorted(list(agents))]
 
-        self.print_evolutions_diff(path, ground_T, threshlds, dict_states_aggregated, o_k, more_k, ps_k_dict)
+        self.print_evolutions_diff(path, ground_T, threshlds, dict_states_aggregated, o_k, more_k, ps_k_dict, dict_ci_aggregated)
 
 ##########################################################################################################
     def read_msgs_csv(self, path):
@@ -1121,11 +1161,14 @@ class Data:
         with open(path, newline='') as f:
             reader = csv.reader(f, delimiter='\t')
             headers = next(reader)
+            # "data" e' la serie media; "ci_95" (se presente) il suo CI 95% tra le run
+            data_idx = headers.index("data") if "data" in headers else len(headers) - 1
+            ci_idx = headers.index("ci_95") if "ci_95" in headers else None
             for row in reader:
                 if not row: continue
-                data_val = dict(zip(headers, row[:-1])) 
-                val = row[-1].replace('[', '').replace(']', '')
-                array_val = [float(x) for x in val.split(',')] if val else []
+                data_val = dict(zip(headers[:data_idx], row[:data_idx]))
+                array_val = self._parse_series(row[data_idx]) if len(row) > data_idx else []
+                ci_val = self._parse_series(row[ci_idx]) if ci_idx is not None and len(row) > ci_idx else []
                 
                 key_tuple = (
                     data_val.get("ArenaSize", "big"),
@@ -1138,7 +1181,7 @@ class Data:
                     data_val.get("k_sampling", "0"),
                     data_val.get("buff_dim", "60")  
                 )
-                data[key_tuple] = array_val
+                data[key_tuple] = (array_val, ci_val)
         return data
 
 ##########################################################################################################
@@ -1158,12 +1201,11 @@ class Data:
                     if h == 'data':
                         val = val.replace('[', '').replace(']', '')
                         array_val = [float(x) for x in val.split(',')] if val else []
+                    elif h == 'ci_95':
+                        # CI 95% tra le run; la vecchia colonna "std" non e' un CI e non viene usata
+                        std_val = [] if val == '-' else self._parse_series(val)
                     elif h == 'std':
-                        if val == '-':
-                            std_val = [-1.0] * len(array_val)
-                        else:
-                            val = val.replace('[', '').replace(']', '')
-                            std_val = [float(x) for x in val.split(',')] if val else []
+                        continue
                     else:
                         data_val[h] = val
                         
@@ -1219,6 +1261,7 @@ class Data:
         path = self.base+"/proc_data/images/"
         
         dict_states = {}
+        dict_ci = {}
         dict_times = {}
         ps_k_dict = {}
         ground_T, threshlds, o_k = set(), set(), set()
@@ -1254,6 +1297,8 @@ class Data:
                 
                 key = (p_key, arena, ag, tm, gt, thr, str(k_samp))
                 add_or_merge(dict_states, key, s_data[0])
+                if s_data[1]:
+                    add_or_merge(dict_ci, key, s_data[1])
                 if t_data:
                     add_or_merge(dict_times, key, t_data[0])
 
@@ -1262,10 +1307,11 @@ class Data:
         o_k = sorted(list(o_k))
         more_k = [sorted(list(arenas)), sorted(list(agents))]
 
-        self.print_evolutions(path, ground_T, threshlds, dict_states, dict_times, o_k, more_k, ps_k_dict)
+        self.print_evolutions(path, ground_T, threshlds, dict_states, dict_times, o_k, more_k, ps_k_dict, dict_ci)
 
 ##########################################################################################################
-    def print_evolutions(self, path, ground_T, threshlds, dict_states, times_in, keys, more_k, ps_k_dict):
+    def print_evolutions(self, path, ground_T, threshlds, dict_states, times_in, keys, more_k, ps_k_dict, dict_ci=None):
+        dict_ci = dict_ci or {}
         typo = [0, 1, 2, 3, 4, 5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
@@ -1306,12 +1352,14 @@ class Data:
                                 for row in range(nrows):
                                     color = self._protocol_color_with_k(p_key, k_samp, ag, ps_k_dict, scalarMap)
                                     ax[row][col].plot(s_data, color=color, lw=6)
+                                    self._fill_ci(ax[row][col], s_data, dict_ci.get(key), color)
                                     used_protocols.add(p_key)
                             else:
                                 if str(k_tm) not in row_index: continue
                                 row = row_index[str(k_tm)]
                                 color = self._protocol_color_with_k(p_key, k_samp, ag, ps_k_dict, scalarMap)
                                 ax[row][col].plot(s_data, color=color, lw=6)
+                                self._fill_ci(ax[row][col], s_data, dict_ci.get(key), color)
                                 used_protocols.add(p_key)
 
                 self._apply_plot_style(ax, nrows, rows, is_messages=False)
@@ -1337,7 +1385,9 @@ class Data:
         used_protocols = set()
         all_cols = set()
         for k in dict_msgs.keys():
-            try: all_cols.add(int(k[3]))
+            # T_m = 0 (P.0) non e' una riga: P.0 viene disegnato in tutte, come nei plot di proc_data
+            try:
+                if int(k[3]) != 0: all_cols.add(int(k[3]))
             except Exception: continue
         
         default_rows = sorted(all_cols) if all_cols else [60, 120, 180, 300, 600]
@@ -1373,6 +1423,7 @@ class Data:
         for key, raw_data in items_to_plot:
             p_key, arena, agents, tm, k_samp = key
             if not self._protocol_enabled(p_key): continue
+            raw_data, raw_ci = raw_data
             
             if arena == 'big' and agents == '25': col = 0
             elif arena == 'small' and agents == '25': col = 1
@@ -1393,6 +1444,7 @@ class Data:
                         ax[row][col].plot([val]*1200, color="black", lw=5, ls=":")
                         min_buf_line[row][col] = 1
                     ax[row][col].plot(data, color=color, lw=6)
+                    self._fill_ci(ax[row][col], data, raw_ci, color, norm)
             else:
                 if str(tm) not in row_index: continue
                 row = row_index[str(tm)]
@@ -1401,6 +1453,7 @@ class Data:
                     ax[row][col].plot([val]*1200, color="black", lw=5, ls=":")
                     min_buf_line[row][col] = 1
                 ax[row][col].plot(data, color=color, lw=6)
+                self._fill_ci(ax[row][col], data, raw_ci, color, norm)
 
         self._apply_plot_style(ax, nrows, rows, is_messages=True)
         handles_r = []

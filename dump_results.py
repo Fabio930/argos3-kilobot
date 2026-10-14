@@ -2,10 +2,8 @@ import data_extractor as dex
 import os
 import sys
 import logging
-import gc
-import time
 import psutil
-from multiprocessing import Process, Manager
+from multiprocessing import Pool
 
 # Setup logging
 def setup_logging():
@@ -50,14 +48,14 @@ def process_folder(task):
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, sub_path
+        del results
+    return sub_path
 
 def main():
     setup_logging()
     ticks_per_sec = check_inputs()
 
-    manager = Manager()
-    queue = manager.Queue()
+    tasks = []
 
     for base in dex.Results().bases:
         for exp_l_dir in sorted(os.listdir(base)):
@@ -84,80 +82,38 @@ def main():
                                                     if '.' not in pre_folder:
                                                         msg_exp_time = int(pre_folder.split('#')[-1])
                                                         sub_path = os.path.join(agents_path, pre_folder)
+                                                        # il livello KSampling# e' opzionale: se manca, sotto MsgExpTime# ci sono direttamente le MsgHops# (k_sampling = 0)
+                                                        k_entries = []
                                                         for k_folder in sorted(os.listdir(sub_path)):
-                                                            if '.' not in k_folder:
-                                                                k_sampling = int(k_folder.split('#')[-1])
-                                                                k_path = os.path.join(sub_path, k_folder)
+                                                            if '.' in k_folder: continue
+                                                            if k_folder.startswith("KSampling#"):
+                                                                k_entries.append((int(k_folder.split('#')[-1]), os.path.join(sub_path, k_folder)))
+                                                            elif k_folder.startswith("MsgHops#") and (0, sub_path) not in k_entries:
+                                                                k_entries.append((0, sub_path))
+                                                        for k_sampling, k_path in k_entries:
                                                                 for hops_folder in sorted(os.listdir(k_path)):
-                                                                    if '.' not in hops_folder:
+                                                                    if '.' not in hops_folder and hops_folder.startswith("MsgHops#"):
                                                                         msg_hops = hops_folder.split('#')[-1]
                                                                         path = os.path.join(k_path, hops_folder)
-                                                                        queue.put((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, path))
+                                                                        tasks.append((base, agents_path, exp_length, communication, n_agents, threshold, delta_str, ticks_per_sec, msg_exp_time, msg_hops, k_sampling, path))
 
-    # Using a manager to handle the queue
-    gc.collect()
-    logging.info(f"Starting {queue.qsize()} tasks")
+    if not tasks:
+        logging.info("No tasks found")
+        return
 
-    # Active processes dictionary
-    active_processes = {}
-    iteration = 0
+    # Pool di processi: ogni worker elabora una cartella alla volta, senza attese tra un avvio e l'altro.
+    # Il numero di worker e' limitato dalle CPU e dalla memoria disponibile (stima per il task piu' grande).
+    max_agents = max(t[4] for t in tasks)
+    est_task_mb = max(256, 100 * max_agents * 1200 * 6 / (1024 * 1024) * 3)
+    available_mb = psutil.virtual_memory().available / (1024 * 1024)
+    n_workers = max(1, min(os.cpu_count() or 1, int((available_mb - 2048) // est_task_mb), len(tasks)))
+    # i task piu' pesanti (piu' agenti) partono per primi per bilanciare il carico
+    tasks.sort(key=lambda t: -t[4])
+    logging.info(f"Starting {len(tasks)} tasks on {n_workers} workers")
 
-    while len(active_processes) > 0 or queue.qsize() > 0:
-        iteration += 1
-
-        to_remove = []
-        # Calculate the memory used by each process
-        active_keys = active_processes.keys()
-        available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        for key in active_keys:
-            try:
-                proc = psutil.Process(key)
-                if proc.status() == psutil.STATUS_DEAD or proc.status() == psutil.STATUS_ZOMBIE:
-                    process = active_processes.get(key)
-                    process[0].terminate()
-                    process[0].join()
-                    if process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(key)
-            except psutil.NoSuchProcess:
-                to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-1]} not found")
-        cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
-        # Kill the last process and put it back in the queue
-        if available_memory <= 3024 and len(active_processes) > 0:
-            for i in range(1, len(active_keys) + 1):
-                last_pid = list(active_keys)[-i]
-                if last_pid not in to_remove:
-                    last_process = active_processes.get(last_pid)
-                    last_process[0].terminate()
-                    last_process[0].join()
-                    if last_process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1][-1]} terminated due to low memory")
-                        # Requeue the task
-                        queue.put(last_process[1])
-                        break
-        for key in to_remove:
-            process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {process[1][-1]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
-            try:
-                task = queue.get(block=False)
-                p = Process(target=process_folder, args=(task,))
-                p.start()
-                active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {task[-1]}")
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 300 == 0 or len(to_remove) > 0:
-            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
-            gc.collect()
-        time.sleep(1)  # Avoid busy-waiting
+    with Pool(processes=n_workers, maxtasksperchild=20) as pool:
+        for done, path in enumerate(pool.imap_unordered(process_folder, tasks), start=1):
+            logging.info(f"[{done}/{len(tasks)}] completed {path}")
 
     logging.info("All tasks completed.")
 

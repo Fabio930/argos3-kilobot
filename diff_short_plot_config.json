@@ -15,6 +15,7 @@
   ],
   "plots": {
       "exclude_tm": [60, 120, 300, 600],
-      "insert": []
+      "insert": [],
+      "show_ci": true
   }
 }
