@@ -10,6 +10,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lifelines import WeibullFitter,KaplanMeierFitter
+from lifelines.utils import median_survival_times
 from scipy.special import gamma
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
@@ -111,7 +112,7 @@ class Data:
                 {"id": "O.1.1", "label": r"$ID+R_{1}$", "color": "viridis:3"},
                 {"id": "O.1.0", "label": r"$ID+R_{\infty}$", "color": "viridis:4"},
             ],
-            "plots": {"exclude_protocols": [], "exclude_tm": []},
+            "plots": {"exclude_protocols": [], "exclude_tm": [], "show_ci": True},
         }
 ###################################################
     def _merge_plot_config(self, base_cfg, user_cfg):
@@ -217,12 +218,114 @@ class Data:
 
 ###################################################
     def _protocol_enabled(self, protocol_id):
-        protocol = self.protocols_by_id.get(protocol_id)
+        # gli id con suffisso "|<max_buff_size>" (varianti di P.1.1) seguono il protocollo base
+        protocol = self.protocols_by_id.get(str(protocol_id).split('|')[0])
         plot_cfg = self.plot_config.get("plots", {})
         exclude = plot_cfg.get("exclude_protocols") or []
         if any(self._protocol_matches(protocol, sel) for sel in exclude):
             return False
         return True
+
+###################################################
+    def _plot_cols(self, cols):
+        exclude = [str(c) for c in (self.plot_config.get("plots", {}).get("exclude_cols") or [])]
+        return [c for c in cols if c[0] not in exclude]
+
+###################################################
+    def _is_p11(self, algo, n_agents, max_buff_size):
+        # P.1.1: algo P con buffer ridotto a n_agents-1-X (X > 0)
+        alg_lower = str(algo).strip().lower()
+        if alg_lower == 'ps':
+            return True
+        if alg_lower != 'p':
+            return False
+        try:
+            return int(float(max_buff_size)) < int(n_agents) - 1
+        except (TypeError, ValueError):
+            return False
+
+###################################################
+    def _shade_color(self, base_color, ratio):
+        ratio = max(0.0, min(1.0, ratio))
+        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
+        rgb = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0 - ratio) * 0.4))), s * (1.0 - ((1.0 - ratio) * 0.3)))
+        return tuple(np.clip(rgb, 0, 1))
+
+###################################################
+    def _isolines(self, state_grid, time_grid, ground_T, threshlds):
+        """
+        Isolinee Q=0.2 e Q=0.8 (G in funzione di tau, per interpolazione lineare) e tempo di
+        riconoscimento associato. Restituisce (v2, v8, vt, sel) dove sel[th] e' l'indice di G
+        da cui e' preso il tempo (None se non trovato).
+        """
+        v2, v8, vt, sel = [], [], [], []
+        for th in range(len(threshlds)):
+            vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
+            valst, lim_valst, sel_pt = np.nan, np.nan, None
+            for pt in range(len(ground_T)):
+                val = state_grid[pt][th]
+                if val is None: continue
+                diff = ground_T[pt] - threshlds[th]
+                if val >= 0.8:
+                    if diff >= 0.09 and (np.isnan(valst) or diff < lim_valst):
+                        valst, lim_valst, sel_pt = (time_grid[pt][th] if time_grid is not None else np.nan), diff, pt
+                    if diff >= 0 and (np.isnan(vals8[1]) or val < vals8[1]):
+                        vals8[1], gt8[1] = val, ground_T[pt]
+                elif val <= 0.2:
+                    if diff <= 0 and (np.isnan(vals2[0]) or val >= vals2[0]):
+                        vals2[0], gt2[0] = val, ground_T[pt]
+                else:
+                    if np.isnan(vals8[0]) or val > vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
+                    if np.isnan(vals2[1]) or val < vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
+            if np.isnan(vals8[0]): vals8[0], gt8[0] = vals8[1], gt8[1]
+            elif np.isnan(vals8[1]): vals8[1], gt8[1] = vals8[0], gt8[0]
+            if np.isnan(vals2[0]): vals2[0], gt2[0] = vals2[1], gt2[1]
+            elif np.isnan(vals2[1]): vals2[1], gt2[1] = vals2[0], gt2[0]
+            v2.append(np.interp([0.2], vals2, gt2, left=np.nan)[0])
+            v8.append(np.interp([0.8], vals8, gt8, right=np.nan)[0])
+            vt.append(valst)
+            sel.append(sel_pt)
+        return np.array(v2, dtype=float), np.array(v8, dtype=float), np.array(vt, dtype=float), sel
+
+###################################################
+    def _isoline_bands(self, ci_entry, sel, ground_T, threshlds):
+        """Bande CI 95% di isolinee e tempi: (v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi)."""
+        q_lo, q_hi, t_lo, t_hi = ci_entry
+        a2, a8, _, _ = self._isolines(q_lo, None, ground_T, threshlds)
+        b2, b8, _, _ = self._isolines(q_hi, None, ground_T, threshlds)
+        tl = np.array([t_lo[p][th] if p is not None else np.nan for th, p in enumerate(sel)], dtype=float)
+        th_ = np.array([t_hi[p][th] if p is not None else np.nan for th, p in enumerate(sel)], dtype=float)
+        return np.fmin(a2, b2), np.fmax(a2, b2), np.fmin(a8, b8), np.fmax(a8, b8), tl, th_
+
+###################################################
+    def _show_ci(self):
+        return bool(self.plot_config.get("plots", {}).get("show_ci", True))
+
+    def _fill_ci(self, ax, x, lo, hi, color):
+        # banda del confidence interval 95%, disattivabile con "show_ci": false nel campo plots
+        if self._show_ci():
+            ax.fill_between(x, lo, hi, color=color, alpha=0.2, lw=0)
+
+###################################################
+    def _median_ci(self, values, z=1.96):
+        # CI 95% della mediana senza ipotesi sulla distribuzione (statistiche d'ordine)
+        v = np.sort(np.asarray(values, dtype=float))
+        n = len(v)
+        if n == 0: return np.nan, np.nan
+        lo = int(np.floor(n / 2.0 - z * np.sqrt(n) / 2.0))
+        hi = int(np.ceil(n / 2.0 + z * np.sqrt(n) / 2.0)) - 1
+        return float(v[max(0, lo)]), float(v[min(n - 1, hi)])
+
+###################################################
+    def _recovery_variant_key(self, alg, broadcast, agents, buf, msgs, hops):
+        alg_lower = str(alg).strip().lower()
+        if alg_lower == 'ps':
+            return 'P.1.1'
+        if alg_lower == 'p':
+            # AN: algo P senza tempo di scadenza dei messaggi
+            if int(msgs) == 0: return 'P.0'
+            return 'P.1.1' if self._is_p11(alg, agents, buf) else 'P.1.0'
+        return f"{alg}.{int(broadcast)}.{int(hops)}"
 
 ###################################################
     def _protocol_color(self, protocol, scalarMap):
@@ -282,7 +385,7 @@ class Data:
                             ax.plot(kmf.cumulative_density_, label="kmf "+k)
                             fig.tight_layout()
                             
-                            filename = f"{algo}_{comm}_{hops}_{agents}_{arena}_{buf_dim}_{gt}_{thr}_run{run_id}_{k}.png"
+                            filename = f"{algo}_{comm}_{hops}_{agents}_{arena}_{buf_dim}_{gt}_{thr}_run{run_id}_{k}.pdf"
                             fig.savefig(os.path.join(path, filename))
                             plt.close(fig)
                         
@@ -364,7 +467,7 @@ class Data:
             n_agents = int(k[3]) if len(k) > 3 else 0
             buf_dim = int(k[4]) if len(k) > 4 else 0
             max_buff_size = k[6] if len(k) > 6 else str(max(0, n_agents - 1))
-            is_priority_sampling = algo == 'ps' or (algo == 'p' and buf_dim == max(0, n_agents - 2))
+            is_priority_sampling = self._is_p11(algo, n_agents, max_buff_size)
             
             mean_vals = data.get(k)[0]
             ci_vals = data.get(k)[1]
@@ -437,14 +540,6 @@ class Data:
             col_name: scalarMap.to_rgba(idx) for idx, col_name in enumerate(all_cols)
         }
 
-        # Determine active rows to correctly filter the data, even for a single panel
-        rows = [60, 120, 180, 300, 600]
-        rows = [r for r in rows if str(r) not in exclude_rows]
-        rows = self._plot_tm_values(rows)
-        if not rows:
-            return
-        row_index = {str(c): i for i, c in enumerate(rows)}
-        
         # Create a single panel figure
         fig, ax = plt.subplots(figsize=(10, 7))
         
@@ -458,15 +553,11 @@ class Data:
                 else:
                     void_x_ticks.append('')
                     
-        for dk in data_in.keys():
-            if dk in exclude_protocols or not self._protocol_enabled(dk):
-                continue
-            dct = data_in.get(dk)
+        # il plot degli encounter riguarda sempre e solo P.0, indipendentemente da exclude_protocols/exclude_tm
+        for dk in ['P.0']:
+            dct = data_in.get(dk, {})
             
             for k in dct.keys():
-                if dk != 'P.0' and k[2] not in row_index:
-                    continue
-                
                 ag_val_str = str(k[1]).strip()
                 arena_val = str(k[0]).strip().replace('A', '')
                 
@@ -482,7 +573,11 @@ class Data:
                 x_vals = np.arange(len(y_vals))
                 
                 # Plot as a thicker line
-                ax.plot(x_vals, y_vals, color=c_val, linewidth=3.0)
+                ax.plot(x_vals, y_vals, color=c_val, linewidth=5)
+                raw_ci = (data_ci.get(dk) or {}).get(k)
+                if raw_ci is not None and len(raw_ci) == len(y_vals):
+                    ci_vals = np.array(raw_ci)
+                    self._fill_ci(ax, x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
                 
         # Set ticks and labels for the single axis
         ax.set_xticks(np.arange(0, 901, 300), labels=real_x_ticks)
@@ -517,7 +612,7 @@ class Data:
             
         if legend_handles:
             fig.legend(legend_handles, legend_labels, loc='lower center', 
-                       bbox_to_anchor=(0.7, -0.05), ncol=len(legend_handles), 
+                       bbox_to_anchor=(0.74, -0.05), ncol=len(legend_handles), 
                        framealpha=0.9, borderaxespad=0)
         fig.tight_layout()
         fig.savefig(fig_path, bbox_inches='tight')
@@ -533,7 +628,7 @@ class Data:
             n_agents = int(k[3]) if len(k) > 3 else 0
             buff_dim = int(k[4]) if len(k) > 4 else 0
             max_buff_size = k[6] if len(k) > 6 else str(max(0, n_agents - 1))
-            is_priority_sampling = algo == 'ps' or (algo == 'p' and buff_dim == max(0, n_agents - 2))
+            is_priority_sampling = self._is_p11(algo, n_agents, max_buff_size)
 
             if is_priority_sampling and buff_dim > 0:
                 dict_park_t1.update({(k[0],k[3],k[4],max_buff_size):data.get(k)[0]})
@@ -586,7 +681,7 @@ class Data:
             n_agents = int(k[3]) if len(k) > 3 else 0
             buf_dim = int(k[4]) if len(k) > 4 else 0
             max_buff_size = k[6] if len(k) > 6 else str(max(0, n_agents - 1))
-            is_priority_sampling = algo == 'ps' or (algo == 'p' and buf_dim == max(0, n_agents - 2))
+            is_priority_sampling = self._is_p11(algo, n_agents, max_buff_size)
             
             mean_vals = data.get(k)[0]
             ci_vals = data.get(k)[1]
@@ -837,6 +932,7 @@ class Data:
         
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         rows = []
+        all_tms = set()
         
         for key, value in data_in.items():
             # Spacchettamento robusto: cattura sia la vecchia struttura a 3 valori che la nuova a 4
@@ -850,13 +946,10 @@ class Data:
             
             mbs = buf
             
-            alg_lower = str(alg).strip().lower()
-            if alg_lower == 'ps':
-                variant_key = 'P.1.1'
-            elif alg_lower == 'p':
-                variant_key = 'P.1.1' if int(buf) == max(0, int(agents) - 2) else ('P.1.0' if int(msgs) > 0 else 'P.0')
-            else:
-                variant_key = f"{alg}.{int(broadcast)}.{int(hops)}"
+            variant_key = self._recovery_variant_key(alg, broadcast, agents, buf, msgs, hops)
+
+            # i pannelli T_m disponibili dipendono da tutti i dati, non solo dai protocolli abilitati
+            if int(msgs) > 0: all_tms.add(int(msgs))
 
             if not self._protocol_enabled(variant_key): continue
             
@@ -874,14 +967,16 @@ class Data:
             
         df = pd.DataFrame(rows)
         if not df.empty:
-            df.loc[df['Label'].isin([r'$AN$']), 'Msgs_exp_time'] = 60
-            df = df[df['Msgs_exp_time'] != 0]
+            # AN (P.0) non ha T_m: tiene Msgs_exp_time=0 e viene mostrato come base in ogni pannello
+            df = df[(df['Msgs_exp_time'] != 0) | (df['VariantKey'] == 'P.0')]
         
-        grid = [("bigA", 25), ("smallA", 25), ("bigA", 100)]
-        row_labels = ["LD25", "HD25", "HD100"]
+        cols = self._plot_cols([("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)])
+        if not cols: return
+        grid = [(arena, ag) for _, arena, ag in cols]
+        row_labels = [lbl for lbl, _, _ in cols]
         
         if df.empty: return
-        msg_list = self._plot_tm_values(sorted(df['Msgs_exp_time'].unique()))
+        msg_list = self._plot_tm_values(sorted(all_tms))
         if not msg_list: return
         
         if 60 in msg_list:
@@ -911,7 +1006,7 @@ class Data:
                     for pid in protocols_order:
                         if not self._protocol_enabled(pid): continue
                         
-                        target_tm = 60 if pid == 'P.0' else tm_val
+                        target_tm = 0 if pid == 'P.0' else tm_val
                         mask_p = (base_cell['VariantKey'] == pid) & (base_cell['Msgs_exp_time'] == target_tm)
                         p_cell = base_cell.loc[mask_p]
                         
@@ -976,15 +1071,15 @@ class Data:
                         ax.set_ylim(self.event_axis_limits(global_max)[:2])
                         
                     if i == 0: 
-                        ax.set_title(row_labels[j], fontsize=plt.rcParams.get("font.size", 30))
+                        ax.set_title(row_labels[j])
                     
                     if j == 0:
                         row_label_left = r"$E_{r}$" if entry == "Events" else r"$T_{r}$"
-                        ax.set_ylabel(row_label_left, fontsize=28)
+                        ax.set_ylabel(row_label_left)
                     
                     if j == ncols - 1:
                         ax.annotate(f"$T_m$={tm_val} s", xy=(1.03, 0.5), xycoords='axes fraction',
-                                    rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
+                                    rotation=270, ha='left', va='center')
             
             fig.tight_layout(rect=[0, 0.05, 1, 0.98])
             fig.savefig(os.path.join(images_dir, f"box_recovery_{threshold_str}_{entry}.pdf"), bbox_inches='tight')
@@ -1021,6 +1116,7 @@ class Data:
         protocols_order = [p.get("id") for p in self.protocols if p.get("id") and self._protocol_enabled(p.get("id"))]
 
         rows = []
+        all_tms = set()
         for key, value in data_in.items():
             mean_time = float(value[0])
             ci_time = float(value[1]) if len(value) > 1 else 0.0
@@ -1032,13 +1128,10 @@ class Data:
             
             mbs = buf
             
-            alg_lower = str(alg).strip().lower()
-            if alg_lower == 'ps':
-                variant_key = 'P.1.1'
-            elif alg_lower == 'p':
-                variant_key = 'P.1.1' if int(buf) == max(0, int(agents) - 2) else ('P.1.0' if int(msgs) > 0 else 'P.0')
-            else:
-                variant_key = f"{alg}.{int(broadcast)}.{int(hops)}"
+            variant_key = self._recovery_variant_key(alg, broadcast, agents, buf, msgs, hops)
+
+            # i T_m disponibili dipendono da tutti i dati, non solo dai protocolli abilitati
+            if int(msgs) > 0: all_tms.add(int(msgs))
 
             if not self._protocol_enabled(variant_key): continue
             
@@ -1054,24 +1147,26 @@ class Data:
         df = pd.DataFrame(rows)
         if df.empty: return
         
-        df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
+        # AN (P.0) non ha T_m: tiene Msgs_exp_time=0 e viene mostrato come base
+        df = df[(df['Msgs_exp_time'] != 0) | (df['VariantKey'] == 'P.0')]
+        if df.empty: return
         
         mbs_global_map = {}
         for ag in df['Agents'].unique():
             mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].unique()
             mbs_global_map[ag] = sorted(list(mbs_vals), key=lambda x: float(x))
 
-        real_tm_vals = sorted([m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0])
-        main_tm_list = self._plot_tm_values(real_tm_vals)
+        main_tm_list = self._plot_tm_values(sorted(all_tms))
         insert_tm_list = self._get_valid_insert_tm()
         
         combined_tm = sorted(list(set(main_tm_list) | set(insert_tm_list)))
         active_labels = [variant_map[pid][0] for pid in protocols_order]
-        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+        densities = self._plot_cols([("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)])
+        if not densities: return
 
         def save_short(subset, suffix, side_by_side_mode: bool):
             if subset.empty: return
-            fig, axes = plt.subplots(2, 3, figsize=(24, 14))
+            fig, axes = plt.subplots(2, len(densities), figsize=(8 * len(densities), 14), squeeze=False)
             event_max = subset["Events"].max()
             time_max = subset["Time"].max()
 
@@ -1135,7 +1230,7 @@ class Data:
                     if row_idx == 0: ax.set_ylim(self.event_axis_limits(event_max)[:2])
                     else: ax.set_yscale('log'); ax.set_ylim(self.time_axis_limits(time_max)[:2])
                     
-                    if col_idx == 0: ax.set_ylabel(r"$E_{r}$" if row_idx == 0 else r"$T_{r}$", fontsize=28)
+                    if col_idx == 0: ax.set_ylabel(r"$E_{r}$" if row_idx == 0 else r"$T_{r}$")
                     if col_idx > 0: ax.set_yticklabels([])
                     ax.set_axisbelow(True)
                     ax.grid(True, ls=':', zorder=0)
@@ -1190,6 +1285,8 @@ class Data:
         }
 
         rows = []
+        all_tms = set()
+        all_times = []
         for key, value in data_in.items():
             mean_time = float(value[0])
             ci_time = float(value[1]) if len(value) > 1 else 0.0
@@ -1201,13 +1298,12 @@ class Data:
             
             mbs = buf
             
-            alg_lower = str(alg).strip().lower()
-            if alg_lower == 'ps':
-                variant_key = 'P.1.1'
-            elif alg_lower == 'p':
-                variant_key = 'P.1.1' if int(buf) == max(0, int(agents) - 2) else ('P.1.0' if int(msgs) > 0 else 'P.0')
-            else:
-                variant_key = f"{alg}.{int(broadcast)}.{int(hops)}"
+            variant_key = self._recovery_variant_key(alg, broadcast, agents, buf, msgs, hops)
+
+            # i T_m disponibili dipendono da tutti i dati, non solo dai protocolli abilitati
+            if int(msgs) > 0: all_tms.add(int(msgs))
+            # limiti dell'asse y calcolati su tutti i protocolli, cosi' non cambiano con exclude_protocols
+            if (int(msgs) > 0 or variant_key == 'P.0') and mean_time > 0: all_times.append(mean_time)
 
             if not self._protocol_enabled(variant_key): continue
             
@@ -1223,23 +1319,25 @@ class Data:
         df = pd.DataFrame(rows)
         if df.empty: return
         
-        df.loc[df['VariantKey'] == 'P.0', 'Msgs_exp_time'] = 60
+        # AN (P.0) non ha T_m: tiene Msgs_exp_time=0 e viene mostrato come base in ogni pannello
+        df = df[(df['Msgs_exp_time'] != 0) | (df['VariantKey'] == 'P.0')]
+        if df.empty: return
         mbs_global_map = {}
         for ag in df['Agents'].unique():
             mbs_vals = df[(df['VariantKey'] == 'P.1.1') & (df['Agents'] == ag)]['MBS'].dropna().unique()
             sorted_mbs = sorted([float(x) for x in mbs_vals if str(x).strip() != ''], reverse=True)
             mbs_global_map[ag] = sorted_mbs[:3]
 
-        real_tm_vals = sorted([m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0])
-        main_tm_list = self._plot_tm_values(real_tm_vals)
+        main_tm_list = self._plot_tm_values(sorted(all_tms))
         insert_tm_list = self._get_valid_insert_tm()
         
-        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+        densities = self._plot_cols([("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)])
+        if not densities: return
         v_events = df[df['Events'] > 0]['Events']
         v_times = df[df['Time'] > 0]['Time']
         g_e_min = v_events.min() if not v_events.empty else 0.5
         g_e_max = df['Events'].max() if not df.empty else 100.0
-        g_t_min = v_times.min() if not v_times.empty else 0.5
+        g_t_min = min(all_times) if all_times else (v_times.min() if not v_times.empty else 0.5)
         g_t_max = df['Time'].max() if not df.empty else 100.0
         pad_factor = 1
         xlim_global = (0.5, g_e_max * pad_factor +10)
@@ -1253,7 +1351,7 @@ class Data:
             if not msg_list: return
             nrows = len(msg_list)
             ncols = len(densities)
-            fig, axes = plt.subplots(nrows, ncols, figsize=(22, 7.3 * nrows), squeeze=False, sharex=True, sharey=True)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(22 * ncols / 3, 7.3 * nrows), squeeze=False, sharex=True, sharey=True)
 
             for i, tm_val in enumerate(msg_list):
                 for j, (dens_label, arena, ag) in enumerate(densities):
@@ -1270,7 +1368,7 @@ class Data:
                         for pid in protocols_order:
                             is_p0 = (pid == 'P.0')
                             marker = marker_map.get(pid, 'o')
-                            t_tm = 60 if is_p0 else target_tm
+                            t_tm = 0 if is_p0 else target_tm
                             p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == t_tm)]
                             
                             if p_data.empty: continue
@@ -1292,12 +1390,12 @@ class Data:
 
                     draw_pass(ax, tm_val, "main")
                     
-                    if i == 0: ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
-                    if j == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
-                    if i == nrows - 1: ax.set_xlabel(r"$E_{r}$", fontsize=28)
+                    if i == 0: ax.set_title(dens_label)
+                    if j == 0: ax.set_ylabel(r"$T_{r}$")
+                    if i == nrows - 1: ax.set_xlabel(r"$E_{r}$")
                     # if j == ncols - 1:
                     #     ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
-                    #                 rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
+                    #                 rotation=270, ha='left', va='center')
 
                     ax.set_axisbelow(True)
                     ax.grid(True, ls=':', zorder=0)
@@ -1331,26 +1429,27 @@ class Data:
                 else:
                     legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.52, -0.1))
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.62, -0.1))
             fig.tight_layout(rect=[0, 0.05, 1, 1])
             fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
 
         save_short(df)
-        self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global)
+        # self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global, tm_values=sorted(all_tms))
 
 ###################################################
-    def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global):
+    def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global, tm_values=None):
         images_dir = os.path.join(self.base, "compressed_data", "images")
         
-        raw_tms = [m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0]
+        raw_tms = tm_values if tm_values is not None else [m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0]
         msg_list = sorted(raw_tms)
         
         if not msg_list: return
         if 60 in msg_list:
             msg_list = [60] + [m for m in msg_list if m != 60]
             
-        densities = [("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)]
+        densities = self._plot_cols([("LD25", "bigA", 25), ("HD25", "smallA", 25), ("HD100", "bigA", 100)])
+        if not densities: return
         nrows = len(msg_list)
         ncols = len(densities)
         
@@ -1364,7 +1463,7 @@ class Data:
                 
                 for pid in protocols_order:
                     is_p0 = (pid == 'P.0')
-                    target_tm = 60 if is_p0 else tm_val
+                    target_tm = 0 if is_p0 else tm_val
                     p_data = cell[(cell['VariantKey'] == pid) & (cell['Msgs_exp_time'] == target_tm)]
                     
                     if p_data.empty: continue
@@ -1392,12 +1491,12 @@ class Data:
 
                 ax.grid(True, ls=':', zorder=0)
 
-                if i == 0: ax.set_title(dens_label, fontsize=plt.rcParams.get("font.size", 30))
-                if j == 0: ax.set_ylabel(r"$T_{r}$", fontsize=28)
-                if i == nrows - 1: ax.set_xlabel(r"$E_{r}$", fontsize=28)
+                if i == 0: ax.set_title(dens_label)
+                if j == 0: ax.set_ylabel(r"$T_{r}$")
+                if i == nrows - 1: ax.set_xlabel(r"$E_{r}$")
                 if j == ncols - 1:
                     ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
-                                rotation=270, ha='left', va='center', fontsize=plt.rcParams.get("font.size", 30))
+                                rotation=270, ha='left', va='center')
 
         legend_elements = []
         cmap_k = plt.get_cmap('cool_r')
@@ -1642,12 +1741,12 @@ class Data:
                 if dk == 'P.0':
                     for r_idx in range(nrows):
                         ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
                 else:
                     row = row_index.get(k[2])
                     if row is not None:
                         ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
                 
         for x in range(nrows):
             for y in range(ncols):
@@ -1697,7 +1796,7 @@ class Data:
 
 ###################################################
 
-    def print_messages(self, data_in, data_std, exclude_protocols=None, exclude_rows=None, exclude_cols=["LD25", "HD25"]):
+    def print_messages(self, data_in, data_std, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
         if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
         if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
         if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
@@ -1839,18 +1938,19 @@ class Data:
                 if raw_ci is None or len(raw_ci) != len(y_vals):
                     ci_vals = np.zeros_like(y_vals)
                 else:
-                    ci_vals = np.array(raw_ci)
+                    # il CI e' salvato in numero di ID: va normalizzato come la media
+                    ci_vals = np.array(raw_ci) / norm
                     
                 x_vals = np.arange(len(y_vals))
                 if dk == 'P.0':
                     for r_idx in range(nrows):
                         ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        # ax[r_idx][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
                 else:
                     row = col_index.get(k[2])
                     if row is not None:
                         ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        # ax[row][col].fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
                 
         for x in range(nrows):
             for y in range(ncols):
@@ -1905,9 +2005,15 @@ class Data:
         if not os.path.exists(self.base+"/proc_data/images/"):
             os.mkdir(self.base+"/proc_data/images/")
         path = self.base+"/proc_data/images/"
-        states_dict, times_dict = {}, {}
-        dict_park_avg,dict_park_t1_avg,dict_park_avg_real_fifo,dict_adms_avg,dict_fifo_avg,dict_rnd_avg,dict_rnd_inf_avg = {},{},{},{},{},{},{}
-        dict_park_tmed,dict_park_t1_tmed,dict_park_tmed_real_fifo,dict_adms_tmed,dict_fifo_tmed,dict_rnd_tmed,dict_rnd_inf_tmed = {},{},{},{},{},{},{}
+        pids = ["P.0", "P.1.0", "P.1.1", "O.0.0", "O.2.0", "O.1.1", "O.1.0"]
+        states_dict = {pid: {} for pid in pids}
+        times_dict = {pid: {} for pid in pids}
+        # CI 95% per chiave: (Q_lo, Q_hi, T_lo, T_hi), letti da print_borders e plot_compressed_table
+        self.active_ci = {pid: {} for pid in pids}
+        def put(pid, key, vals, times_median, ci_entry):
+            states_dict[pid][key] = vals
+            times_dict[pid][key] = times_median
+            self.active_ci[pid][key] = ci_entry
         ground_T, threshlds , msg_time, msg_hop, max_buff = [],[],[],[],[]
         algo,arena,runs,time,comm,agents,buf_dim    = [],[],[],[],[],[],[]
         o_k                                         = []
@@ -1939,63 +2045,47 @@ class Data:
                                                 for m_b_s in max_buff:
                                                     vals            = []
                                                     times_median    = []
+                                                    # CI 95%: Q da mean +/- ci per tick, tempi dal CI della mediana sulle run
+                                                    vals_lo, vals_hi, t_lo, t_hi = [], [], [], []
                                                     for gt in ground_T:
-                                                        tmp         = []
-                                                        tmp_tmed    = []
+                                                        tmp, tmp_tmed = [], []
+                                                        tmp_lo, tmp_hi, tmp_tlo, tmp_thi = [], [], [], []
                                                         for thr in threshlds:
                                                             s_data = data_in[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
                                                             t_data = times[i].get((a,a_s,n_r,et,c,n_a,str(gt),str(thr),m_b_d,m_t,m_h,m_b_s))
                                                             if s_data != None:
                                                                 if m_t not in o_k: o_k.append(m_t)
-                                                                tmp.append(round(np.median(s_data[0]),2))
+                                                                q_mean = np.asarray(s_data[0], dtype=float)
+                                                                q_ci = np.asarray(s_data[1], dtype=float)
+                                                                if q_ci.shape != q_mean.shape: q_ci = np.zeros_like(q_mean)
+                                                                tmp.append(round(np.median(q_mean),2))
+                                                                tmp_lo.append(round(np.median(q_mean - q_ci),2))
+                                                                tmp_hi.append(round(np.median(q_mean + q_ci),2))
                                                                 tmp_tmed.append(round(np.median(t_data[0]),2))
-                                                        if len(vals)==0:
-                                                            vals            = np.array([tmp])
-                                                            times_median    = np.array([tmp_tmed])
-                                                        else:
-                                                            vals            = np.append(vals,[tmp],axis=0)
-                                                            times_median    = np.append(times_median,[tmp_tmed],axis=0)
-                                                    if a.strip().lower() in ['ps'] and int(c)==0 and m_t in o_k and int(m_t) > 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_t1_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                            dict_park_t1_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                                tlo, thi = self._median_ci(t_data[0])
+                                                                tmp_tlo.append(tlo); tmp_thi.append(thi)
+                                                        vals.append(tmp); times_median.append(tmp_tmed)
+                                                        vals_lo.append(tmp_lo); vals_hi.append(tmp_hi)
+                                                        t_lo.append(tmp_tlo); t_hi.append(tmp_thi)
+                                                    vals, times_median = np.array(vals), np.array(times_median)
+                                                    ci_entry = (np.array(vals_lo), np.array(vals_hi), np.array(t_lo), np.array(t_hi))
+                                                    if len(vals[0]) == 0:
+                                                        continue
+                                                    if self._is_p11(a, n_a, m_b_s) and int(c)==0 and m_t in o_k and int(m_t) > 0:
+                                                        put("P.1.1", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
                                                     elif a.strip().lower() == 'p' and int(c)==0 and m_t in o_k and int(m_t) > 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                            dict_park_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
+                                                        put("P.1.0", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
                                                     if a=='P' and int(c)==0 and m_t in o_k and int(m_t) == 0:
-                                                        if len(vals[0])>0:
-                                                            dict_park_avg_real_fifo.update({(a_s,n_a,"60",m_b_s):vals})
-                                                            dict_park_tmed_real_fifo.update({(a_s,n_a,"60",m_b_s):times_median})
+                                                        put("P.0", (a_s,n_a,"60",m_b_s), vals, times_median, ci_entry)
                                                     if a=='O' and m_t in o_k:
-                                                        if len(vals[0])>0:
-                                                            if int(c)==0:
-                                                                dict_adms_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                dict_adms_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                            elif int(c)==2:
-                                                                dict_fifo_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                dict_fifo_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                            else:
-                                                                if int(m_h)==1:
-                                                                    dict_rnd_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                    dict_rnd_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-                                                                else:
-                                                                    dict_rnd_inf_avg.update({(a_s,n_a,m_t,m_b_s):vals})
-                                                                    dict_rnd_inf_tmed.update({(a_s,n_a,m_t,m_b_s):times_median})
-        states_dict.update({"P.0":dict_park_avg_real_fifo})
-        times_dict.update({"P.0":dict_park_tmed_real_fifo})
-        states_dict.update({"P.1.0":dict_park_avg})
-        times_dict.update({"P.1.0":dict_park_tmed})
-        states_dict.update({"P.1.1":dict_park_t1_avg})
-        times_dict.update({"P.1.1":dict_park_t1_tmed})
-        states_dict.update({"O.0.0":dict_adms_avg})
-        times_dict.update({"O.0.0":dict_adms_tmed})
-        states_dict.update({"O.2.0":dict_fifo_avg})
-        times_dict.update({"O.2.0":dict_fifo_tmed})
-        states_dict.update({"O.1.1":dict_rnd_avg})
-        times_dict.update({"O.1.1":dict_rnd_tmed})
-        states_dict.update({"O.1.0":dict_rnd_inf_avg})
-        times_dict.update({"O.1.0":dict_rnd_inf_tmed})
+                                                        if int(c)==0:
+                                                            put("O.0.0", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
+                                                        elif int(c)==2:
+                                                            put("O.2.0", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
+                                                        elif int(m_h)==1:
+                                                            put("O.1.1", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
+                                                        else:
+                                                            put("O.1.0", (a_s,n_a,m_t,m_b_s), vals, times_median, ci_entry)
         tmp = []
         for x in o_k:
             if int(x)!=0:
@@ -2004,7 +2094,7 @@ class Data:
         return path,ground_T,threshlds,states_dict,times_dict,o_k,[arena,agents]
 
 ###################################################
-    def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=[]):
+    def print_borders(self, path, _type, t_type, ground_T, threshlds, data_in, times_in, keys, more_k, exclude_protocols=None, exclude_rows=None, exclude_cols=None):
         if exclude_protocols is None: exclude_protocols = self.plot_config.get("plots", {}).get("exclude_protocols", [])
         if exclude_rows is None: exclude_rows = self.plot_config.get("plots", {}).get("exclude_tm", [])
         if exclude_cols is None: exclude_cols = self.plot_config.get("plots", {}).get("exclude_cols", [])
@@ -2042,8 +2132,6 @@ class Data:
             handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markeredgewidth=0, markersize=16))
             l_list_r.append(protocol.get("label", pid) if protocol else pid)
                 
-        border_font = plt.rcParams.get("font.size", 20) + 4
-        
         active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
         ncols = len(active_cols)
         if ncols == 0: return
@@ -2076,46 +2164,20 @@ class Data:
                             if dk in exclude_protocols or not self._protocol_enabled(dk):
                                 continue
                             
-                            vals_v2, vals_v8 = [], []
-                            times_v = []
-                            
                             x_plot = np.array(threshlds)
                             if np.max(x_plot) > 1.0: x_plot = x_plot / np.max(x_plot)
                             
                             search_tm = "60" if dk == 'P.0' else str(o_k[k])
-
-                            for th in range(len(threshlds)):
-                                vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
-                                valst, lim_valst = np.nan, np.nan
-                                
-                                d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
-                                t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
-                                
-                                if d_series is not None:
-                                    for pt in range(len(ground_T)):
-                                        val = d_series[pt][th]
-                                        tval = t_series[pt][th]
-                                        if val is not None:
-                                            if val>=0.8:
-                                                if ground_T[pt]-threshlds[th] >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
-                                                    valst, lim_valst = tval, ground_T[pt]-threshlds[th]
-                                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val<vals8[1]):
-                                                    vals8[1], gt8[1] = val, ground_T[pt]
-                                            elif val<=0.2:
-                                                if ground_T[pt]-threshlds[th] <= 0 and (vals2[0] is np.nan or val>=vals2[0]):
-                                                    vals2[0], gt2[0] = val, ground_T[pt]
-                                            else:
-                                                if vals8[0] is np.nan or val>vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
-                                                if vals2[1] is np.nan or val<vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
-                                                
-                                if vals8[0] is np.nan: vals8[0], gt8[0] = vals8[1], gt8[1]
-                                elif vals8[1] is np.nan: vals8[1], gt8[1] = vals8[0], gt8[0]
-                                if vals2[0] is np.nan: vals2[0], gt2[0] = vals2[1], gt2[1]
-                                elif vals2[1] is np.nan: vals2[1], gt2[1] = vals2[0], gt2[0]
-                                
-                                vals_v2.append(np.around(np.interp([0.2], vals2, gt2, left=np.nan), 3))
-                                vals_v8.append(np.around(np.interp([0.8], vals8, gt8, right=np.nan), 3))
-                                times_v.append(valst)
+                            d_series = data_in.get(dk).get((a,ag,search_tm, m_b_s))
+                            t_series = times_in.get(dk).get((a,ag,search_tm, m_b_s))
+                            if d_series is not None:
+                                vals_v2, vals_v8, times_v, sel = self._isolines(d_series, t_series, ground_T, threshlds)
+                            else:
+                                # nessun dato: linee vuote, ma il pannello riceve comunque gli attributi
+                                vals_v2 = vals_v8 = times_v = np.full(len(threshlds), np.nan)
+                                sel = [None] * len(threshlds)
+                            vals_v2, vals_v8 = np.around(vals_v2, 3), np.around(vals_v8, 3)
+                            ci_entry = getattr(self, "active_ci", {}).get(dk, {}).get((a,ag,search_tm, m_b_s))
 
                             if m_b_s == list(raw_mbs)[0]:
                                 ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
@@ -2130,10 +2192,15 @@ class Data:
                             ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
                             ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
                             tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
+                            if ci_entry is not None:
+                                v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds)
+                                self._fill_ci(ax[k][col], x_plot, v2_lo, v2_hi, color=c_val)
+                                self._fill_ci(ax[k][col], x_plot, v8_lo, v8_hi, color=c_val)
+                                self._fill_ci(tax[k][col], x_plot, t_lo, t_hi, color=c_val)
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
-                                self._borders_attributes(ax, tax, col, k, o_k, border_font, nrows, ncols, col_name)
+                                self._borders_attributes(ax, tax, col, k, o_k, nrows, ncols, col_name)
 
         fig.tight_layout()
         tfig.tight_layout()
@@ -2146,12 +2213,12 @@ class Data:
         plt.close(fig); plt.close(tfig)
 
 ###################################################
-    def _borders_attributes(self, ax, tax, col, k, o_k, border_font, nrows, ncols, col_name):
+    def _borders_attributes(self, ax, tax, col, k, o_k, nrows, ncols, col_name):
             from matplotlib.ticker import FixedLocator
     
             for a_curr in [ax[k][col], tax[k][col]]:
                 a_curr.set_xlim(0.5, 1.0)
-                a_curr.tick_params(axis='both', which='major', labelsize=border_font)
+                a_curr.tick_params(axis='both', which='major')
     
             ax[k][col].set_ylim(0.5, 1.0)
             if col_name == "LD25": tax[k][col].set_ylim(0, 201)
@@ -2159,8 +2226,8 @@ class Data:
             elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
     
             if col == 0:
-                ax[k][col].set_ylabel(r"$G$", fontsize=border_font)
-                tax[k][col].set_ylabel(r"$T_c$", fontsize=border_font)
+                ax[k][col].set_ylabel(r"$G$")
+                tax[k][col].set_ylabel(r"$T_c$")
                 ax[k][col].yaxis.set_tick_params(labelleft=True)
             else:
                 ax[k][col].yaxis.set_tick_params(labelleft=False)
@@ -2171,8 +2238,8 @@ class Data:
             if k == nrows - 1:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
-                    a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
-                    a_curr.set_xlabel(r"$\tau$", fontsize=border_font)
+                    a_curr.set_xticklabels([f"{x:.1f}" for x in ticks_pos])
+                    a_curr.set_xlabel(r"$\tau$")
             else:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_curr.xaxis.set_major_locator(FixedLocator(ticks_pos))
@@ -2184,14 +2251,14 @@ class Data:
                 taxt.set_xlim(0.5, 1.0)
                 axt.set_xticks([])
                 taxt.set_xticks([])
-                axt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
-                taxt.set_xlabel(col_name, fontsize=border_font, labelpad=15)
+                axt.set_xlabel(col_name, labelpad=15)
+                taxt.set_xlabel(col_name, labelpad=15)
 
             if col == ncols - 1:
                 for a_curr in [ax[k][col], tax[k][col]]:
                     a_right = a_curr.twinx()
                     a_right.set_yticks([])
-                    a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+                    a_right.set_ylabel(rf"$T_m = {int(o_k[k])}\, s$", rotation=270, labelpad=35)
 
             ax[k][col].grid(True, which='major', ls=':', alpha=0.6)
             tax[k][col].grid(True, which='major', ls=':', alpha=0.6)
@@ -2242,6 +2309,7 @@ class Data:
         for times_dict in tot_times_in:
             for k, v in times_dict.items():
                 algo, arena, n_runs, exp_time, comm, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops = k[:11]
+                max_buff_size = k[11] if len(k) > 11 else ""
                 gt_str = str(gt)
                 if gt_str not in target_gts: 
                     continue
@@ -2253,9 +2321,9 @@ class Data:
                 if alg_lower == 'ps':
                     variant_key = 'P.1.1'
                 elif alg_lower == 'p':
-                    if int(min_buff_dim) == max(0, int(n_agents) - 2): variant_key = 'P.1.1'
-                    elif int(msg_time) > 0: variant_key = 'P.1.0'
-                    else: variant_key = 'P.0'
+                    if int(msg_time) == 0: variant_key = 'P.0'
+                    elif self._is_p11(algo, n_agents, max_buff_size): variant_key = 'P.1.1'
+                    else: variant_key = 'P.1.0'
                 else:
                     variant_key = f"{algo}.{int(comm)}.{int(msg_hops)}"
                 if variant_key not in protocols_order or variant_key in exclude_protocols or not self._protocol_enabled(variant_key):
@@ -2272,23 +2340,33 @@ class Data:
                 else:
                     if int(msg_time) not in rows: continue
                     valid_rows = [int(msg_time)]
+                # P.1.1: una curva per ogni max_buff_size
+                data_key = (variant_key, int(float(max_buff_size))) if variant_key == 'P.1.1' else variant_key
                 for r in valid_rows:
-                    if tau not in parsed_data[r][col_name][variant_key][gt_str]:
-                        parsed_data[r][col_name][variant_key][gt_str][tau] = []
-                    parsed_data[r][col_name][variant_key][gt_str][tau].extend(durations)
+                    gt_dict = parsed_data[r][col_name].setdefault(data_key, {g: {} for g in target_gts})
+                    if tau not in gt_dict[gt_str]:
+                        gt_dict[gt_str][tau] = []
+                    gt_dict[gt_str][tau].extend(durations)
         kmf = KaplanMeierFitter()
-        border_font = plt.rcParams.get("font.size", 20) + 4
         from matplotlib.ticker import FixedLocator, MaxNLocator
         for r_idx, r_val in enumerate(rows):
             for c_idx, c_val in enumerate(active_cols):
                 curr_ax = ax[r_idx][c_idx]
+                curve_keys = []
                 for pid in protocols_order:
                     if pid in exclude_protocols or not self._protocol_enabled(pid): continue
-                    c_color = protocol_colors.get(pid, "black")
+                    if pid == 'P.1.1':
+                        sub_keys = sorted([dk for dk in parsed_data[r_val][c_val] if isinstance(dk, tuple)], key=lambda dk: dk[1])
+                        for m_idx, dk in enumerate(sub_keys):
+                            curve_keys.append((dk, self._shade_color(protocol_colors.get(pid, "black"), (m_idx + 1) / len(sub_keys))))
+                    else:
+                        curve_keys.append((pid, protocol_colors.get(pid, "black")))
+                for data_key, c_color in curve_keys:
                     for gt_val in target_gts:
-                        tau_dict = parsed_data[r_val][c_val][pid][gt_val]
+                        tau_dict = parsed_data[r_val][c_val][data_key][gt_val]
                         taus = sorted(list(tau_dict.keys()))
                         fitted_times, valid_taus = [], []
+                        ci_lo, ci_hi = [], []
                         for tau in taus:
                             durs = tau_dict[tau]
                             if len(durs) > 0: 
@@ -2302,38 +2380,44 @@ class Data:
                                             fitted_times.append(fit_t)
                                         else:
                                             fitted_times.append(np.nan)
-                                            
+                                        # CI 95% della mediana di Kaplan-Meier (limite infinito -> non disegnato)
+                                        med_ci = median_survival_times(kmf.confidence_interval_).values[0]
+                                        ci_lo.append(med_ci[0] if np.isfinite(med_ci[0]) else np.nan)
+                                        ci_hi.append(med_ci[1] if np.isfinite(med_ci[1]) else np.nan)
                                     except Exception:
                                         fitted_times.append(np.nan)
+                                        ci_lo.append(np.nan); ci_hi.append(np.nan)
                                 else:
                                     fitted_times.append(np.nan)
+                                    ci_lo.append(np.nan); ci_hi.append(np.nan)
                                     
                                 valid_taus.append(tau)
                         
                         if valid_taus:
                             ls = '-' if gt_val == '0.8' else '--'
                             curr_ax.plot(valid_taus, fitted_times, color=c_color, lw=6, ls=ls)
+                            self._fill_ci(curr_ax, valid_taus, np.array(ci_lo, dtype=float), np.array(ci_hi, dtype=float), color=c_color)
                 curr_ax.set_xlim(0.5, 1.0)
-                curr_ax.tick_params(axis='both', which='major', labelsize=border_font)
+                curr_ax.tick_params(axis='both', which='major')
                 if c_idx == 0:
-                    curr_ax.set_ylabel(r"$T_c$", fontsize=border_font)
+                    curr_ax.set_ylabel(r"$T_c$")
                 curr_ax.yaxis.set_tick_params(labelleft=True)
                 ticks_pos = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
                 curr_ax.xaxis.set_major_locator(FixedLocator(ticks_pos))
                 if r_idx == nrows - 1:
-                    curr_ax.set_xticklabels([f"{x:.1f}" for x in ticks_pos], fontsize=border_font)
-                    curr_ax.set_xlabel(r"$\tau$", fontsize=border_font)
+                    curr_ax.set_xticklabels([f"{x:.1f}" for x in ticks_pos])
+                    curr_ax.set_xlabel(r"$\tau$")
                 else:
                     curr_ax.set_xticklabels([])
                 if r_idx == 0:
                     axt = curr_ax.twiny()
                     axt.set_xlim(0.5, 1.0)
                     axt.set_xticks([])
-                    axt.set_xlabel(c_val, fontsize=border_font, labelpad=15)
+                    axt.set_xlabel(c_val, labelpad=15)
                 if c_idx == ncols - 1:
                     a_right = curr_ax.twinx()
                     a_right.set_yticks([])
-                    a_right.set_ylabel(rf"$T_m = {r_val}\, s$", fontsize=border_font, rotation=270, labelpad=35)
+                    a_right.set_ylabel(rf"$T_m = {r_val}\, s$", rotation=270, labelpad=35)
                 curr_ax.grid(True, which='major', ls=':', alpha=0.6)
         for c_idx in range(ncols):
             y_max = float('-inf')
@@ -2424,7 +2508,7 @@ class Data:
                 if not (current_tm in combined_tm or is_p0): continue
                 
                 num_agents = int(key[1])
-                col_idx = 2 if num_agents == 100 else 1 if key[0] == "smallA" and num_agents == 25 else 0
+                col_idx = 2 if num_agents == 100 else 1 if str(key[0]).startswith("small") and num_agents == 25 else 0
                 
                 c_val = base_color
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
@@ -2467,7 +2551,7 @@ class Data:
                     x_vals = np.arange(len(y_vals))
 
                     target_ax.plot(x_vals, y_vals, color=c_val, lw=6, alpha=0.75)
-                    target_ax.fill_between(x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, alpha=0.2, lw=0)
+                    self._fill_ci(target_ax, x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
 
                 if min_buf_plotted[col_idx] == 0:
                     min_buf_plotted[col_idx] = 1
@@ -2478,35 +2562,16 @@ class Data:
                 if not (current_tm in combined_tm or is_p0): continue
                 
                 num_agents = int(key[1])
-                col_idx = 2 if num_agents == 100 else 1 if key[0] == "smallA" and num_agents == 25 else 0
+                col_idx = 2 if num_agents == 100 else 1 if str(key[0]).startswith("small") and num_agents == 25 else 0
                 time_series = tot_times.get(key)
                 
-                v2, v8, vt = [], [], []
-                for th in range(len(threshlds)):
-                    vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
-                    valst, lim_valst = np.nan, np.nan
-                    for pt in range(len(ground_T)):
-                        val, tval = state_series[pt][th], time_series[pt][th]
-                        if val is not None:
-                            if val >= 0.8:
-                                if ground_T[pt]-threshlds[th] >= 0.09 and (valst is np.nan or ground_T[pt]-threshlds[th]<lim_valst):
-                                    valst, lim_valst = tval, ground_T[pt]-threshlds[th]
-                                if ground_T[pt]-threshlds[th] >= 0 and (vals8[1] is np.nan or val<vals8[1]):
-                                    vals8[1], gt8[1] = val, ground_T[pt]
-                            elif val <= 0.2:
-                                if ground_T[pt]-threshlds[th] <= 0 and (vals2[0] is np.nan or val>=vals2[0]):
-                                    vals2[0], gt2[0] = val, ground_T[pt]
-                            else:
-                                if vals8[0] is np.nan or val>vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
-                                if vals2[1] is np.nan or val<vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
-                    if vals8[0] is np.nan: vals8[0], gt8[0] = vals8[1], gt8[1]
-                    elif vals8[1] is np.nan: vals8[1], gt8[1] = vals8[0], gt8[0]
-                    if vals2[0] is np.nan: vals2[0], gt2[0] = vals2[1], gt2[1]
-                    elif vals2[1] is np.nan: vals2[1], gt2[1] = vals2[0], gt2[0]
-                    v2.append(np.interp([0.2], vals2, gt2, left=np.nan)[0])
-                    v8.append(np.interp([0.8], vals8, gt8, right=np.nan)[0])
-                    vt.append(valst)
-                    if not np.isnan(valst) and valst > max_time: max_time = valst
+                v2, v8, vt, sel = self._isolines(state_series, time_series, ground_T, threshlds)
+                if np.any(~np.isnan(vt)): max_time = max(max_time, float(np.nanmax(vt)))
+                ci_entry = getattr(self, "active_ci", {}).get(dk, {}).get(key)
+                bands = {}
+                if ci_entry is not None:
+                    v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds)
+                    bands = {'v2': (v2_lo, v2_hi), 'v8': (v8_lo, v8_hi), 'vt': (t_lo, t_hi)}
 
                 c_val = base_color
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
@@ -2527,7 +2592,7 @@ class Data:
                 elif current_tm in insert_tm_set: destinations.append("inset")
 
                 for target_type in destinations:
-                    for r_idx, data_to_plot in [(2, vt), (1, v2), (1, v8)]:
+                    for r_idx, name, data_to_plot in [(2, 'vt', vt), (1, 'v2', v2), (1, 'v8', v8)]:
                         if target_type == "main":
                             curr_ax = ax[r_idx][col_idx]
                         else:
@@ -2545,8 +2610,10 @@ class Data:
                                 inset_axes_dict[(r_idx, col_idx)] = ins
                             curr_ax = inset_axes_dict[(r_idx, col_idx)]
                         
-                        ls = '--' if data_to_plot == v2 else '-'
+                        ls = '--' if name == 'v2' else '-'
                         curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=6, ls=ls, alpha=0.75)
+                        if name in bands:
+                            self._fill_ci(curr_ax, threshlds, bands[name][0], bands[name][1], color=c_val)
                 
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
@@ -2740,76 +2807,64 @@ class Data:
 ###################################################
     def process_and_plot_radar_grid(self, raw_data_grid, rows, active_cols):
         """
-        Parses a grid of raw metric dictionaries, normalises them to [0.15, 1.0] per COLUMN,
-        and plots a grid of radars (rows = Tm, cols = scenarios).
+        Normalises the raw radar metrics and plots a grid of radars (rows = Tm, cols = scenarios).
+        - M is reported on its absolute scale (already a fraction in [0, 1]).
+        - A, Tc, Er, Tr (Er and Tr already log-transformed) are min-max normalised within each
+          scenario (column), using all enabled protocols and all the Tm rows shown.
+        - Tc, Er, Tr are inverted, so that lower values lie closer to the outer edge.
+        - A missing value is treated as the worst one; values are mapped to [0.15, 1.0]
+          so that the worst value remains visible.
         """
-        import numpy as np
-        
-        # Configuration now treats ALL metrics as absolute [0, 1] values 
-        # where Higher is Better, as normalisation is pre-calculated in the data extraction.
         # Format: (Name, higher_is_better, is_absolute)
         metrics_config = [
             ('M', True, True),
-            ('Acc', True, True),
-            ('Tc', True, True),
-            ('Er', True, True),
-            ('Tr', True, True)
+            ('Acc', True, False),
+            ('Tc', False, False),
+            ('Er', False, False),
+            ('Tr', False, False)
         ]
-        labels = [r'$M$', 'A', r'$1-T_c$', r'$1-E_r$', r'$1-T_r$']
-        
-        # 1. Global min/max per column to ensure P.0 remains consistent across rows
-        col_min_max = {col: {m: {'min': float('inf'), 'max': float('-inf')} for m, _, _ in metrics_config} for col in active_cols}
-        
-        for tm in rows:
-            for col in active_cols:
-                dataset = raw_data_grid.get(tm, {}).get(col, {})
-                for pid, d in dataset.items():
-                    if not self._protocol_enabled(pid): continue
-                    
-                    if all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _, _ in metrics_config):
-                        for m, _, is_absolute in metrics_config:
-                            if not is_absolute: # Calculate min/max only for relative metrics
-                                v = d[m]
-                                if v < col_min_max[col][m]['min']: col_min_max[col][m]['min'] = v
-                                if v > col_min_max[col][m]['max']: col_min_max[col][m]['max'] = v
+        labels = ['M', 'A', r'$\bar{T}_c$', r'$\bar{E}_r$', r'$\bar{T}_r$']
 
-        # 2. Normalize using column bounds
-        norm_data_grid = {tm: {col: {} for col in active_cols} for tm in rows}
-        
+        def _valid(v):
+            return v is not None and not np.isnan(v)
+
+        # 1. Min/max per column over all enabled protocols and all the rows shown
+        col_min_max = {col: {m: {'min': float('inf'), 'max': float('-inf')} for m, _, _ in metrics_config} for col in active_cols}
         for tm in rows:
             for col in active_cols:
-                dataset = raw_data_grid.get(tm, {}).get(col, {})
-                for pid, d in dataset.items():
+                for pid, d in raw_data_grid.get(tm, {}).get(col, {}).items():
                     if not self._protocol_enabled(pid): continue
-                    
-                    # Ensure protocol has all metrics to avoid broken perimeters
-                    if not all(m in d and d[m] is not None and not np.isnan(d[m]) for m, _, _ in metrics_config):
-                        continue
-                        
-                    norm_data_grid[tm][col][pid] = []
+                    for m, _, is_absolute in metrics_config:
+                        v = d.get(m)
+                        if is_absolute or not _valid(v): continue
+                        col_min_max[col][m]['min'] = min(col_min_max[col][m]['min'], v)
+                        col_min_max[col][m]['max'] = max(col_min_max[col][m]['max'], v)
+
+        # 2. Normalise using column bounds
+        norm_data_grid = {tm: {col: {} for col in active_cols} for tm in rows}
+        for tm in rows:
+            for col in active_cols:
+                for pid, d in raw_data_grid.get(tm, {}).get(col, {}).items():
+                    if not self._protocol_enabled(pid): continue
+                    norm_vals = []
                     for m, higher_is_better, is_absolute in metrics_config:
-                        v = d[m]
-                        
-                        if is_absolute:
+                        v = d.get(m)
+                        if not _valid(v):
+                            norm_val = 0.0
+                        elif is_absolute:
                             norm_val = max(0.0, min(1.0, v))
-                            if not higher_is_better:
-                                norm_val = 1.0 - norm_val
+                            if not higher_is_better: norm_val = 1.0 - norm_val
                         else:
                             min_v = col_min_max[col][m]['min']
                             max_v = col_min_max[col][m]['max']
-                            
-                            if max_v == min_v or max_v == float('-inf') or min_v == float('inf'):
-                                norm_val = 1.0  
+                            if max_v == min_v:
+                                norm_val = 1.0
                             else:
-                                norm_val = (v - min_v) / (max_v - min_v)
-                                norm_val = max(0.0, min(1.0, norm_val)) # Clip to bounds
-                                if not higher_is_better:
-                                    norm_val = 1.0 - norm_val 
-                            
-                        # Scale shift from [0.0, 1.0] to [0.15, 1.0] to prevent clipped polygons
-                        norm_val = 0.15 + (0.85 * norm_val)
-                            
-                        norm_data_grid[tm][col][pid].append(norm_val)
+                                norm_val = max(0.0, min(1.0, (v - min_v) / (max_v - min_v)))
+                                if not higher_is_better: norm_val = 1.0 - norm_val
+                        # Scale shift from [0.0, 1.0] to [0.15, 1.0] to keep the worst value visible
+                        norm_vals.append(0.15 + (0.85 * norm_val))
+                    norm_data_grid[tm][col][pid] = norm_vals
 
         self.print_radar_grid(norm_data_grid, labels, rows, active_cols)
 
@@ -2844,7 +2899,9 @@ class Data:
                 ax.set_theta_direction(-1)
                 
                 ax.set_xticks(angles[:-1])
-                ax.set_xticklabels(metrics_labels, fontsize=20)
+                ax.set_xticklabels(metrics_labels)
+                # allontana le etichette delle metriche dal bordo del radar
+                ax.tick_params(axis='x', pad=15)
                 ax.set_ylim(0, 1.05)
                 ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
                 ax.set_yticklabels([]) 
@@ -2855,26 +2912,29 @@ class Data:
                     ax.set_title(col, size=28, pad=40)
                 
                 dataset = norm_data_grid.get(tm, {}).get(col, {})
+                # P.1.1: una curva per ogni max_buff_size ("P.1.1|<mbs>"), sfumata come nei plot dei bordi
+                p11_keys = sorted([pid for pid in dataset if str(pid).startswith("P.1.1|")], key=lambda pid: int(pid.split('|')[1]))
                 for pid, values in dataset.items():
                     if not self._protocol_enabled(pid):
                         continue
                     if len(values) != num_vars:
                         continue
                         
-                    protocol = self.protocols_by_id.get(pid, {})
+                    protocol = self.protocols_by_id.get(str(pid).split('|')[0], {})
                     c_val = self._protocol_color(protocol, scalarMap)
+                    if pid in p11_keys:
+                        c_val = self._shade_color(c_val, (p11_keys.index(pid) + 1) / len(p11_keys))
                     
                     # Chiusura del loop per evitare linee spezzate
                     plot_values = values + values[:1]
                     
                     # Aggiunti i marker sui vertici per renderli chiari anche nei casi critici
-                    ax.plot(angles, plot_values, color=c_val, linewidth=4, linestyle='solid')
+                    ax.plot(angles, plot_values, color=c_val, linewidth=6, linestyle='solid')
                     
-        border_font = plt.rcParams.get("font.size", 20) + 4
         for i, tm in enumerate(rows):
             ax_right = axes[i][-1]
             ax_right.text(1.1, 0.5, rf"$T_m = {tm}\, s$", transform=ax_right.transAxes, 
-                          rotation=270, ha='center', va='center', fontsize=border_font)
+                          rotation=270, ha='center', va='center')
                           
         legend_elements = []
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
@@ -2886,7 +2946,7 @@ class Data:
             legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=label))
             
         fig.legend(handles=legend_elements, loc='lower center', ncol=min(7, len(legend_elements)), 
-                   bbox_to_anchor=(0.6, 0.05 if nrows > 1 else -0.1), fontsize=24, framealpha=0.9, borderaxespad=0)
+                   bbox_to_anchor=(0.58, 0.02 if nrows > 1 else -0.1), framealpha=0.9, borderaxespad=0)
         
         fig.tight_layout()
         fig.subplots_adjust(right=0.88, bottom=0.08 if nrows > 1 else 0.15)

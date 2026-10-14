@@ -142,9 +142,12 @@ class Results:
         return msgs_summation, decisions_summation, msgs_ci, decisions_ci
 
 ##########################################################################################################
-    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states):
+    def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states,buf_cut=0):
+        # buf_cut > 0 -> P.1.1: si oscurano gli ultimi buf_cut messaggi validi di ogni buffer
+        if msg_exp_time != 0: exit(0)
         x = 1
-        max_buff_size = n_agents - x
+        full_buff_size = n_agents - x
+        max_buff_size = full_buff_size - buf_cut
         num_runs = int(len(os.listdir(sub_path))/n_agents)
         msgs_bigM = [np.array([])] * n_agents
         msgs_M = [None] * num_runs
@@ -175,6 +178,9 @@ class Results:
                             for v in line.rstrip('\n').split(',') 
                             if v and v != '-'
                         ]
+                        if buf_cut > 0:
+                            vals = vals[:full_buff_size]
+                            vals = vals[:max(0, len(vals) - buf_cut)]
                         v_len = len(vals)
                         if v_len < max_buff_size:
                             vals.extend([-1] * (max_buff_size - v_len))
@@ -195,22 +201,23 @@ class Results:
                         msgs_M = [None] * num_runs
         messages, decisions, msg_ci, dec_ci = self.compute_meaningfulMsgs_decidinAgents(msgs_bigM, max_buff_size)
         algo_lower = str(algo).strip().lower()
-        buff_dim_eff = max_buff_size if algo_lower == "ps" else "-"
-        encounters_mean, encounters_ci = self.compute_unique_encounters_over_deltaT(msgs_bigM, n_agents, max_steps)
-        self.dump_encounters("encounters_resume.csv", [
-            arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, 
-            encounters_mean, encounters_ci, buff_dim_eff
-        ])
-        self.dump_decisions("decisions_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, decisions, dec_ci, buff_dim_eff])
-        self.dump_msgs("messages_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, messages, msg_ci, buff_dim_eff])
+        buff_dim_eff = max_buff_size if (algo_lower == "ps" or buf_cut > 0) else "-"
+        if algo_lower=='p' and buf_cut == 0 and msg_exp_time == 0:
+            encounters_mean, encounters_ci = self.compute_unique_encounters_over_deltaT(msgs_bigM, n_agents, max_steps)
+            self.dump_encounters("encounters_resume.csv", [
+                arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, 
+                encounters_mean, encounters_ci, buff_dim_eff
+            ])
+        # self.dump_decisions("decisions_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, decisions, dec_ci, buff_dim_eff])
+        # self.dump_msgs("messages_resume.csv", [arenaS, algo, communication, n_agents, msg_exp_time, msg_hops, messages, msg_ci, buff_dim_eff])
         
-        for gt in range(len(self.ground_truth)):
-            results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
-            for thr in self.thresholds.get(self.ground_truth[gt]):
-                quorums = self.compute_quorum(results[0],results[1],thr)
-                self.dump_times(algo,0,quorums,results[0],base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
-                self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
-                self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
+        # for gt in range(len(self.ground_truth)):
+        #     results = self.compute_quorum_vars_on_ground_truth(msgs_bigM,states[gt],max_buff_size,gt+1,len(self.ground_truth))
+        #     for thr in self.thresholds.get(self.ground_truth[gt]):
+        #         quorums = self.compute_quorum(results[0],results[1],thr)
+        #         self.dump_times(algo,0,quorums,results[0],base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
+        #         self.dump_quorum(algo,0,quorums,base,path_temp,self.ground_truth[gt],thr,self.min_buff_dim,msg_exp_time,msg_hops,max_buff_size)
+        #         self.compute_recovery(algo,num_runs,arenaS,communication,n_agents,max_buff_size,msg_hops,self.ground_truth[gt],thr,quorums,results[0],msg_exp_time)
 
 ##########################################################################################################
     def compute_unique_encounters_over_deltaT(self, msgs_bigM, n_agents, ticks):

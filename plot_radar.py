@@ -5,10 +5,6 @@ import argparse
 
 # Fallback sicuri per garantire la chiusura del radar in caso di mancate convergenze
 WORST_M = 0.0
-WORST_ACC = 0.0
-WORST_TC = 900.0  
-WORST_ER = 1.0     
-WORST_TR = 900.0
 
 def map_col(arena, n_agents):
     """Maps raw arena and agent counts to their respective scenario columns."""
@@ -21,20 +17,24 @@ def map_col(arena, n_agents):
         return "LD25"
     return None
 
-def get_protocol_id(algo, comm, msg_hops, min_buff_dim, n_agents, msg_time):
+def get_protocol_id(algo, comm, msg_hops, max_buff_size, n_agents, msg_time):
     # Forza maiuscolo per evitare KeyError quando i protocolli 'O' vengono letti come 'o'
+    # Le varianti di P.1.1 (buffer ridotto a n_agents-1-X) sono restituite come "P.1.1|<max_buff_size>"
     alg_upper = str(algo).strip().upper()
     if alg_upper == 'PS':
-        return 'P.1.1'
+        return f"P.1.1|{int(float(max_buff_size))}"
     elif alg_upper == 'P':
-        if int(min_buff_dim) == max(0, int(n_agents) - 2):
-            return 'P.1.1'
-        elif int(msg_time) > 0:
-            return 'P.1.0'
-        else:
+        if int(float(msg_time)) == 0:
             return 'P.0'
+        elif int(float(max_buff_size)) < int(n_agents) - 1:
+            return f"P.1.1|{int(float(max_buff_size))}"
+        else:
+            return 'P.1.0'
     else:
         return f"{alg_upper}.{int(comm)}.{int(msg_hops)}"
+
+def base_protocol_id(pid):
+    return str(pid).split('|')[0]
 
 def main():
     parser = argparse.ArgumentParser(description="Generate radar plot grid synthesis for QS protocols.")
@@ -69,17 +69,27 @@ def main():
             exclude_tm=exclude_tm or None,
         )
 
-    active_cols = ["LD25", "HD25", "HD100"]
-    rows = [60, 120, 180, 300, 600]
-    if exclude_tm:
-        rows = [r for r in rows if str(r) not in exclude_tm]
+    # righe (T_m) e colonne (scenari) seguono il file di configurazione (exclude_tm / exclude_cols)
+    active_cols = [c[0] for c in csv_res._plot_cols([("LD25",), ("HD25",), ("HD100",)])]
+    rows = csv_res._plot_tm_values([60, 120, 180, 300, 600])
+    if not rows or not active_cols:
+        print("Nothing to plot: all T_m values or scenarios are excluded")
+        return
+
+    def active_col(arena, n_agents):
+        col = map_col(arena, n_agents)
+        return col if col in active_cols else None
         
     raw_data_grid = {tm: {col: {} for col in active_cols} for tm in rows}
 
-    for tm in rows:
-        for col in active_cols:
-            for pid in csv_res.protocols_by_id.keys():
-                raw_data_grid[tm][col][pid] = {'M': None, 'Acc': None, 'Tc': None, 'Er': None, 'Tr': None}
+    def ensure_pid(pid):
+        for tm in rows:
+            for col in active_cols:
+                raw_data_grid[tm][col].setdefault(pid, {'M': None, 'Acc': None, 'Tc': None, 'Er': None, 'Tr': None})
+
+    # P.1.1 viene aggiunto per variante ("P.1.1|<max_buff_size>") solo quando ci sono dati
+    for pid in csv_res.protocols_by_id.keys():
+        if pid != 'P.1.1': ensure_pid(pid)
 
     # 1. Messaggi: Diversità media dei dati trattenuti (M) bypassando map imperfetto
     msg_base = os.path.join(csv_res.base, "msgs_data")
@@ -94,7 +104,7 @@ def main():
             # NO, buf_dim riporta i valori di T_m -> 0 indica che il protoclllo è P.0, per trovare la dimensione da plottare
             # bisogna prendere i valorui in data e normalizzarli su i valori in n_agents (a cui bisogna prima sottrarre 1)
             arena_val, algo, broadcast, ag_val_str, buff_dim_raw, msg_hops, mbs = k
-            col_name = map_col(arena_val, ag_val_str)
+            col_name = active_col(arena_val, ag_val_str)
             if not col_name: 
                 continue
                 
@@ -102,19 +112,12 @@ def main():
             n_agents_int = int(ag_val_str)
             b_dim_int = int(float(buff_dim_raw)) if buff_dim_raw else 0
 
-            # Identificazione diretta dei protocolli per i messaggi
-            if alg_upper == 'PS' or (alg_upper == 'P' and b_dim_int == max(0, n_agents_int - 2)):
-                pid = 'P.1.1'
-            elif alg_upper == 'P':
-                if b_dim_int > 0:
-                    pid = 'P.1.0'
-                else:
-                    pid = 'P.0'
-            else:
-                pid = f"{alg_upper}.{int(broadcast)}.{int(msg_hops)}"
+            # Identificazione diretta dei protocolli per i messaggi (buff_dim riporta T_m)
+            pid = get_protocol_id(algo, broadcast, msg_hops, mbs, n_agents_int, b_dim_int)
 
-            if pid not in csv_res.protocols_by_id:
+            if base_protocol_id(pid) not in csv_res.protocols_by_id:
                 continue
+            ensure_pid(pid)
                 
             v = v_tuple[0]
             if len(v) > 0:
@@ -165,17 +168,18 @@ def main():
             
     if len(tot_st) > 0:
         # Matrice per raggruppare i valori Q e T in base a (tau, gt) per l'interpolazione
-        acc_matrix = {tm: {col: {pid: {} for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
-        time_matrix = {tm: {col: {pid: {} for pid in csv_res.protocols_by_id} for col in active_cols} for tm in rows}
+        acc_matrix = {tm: {col: {} for col in active_cols} for tm in rows}
+        time_matrix = {tm: {col: {} for col in active_cols} for tm in rows}
 
         for states, times in zip(tot_st, tot_times):
             for k, v in states.items():
                 algo, arena, n_runs, exp_time, comm, n_agents, gt, thrlds, min_buff_dim, msg_time, msg_hops, max_buff_size = k
-                col_name = map_col(arena, n_agents)
+                col_name = active_col(arena, n_agents)
                 if not col_name: continue
                 
-                pid = get_protocol_id(algo, comm, msg_hops, min_buff_dim, n_agents, msg_time)
-                if pid not in csv_res.protocols_by_id: continue
+                pid = get_protocol_id(algo, comm, msg_hops, max_buff_size, n_agents, msg_time)
+                if base_protocol_id(pid) not in csv_res.protocols_by_id: continue
+                ensure_pid(pid)
                 
                 gt_f = float(gt)
                 tau_f = float(thrlds)
@@ -184,7 +188,7 @@ def main():
                     mean_Q = np.mean(v[0])
                     latencies = times.get(k, ([], []))[0]
                     # La mediana corrisponde alla logica di print_active e print_borders
-                    median_Tc = np.median(latencies) if len(latencies) > 0 else WORST_TC
+                    median_Tc = np.median(latencies) if len(latencies) > 0 else np.nan
                     
                     if pid == 'P.0':
                         tms_to_update = rows
@@ -195,6 +199,8 @@ def main():
                             tms_to_update = []
 
                     for tm in tms_to_update:
+                        acc_matrix[tm][col_name].setdefault(pid, {})
+                        time_matrix[tm][col_name].setdefault(pid, {})
                         # Raggruppamento per l'accuratezza e i tempi associati
                         if tau_f not in acc_matrix[tm][col_name][pid]:
                             acc_matrix[tm][col_name][pid][tau_f] = {}
@@ -208,7 +214,7 @@ def main():
         # Processamento delle matrici accumulate
         for tm in rows:
             for col in active_cols:
-                for pid in csv_res.protocols_by_id.keys():
+                for pid in list(acc_matrix[tm][col].keys()):
                     
                     tau_dict = acc_matrix[tm][col][pid]
                     t_dict = time_matrix[tm][col][pid]
@@ -287,10 +293,11 @@ def main():
         alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = key[:10]
         
         pid = get_protocol_id(alg, broadcast, hops, buf, agents, msgs)
-        if pid not in csv_res.protocols_by_id: 
+        if base_protocol_id(pid) not in csv_res.protocols_by_id: 
             continue
+        ensure_pid(pid)
             
-        col_name = map_col(arena, agents)
+        col_name = active_col(arena, agents)
         if not col_name: 
             continue
 
@@ -312,41 +319,28 @@ def main():
                     raw_data_grid[tm][col_name][pid]['Tr'] = []
                 raw_data_grid[tm][col_name][pid]['Er'].append(mean_events)
                 raw_data_grid[tm][col_name][pid]['Tr'].append(mean_time)
-    # 4. Fallbacks strutturati e normalizzazione finale
+    # 4. Valori grezzi per il radar:
+    #    M  -> scala assoluta (frazione in [0, 1])
+    #    A  -> 1 - errore medio delle isolinee (0.5 se l'isolinea non esiste)
+    #    Tc -> media delle latenze mediane sulle soglie in cui si ha detection
+    #    Er, Tr -> medie sulle configurazioni (G, tau), poi trasformate in log10
+    #    La normalizzazione min-max per colonna avviene in process_and_plot_radar_grid.
+    #    Un valore mancante (None) viene trattato come il peggiore della colonna.
     for tm in rows:
         for col in active_cols:
-            for pid in csv_res.protocols_by_id.keys():
-                if raw_data_grid[tm][col][pid]['M'] is None:
-                    raw_data_grid[tm][col][pid]['M'] = WORST_M
-                    
-                if raw_data_grid[tm][col][pid]['Acc'] is None:
-                    raw_data_grid[tm][col][pid]['Acc'] = WORST_ACC
-                    
-                # Normalise Tc: linear (1s -> 1.0, 900s -> 0.0)
-                tc_val = raw_data_grid[tm][col][pid]['Tc']
-                if tc_val is None:
-                    raw_data_grid[tm][col][pid]['Tc'] = 0.0
-                else:
-                    raw_data_grid[tm][col][pid]['Tc'] = max(0.0, min(1.0, (900.0 - tc_val) / 899.0))
+            for pid in list(raw_data_grid[tm][col].keys()):
+                d = raw_data_grid[tm][col][pid]
+                if all(d[m] is None for m in ('M', 'Acc', 'Tc', 'Er', 'Tr')):
+                    # protocollo senza dati in questo scenario: non viene disegnato
+                    del raw_data_grid[tm][col][pid]
+                    continue
 
-                # Normalise Er: logarithmic (0 errors -> 1.0, 900 errors -> 0.0)
-                er_list = raw_data_grid[tm][col][pid]['Er']
-                if isinstance(er_list, list) and er_list:
-                    mean_er = np.mean(er_list)
-                    # Use Er + 1 to avoid log10(0), max bounds become log10(901)
-                    raw_data_grid[tm][col][pid]['Er'] = max(0.0, min(1.0, 1.0 - (np.log10(mean_er + 1.0) / np.log10(901.0))))
-                else:
-                    raw_data_grid[tm][col][pid]['Er'] = 0.0
+                er_list = d['Er']
+                d['Er'] = float(np.log10(np.mean(er_list) + 1.0)) if isinstance(er_list, list) and er_list else None
 
-                # Normalise Tr: logarithmic (1s -> 1.0, 900s -> 0.0)
-                tr_list = raw_data_grid[tm][col][pid]['Tr']
-                if isinstance(tr_list, list) and tr_list:
-                    mean_tr = np.mean(tr_list)
-                    if mean_tr < 1.0: 
-                        mean_tr = 1.0
-                    raw_data_grid[tm][col][pid]['Tr'] = max(0.0, min(1.0, 1.0 - (np.log10(mean_tr) / np.log10(900.0))))
-                else:
-                    raw_data_grid[tm][col][pid]['Tr'] = 0.0
+                tr_list = d['Tr']
+                d['Tr'] = float(np.log10(max(1.0, np.mean(tr_list)))) if isinstance(tr_list, list) and tr_list else None
+
     csv_res.process_and_plot_radar_grid(raw_data_grid, rows, active_cols)
     print("Radar grid synthesis successfully plotted in radar_data/images/")
 
