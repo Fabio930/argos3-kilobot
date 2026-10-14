@@ -12,6 +12,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lifelines import WeibullFitter,KaplanMeierFitter
 from lifelines.utils import median_survival_times
 from scipy.special import gamma
+from scipy.optimize import brentq
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 csv.field_size_limit(sys.maxsize)
@@ -50,6 +51,10 @@ class Data:
             raw = raw.replace("[", "").replace("]", "")
         if not raw:
             return []
+        # conversione in blocco (molto piu' veloce della regex); se il numero di valori non torna si usa la regex
+        vals = np.fromstring(raw, dtype=float, sep=',')
+        if vals.size == raw.count(',') + 1:
+            return vals.tolist()
         return [float(x) for x in Data._FLOAT_RE.findall(raw)]
 
 ###################################################
@@ -62,6 +67,10 @@ class Data:
             raw = raw.replace("[", "").replace("]", "")
         if not raw:
             return []
+        if '.' not in raw and 'e' not in raw and 'E' not in raw:
+            vals = np.fromstring(raw, dtype=np.int64, sep=',')
+            if vals.size == raw.count(',') + 1:
+                return vals.tolist()
         return [int(x) for x in Data._INT_RE.findall(raw)]
     
 ###################################################
@@ -349,52 +358,76 @@ class Data:
         return [mean, std]
     
 ###################################################
+    @staticmethod
+    def weibull_mle(durations, events):
+        """
+        Stima di massima verosimiglianza di una Weibull con censura a destra, S(t) = exp(-(t/lambda)^rho),
+        la stessa parametrizzazione di lifelines.WeibullFitter. Fissato rho, lambda ha forma chiusa
+        (lambda^rho = sum t^rho / d); rho e' la radice dell'equazione di score del profilo, trovata con brentq.
+        Restituisce (lambda, rho), o None se la stima non esiste (nessun evento o radice fuori intervallo).
+        """
+        t = np.asarray(durations, dtype=float)
+        e = np.asarray(events, dtype=bool)
+        d = int(e.sum())
+        if d == 0 or t.size == 0 or np.any(t <= 0):
+            return None
+        s = t / t.max()  # invarianza di scala: evita overflow di t^rho
+        log_s = np.log(s)
+        sum_log_ev = log_s[e].sum()
+        def score(log_rho):
+            rho = np.exp(log_rho)
+            w = s ** rho
+            return d / rho + sum_log_ev - d * (w * log_s).sum() / w.sum()
+        lo, hi = np.log(1e-3), np.log(1e3)
+        if score(lo) * score(hi) > 0:
+            return None
+        rho = np.exp(brentq(score, lo, hi, xtol=1e-14, rtol=1e-14, maxiter=500))
+        lam = t.max() * ((s ** rho).sum() / d) ** (1.0 / rho)
+        return lam, rho
+
+###################################################
     def fit_recovery(self, setting_key, runs_data):
         algo, arena, time_val, comm, agents, buf_dim, msgs, hops, gt, thr = setting_key
-        
+        # grafici diagnostici (Weibull vs Kaplan-Meier della run 1) solo se richiesti: self.weib_images = True
+        weib_images = getattr(self, "weib_images", False)
         path = self.base + "/weib_images/"
-        if not os.path.exists(path):
+        if weib_images and not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
-            
-        wf = WeibullFitter()
-        kmf = KaplanMeierFitter()
         run_means = []
         run_events = []
         
         for run_id, run_data in runs_data.items():
-            buff_starts = run_data[0]
-            durations = run_data[1]
-            event_observed = run_data[2]
-            
-            durations_by_buffer = self.dull_division(buff_starts, durations, event_observed)
-            durations_by_buffer = self.sort_arrays_in_dict(durations_by_buffer)
-            adapted_durations = self.adapt_dict_to_weibull_est(durations_by_buffer)
-            
-            for k in adapted_durations.keys():
-                a_data = adapted_durations.get(k)[0]
-                a_censoring = adapted_durations.get(k)[1]
-                a_buffers = adapted_durations.get(k)[2]
-                
-                if len(a_data) > 20:
-                    try:
-                        wf.fit(a_data, event_observed=a_censoring)
-                        if run_id==1:
-                            kmf.fit(a_data, event_observed=a_censoring)
-                            fig, ax = plt.subplots(figsize=(10,8))
-                            ax.plot(wf.cumulative_density_, label="wf "+k)
-                            ax.plot(kmf.cumulative_density_, label="kmf "+k)
-                            fig.tight_layout()
-                            
-                            filename = f"{algo}_{comm}_{hops}_{agents}_{arena}_{buf_dim}_{gt}_{thr}_run{run_id}_{k}.pdf"
-                            fig.savefig(os.path.join(path, filename))
-                            plt.close(fig)
-                        
-                        mean_val, _ = self.wb_get_mean_and_std(wf)
-                        if not np.isnan(mean_val) and not np.isinf(mean_val):
-                            run_means.append(mean_val)
-                            run_events.append(len(a_buffers) - 1)
-                    except Exception:
-                        pass
+            durations = np.asarray(run_data[1], dtype=float)
+            event_observed = np.asarray(run_data[2], dtype=int)
+            # come adapt_dict_to_weibull_est: si aggiunge un'osservazione censurata a 0 se la durata minima e' > 0,
+            # e le durate nulle diventano 1e-8
+            if durations.size > 0 and durations.min() > 0:
+                durations = np.append(durations, 0.0)
+                event_observed = np.append(event_observed, 0)
+            durations[durations == 0] = .00000001
+            if durations.size <= 20:
+                continue
+            est = self.weibull_mle(durations, event_observed)
+            if est is None:
+                continue
+            mean_val = est[0] * gamma(1 + 1 / est[1])
+            if not np.isnan(mean_val) and not np.isinf(mean_val):
+                run_means.append(mean_val)
+                run_events.append(durations.size - 1)
+            if weib_images and run_id == 1:
+                try:
+                    order = np.argsort(durations)
+                    wf = WeibullFitter().fit(durations[order], event_observed=event_observed[order])
+                    kmf = KaplanMeierFitter().fit(durations[order], event_observed=event_observed[order])
+                    fig, ax = plt.subplots(figsize=(10,8))
+                    ax.plot(wf.cumulative_density_, label="wf all")
+                    ax.plot(kmf.cumulative_density_, label="kmf all")
+                    fig.tight_layout()
+                    filename = f"{algo}_{comm}_{hops}_{agents}_{arena}_{buf_dim}_{gt}_{thr}_run{run_id}_all.pdf"
+                    fig.savefig(os.path.join(path, filename))
+                    plt.close(fig)
+                except Exception:
+                    pass
                         
         estimates = {}
         if len(run_means) > 10:
@@ -2033,6 +2066,8 @@ class Data:
                 if k0[10]not in msg_hop: msg_hop.append(k0[10])
                 if len(k0)>11 and k0[11]not in max_buff: max_buff.append(k0[11])
         for i in range(len(data_in)):
+            # combinazioni realmente presenti: le altre del prodotto cartesiano non hanno dati e si saltano subito
+            combos_i = {(k0[0],k0[1],k0[2],k0[3],k0[4],k0[5],k0[8],k0[9],k0[10],k0[11] if len(k0)>11 else None) for k0 in data_in[i].keys()}
             for a in algo:
                 for a_s in arena:
                     for n_r in runs:
@@ -2043,6 +2078,8 @@ class Data:
                                         for m_t in msg_time:
                                             for m_h in msg_hop:
                                                 for m_b_s in max_buff:
+                                                    if (a,a_s,n_r,et,c,n_a,m_b_d,m_t,m_h,m_b_s) not in combos_i:
+                                                        continue
                                                     vals            = []
                                                     times_median    = []
                                                     # CI 95%: Q da mean +/- ci per tick, tempi dal CI della mediana sulle run

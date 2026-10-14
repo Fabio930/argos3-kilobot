@@ -1,6 +1,6 @@
-import os, sys, logging, gc, time, psutil
+import os, sys, logging, psutil
 import data_extractor as dex
-from multiprocessing import Process, Manager
+from multiprocessing import Pool
 
 # Setup logging
 def setup_logging():
@@ -60,15 +60,14 @@ def process_folder(task):
         logging.error(f"Error processing {sub_path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, base, dtemp, exp_length, n_agents, communication, msg_exp_time, msg_hops, buf_cut, sub_path, ticks_per_sec,states
+        del results
+    return sub_path, buf_cut
 
 def main():
     setup_logging()
     ticks_per_sec, only_p11 = check_inputs()
 
-    # Using a manager to handle the queue
-    manager = Manager()
-    queue = manager.Queue()
+    tasks = []
 
     states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(100,100)}
     for base in dex.Results().bases:
@@ -97,85 +96,29 @@ def main():
                                                 msg_hops = int(folder.split('#')[-1])
                                                 path = os.path.join(sub_path,folder)
                                                 for buf_cut in buf_cuts:
-                                                    queue.put((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,buf_cut,path,ticks_per_sec,states_by_gt.get(n_agents)))
+                                                    tasks.append((base, dtemp, exp_length, n_agents, communication, msg_exp_time,msg_hops,buf_cut,path,ticks_per_sec,states_by_gt.get(n_agents)))
 
-    gc.collect()
-    logging.info(f"Starting {queue.qsize()} tasks")
+    if not tasks:
+        logging.info("No tasks found")
+        return
+    logging.info(f"Starting {len(tasks)} tasks")
 
-    # Active processes dictionary
-    active_processes = {}
-    iteration = 0
-    h_counter = 0
+    # Memoria di picco stimata per task (misurata: ~2.4 GB con 100 agenti x 100 run), scala con agenti^2.
+    def task_mb(n_agents):
+        return max(512, 2600 * (n_agents / 100) ** 2)
 
-    while len(active_processes) > 0 or queue.qsize() > 0:
-        iteration += 1
-        to_remove = []
-        # Calculate the memory used by each process
-        active_keys = active_processes.keys()
-        available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        for key in active_keys:
-            try:
-                proc = psutil.Process(key)
-                if proc.status() == psutil.STATUS_DEAD or proc.status() == psutil.STATUS_ZOMBIE:
-                    process = active_processes.get(key)
-                    process[0].terminate()
-                    process[0].join()
-                    if process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(key)
-            except psutil.NoSuchProcess:
-                to_remove.append(key)
-                logging.info(f"Process {key} for task {process[1][-3]} not found")
-        cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
-        # Kill the last process and put it back in the queue
-        if available_memory < 2048 and len(active_processes) > 0:
-            for i in range(1, len(active_keys) + 1):
-                last_pid = list(active_keys)[-i]
-                if last_pid not in to_remove:
-                    last_process = active_processes.get(last_pid)
-                    last_process[0].terminate()
-                    last_process[0].join()
-                    if last_process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {last_process[1][-3]} terminated due to low memory")
-                        # Requeue the task
-                        queue.put(last_process[1])
-                        break
-        for key in to_remove:
-            process = active_processes.pop(key)
-            if process[1][3] == 100: h_counter -= 4
-            elif process[1][3] == 25: h_counter -= 1
-            logging.info(f"Process {key} for task {process[1][-3]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 6072:
-            try:
-                task = queue.get(block=False)
-                start = True
-                if task[3] == 100:
-                    if h_counter < 12 : h_counter += 4
-                    else:
-                        queue.put(task)
-                        start = False
-                elif task[3] == 25:
-                    if h_counter < 15 : h_counter += 1
-                    else:
-                        queue.put(task)
-                        start = False
-                if start:
-                    p = Process(target=process_folder, args=(task,))
-                    p.start()
-                    active_processes.update({p.pid:(p,task)})
-                    logging.info(f"Started process {p.pid} for task {task[-3]}")
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 5000 == 0:
-            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB")
-            gc.collect()
-        time.sleep(.2)  # Avoid busy-waiting
+    # I task si raggruppano per numero di agenti: ogni gruppo usa tanti worker quanti ne stanno in memoria.
+    # I gruppi piu' pesanti partono per primi.
+    done = 0
+    for n_agents in sorted({t[3] for t in tasks}, reverse=True):
+        group = [t for t in tasks if t[3] == n_agents]
+        available_mb = psutil.virtual_memory().available / (1024 * 1024)
+        n_workers = max(1, min(os.cpu_count() or 1, int((available_mb - 2048) // task_mb(n_agents)), len(group)))
+        logging.info(f"{len(group)} tasks with {n_agents} agents on {n_workers} workers")
+        with Pool(processes=n_workers, maxtasksperchild=1) as pool:
+            for sub_path, buf_cut in pool.imap_unordered(process_folder, group):
+                done += 1
+                logging.info(f"[{done}/{len(tasks)}] completed {sub_path}" + (f" (X={buf_cut})" if buf_cut else ""))
 
     logging.info("All tasks completed.")
 

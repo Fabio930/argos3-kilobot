@@ -1,6 +1,6 @@
-import os, csv, sys, logging, gc, time, psutil
+import os, sys, logging, argparse
 import csv_results as CSVres
-from multiprocessing import Process, Manager
+from multiprocessing import Pool
 
 # Setup logging
 def setup_logging():
@@ -10,23 +10,29 @@ def setup_logging():
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
-# Process file with retries and memory management
-def process_file(task):
-    csv_res = CSVres.Data()
-    tot_recovery = task
-    try:
-        csv_res.store_recovery(csv_res.fit_recovery_raw_data(tot_recovery))
-    except KeyError as e:
-        logging.error(f"KeyError processing {tuple(tot_recovery[0].keys())[0]}:{e}")
-    except Exception as e:
-        logging.error(f"Error processing {tuple(tot_recovery[0].keys())[0]}:{e}")
-        logging.debug(f"Exception details: {e}", exc_info=True)
-    finally:
-        del csv_res,tot_recovery
-        gc.collect()
+WEIB_IMAGES = False
 
+# Fit di un gruppo di chiavi: il worker restituisce i risultati, la scrittura la fa il processo principale
+def process_chunk(chunk):
+    csv_res = CSVres.Data()
+    csv_res.weib_images = WEIB_IMAGES
+    fitted = {}
+    for key, runs_data in chunk:
+        try:
+            fitted.update(csv_res.fit_recovery_raw_data([{key: runs_data}]))
+        except Exception as e:
+            logging.error(f"Error processing {key}:{e}")
+            logging.debug(f"Exception details: {e}", exc_info=True)
+    return fitted, len(chunk)
+
+def _init_worker(weib_images):
+    global WEIB_IMAGES
+    WEIB_IMAGES = weib_images
 
 def main():
+    parser = argparse.ArgumentParser(description="Weibull fit of the raw recovery data.")
+    parser.add_argument("--weib-images", action="store_true", help="Salva in weib_images/ i grafici Weibull vs Kaplan-Meier della run 1 di ogni configurazione (lento)")
+    args = parser.parse_args()
     setup_logging()
     csv_res = CSVres.Data()
     processed_keys = set()
@@ -39,10 +45,8 @@ def main():
         elif base.split('/')[-1] == "rec_data":
             files = [os.path.join(base, file) for file in sorted(os.listdir(base))]
             rec_path.extend(files)
-    # Using a manager to handle the queue
-    manager = Manager()
-    queue = manager.Queue()
 
+    # chiavi gia' presenti in recovery_data.csv: non vengono rifittate
     for file_path in rec_path:
         if "images" not in file_path:
             logging.info(f"Reading {file_path} : START")
@@ -57,90 +61,41 @@ def main():
                         if len(row) >= 10:
                             processed_keys.add(tuple(row[:10]))
             logging.info(f"Reading {file_path} : END")
+
+    tasks = []
     for file_path in file_paths:
         file = os.path.basename(file_path)
         if "recovery_data_raw" in file:
             arena = ''
-            file = os.path.basename(file_path)
             no_ext_file = file.split('.')[0]
             sets = no_ext_file.split('_')
             algo = sets[0][:2] if sets[0].lower().startswith("ps") else sets[0][0]
             for s in sets:
                 val = s.split('#')
-                if len(val) > 1:
-                    if val[0] == 'r':
-                        n_runs = val[1]
-                    elif val[0] == 'a':
-                        arena = val[1]
+                if len(val) > 1 and val[0] == 'a':
+                    arena = val[1]
             logging.info(f"Reading {file_path} : START")
             data = csv_res.read_recovery_csv(file_path, algo, arena)
             logging.info(f"Reading {file_path} : END")
-            for i in data.keys():
-                if i not in processed_keys:
-                    queue.put([{i:data.get(i)}])
-    del csv_res,processed_keys,file_paths,rec_path
-    gc.collect()
-    logging.info(f"Starting {queue.qsize()} tasks")
+            tasks.extend((k, v) for k, v in data.items() if k not in processed_keys)
+            del data
 
-    # Active processes dictionary
-    active_processes = {}
-    iteration = 0
+    if not tasks:
+        logging.info("No new configurations to fit")
+        return
 
-    while len(active_processes) > 0 or queue.qsize() > 0:
-        iteration += 1
+    # gruppi di chiavi per ridurre l'overhead di comunicazione tra processi
+    n_workers = max(1, min(os.cpu_count() or 1, len(tasks)))
+    chunk_size = max(1, min(25, len(tasks) // (n_workers * 4) or 1))
+    chunks = [tasks[i:i + chunk_size] for i in range(0, len(tasks), chunk_size)]
+    logging.info(f"Starting {len(tasks)} fits on {n_workers} workers ({len(chunks)} chunks)")
 
-        to_remove = []
-        # Calculate the memory used by each process
-        active_keys = active_processes.keys()
-        available_memory = psutil.virtual_memory().available / (1024 * 1024)
-        for key in active_keys:
-            try:
-                proc = psutil.Process(key)
-                if proc.status() == psutil.STATUS_DEAD or proc.status() == psutil.STATUS_ZOMBIE:
-                    process = active_processes.get(key)
-                    process[0].terminate()
-                    process[0].join()
-                    if process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(key)
-            except psutil.NoSuchProcess:
-                to_remove.append(key)
-                logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} not found")
-        cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for usage in cpu_usage if usage < 50)  # Consider CPU idle if usage is less than 50%
-        # Kill the last process and put it back in the queue
-        if available_memory < 1024 and len(active_processes) > 0:
-            for i in range(1, len(active_keys) + 1):
-                last_pid = list(active_keys)[-i]
-                if last_pid not in to_remove:
-                    last_process = active_processes.get(last_pid)
-                    last_process[0].terminate()
-                    last_process[0].join()
-                    if last_process[0].is_alive():
-                        logging.warning(f"Process {key} could not be terminated properly.")
-                    else:
-                        to_remove.append(last_pid)
-                        logging.info(f"Process {last_pid} for task {list(last_process[1][0].keys())[0]} terminated due to low memory")
-                        # Requeue the task
-                        queue.put(last_process[1])
-                        break
-        for key in to_remove:
-            process = active_processes.pop(key)
-            logging.info(f"Process {key} for task {list(process[1][0].keys())[0]} joined and removed from active processes")
-        if queue.qsize() > 0 and idle_cpus > 0 and available_memory > 10072:
-            try:
-                task = queue.get(block=False)
-                p = Process(target=process_file, args=(task,))
-                p.start()
-                active_processes.update({p.pid:(p,task)})
-                logging.info(f"Started process {p.pid} for task {list(task[0].keys())[0]}")
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                logging.debug(f"Exception details: {e}", exc_info=True)
-        if iteration % 5000 == 0:
-            logging.info(f"Active processes: {list(active_keys)}, processes waiting: {queue.qsize()}, available_memory: {available_memory:.2f} MB\n")
-            gc.collect()
+    done = 0
+    with Pool(processes=n_workers, initializer=_init_worker, initargs=(args.weib_images,)) as pool:
+        for fitted, n in pool.imap_unordered(process_chunk, chunks):
+            csv_res.store_recovery(fitted)
+            done += n
+            logging.info(f"[{done}/{len(tasks)}] fitted")
 
     logging.info("All tasks completed.")
 
