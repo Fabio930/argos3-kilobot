@@ -109,8 +109,7 @@ class Results:
                     st, q, ms, x = self._read_log(os.path.join(sub_path, elem))
                     n = len(ms)
                     if n > max_steps:
-                        print(sub_path,'\n',"run:",seed,"agent:",agent_id,"tot lines:",n)
-                        sys.exit(0)
+                        raise RuntimeError(f"{sub_path} run: {seed} agent: {agent_id} tot lines: {n} > {max_steps}")
                     off = max_steps - n
                     states[seed-1, agent_id, off:] = st
                     quorums[seed-1, agent_id, off:] = q
@@ -256,8 +255,7 @@ class Results:
     def count_committed_agents(self,data):
         counts = (np.asarray(data) == 1).sum(axis=1)
         if counts.size and np.any(counts != counts[0]):
-            print("ERROR! Number of committed agents change through iterations ---EXIT---")
-            exit(1)
+            raise RuntimeError("Number of committed agents change through iterations (files incomplete?)")
         return int(counts[0]) if counts.size else -1
 
 ##########################################################################################################

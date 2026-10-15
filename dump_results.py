@@ -56,8 +56,9 @@ def process_folder(task):
     results.ticks_per_sec = ticks_per_sec
     try:
         results.extract_k_data(base, exp_length, communication, n_agents, threshold, delta_str, msg_hops, msg_exp_time, k_sampling, k_samp_path)
-    except Exception as e:
-        logging.error(f"Errore critico su {k_samp_path}: {e}")
+    except (Exception, SystemExit) as e:
+        # anche SystemExit: un worker del Pool che esce perde il task e blocca l'attesa dei risultati
+        logging.error(f"Errore critico su {k_samp_path}: {e!r}")
     finally:
         del results
         gc.collect()
