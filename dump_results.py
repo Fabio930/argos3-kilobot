@@ -1,7 +1,7 @@
-import os, sys, logging, gc, time, psutil
+import os, sys, logging, gc, psutil
 import pandas as pd
 import data_extractor as dex
-from multiprocessing import Process, Manager
+from multiprocessing import Pool
 
 # Configurazione Logging
 def setup_logging():
@@ -37,12 +37,10 @@ def get_processed_keys():
         try:
             df = pd.read_csv(msgs_path, sep="\t" if "\t" in open(msgs_path).readline() else ",")
             key_cols = ['ArenaSize', 'algo', 'threshold', 'GT', 'broadcast', 'n_agents', 'buff_dim', 'msg_hops', 'k_sampling']
-            for _, row in df.iterrows():
-                # Creiamo una chiave normalizzata che include k_sampling
-                key = (str(row['ArenaSize']), str(row['algo']), float(row['threshold']), 
-                       float(row['GT']), int(row['broadcast']), int(row['n_agents']), 
-                       int(row['buff_dim']), int(row['msg_hops']), int(row['k_sampling']))
-                done_keys.add(key)
+            # chiave normalizzata che include k_sampling (costruita per colonne, senza iterrows)
+            done_keys.update(zip(df['ArenaSize'].astype(str), df['algo'].astype(str), df['threshold'].astype(float),
+                                 df['GT'].astype(float), df['broadcast'].astype(int), df['n_agents'].astype(int),
+                                 df['buff_dim'].astype(int), df['msg_hops'].astype(int), df['k_sampling'].astype(int)))
         except Exception as e:
             logging.warning(f"Errore lettura {msgs_path}: {e}")
 
@@ -63,6 +61,7 @@ def process_folder(task):
     finally:
         del results
         gc.collect()
+    return k_samp_path
 
 def main():
     setup_logging()
@@ -71,8 +70,7 @@ def main():
     logging.info("Analisi dati processati esistenti...")
     done_keys = get_processed_keys()
     
-    manager = Manager()
-    queue = manager.Queue()
+    tasks = []
     tasks_count = 0
 
     # Scansione Gerarchica dei dati grezzi (Raw Data)
@@ -128,10 +126,14 @@ def main():
                                         msg_exp_time = int(msg_exp_dir.split('#')[-1])
                                         msg_exp_path = os.path.join(msg_hop_path, msg_exp_dir)
                                         
-                                        for k_samp_dir in sorted(os.listdir(msg_exp_path)):
-                                            if '#' not in k_samp_dir: continue
-                                            k_sampling = int(k_samp_dir.split('#')[-1])
-                                            k_samp_path = os.path.join(msg_exp_path, k_samp_dir)
+                                        # il livello KSampling# e' opzionale: se manca, i .tsv stanno direttamente
+                                        # in MsgExpTime# e k_sampling vale 0
+                                        entries = sorted(os.listdir(msg_exp_path))
+                                        k_entries = [(int(d.split('#')[-1]), os.path.join(msg_exp_path, d))
+                                                     for d in entries if d.startswith("KSampling#") and os.path.isdir(os.path.join(msg_exp_path, d))]
+                                        if not k_entries and any(d.endswith(".tsv") for d in entries):
+                                            k_entries = [(0, msg_exp_path)]
+                                        for k_sampling, k_samp_path in k_entries:
                                             
                                             # Identificatore univoco del task aggiornato
                                             current_key = (str(arena_size), str(algo), float(threshold), 
@@ -139,7 +141,7 @@ def main():
                                                            int(msg_exp_time), int(msg_hops), int(k_sampling))
                                             
                                             if current_key not in done_keys:
-                                                queue.put((base, exp_length, communication, n_agents, 
+                                                tasks.append((base, exp_length, communication, n_agents, 
                                                            threshold, delta_str, msg_hops, msg_exp_time, 
                                                            k_sampling, k_samp_path, ticks_per_sec))
                                                 tasks_count += 1
@@ -148,36 +150,21 @@ def main():
 
     logging.info(f"Task totali da elaborare: {tasks_count}")
 
-    # Gestione Processi e Memoria (Logic Loop)
-    active_processes = {}
-    while active_processes or queue.qsize() > 0:
-        available_mem = psutil.virtual_memory().available / (1024**2)
-        cpu_usage = psutil.cpu_percent(percpu=True)
-        idle_cpus = sum(1 for u in cpu_usage if u < 60)
+    if not tasks:
+        logging.info("Nessun task da elaborare.")
+        return
 
-        # Pulizia processi terminati
-        finished = []
-        for pid, (p, task) in active_processes.items():
-            if not p.is_alive():
-                p.join()
-                finished.append(pid)
-        for pid in finished:
-            active_processes.pop(pid)
-
-        # Avvio nuovi task se c'è risorse
-        if queue.qsize() > 0 and idle_cpus > 0 and available_mem > 4000:
-            task = queue.get()
-            p = Process(target=process_folder, args=(task,))
-            p.start()
-            active_processes[p.pid] = (p, task)
-            logging.info(f"Avviato PID {p.pid} - Task rimanenti: {queue.qsize()}")
-
-        # Salvaguardia memoria: se scende troppo, non avviare e logga
-        if available_mem < 2000:
-            logging.warning(f"Memoria RAM critica ({available_mem:.0f}MB). Attesa rilascio...")
-            time.sleep(5)
-
-        time.sleep(1)
+    # Pool di processi: ogni worker elabora una cartella alla volta, senza attese tra un avvio e l'altro.
+    # Memoria per task: ~ runs x agenti x tick x 16 byte (stati, quorum, messaggi, posizioni) piu' margine.
+    max_agents = max(t[3] for t in tasks)
+    est_task_mb = max(256, 100 * max_agents * 900 * 16 / (1024 ** 2) * 3)
+    available_mb = psutil.virtual_memory().available / (1024 ** 2)
+    n_workers = max(1, min(os.cpu_count() or 1, int((available_mb - 2048) // est_task_mb), len(tasks)))
+    tasks.sort(key=lambda t: -t[3])  # i task con piu' agenti partono per primi
+    logging.info(f"Avvio di {len(tasks)} task su {n_workers} worker")
+    with Pool(processes=n_workers, maxtasksperchild=10) as pool:
+        for done, path in enumerate(pool.imap_unordered(process_folder, tasks), start=1):
+            logging.info(f"[{done}/{len(tasks)}] completato {path}")
 
     logging.info("Elaborazione completata con successo.")
 

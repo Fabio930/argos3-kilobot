@@ -22,6 +22,13 @@ class HandlerKGrad(HandlerBase):
             artists.append(r)
         return artists
 
+##########################################################################################################
+class Series(list):
+    """Serie temporale (lista) con il suo CI 95% in .ci (None se non disponibile)."""
+    def __init__(self, values, ci=None):
+        super().__init__(values)
+        self.ci = list(ci) if ci is not None and len(ci) == len(self) else None
+
 class Data:
     _FLOAT_RE = re.compile(r"(?i)(?:[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?inf|nan)")
     _NP_FLOAT_RE = re.compile(r"(?i)np\.float\d*\(([^)]+)\)")
@@ -47,6 +54,10 @@ class Data:
             raw = raw.replace("[", "").replace("]", "")
         if not raw:
             return []
+        # conversione in blocco; se il numero di valori non torna si usa la regex
+        vals = np.fromstring(raw, dtype=float, sep=',')
+        if vals.size == raw.count(',') + 1:
+            return vals.tolist()
         return [float(x) for x in Data._FLOAT_RE.findall(raw)]
 
 ##########################################################################################################
@@ -62,6 +73,35 @@ class Data:
         self.k_samps_per_agent = {}
 
 ##########################################################################################################
+    def _show_ci(self):
+        return bool(self.plot_config.get("plots", {}).get("show_ci", True))
+
+    def _plot_line(self, ax, data, **kw):
+        # disegna la serie e, se disponibile e "show_ci" e' attivo, la banda del CI 95%
+        ax.plot(data, **kw)
+        ci = getattr(data, "ci", None)
+        if ci is not None and self._show_ci():
+            y = np.asarray(data, dtype=float); c = np.asarray(ci, dtype=float)
+            band_kw = {"color": kw.get("color"), "alpha": 0.2, "lw": 0}
+            if "zorder" in kw: band_kw["zorder"] = kw["zorder"]
+            ax.fill_between(np.arange(len(y)), y - c, y + c, **band_kw)
+
+    def _dif_series(self, c_data, u_data):
+        """
+        dM = (c - u) / (c + u) tra committed e uncommitted. Il CI si propaga con il metodo delta,
+        trattando c e u come indipendenti (stima conservativa: c e u delle stesse run sono correlati positivamente).
+        """
+        c = np.asarray(c_data, dtype=float); u = np.asarray(u_data, dtype=float)
+        tot = c + u
+        safe = np.where(tot != 0, tot, 1.0)
+        flag = np.where(tot != 0, (c - u) / safe, 0.0)
+        c_ci, u_ci = getattr(c_data, "ci", None), getattr(u_data, "ci", None)
+        ci = None
+        if c_ci is not None and u_ci is not None:
+            dc = 2 * u / safe ** 2; du = 2 * c / safe ** 2
+            ci = np.where(tot != 0, np.sqrt((dc * np.asarray(c_ci)) ** 2 + (du * np.asarray(u_ci)) ** 2), 0.0)
+        return Series(flag.tolist(), ci)
+
     def _protocol_zorder(self, protocol_id):
         """Return the shared draw level for all variants of one protocol."""
         canonical_id = self.PROTOCOL_ALIASES.get(protocol_id, protocol_id)
@@ -289,6 +329,7 @@ class Data:
             idx_ks = get_idx(["k_sampling", "KSamp", "KSampling"], -1)
             idx_type = get_idx(["type"], 8)
             idx_data = get_idx(["data"], max(len(keys)-1, 0))
+            idx_ci = get_idx(["ci_95"], -1)
 
             for line in f:
                 line = line.strip('\n')
@@ -308,7 +349,8 @@ class Data:
                 c_type = cols[idx_type]
                 
                 key = (c_arena, c_algo, c_thr, c_gt, c_comm, c_ag, c_tm, c_mh, c_ks, c_type)
-                data[key] = self._parse_float_list(cols[idx_data])
+                ci = self._parse_float_list(cols[idx_ci], allow_dash=True) if idx_ci != -1 and idx_ci < len(cols) and cols[idx_ci] != "-" else None
+                data[key] = Series(self._parse_float_list(cols[idx_data]), ci)
         return data
 
 ##########################################################################################################
@@ -337,7 +379,9 @@ class Data:
             
             idx_type = get_idx(["type"], max(len(keys)-3, 0))
             idx_data = get_idx(["data"], max(len(keys)-2, 0))
-            idx_std = get_idx(["std"], max(len(keys)-1, 0))
+            # "ci_95" e' il CI 95% tra le run; la vecchia colonna "std" non e' un CI e non viene disegnata
+            idx_std = get_idx(["ci_95", "std"], max(len(keys)-1, 0))
+            has_ci = "ci_95" in keys
 
             for line in f:
                 line = line.strip('\n')
@@ -357,7 +401,8 @@ class Data:
                 c_type = cols[idx_type]
                 
                 key = (algo, n_runs, c_expl, c_arena, c_comm, c_ag, c_thr, c_gt, c_mh, c_tm, c_ks, c_type)
-                data[key] = (self._parse_float_list(cols[idx_data]), self._parse_float_list(cols[idx_std], allow_dash=True))
+                ci = self._parse_float_list(cols[idx_std]) if has_ci and cols[idx_std] != "-" else None
+                data[key] = (self._parse_float_list(cols[idx_data]), ci)
         return data
 
 ##########################################################################################################
@@ -400,8 +445,8 @@ class Data:
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
                         self.k_samps_per_agent[str(n_a)].add(k_val)
                     is_sq = (a_s.split(';')[0] == a_s.split(';')[1])
-                    (sq_c if is_sq else rt_c)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = comm_data[0]
-                    (sq_u if is_sq else rt_u)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = uncomm_data[0]
+                    (sq_c if is_sq else rt_c)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = Series(comm_data[0], comm_data[1])
+                    (sq_u if is_sq else rt_u)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = Series(uncomm_data[0], uncomm_data[1])
 
         more_k = [["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"], sorted(list(agents))]
         self.print_evolutions_by_commit(path, sorted(list(ground_T)), sorted(list(threshlds)), 
@@ -435,7 +480,7 @@ class Data:
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
                         self.k_samps_per_agent[str(n_a)].add(k_val)
                     is_sq = (a_s.split(';')[0] == a_s.split(';')[1])
-                    (sq_d if is_sq else rt_d)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = s_data[0]
+                    (sq_d if is_sq else rt_d)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = Series(s_data[0], s_data[1])
                     (sq_t if is_sq else rt_t)[pid][(a_s, n_a, m_t, m_h, gt, thr, k_val)] = t_data[0]
 
         more_k = [["0_500;0_500","1_000;1_000","1_000;0_250","2_000;0_500"], sorted(list(agents))]
@@ -538,8 +583,8 @@ class Data:
                                         lines_rt = self._get_lines_to_plot(rt_dict, pid, base_key, ag, protocol_colors)
 
                                         z_idx = self._protocol_zorder(pid)
-                                        for data, color in lines_sq: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
-                                        for data, color in lines_rt: target_ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
+                                        for data, color in lines_sq: self._plot_line(target_ax[k_idx][c_idx], data, color=color, lw=6, ls='-', zorder=z_idx)
+                                        for data, color in lines_rt: self._plot_line(target_ax[k_idx][c_idx], data, color=color, lw=6, ls='--', zorder=z_idx)
 
                                     cax[k_idx][c_idx].set_xlim(0, 901); uax[k_idx][c_idx].set_xlim(0, 901)
                                     cax[k_idx][c_idx].set_ylim(-0.03, 1.03); uax[k_idx][c_idx].set_ylim(-0.03, 1.03)
@@ -630,8 +675,8 @@ class Data:
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
                                     z_idx = z_order_list.index(pid)
 
-                                    for data, color in lines_sq: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
-                                    for data, color in lines_rt: ax[k_idx][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
+                                    for data, color in lines_sq: self._plot_line(ax[k_idx][c_idx], data, color=color, lw=6, ls='-', zorder=z_idx)
+                                    for data, color in lines_rt: self._plot_line(ax[k_idx][c_idx], data, color=color, lw=6, ls='--', zorder=z_idx)
 
                                 ax[k_idx][c_idx].set_xlim(0, 901); ax[k_idx][c_idx].set_ylim(-0.03, 1.03)
 
@@ -693,7 +738,9 @@ class Data:
             for pid, subdict in d_target.items():
                 for k in list(subdict.keys()):
                     norm = int(k[3]) - 1
-                    if norm > 0: subdict[k] = [x/norm for x in subdict[k]]
+                    if norm > 0:
+                        ci = getattr(subdict[k], "ci", None)
+                        subdict[k] = Series([x/norm for x in subdict[k]], [c/norm for c in ci] if ci is not None else None)
 
         real_x_ticks = [str(int(np.round(x,0))) if x%300==0 else '' for x in range(0,901,50)]
         svoid_x_ticks = ['' for x in range(0,901,50)]
@@ -719,8 +766,8 @@ class Data:
                                     lines_rt = self._get_lines_to_plot(rt_d, pid, base_key, ag, protocol_colors)
 
                                     z_idx = self._protocol_zorder(pid)
-                                    for data, color in lines_sq: ax[row][c_idx].plot(data, color=color, lw=6, ls='-', zorder=z_idx)
-                                    for data, color in lines_rt: ax[row][c_idx].plot(data, color=color, lw=6, ls='--', zorder=z_idx)
+                                    for data, color in lines_sq: self._plot_line(ax[row][c_idx], data, color=color, lw=6, ls='-', zorder=z_idx)
+                                    for data, color in lines_rt: self._plot_line(ax[row][c_idx], data, color=color, lw=6, ls='--', zorder=z_idx)
 
                 for x in range(nrows):
                     for y in range(ncols):
@@ -802,12 +849,10 @@ class Data:
                                     ru_lines = self._get_lines_to_plot(rt_u, pid, base_key, ag, protocol_colors)
                                     
                                     for (c_data, c_color), (u_data, _) in zip(sc_lines, su_lines):
-                                        flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='--', zorder=self._protocol_zorder(pid))
+                                        self._plot_line(ax[row][c_idx], self._dif_series(c_data, u_data), color=c_color, lw=6, ls='--', zorder=self._protocol_zorder(pid))
                                         
                                     for (c_data, c_color), (u_data, _) in zip(rc_lines, ru_lines):
-                                        flag = [(c_v-u_v)/(c_v+u_v) if (c_v+u_v)!=0 else 0 for c_v, u_v in zip(c_data, u_data)]
-                                        ax[row][c_idx].plot(flag, color=c_color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
+                                        self._plot_line(ax[row][c_idx], self._dif_series(c_data, u_data), color=c_color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
 
                 for x in range(nrows):
                     for y in range(ncols):
@@ -876,7 +921,7 @@ class Data:
                         if str(n_a) not in self.k_samps_per_agent: self.k_samps_per_agent[str(n_a)] = set()
                         self.k_samps_per_agent[str(n_a)].add(k_val)
                     is_sq = (a_s.split(';')[0] == a_s.split(';')[1])
-                    (sq_act if is_sq else rt_act)[pid][(a_s, t_val, g_val, n_a, b_val, m_h, k_val)] = s_data[0]
+                    (sq_act if is_sq else rt_act)[pid][(a_s, t_val, g_val, n_a, b_val, m_h, k_val)] = Series(s_data[0], s_data[1])
 
         raw_all_tm = sorted(list(buffer))
         main_tm_list = self._plot_tm_values(raw_all_tm)
@@ -1005,9 +1050,9 @@ class Data:
                                                 
                                             for t_ax in targets:
                                                 if is_sq_arena and v_sq_a is not None:
-                                                    t_ax.plot(v_sq_a, color=color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
+                                                    self._plot_line(t_ax, v_sq_a, color=color, lw=6, ls='-', zorder=self._protocol_zorder(pid))
                                                 elif not is_sq_arena and v_rt_a is not None:
-                                                    t_ax.plot(v_rt_a, color=color, lw=6, ls='--' if mode =='combined' else '-', zorder=self._protocol_zorder(pid))
+                                                    self._plot_line(t_ax, v_rt_a, color=color, lw=6, ls='--' if mode =='combined' else '-', zorder=self._protocol_zorder(pid))
 
             for x in range(n_rows):
                 for y in range(ncols):
