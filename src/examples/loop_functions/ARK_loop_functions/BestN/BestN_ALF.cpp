@@ -4,17 +4,9 @@
 
 #include "BestN_ALF.h"
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 
 namespace {
-UInt32 NextXorShift32(UInt32& unState) {
-    unState ^= (unState << 13);
-    unState ^= (unState >> 17);
-    unState ^= (unState << 5);
-    return unState;
-}
-
 UInt8 ControlModeFromString(const std::string& strControl) {
     if(strControl == "static") return 0;
     if(strControl == "linear") return 1;
@@ -22,31 +14,17 @@ UInt8 ControlModeFromString(const std::string& strControl) {
     if(strControl == "polynomial") return 3;
     return 0;
 }
-
-std::string NormalizeDistributionString(const std::string& strValue) {
-    std::string strOut = strValue;
-    strOut.erase(0, strOut.find_first_not_of(" \t\r\n"));
-    strOut.erase(strOut.find_last_not_of(" \t\r\n") + 1);
-    std::transform(strOut.begin(), strOut.end(), strOut.begin(),
-                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    if(strOut.empty()) {
-        return "random";
-    }
-    return strOut;
-}
-
-std::string g_strOptionsDistribution = "random";
 }
 
 /****************************************/
 /****************************************/
 
 CBestN_ALF::CBestN_ALF() :
-    m_unDataAcquisitionFrequency(10),
+    m_bInitialFloorSetupAllowed(true),
+    m_bVariationFloorSetupAllowed(false),
     m_unIdAware(1),
     m_unPrioritySamplingK(0),
-    m_bInitialFloorSetupAllowed(true),
-    m_bVariationFloorSetupAllowed(false){
+    m_unDataAcquisitionFrequency(10){
         c_rng = CRandom::CreateRNG("argos");
 }
 
@@ -179,9 +157,6 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
-    std::string strOptionsDistribution = "random";
-    GetNodeAttributeOrDefault(tHierarchicalStructNode, "options_distribution",strOptionsDistribution, strOptionsDistribution);
-    g_strOptionsDistribution = NormalizeDistributionString(strOptionsDistribution);
     GetNodeAttributeOrDefault(tHierarchicalStructNode, "spatial_correlation", m_fSpatialCorrelation, static_cast<Real>(0.0));
     eta_init = Min<Real>(1.0, Max<Real>(0.0, eta_init));
     eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));

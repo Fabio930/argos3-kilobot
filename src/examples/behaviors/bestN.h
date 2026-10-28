@@ -216,12 +216,4 @@ static void update_arena_from_received_bounds(){
     the_arena->brY = gps_max_y_q * 0.01f;
 }
 
-static uint32_t received_arena_diagonal_cm(){
-    float dx_cm = (float)gps_max_x_q;
-    float dy_cm = (float)gps_max_y_q;
-    if(dx_cm < 0.0f) dx_cm = 0.0f;
-    if(dy_cm < 0.0f) dy_cm = 0.0f;
-    return (uint32_t)sqrtf(dx_cm*dx_cm + dy_cm*dy_cm);
-}
-
 #endif
