@@ -5,43 +5,66 @@ void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_lengt
     min_quorum_length = Min_quorum_length;
 }
 
-void sort_q(quorum_a **Array[]){
-    true_quorum_items = 0;
-    if(expiring_ticks_quorum > 0){
-        for (uint8_t i = 0; i < buffer_length-1; i++){
-            for (uint8_t j = i+1; j < buffer_length; j++){
-                if(((*Array)[i] == NULL && (*Array)[j] != NULL)){
-                    quorum_a *flag = (*Array)[i];
-                    (*Array)[i] = (*Array)[j];
-                    (*Array)[j] = flag;
-                }
-                else if(((*Array)[i] != NULL && (*Array)[j] != NULL) && (*Array)[i]->counter > (*Array)[j]->counter){
-                    quorum_a *flag = (*Array)[i];
-                    (*Array)[i] = (*Array)[j];
-                    (*Array)[j] = flag;
-                }
+/* Move occupied slots to the front, keeping their order. */
+static void compact_q(quorum_a **a, uint8_t len){
+    uint8_t write = 0;
+    for(uint8_t read = 0; read < len; read++){
+        if(a[read] != NULL){
+            if(write != read){
+                a[write] = a[read];
+                a[read] = NULL;
             }
+            write++;
         }
     }
+}
+
+/*
+ * Orders the buffer by counter (expiring soonest first), NULL slots last.
+ * The result is identical to the original O(buffer_length^2) exchange sort:
+ *  - slots after the last occupied one never move, so only that prefix is scanned;
+ *  - when the occupied counters are already non-decreasing, the exchange sort only
+ *    shifts items over NULL holes, which is exactly a stable compaction.
+ */
+void sort_q(quorum_a **Array[]){
+    quorum_a **a = *Array;
+    uint8_t len = buffer_length;
+    while(len > 0 && a[len - 1] == NULL) len--;
+
+    uint8_t ordered = 1;
+    if(expiring_ticks_quorum > 0){
+        uint32_t last = 0;
+        for(uint8_t i = 0; i < len; i++){
+            if(a[i] == NULL) continue;
+            if(a[i]->counter < last){
+                ordered = 0;
+                break;
+            }
+            last = a[i]->counter;
+        }
+    }
+
+    if(ordered){
+        compact_q(a, len);
+    }
     else{
-        uint8_t write = 0;
-        for (uint8_t read = 0; read < buffer_length; read++){
-            if((*Array)[read] != NULL){
-                if(write != read) (*Array)[write] = (*Array)[read];
-                write++;
+        for(uint8_t i = 0; i + 1 < len; i++){
+            for(uint8_t j = i + 1; j < len; j++){
+                if(a[j] != NULL && (a[i] == NULL || a[i]->counter > a[j]->counter)){
+                    quorum_a *tmp = a[i];
+                    a[i] = a[j];
+                    a[j] = tmp;
+                }
             }
         }
-        for (uint8_t i = write; i < buffer_length; i++) (*Array)[i] = NULL;
     }
 
     uint8_t seen[256] = {0};
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i] == NULL){
-            continue;
-        }
-        uint8_t agent_id = (*Array)[i]->agent_id;
-        if(seen[agent_id] == 0){
-            seen[agent_id] = 1;
+    true_quorum_items = 0;
+    for(uint8_t i = 0; i < num_quorum_items; i++){
+        if(a[i] == NULL) continue;
+        if(seen[a[i]->agent_id] == 0){
+            seen[a[i]->agent_id] = 1;
             true_quorum_items++;
         }
     }
@@ -185,11 +208,4 @@ uint16_t select_a_random_message(){
     if(start >= num_quorum_items) return 0b1111111111111111;
     uint8_t eligible = (uint8_t)(num_quorum_items - start);
     return (uint16_t)(start + (rand_hard() % eligible));
-}
-
-void print_q(quorum_a **Array[],uint8_t id){
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
-        else printf("NULL\n");
-    }
 }

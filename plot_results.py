@@ -2,7 +2,6 @@ import os, re, logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 from scipy import stats
 from pathlib import Path
 from matplotlib.lines import Line2D
@@ -29,9 +28,8 @@ def m_array_from_cell(cell_value) -> np.ndarray:
     if isinstance(cell_value, (list, tuple)):
         return np.asarray(cell_value, dtype=float)
     if isinstance(cell_value, str):
-        clean = cell_value.replace('[', '').replace(']', '').strip()
-        parts = re.split(r'[\s,]+', clean)
-        return np.array([float(p) for p in parts if p], dtype=float)
+        clean = cell_value.replace('[', ' ').replace(']', ' ').replace(',', ' ')
+        return np.fromstring(clean, dtype=float, sep=' ')
     raise ValueError(f"Unsupported data type in cell: {type(cell_value).__name__}")
 
 ##################################################################################
@@ -69,6 +67,59 @@ def metadata_from_filename(file_name: str) -> dict:
         parsed_value = _cast_metadata_value(col_value)
         metadata[mapped_key] = parsed_value
     return metadata
+
+def parse_series_columns(df: pd.DataFrame, columns=("data", "std")) -> pd.DataFrame:
+    """Parse text-encoded series into arrays once, so plotting doesn't re-parse them."""
+    for col in columns:
+        if col in df.columns:
+            df[col] = [m_array_from_cell(v) for v in df[col]]
+    return df
+
+PYTH_DROP_COLS = [
+    'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model',
+    'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step',
+    '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
+    'options', 'n_options'
+]
+PYTH_RENAME_MAP = {
+    'r_shape': 'function',
+    'sigmd_par': 'control_par',
+    'msg_per_step': 'vote_msg'
+}
+ARGOS_DROP_COLS = [
+    'adaptive_com', 'comm_type', 'id_aware', 'priority_k',
+    'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
+    'time', 'arena', 'agents', 'spatcorr', 'options'
+]
+
+def clean_argos_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.drop(columns=[c for c in ARGOS_DROP_COLS if c in df.columns])
+    if 'option_id' in df.columns:
+        df = df[df['option_id'] != -1]
+    return df
+
+def clean_python_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Align agent-based (Python) results with the ARGoS column names and values."""
+    df = df.drop(columns=[c for c in PYTH_DROP_COLS if c in df.columns])
+    df = df.rename(columns=PYTH_RENAME_MAP)
+    if 'option_id' in df.columns:
+        df = df[df['option_id'] != -1]
+    if 'function' in df.columns:
+        df['function'] = df['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
+    if 'r_type' in df.columns:
+        df.loc[df['r_type'] == 'static', 'function'] = 'static'
+        df = df.drop(columns=['r_type', 'r_value'], errors='ignore')
+    if 'static_v' in df.columns:
+        static_mask = df['function'] == 'static'
+        df.loc[static_mask, 'control_par'] = df.loc[static_mask, 'static_v']
+        df = df.drop(columns=['static_v'])
+    return df
+
+def _to_numeric_if_possible(series: pd.Series) -> pd.Series:
+    try:
+        return pd.to_numeric(series)
+    except (ValueError, TypeError):
+        return series
 
 def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
     base_path = Path(os.path.abspath("")) / proc_dir
@@ -231,17 +282,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             print("Error: Grid is empty due to omitted values.")
             return 0
 
-        if 'communication' in cur_argos.columns:
-            unique_comms = sorted(cur_argos['communication'].dropna().astype(int).unique().tolist())
-        else:
-            unique_comms = [0]
-            
-        num_comms = len(unique_comms)
-        cmap_vir = plt.get_cmap('viridis')
-        norm = mcolors.Normalize(vmin=0, vmax=num_comms if num_comms > 0 else 1)
-        comm_colors = {val: cmap_vir(norm(i)) for i, val in enumerate(unique_comms)}
-        comm_labels = {0: 'IDB', 1: r'$h-IDR_i$', 2: r'$IDR_f$'}
-            
         pyth_color = 'tab:gray' 
         for df in [cur_argos, cur_quorum, cur_ctrl, cur_msgs, pyth_agg]:
             if df is not None and not df.empty and 'eta' in df.columns:
@@ -251,10 +291,9 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             eta_main = 0.5 if n_opts == 2 else 0.8
             eta_inset = 0.4 if n_opts == 2 else 0.7
             
-            active_configs = [c for c in base_configs]
             valid_panels = []
-            
-            for c_conf in active_configs:
+
+            for c_conf in base_configs:
                 for m_val in m_values:
                     a_main = cur_argos[get_mask(cur_argos, eta_main, c_conf['func'], c_conf['ctrl'], m_val)]
                     q_main = cur_quorum[get_mask(cur_quorum, eta_main, c_conf['func'], c_conf['ctrl'], m_val)] if cur_quorum is not None else None
@@ -286,9 +325,7 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             sem_0 = True if sem_0x or sem_0y else False
             fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows), squeeze=sem_0, sharex=sem_0x, sharey=sem_0y)
             axes_flat = axes.flatten()
-            
-            has_data = True
-            
+
             for i, panel in enumerate(valid_panels):
                 ax = axes_flat[i]
                 c_conf = panel['c_conf']
@@ -430,9 +467,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
                 row_idx = i // n_cols
                 col_idx = i % n_cols
                 
-                # if col_idx == 0: 
-                #     ax.set_ylabel(r"$\rho^*$")
-                
                 if row_idx == 0: 
                     ax.set_title(rf"$m={m_val}$")
                     
@@ -446,14 +480,6 @@ def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame
             for j in range(n_panels, len(axes_flat)):
                 axes_flat[j].set_visible(False)
 
-            if not has_data:
-                plt.close(fig)
-                continue
-                
-            # legend_elements = [
-            #     Line2D([0], [0], color=comm_colors[k], ls='none', marker='s', markersize=6, label=f"{comm_labels.get(k, 'Unknown')}") 
-            #     for k in unique_comms
-            # ]
             legend_elements = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$')]
             
             if cur_msgs is not None and not cur_msgs.empty:
@@ -487,54 +513,8 @@ def count_configuration_overlaps():
     coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
     pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys)
     
-    coh_drop_cols = [
-        'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
-        'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
-        'time', 'arena', 'agents', 'spatcorr', 'options'
-    ]
-    pyth_drop_cols = [
-        'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model', 
-        'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step', 
-        '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
-        'options', 'n_options'
-    ]
-
-    pyth_rename_map = {
-        'r_shape': 'function',
-        'sigmd_par': 'control_par',
-        'msg_per_step': 'vote_msg'
-    }
-
-    argos_clean_list = []
-    pyth_clean_list = []
-
-    for df, meta in coh_sets:
-        if not df.empty:
-            df_clean = df.drop(columns=[c for c in coh_drop_cols if c in df.columns])
-            if 'option_id' in df_clean.columns:
-                df_clean = df_clean[df_clean['option_id'] != -1]
-            argos_clean_list.append(df_clean)
-
-    for df, meta in pyth_sets:
-        if not df.empty:
-            df_clean = df.drop(columns=[c for c in pyth_drop_cols if c in df.columns])
-            df_clean = df_clean.rename(columns=pyth_rename_map)
-            
-            if 'option_id' in df_clean.columns:
-                df_clean = df_clean[df_clean['option_id'] != -1]
-            
-            if 'function' in df_clean.columns:
-                df_clean['function'] = df_clean['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
-            if 'r_type' in df_clean.columns:
-                df_clean.loc[df_clean['r_type'] == 'static', 'function'] = 'static'
-                df_clean = df_clean.drop(columns=['r_type', 'r_value'], errors='ignore')
-
-            if 'static_v' in df_clean.columns:
-                static_mask = df_clean['function'] == 'static'
-                df_clean.loc[static_mask, 'control_par'] = df_clean.loc[static_mask, 'static_v']
-                df_clean = df_clean.drop(columns=['static_v'])
-                
-            pyth_clean_list.append(df_clean)
+    argos_clean_list = [clean_argos_df(df) for df, _ in coh_sets if not df.empty]
+    pyth_clean_list = [clean_python_df(df) for df, _ in pyth_sets if not df.empty]
 
     if not argos_clean_list or not pyth_clean_list:
         print("Errore: Impossibile trovare dati validi da confrontare.")
@@ -549,8 +529,8 @@ def count_configuration_overlaps():
     overlap_keys.sort() 
 
     for col in overlap_keys:
-        argos_master[col] = pd.to_numeric(argos_master[col], errors='ignore')
-        pyth_master[col] = pd.to_numeric(pyth_master[col], errors='ignore')
+        argos_master[col] = _to_numeric_if_possible(argos_master[col])
+        pyth_master[col] = _to_numeric_if_possible(pyth_master[col])
 
     argos_configs = argos_master[overlap_keys].drop_duplicates()
     pyth_configs = pyth_master[overlap_keys].drop_duplicates()
@@ -584,34 +564,11 @@ def main():
     msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
     pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys) 
 
-    argos_drop_cols = [
-        'adaptive_com', 'comm_type', 'id_aware', 'priority_k', 
-        'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
-        'time', 'arena', 'agents', 'spatcorr', 'options'
-    ]
-    
-    pyth_drop_cols = [
-        'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model', 
-        'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step', 
-        '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
-        'options', 'n_options'
-    ]
-
-    pyth_rename_map = {
-        'r_shape': 'function',
-        'sigmd_par': 'control_par',
-        'msg_per_step': 'vote_msg'
-    }
-
     def process_argos_sets(datasets):
-        clean_list = []
-        for df, meta in datasets:
-            if not df.empty:
-                df = df.drop(columns=[c for c in argos_drop_cols if c in df.columns])
-                if 'option_id' in df.columns:
-                    df = df[df['option_id'] != -1]
-                clean_list.append(df)
-        return pd.concat(clean_list, ignore_index=True) if clean_list else pd.DataFrame()
+        clean_list = [clean_argos_df(df) for df, _ in datasets if not df.empty]
+        if not clean_list:
+            return pd.DataFrame()
+        return parse_series_columns(pd.concat(clean_list, ignore_index=True))
 
     argos_df = process_argos_sets(coh_sets)
     quorum_df = process_argos_sets(quorum_sets)
@@ -619,28 +576,11 @@ def main():
     msgs_df = process_argos_sets(msgs_sets)
 
     pyth_list = []
-    for df, meta in pyth_sets:
+    for df, _ in pyth_sets:
         if not df.empty:
-            df = df.drop(columns=[c for c in pyth_drop_cols if c in df.columns])
-            df = df.rename(columns=pyth_rename_map)
-            
-            if 'option_id' in df.columns:
-                df = df[df['option_id'] != -1]
-            
-            if 'function' in df.columns:
-                df['function'] = df['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
-            if 'r_type' in df.columns:
-                df.loc[df['r_type'] == 'static', 'function'] = 'static'
-                df = df.drop(columns=['r_type', 'r_value'], errors='ignore')
-
-            if 'static_v' in df.columns:
-                static_mask = df['function'] == 'static'
-                df.loc[static_mask, 'control_par'] = df.loc[static_mask, 'static_v']
-                df = df.drop(columns=['static_v'])
-                
+            df = clean_python_df(df)
             df['communication'] = 0
             pyth_list.append(df)
-            
     pyth_df = pd.concat(pyth_list, ignore_index=True) if pyth_list else pd.DataFrame()
 
     enable_python_flag = not pyth_df.empty

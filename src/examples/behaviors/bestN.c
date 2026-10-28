@@ -6,7 +6,28 @@ void generic_fifo_init(generic_fifo_t* fifo) {
     fifo->count = 0;
 }
 
+/* Drops FIFO entries whose agent is no longer in the quorum buffer, keeping order. */
 void sync_rebroadcast_fifo() {
+    if (rebroadcast_fifo.count == 0) return;
+    if (id_aware) {
+        /* One pass over the quorum and one over the FIFO, instead of a lookup per entry. */
+        uint8_t present[256] = {0};
+        for (uint8_t i = 0; i < num_quorum_items; ++i) {
+            if (quorum_array[i] != NULL) present[quorum_array[i]->agent_id] = 1;
+        }
+        generic_fifo_t* f = &rebroadcast_fifo;
+        uint8_t kept = 0;
+        for (uint8_t i = 0; i < f->count; ++i) {
+            fifo_item_t item = f->buffer[(uint8_t)((f->head + i) % FIFO_BUFFER_SIZE)];
+            if (present[item.agent_id]) {
+                f->buffer[(uint8_t)((f->head + kept) % FIFO_BUFFER_SIZE)] = item;
+                kept++;
+            }
+        }
+        f->count = kept;
+        f->tail = (uint8_t)((f->head + kept) % FIFO_BUFFER_SIZE);
+        return;
+    }
     uint8_t initial_count = rebroadcast_fifo.count;
     for (uint8_t i = 0; i < initial_count; i++) {
         fifo_item_t item;
@@ -671,13 +692,10 @@ void loop(){
     if(my_state != 255 && init_received_C){
         random_way_point_model();
         quorum_value = compute_quorum_value();
-        // control_value = compute_r_threshold(quorum_value);
         decision();
         talk();
     }
     fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
-    // printf("id: %d\tstate: %d\treb fifo items: %d\tquorum items: %d\tquorum value: %.2f\tcontrol value: %.2f\tcontrol parameter: %.2f\n", 
-    //        kilo_uid, my_state, rebroadcast_fifo.count, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f, control_parameter / 100.0f);
 }
 
 void deallocate_memory(){
