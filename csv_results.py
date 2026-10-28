@@ -1,4 +1,4 @@
-import sys, os, csv, logging, re, json, colorsys
+import sys, os, csv, logging, re, json
 import numpy as np
 import pandas as pd
 import matplotlib.colors as colors
@@ -16,6 +16,8 @@ from scipy.optimize import brentq
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 30})
 csv.field_size_limit(sys.maxsize)
+
+VIRIDIS = plt.get_cmap('viridis')
 
 ##########################################################################################################
 class GradientHandler(HandlerBase):
@@ -73,6 +75,15 @@ class Data:
                 return vals.tolist()
         return [int(x) for x in Data._INT_RE.findall(raw)]
     
+    # Configurazioni "difficili" (Sez. 3.4): |G - tau| <= HARD_BOUND
+    HARD_BOUND = 0.05
+
+    @staticmethod
+    def g_tau_gap(gt, th):
+        # arrotondato a 2 cifre: G e tau sono multipli di 0.01, e senza arrotondamento
+        # casi come |0.56 - 0.51| = 0.05000000000000004 verrebbero esclusi dal filtro <= 0.05
+        return round(abs(float(gt) - float(th)), 2)
+
 ###################################################
     def __init__(self) -> None:
         self.bases = []
@@ -254,11 +265,43 @@ class Data:
             return False
 
 ###################################################
-    def _shade_color(self, base_color, ratio):
-        ratio = max(0.0, min(1.0, ratio))
-        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
-        rgb = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0 - ratio) * 0.4))), s * (1.0 - ((1.0 - ratio) * 0.3)))
-        return tuple(np.clip(rgb, 0, 1))
+    def _p11_color(self, scalarMap, k_idx):
+        # P.1.1: k=1 (k_idx=0) usa il colore da config, i k successivi incrementano di k_idx l'indice della colormap
+        protocol = self.protocols_by_id.get("P.1.1")
+        color = (protocol or {}).get("color")
+        if k_idx > 0 and isinstance(color, str) and color.startswith("viridis:"):
+            try:
+                return scalarMap.to_rgba(int(color.split(":", 1)[1]) + k_idx)
+            except Exception:
+                pass
+        return self._protocol_color(protocol, scalarMap)
+
+###################################################
+    def _zorder(self, pid, k_idx=0):
+        # ordine di sovrapposizione: P.0 < P.1.0 < P.1.1 (k_1 < k_2 < k_3), poi gli altri protocolli nell'ordine del config
+        base = str(pid).split('|')[0]
+        order = [p.get("id") for p in self.protocols]
+        idx = order.index(base) if base in order else len(order)
+        return 2 + idx + (0.1 * k_idx if base == "P.1.1" else 0)
+
+###################################################
+    def _legend_entries(self, pid, color, scalarMap, n_k=3):
+        # P.1.1: una voce per ogni k (k_1 < k_2 < k_3), ciascuna con il proprio colore; gli altri protocolli una voce
+        protocol = self.protocols_by_id.get(pid) or {}
+        label = protocol.get("label", pid)
+        if pid != "P.1.1":
+            return [(color, label)]
+        entries = []
+        for k_idx in range(n_k):
+            lbl_k = f"k_{{{k_idx + 1}}}"
+            for sup in ("^{K}", "^{k}", "^K", "^k"):
+                if sup in label:
+                    lbl = label.replace(sup, f"^{{{lbl_k}}}")
+                    break
+            else:
+                lbl = rf"{label} (${lbl_k}$)"
+            entries.append((self._p11_color(scalarMap, k_idx), lbl))
+        return entries
 
 ###################################################
     def _isolines(self, state_grid, time_grid, ground_T, threshlds):
@@ -310,10 +353,11 @@ class Data:
     def _show_ci(self):
         return bool(self.plot_config.get("plots", {}).get("show_ci", True))
 
-    def _fill_ci(self, ax, x, lo, hi, color):
+    def _fill_ci(self, ax, x, lo, hi, color, zorder=None):
         # banda del confidence interval 95%, disattivabile con "show_ci": false nel campo plots
         if self._show_ci():
-            ax.fill_between(x, lo, hi, color=color, alpha=0.2, lw=0)
+            kw = {} if zorder is None else {"zorder": zorder - 0.5}
+            ax.fill_between(x, lo, hi, color=color, alpha=0.2, lw=0, **kw)
 
 ###################################################
     def _median_ci(self, values, z=1.96):
@@ -567,7 +611,7 @@ class Data:
         # vmax is set to len(all_cols) instead of len(all_cols) - 1 to map
         # an extra step, effectively excluding the lightest yellow colour at the end.
         cNorm = colors.Normalize(vmin=0, vmax=len(all_cols))
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         
         config_colors = {
             col_name: scalarMap.to_rgba(idx) for idx, col_name in enumerate(all_cols)
@@ -849,6 +893,62 @@ class Data:
         return data
 
 ###################################################
+    @staticmethod
+    def _parse_int_array(raw, dtype):
+        raw = raw.strip()
+        if raw and raw[0] == "[" and raw[-1] == "]":
+            raw = raw[1:-1]
+        if not raw:
+            return np.empty(0, dtype=dtype)
+        if '.' not in raw and 'e' not in raw and 'E' not in raw and '[' not in raw:
+            vals = np.fromstring(raw, dtype=np.int64, sep=',')
+            if vals.size == raw.count(',') + 1:
+                return vals.astype(dtype)
+        return np.array([int(x) for x in Data._INT_RE.findall(raw)], dtype=dtype)
+
+###################################################
+    def iter_recovery_csv(self, path, algo, arena, skip_keys=()):
+        """Versione in streaming di read_recovery_csv per fit_recovery.py: restituisce una configurazione
+        alla volta come (key, {run_id: (None, durations, events)}), con array numpy compatti e senza buff_starts.
+        Le righe di una stessa configurazione devono essere contigue nel file."""
+        with open(path, 'r', encoding='utf-8', buffering=16 * 1024 * 1024) as f:
+            header = f.readline().rstrip('\r\n').split('\t')
+            if not header or header == ['']:
+                return
+            try:
+                b_idx = header.index("buff_starts")
+            except ValueError:
+                b_idx = len(header) - 3
+            d_idx = b_idx + 1
+            e_idx = b_idx + 2
+            run_idx = header.index("run_id") if "run_id" in header else -1
+            parse = self._parse_int_array
+            cur_key, cur_runs = None, None
+            seen = set()
+            for line in f:
+                row = line.rstrip('\r\n').split('\t')
+                if len(row) <= e_idx:
+                    continue
+                key_list = row[:b_idx]
+                if run_idx != -1 and run_idx < b_idx:
+                    key_list.pop(run_idx)
+                key = (algo, arena, *key_list)
+                if key != cur_key:
+                    if cur_runs:
+                        yield cur_key, cur_runs
+                    if key in seen:
+                        logging.warning(f"{path}: rows of {key} are not contiguous, the configuration will be fitted in parts")
+                    seen.add(key)
+                    cur_key = key
+                    cur_runs = None if key in skip_keys else {}
+                if cur_runs is None:
+                    continue
+                run_id = int(row[run_idx]) if run_idx != -1 else 0
+                cur_runs[run_id] = (None, parse(row[d_idx], np.int32), parse(row[e_idx], np.int8))
+            if cur_runs:
+                yield cur_key, cur_runs
+
+###################################################
     def read_csv(self, path, algo, n_runs, arena):
         data = {}
         with open(path, 'r', newline='', encoding='utf-8') as f:
@@ -956,7 +1056,7 @@ class Data:
         images_dir = os.path.join(self.base, "rec_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
-        scalarMap = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=norm, cmap=VIRIDIS)
         
         variant_map = {}
         for p in self.protocols:
@@ -991,7 +1091,7 @@ class Data:
             # I valori CI non vengono passati al DataFrame, mantenendo i grafici originali
             rows.append({
                 'Arena': str(arena), 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Error': self.g_tau_gap(gt, th), 'Events': mean_events / int(agents),
                 'Time': mean_time, 
                 'CI_Time': ci_time, 
                 'CI_Events': ci_events / int(agents),
@@ -1056,9 +1156,7 @@ class Data:
                                     d = d_mbs_row[entry].dropna().astype(float).values
                                     
                                     if len(d) > 0 or (side_by_side_mode and not d_mbs_row.empty):
-                                        ratio = (m_idx + 1) / n_mbs_total
-                                        h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(base_color))
-                                        c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                        c_val = self._p11_color(scalarMap, n_mbs_total - 1 - m_idx)
                                         
                                         offset = (m_idx - (n_mbs_total - 1) / 2.0) * width
                                         
@@ -1126,12 +1224,12 @@ class Data:
             save_box(df, "sidebyside", 'Events', event_max, side_by_side_mode=True)
             save_box(df, "sidebyside", 'Time', time_max, side_by_side_mode=True)
         else:
-            df_le = df[df['Error'] <= 0.05]
+            df_le = df[df['Error'] <= self.HARD_BOUND]
             if not df_le.empty:
                 save_box(df_le, "0.05_le", 'Events', event_max, side_by_side_mode=False)
                 save_box(df_le, "0.05_le", 'Time', time_max, side_by_side_mode=False)
                 
-            df_gt = df[df['Error'] > 0.05]
+            df_gt = df[df['Error'] > self.HARD_BOUND]
             if not df_gt.empty:
                 save_box(df_gt, "0.05_gt", 'Events', event_max, side_by_side_mode=False)
                 save_box(df_gt, "0.05_gt", 'Time', time_max, side_by_side_mode=False)
@@ -1141,7 +1239,7 @@ class Data:
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
-        scalarMap = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=norm, cmap=VIRIDIS)
         
         variant_map = {p.get("id"): (p.get("label", p.get("id")), self._protocol_color(p, scalarMap)) 
                        for p in self.protocols if p.get("id")}
@@ -1172,7 +1270,7 @@ class Data:
             
             rows.append({
                 'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Error': self.g_tau_gap(gt, th), 'Events': mean_events / int(agents),
                 'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 
                 'Color': color, 'MBS': mbs
             })
@@ -1243,9 +1341,7 @@ class Data:
                                         sub_w_mbs = width_tm
                                         for m_idx, val_mbs in enumerate(mbs_list):
                                             d_mbs_row = p_data[p_data['MBS'] == val_mbs]
-                                            ratio = (m_idx + 1) / n_mbs_total
-                                            h, l, s = colorsys.rgb_to_hls(*colors.to_rgb(variant_map[pid][1]))
-                                            c_val = colorsys.hls_to_rgb(h, max(l, min(0.85, l + ((1.0-ratio)*0.4))), s*(1.0-((1.0-ratio)*0.3)))
+                                            c_val = self._p11_color(scalarMap, n_mbs_total - 1 - m_idx)
                                             m_off = (m_idx - (n_mbs_total - 1) / 2.0) * sub_w_mbs *.8
                                             if not d_mbs_row.empty:
                                                 self._draw_boxes_internal(target_ax, d_mbs_row, entry, final_base_pos + m_off, sub_w_mbs, c_val, side_by_side_mode)
@@ -1292,15 +1388,15 @@ class Data:
 
         if side_by_side: save_short(df, "sidebyside", True)
         else:
-            save_short(df[df['Error'] <= 0.05], "le05", False)
-            save_short(df[df['Error'] > 0.05], "gt05", False)
+            save_short(df[df['Error'] <= self.HARD_BOUND], "le05", False)
+            save_short(df[df['Error'] > self.HARD_BOUND], "gt05", False)
 
 ###################################################
     def plot_recovery_pareto(self, data_in):
         images_dir = os.path.join(self.base, "compressed_data", "images")
         os.makedirs(images_dir, exist_ok=True)
         norm = colors.Normalize(vmin=0, vmax=6)
-        scalarMap = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=norm, cmap=VIRIDIS)
         
         variant_map = {p.get("id"): (p.get("label", p.get("id")), self._protocol_color(p, scalarMap)) 
                        for p in self.protocols if p.get("id")}
@@ -1344,7 +1440,7 @@ class Data:
             
             rows.append({
                 'Arena': arena, 'Agents': int(agents), 'Msgs_exp_time': int(msgs),
-                'Error': abs(float(gt) - float(th)), 'Events': mean_events / int(agents),
+                'Error': self.g_tau_gap(gt, th), 'Events': mean_events / int(agents),
                 'Time': mean_time, 'VariantKey': variant_key, 'Label': label, 
                 'Color': color, 'MBS': mbs
             })
@@ -1409,26 +1505,22 @@ class Data:
                             if pid == "P.1.1":
                                 mbs_list = mbs_global_map.get(ag, [])
                                 s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
-                                cmap_k = plt.get_cmap('cool_r')
-                                k_color_ts = [0.25, 0.5, 0.75]
-                                
                                 for m_idx, val_mbs in enumerate(mbs_list):
                                     mask = (s_float - val_mbs).abs() < 1e-3
                                     d_row = p_data[mask.fillna(False)]
                                     if not d_row.empty:
-                                        c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
-                                        self._draw_scatter_internal(target_ax, d_row, cmap_k(c_t), tt_type, marker)
+                                        self._draw_scatter_internal(target_ax, d_row, self._p11_color(scalarMap, m_idx), tt_type, marker, self._zorder(pid, m_idx))
                             else:
-                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], tt_type, marker)
+                                self._draw_scatter_internal(target_ax, p_data, variant_map[pid][1], tt_type, marker, self._zorder(pid))
 
                     draw_pass(ax, tm_val, "main")
                     
                     if i == 0: ax.set_title(dens_label)
                     if j == 0: ax.set_ylabel(r"$T_{r}$")
                     if i == nrows - 1: ax.set_xlabel(r"$E_{r}$")
-                    # if j == ncols - 1:
-                    #     ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
-                    #                 rotation=270, ha='left', va='center')
+                    if j == ncols - 1:
+                        ax.annotate(rf"$T_m={tm_val}$ s", xy=(1.03, 0.5), xycoords='axes fraction',
+                                    rotation=270, ha='left', va='center')
 
                     ax.set_axisbelow(True)
                     ax.grid(True, ls=':', zorder=0)
@@ -1445,22 +1537,10 @@ class Data:
                         ins.grid(True, ls=':', color='silver', zorder=0)
 
             legend_elements = []
-            cmap_k = plt.get_cmap('cool_r')
-            k_color_ts = [0.25, 0.5, 0.75]
-            k_labels = [r"K_1", r"K_2", r"K_3"]
             
             for pid in protocols_order:
-                if pid == "P.1.1":
-                    base_lbl = variant_map[pid][0]
-                    for m_idx in range(3):
-                        c_t = k_color_ts[m_idx]
-                        lbl_k = k_labels[m_idx]
-                        if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
-                        elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
-                        else: lbl = rf"{base_lbl} (${lbl_k}$)"
-                        legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker=marker_map.get(pid, 'D'), linestyle='None', markersize=14, label=lbl))
-                else:
-                    legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
+                for c_val, lbl in self._legend_entries(pid, variant_map[pid][1], scalarMap):
+                    legend_elements.append(Line2D([0], [0], color=c_val, marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=lbl))
             
             fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.62, -0.1))
             fig.tight_layout(rect=[0, 0.05, 1, 1])
@@ -1468,11 +1548,12 @@ class Data:
             plt.close(fig)
 
         save_short(df)
-        # self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global, tm_values=sorted(all_tms))
+        self.plot_recovery_scatter_all_tm(df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global, tm_values=sorted(all_tms))
 
 ###################################################
     def plot_recovery_scatter_all_tm(self, df, mbs_global_map, variant_map, protocols_order, marker_map, xlim_global, ylim_global, tm_values=None):
         images_dir = os.path.join(self.base, "compressed_data", "images")
+        scalarMap = cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=6), cmap=VIRIDIS)
         
         raw_tms = tm_values if tm_values is not None else [m for m in df[df['VariantKey'] != 'P.0']['Msgs_exp_time'].unique() if m > 0]
         msg_list = sorted(raw_tms)
@@ -1505,17 +1586,13 @@ class Data:
                     if pid == "P.1.1":
                         mbs_list = mbs_global_map.get(ag, [])
                         s_float = pd.to_numeric(p_data['MBS'], errors='coerce')
-                        cmap_k = plt.get_cmap('cool_r')
-                        k_color_ts = [0.25, 0.5, 0.75]
-                        
                         for m_idx, val_mbs in enumerate(mbs_list):
                             mask = (s_float - val_mbs).abs() < 1e-3
                             d_row = p_data[mask.fillna(False)]
                             if not d_row.empty:
-                                c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
-                                self._draw_scatter_internal(ax, d_row, cmap_k(c_t), 'main', marker)
+                                self._draw_scatter_internal(ax, d_row, self._p11_color(scalarMap, m_idx), 'main', marker, self._zorder(pid, m_idx))
                     else:
-                        self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker)
+                        self._draw_scatter_internal(ax, p_data, variant_map[pid][1], 'main', marker, self._zorder(pid))
 
                 ax.set_yscale('log')
                 ax.set_xscale('log')
@@ -1532,22 +1609,10 @@ class Data:
                                 rotation=270, ha='left', va='center')
 
         legend_elements = []
-        cmap_k = plt.get_cmap('cool_r')
-        k_color_ts = [0.25, 0.5, 0.75]
-        k_labels = [r"K_1", r"K_2", r"K_3"]
         
         for pid in protocols_order:
-            if pid == "P.1.1":
-                base_lbl = variant_map[pid][0]
-                for m_idx in range(3):
-                    c_t = k_color_ts[m_idx]
-                    lbl_k = k_labels[m_idx]
-                    if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
-                    elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
-                    else: lbl = rf"{base_lbl} (${lbl_k}$)"
-                    legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker=marker_map.get(pid, 'D'), linestyle='None', markersize=14, label=lbl))
-            else:
-                legend_elements.append(Line2D([0], [0], color=variant_map[pid][1], marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=variant_map[pid][0]))
+            for c_val, lbl in self._legend_entries(pid, variant_map[pid][1], scalarMap):
+                legend_elements.append(Line2D([0], [0], color=c_val, marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=lbl))
             
         fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.58, 0.03))
         fig.tight_layout(rect=[0, 0.05, 1, 1])
@@ -1555,14 +1620,14 @@ class Data:
         plt.close(fig)
         
 ###################################################
-    def _draw_scatter_internal(self, ax, data, color, target_type, marker_type='o'):
+    def _draw_scatter_internal(self, ax, data, color, target_type, marker_type='o', zorder=2):
         sc_size = 200 if target_type == 'main' else 75
         alpha_val = 0.3 if target_type == 'main' else 0.2
-        d_le = data[data['Error'] <= 0.05]['Events'].values
-        t_le = data[data['Error'] <= 0.05]['Time'].values
+        d_le = data[data['Error'] <= self.HARD_BOUND]['Events'].values
+        t_le = data[data['Error'] <= self.HARD_BOUND]['Time'].values
         if len(d_le) > 0:
             # 1. Draw the scatter points with zorder=2 (above the highlighted area)
-            ax.scatter(d_le, t_le, marker=marker_type, s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none', zorder=2)
+            ax.scatter(d_le, t_le, marker=marker_type, s=sc_size, alpha=alpha_val, c=[color]*len(d_le), edgecolors='none', zorder=zorder)
             # 2. Compute variables for the shaded area
             alpha_fill = 0.15 if target_type == 'main' else 0.05
             alpha_edge = 0.40 if target_type == 'main' else 0.20
@@ -1587,22 +1652,22 @@ class Data:
                     poly = Polygon(original_vertices, 
                                    facecolor=colors.to_rgba(color, alpha_fill), 
                                    edgecolor=colors.to_rgba(color, alpha_edge), 
-                                   linewidth=2, zorder=1)
+                                   linewidth=2, zorder=zorder - 1)
                     ax.add_patch(poly)
                 except Exception:
                     # Fallback for collinear points that fail the Convex Hull calculation
                     unique_points = points[unique_indices]
-                    ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=1)
+                    ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=zorder - 1)
             elif len(unique_indices) == 2:
                 # Draw a simple connective line if there are only exactly two unique points
                 unique_points = points[unique_indices]
-                ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=1)
+                ax.plot(unique_points[:, 0], unique_points[:, 1], color=colors.to_rgba(color, alpha_edge), linewidth=2, zorder=zorder - 1)
 
 ###################################################
     def _draw_boxes_internal(self, ax, data, entry, pos, width, color, side_by_side):
         if side_by_side:
-            d_le = data[data['Error'] <= 0.05][entry].values
-            d_gt = data[data['Error'] > 0.05][entry].values
+            d_le = data[data['Error'] <= self.HARD_BOUND][entry].values
+            d_gt = data[data['Error'] > self.HARD_BOUND][entry].values
             bw = width * 0.4
             if len(d_le) > 0:
                 ax.boxplot(d_le, positions=[pos - bw/2], widths=bw*0.8, patch_artist=True, 
@@ -1646,7 +1711,7 @@ class Data:
 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         
@@ -1677,18 +1742,9 @@ class Data:
         for pid in protocols_order:
             if pid in exclude_protocols or not self._protocol_enabled(pid):
                 continue
-            protocol = self.protocols_by_id.get(pid)
-            handles_r.append(
-                mlines.Line2D(
-                    [], [],
-                    color=protocol_colors.get(pid, "black"),
-                    marker='s',
-                    linestyle='None',
-                    markeredgewidth=0,
-                    markersize=16,
-                )
-            )
-            l_list.append(protocol.get("label", pid) if protocol else pid)
+            for c_val, lbl in self._legend_entries(pid, protocol_colors.get(pid, "black"), scalarMap):
+                handles_r.append(mlines.Line2D([], [], color=c_val, marker='s', linestyle='None', markeredgewidth=0, markersize=16))
+                l_list.append(lbl)
                 
         rows = [60, 120, 180, 300, 600]
         rows = [r for r in rows if str(r) not in exclude_rows]
@@ -1733,6 +1789,7 @@ class Data:
                 col = active_cols.index(col_name)
                     
                 c_val = protocol_colors.get(dk, "gray")
+                z = self._zorder(dk)
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
                 if is_p11 and len(k) > 3:
                     try:
@@ -1742,19 +1799,8 @@ class Data:
                             val = float(m_b_s)
                             N_vals = len(mbs_sorted[ag_val_int])
                             idx = mbs_sorted[ag_val_int].index(val)
-                            ratio = (idx + 1) / N_vals
-                        else:
-                            ratio = 1.0
-                            
-                        ratio = max(0.0, min(1.0, ratio))
-                        
-                        rgb_base = colors.to_rgb(c_val)
-                        h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
-                        diff = 1.0 - ratio
-                        new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
-                        new_s = s_c * (1.0 - (diff * 0.3))
-                        raw_rgb = colorsys.hls_to_rgb(h_c, new_l, new_s)
-                        c_val = tuple(np.clip(raw_rgb, 0, 1))
+                            c_val = self._p11_color(scalarMap, N_vals - 1 - idx)
+                            z = self._zorder(dk, N_vals - 1 - idx)
                     except Exception:
                         pass
                 
@@ -1773,13 +1819,13 @@ class Data:
                 
                 if dk == 'P.0':
                     for r_idx in range(nrows):
-                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
+                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6, zorder=z)
+                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, zorder=z)
                 else:
                     row = row_index.get(k[2])
                     if row is not None:
-                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
+                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6, zorder=z)
+                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, zorder=z)
                 
         for x in range(nrows):
             for y in range(ncols):
@@ -1836,7 +1882,7 @@ class Data:
 
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         min_dim = mlines.Line2D([], [], color="black", marker='None', linestyle='--', linewidth=4, label=r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
@@ -1873,18 +1919,9 @@ class Data:
         for pid in protocols_order:
             if pid in exclude_protocols or not self._protocol_enabled(pid):
                 continue
-            protocol = self.protocols_by_id.get(pid)
-            handles_r.append(
-                mlines.Line2D(
-                    [], [],
-                    color=protocol_colors.get(pid, "black"),
-                    marker='s',
-                    linestyle='None',
-                    markeredgewidth=0,
-                    markersize=16,
-                )
-            )
-            r_list.append(protocol.get("label", pid) if protocol else pid)
+            for c_val, lbl in self._legend_entries(pid, protocol_colors.get(pid, "black"), scalarMap):
+                handles_r.append(mlines.Line2D([], [], color=c_val, marker='s', linestyle='None', markeredgewidth=0, markersize=16))
+                r_list.append(lbl)
                 
         handles_l.append(min_dim)
         l_list.append(r'$\dfrac{\mathcal{B}_{m}}{N-1}$')
@@ -1901,7 +1938,7 @@ class Data:
         ncols = len(active_cols)
         if ncols == 0: return
         
-        fig, ax = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,nrows*7),sharex=True,sharey=True, squeeze=False)
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,nrows*5.5),sharex=True,sharey=True, squeeze=False)
         
         if len(real_x_ticks)==0:
             for x in range(0,901,50):
@@ -1936,6 +1973,7 @@ class Data:
                 col = active_cols.index(col_name)
                     
                 c_val = protocol_colors.get(dk,"gray")
+                z = self._zorder(dk)
                 is_p11 = (dk == "P.1.1" or dk.startswith("P.1.1"))
                 if is_p11 and len(k) > 3:
                     try:
@@ -1945,19 +1983,8 @@ class Data:
                             val = float(m_b_s)
                             N_vals = len(mbs_sorted[ag_val])
                             idx = mbs_sorted[ag_val].index(val)
-                            ratio = (idx + 1) / N_vals
-                        else:
-                            ratio = 1.0
-                            
-                        ratio = max(0.0, min(1.0, ratio))
-                        
-                        rgb_base = colors.to_rgb(c_val)
-                        h_c, l_c, s_c = colorsys.rgb_to_hls(*rgb_base)
-                        diff = 1.0 - ratio
-                        new_l = max(l_c, min(0.85, l_c + (diff * 0.4)))
-                        new_s = s_c * (1.0 - (diff * 0.3))
-                        raw_rgb = colorsys.hls_to_rgb(h_c, new_l, new_s)
-                        c_val = tuple(np.clip(raw_rgb, 0, 1))
+                            c_val = self._p11_color(scalarMap, N_vals - 1 - idx)
+                            z = self._zorder(dk, N_vals - 1 - idx)
                     except Exception:
                         pass
                 
@@ -1977,13 +2004,13 @@ class Data:
                 x_vals = np.arange(len(y_vals))
                 if dk == 'P.0':
                     for r_idx in range(nrows):
-                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
+                        ax[r_idx][col].plot(x_vals, y_vals, color=c_val, lw=6, zorder=z)
+                        self._fill_ci(ax[r_idx][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, zorder=z)
                 else:
                     row = col_index.get(k[2])
                     if row is not None:
-                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6)
-                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
+                        ax[row][col].plot(x_vals, y_vals, color=c_val, lw=6, zorder=z)
+                        self._fill_ci(ax[row][col], x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, zorder=z)
                 
         for x in range(nrows):
             for y in range(ncols):
@@ -2020,6 +2047,7 @@ class Data:
                 ax[x][y].grid(True,ls=':')
                 ax[x][y].set_xlim(0,900)
                 ax[x][y].set_ylim(-0.03,1.03)
+                ax[x][y].set_yticks(np.arange(0,1.01,0.25))
 
         fig.tight_layout()
         handler_map = None
@@ -2138,7 +2166,7 @@ class Data:
         
         typo = [0,1,2,3,4,5]
         cNorm  = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         
         po_k = [k for k in keys if str(k) not in exclude_rows]
         o_k = []
@@ -2165,16 +2193,16 @@ class Data:
         for pid in protocols_order:
             if pid in exclude_protocols or not self._protocol_enabled(pid):
                 continue
-            protocol = self.protocols_by_id.get(pid)
-            handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markeredgewidth=0, markersize=16))
-            l_list_r.append(protocol.get("label", pid) if protocol else pid)
+            for c_val, lbl in self._legend_entries(pid, protocol_colors.get(pid, "black"), scalarMap):
+                handles_r.append(mlines.Line2D([], [], color=c_val, marker='s', linestyle='None', markeredgewidth=0, markersize=16))
+                l_list_r.append(lbl)
                 
         active_cols = [c for c in ["LD25", "HD25", "HD100"] if c not in exclude_cols]
         ncols = len(active_cols)
         if ncols == 0: return
 
         fig, ax     = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8.6*ncols,8*nrows), sharex=False, squeeze=False)
-        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,7*nrows), sharex=False, squeeze=False)
+        tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,5.5*nrows), sharex=False, squeeze=False)
         
         attributes_row_col = np.zeros((nrows,ncols))
 
@@ -2192,7 +2220,10 @@ class Data:
                         if k_key[0] == a and str(k_key[1]) == str(ag):
                             if len(k_key) > 3: raw_mbs.add(k_key[3])
                 if not raw_mbs: raw_mbs.add("")
-                sorted_valid_mbs = sorted([float(x) for x in raw_mbs if x != ""])
+                # indice di k calcolato solo sui max_buff_size di P.1.1 (gli altri protocolli hanno buffer pieno)
+                sorted_valid_mbs = sorted({float(k_key[3]) for dk in data_in.keys() if dk.startswith("P.1.1")
+                                           for k_key in data_in.get(dk).keys()
+                                           if k_key[0] == a and str(k_key[1]) == str(ag) and len(k_key) > 3 and k_key[3] != ""})
                 N_mbs = len(sorted_valid_mbs)
                     
                 for m_b_s in raw_mbs:
@@ -2220,20 +2251,20 @@ class Data:
                                 ax[k][col].plot(np.arange(0.5, 1.01, 0.01), np.arange(0.5, 1.01, 0.01), color='black', lw=2, ls=':')
                                 
                             c_val = protocol_colors.get(dk, "gray")
-                            if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and N_mbs > 0:
+                            z = self._zorder(dk)
+                            if (dk == "P.1.1" or dk.startswith("P.1.1")) and m_b_s != "" and float(m_b_s) in sorted_valid_mbs:
                                 idx_mbs = sorted_valid_mbs.index(float(m_b_s))
-                                ratio = max(0.0, min(1.0, (idx_mbs + 1) / N_mbs))
-                                h_c, l_c, s_c = colorsys.rgb_to_hls(*colors.to_rgb(c_val))
-                                c_val = colorsys.hls_to_rgb(h_c, max(l_c, min(0.85, l_c + ((1.0-ratio) * 0.4))), s_c * (1.0 - ((1.0-ratio) * 0.3)))
+                                c_val = self._p11_color(scalarMap, N_mbs - 1 - idx_mbs)
+                                z = self._zorder(dk, N_mbs - 1 - idx_mbs)
 
-                            ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--')
-                            ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-')
-                            tax[k][col].plot(x_plot, times_v, color=c_val, lw=6)
+                            ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--', zorder=z)
+                            ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-', zorder=z)
+                            tax[k][col].plot(x_plot, times_v, color=c_val, lw=6, zorder=z)
                             if ci_entry is not None:
                                 v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds)
-                                self._fill_ci(ax[k][col], x_plot, v2_lo, v2_hi, color=c_val)
-                                self._fill_ci(ax[k][col], x_plot, v8_lo, v8_hi, color=c_val)
-                                self._fill_ci(tax[k][col], x_plot, t_lo, t_hi, color=c_val)
+                                self._fill_ci(ax[k][col], x_plot, v2_lo, v2_hi, color=c_val, zorder=z)
+                                self._fill_ci(ax[k][col], x_plot, v8_lo, v8_hi, color=c_val, zorder=z)
+                                self._fill_ci(tax[k][col], x_plot, t_lo, t_hi, color=c_val, zorder=z)
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
@@ -2251,16 +2282,18 @@ class Data:
 
 ###################################################
     def _borders_attributes(self, ax, tax, col, k, o_k, nrows, ncols, col_name):
-            from matplotlib.ticker import FixedLocator
+            from matplotlib.ticker import FixedLocator, MultipleLocator
     
             for a_curr in [ax[k][col], tax[k][col]]:
                 a_curr.set_xlim(0.5, 1.0)
                 a_curr.tick_params(axis='both', which='major')
     
             ax[k][col].set_ylim(0.5, 1.0)
-            if col_name == "LD25": tax[k][col].set_ylim(0, 201)
+            if col_name == "LD25": tax[k][col].set_ylim(0, 126)
             elif col_name == "HD25": tax[k][col].set_ylim(0, 51)
             elif col_name == "HD100": tax[k][col].set_ylim(0, 101)
+            # tick ogni 25, ogni 10 quando la scala e' piccola
+            tax[k][col].yaxis.set_major_locator(MultipleLocator(10 if tax[k][col].get_ylim()[1] <= 60 else 25))
     
             if col == 0:
                 ax[k][col].set_ylabel(r"$G$")
@@ -2326,7 +2359,7 @@ class Data:
             return
         fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8.6 * ncols, 8 * nrows), sharex=False, squeeze=False)
         cNorm = colors.Normalize(vmin=0, vmax=5)
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         
@@ -2338,9 +2371,9 @@ class Data:
         handles_r, l_list_r = [], []
         for pid in protocols_order:
             if pid in exclude_protocols or not self._protocol_enabled(pid): continue
-            protocol = self.protocols_by_id.get(pid)
-            handles_r.append(mlines.Line2D([], [], color=protocol_colors.get(pid, "black"), marker='s', linestyle='None', markeredgewidth=0, markersize=16))
-            l_list_r.append(protocol.get("label", pid) if protocol else pid)
+            for c_val, lbl in self._legend_entries(pid, protocol_colors.get(pid, "black"), scalarMap):
+                handles_r.append(mlines.Line2D([], [], color=c_val, marker='s', linestyle='None', markeredgewidth=0, markersize=16))
+                l_list_r.append(lbl)
         parsed_data = {r: {c: {pid: {gt: {} for gt in target_gts} for pid in protocols_order} for c in active_cols} for r in rows}
         
         for times_dict in tot_times_in:
@@ -2395,10 +2428,10 @@ class Data:
                     if pid == 'P.1.1':
                         sub_keys = sorted([dk for dk in parsed_data[r_val][c_val] if isinstance(dk, tuple)], key=lambda dk: dk[1])
                         for m_idx, dk in enumerate(sub_keys):
-                            curve_keys.append((dk, self._shade_color(protocol_colors.get(pid, "black"), (m_idx + 1) / len(sub_keys))))
+                            curve_keys.append((dk, self._p11_color(scalarMap, len(sub_keys) - 1 - m_idx), self._zorder(pid, len(sub_keys) - 1 - m_idx)))
                     else:
-                        curve_keys.append((pid, protocol_colors.get(pid, "black")))
-                for data_key, c_color in curve_keys:
+                        curve_keys.append((pid, protocol_colors.get(pid, "black"), self._zorder(pid)))
+                for data_key, c_color, z in curve_keys:
                     for gt_val in target_gts:
                         tau_dict = parsed_data[r_val][c_val][data_key][gt_val]
                         taus = sorted(list(tau_dict.keys()))
@@ -2432,8 +2465,8 @@ class Data:
                         
                         if valid_taus:
                             ls = '-' if gt_val == '0.8' else '--'
-                            curr_ax.plot(valid_taus, fitted_times, color=c_color, lw=6, ls=ls)
-                            self._fill_ci(curr_ax, valid_taus, np.array(ci_lo, dtype=float), np.array(ci_hi, dtype=float), color=c_color)
+                            curr_ax.plot(valid_taus, fitted_times, color=c_color, lw=6, ls=ls, zorder=z)
+                            self._fill_ci(curr_ax, valid_taus, np.array(ci_lo, dtype=float), np.array(ci_hi, dtype=float), color=c_color, zorder=z)
                 curr_ax.set_xlim(0.5, 1.0)
                 curr_ax.tick_params(axis='both', which='major')
                 if c_idx == 0:
@@ -2476,7 +2509,7 @@ class Data:
         path = self.base + "/proc_data/images/"
         if not os.path.exists(path):
             os.makedirs(path)
-        fig.savefig(os.path.join(path, "chronometric_function.pdf"), bbox_inches='tight')
+        fig.savefig(os.path.join(path, "chronometric_function.png"), bbox_inches='tight')
         plt.close(fig)
 
 ###################################################
@@ -2493,7 +2526,7 @@ class Data:
         ground_T, threshlds, dk_tot_states, dk_tot_times, o_k, [arena, agents], dk_tot_msgs, dk_stds_dict = self._group_tables(tot_states_in, tot_times_in, tot_msgs_in)
         typo = [0,1,2,3,4,5]
         cNorm = colors.Normalize(vmin=typo[0], vmax=typo[-1])
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         protocol_colors = {p.get("id"): self._protocol_color(p, scalarMap) for p in self.protocols}
         
         raw_all_tm = sorted([int(x) for x in o_k if x is not None and int(x) > 0])
@@ -2548,6 +2581,7 @@ class Data:
                 col_idx = 2 if num_agents == 100 else 1 if str(key[0]).startswith("small") and num_agents == 25 else 0
                 
                 c_val = base_color
+                z = self._zorder(dk)
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
                     val_mbs = float(key[3])
                     mbs_list = mbs_sorted_map.get(num_agents, [])
@@ -2555,10 +2589,8 @@ class Data:
                         diffs = [abs(val_mbs - x) for x in mbs_list]
                         if min(diffs) < 1e-3:
                             m_idx = diffs.index(min(diffs))
-                            cmap_k = plt.get_cmap('cool_r')
-                            k_color_ts = [0.25, 0.5, 0.75]
-                            c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
-                            c_val = cmap_k(c_t)
+                            c_val = self._p11_color(scalarMap, m_idx)
+                            z = self._zorder(dk, m_idx)
 
                 destinations = []
                 if is_p0:
@@ -2587,8 +2619,8 @@ class Data:
                     ci_vals = np.array(dk_stds_dict.get(dk).get(key)) / (num_agents - 1)
                     x_vals = np.arange(len(y_vals))
 
-                    target_ax.plot(x_vals, y_vals, color=c_val, lw=6, alpha=0.75)
-                    self._fill_ci(target_ax, x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val)
+                    target_ax.plot(x_vals, y_vals, color=c_val, lw=6, alpha=0.75, zorder=z)
+                    self._fill_ci(target_ax, x_vals, np.maximum(0, y_vals - ci_vals), np.minimum(1.0, y_vals + ci_vals), color=c_val, zorder=z)
 
                 if min_buf_plotted[col_idx] == 0:
                     min_buf_plotted[col_idx] = 1
@@ -2611,6 +2643,7 @@ class Data:
                     bands = {'v2': (v2_lo, v2_hi), 'v8': (v8_lo, v8_hi), 'vt': (t_lo, t_hi)}
 
                 c_val = base_color
+                z = self._zorder(dk)
                 if (dk == "P.1.1" or dk.startswith("P.1.1")) and len(key) > 3 and key[3] != "":
                     val_mbs = float(key[3])
                     mbs_list = mbs_sorted_map.get(num_agents, [])
@@ -2618,10 +2651,8 @@ class Data:
                         diffs = [abs(val_mbs - x) for x in mbs_list]
                         if min(diffs) < 1e-3:
                             m_idx = diffs.index(min(diffs))
-                            cmap_k = plt.get_cmap('cool_r')
-                            k_color_ts = [0.25, 0.5, 0.75]
-                            c_t = k_color_ts[m_idx] if m_idx < len(k_color_ts) else 0.72
-                            c_val = cmap_k(c_t)
+                            c_val = self._p11_color(scalarMap, m_idx)
+                            z = self._zorder(dk, m_idx)
 
                 destinations = []
                 if is_p0: destinations.extend(["main", "inset"])
@@ -2648,17 +2679,17 @@ class Data:
                             curr_ax = inset_axes_dict[(r_idx, col_idx)]
                         
                         ls = '--' if name == 'v2' else '-'
-                        curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=6, ls=ls, alpha=0.75)
+                        curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=6, ls=ls, alpha=0.75, zorder=z)
                         if name in bands:
-                            self._fill_ci(curr_ax, threshlds, bands[name][0], bands[name][1], color=c_val)
+                            self._fill_ci(curr_ax, threshlds, bands[name][0], bands[name][1], color=c_val, zorder=z)
                 
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
                     ax[1][col_idx].plot(ref_x, ref_x, color='black', lw=3, ls=':')
-        self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict)
+        self._finalize_compressed_plot(fig, ax, path, protocol_colors, threshlds, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict, scalarMap)
         
 ###################################################
-    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors, tau_ticks, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict=None):
+    def _finalize_compressed_plot(self, fig, ax, path, protocol_colors, tau_ticks, max_time, use_gradient, main_tm_list, insert_tm_list, inset_axes_dict=None, scalarMap=None):
         
         if inset_axes_dict is None:
             inset_axes_dict = {}
@@ -2706,24 +2737,12 @@ class Data:
         legend_elements = []
         handler_map = {}
         
-        cmap_k = plt.get_cmap('cool_r')
-        k_color_ts = [0.25, 0.5, 0.75]
-        k_labels = [r"K_1", r"K_2", r"K_3"]
 
         for p in self.protocols:
             p_id = p.get("id")
             if self._protocol_enabled(p_id):
-                if p_id == "P.1.1":
-                    base_lbl = p.get("label", p_id)
-                    for m_idx in range(3):
-                        c_t = k_color_ts[m_idx]
-                        lbl_k = k_labels[m_idx]
-                        if "^{K}" in base_lbl: lbl = base_lbl.replace("^{K}", rf"^{{{lbl_k}}}")
-                        elif "^K" in base_lbl: lbl = base_lbl.replace("^K", rf"^{{{lbl_k}}}")
-                        else: lbl = rf"{base_lbl} (${lbl_k}$)"
-                        legend_elements.append(Line2D([0], [0], color=cmap_k(c_t), marker='s', linestyle='None', markersize=16, label=lbl))
-                else:
-                    legend_elements.append(Line2D([0], [0], color=protocol_colors[p_id], marker='s', linestyle='None', markersize=16, label=p.get("label", p_id)))
+                for c_val, lbl in self._legend_entries(p_id, protocol_colors[p_id], scalarMap):
+                    legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=lbl))
 
         fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0), ncol=7, frameon=True, edgecolor='0.8')
         fig.savefig(os.path.join(path, "compressed_summary.pdf"), bbox_inches='tight', dpi=300)
@@ -2926,7 +2945,7 @@ class Data:
             axes = axes[:, np.newaxis]
             
         cNorm = colors.Normalize(vmin=0, vmax=5)
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap('viridis'))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=VIRIDIS)
         
         for i, tm in enumerate(rows):
             for j, col in enumerate(active_cols):
@@ -2959,14 +2978,16 @@ class Data:
                         
                     protocol = self.protocols_by_id.get(str(pid).split('|')[0], {})
                     c_val = self._protocol_color(protocol, scalarMap)
+                    z = self._zorder(pid)
                     if pid in p11_keys:
-                        c_val = self._shade_color(c_val, (p11_keys.index(pid) + 1) / len(p11_keys))
+                        c_val = self._p11_color(scalarMap, len(p11_keys) - 1 - p11_keys.index(pid))
+                        z = self._zorder(pid, len(p11_keys) - 1 - p11_keys.index(pid))
                     
                     # Chiusura del loop per evitare linee spezzate
                     plot_values = values + values[:1]
                     
                     # Aggiunti i marker sui vertici per renderli chiari anche nei casi critici
-                    ax.plot(angles, plot_values, color=c_val, linewidth=6, linestyle='solid')
+                    ax.plot(angles, plot_values, color=c_val, linewidth=6, linestyle='solid', zorder=z)
                     
         for i, tm in enumerate(rows):
             ax_right = axes[i][-1]
@@ -2977,13 +2998,11 @@ class Data:
         protocols_order = [p.get("id") for p in self.protocols if p.get("id")]
         for pid in protocols_order:
             if not self._protocol_enabled(pid): continue
-            protocol = self.protocols_by_id.get(pid, {})
-            c_val = self._protocol_color(protocol, scalarMap)
-            label = protocol.get("label", pid)
-            legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=label))
+            for c_val, label in self._legend_entries(pid, self._protocol_color(self.protocols_by_id.get(pid, {}), scalarMap), scalarMap):
+                legend_elements.append(Line2D([0], [0], color=c_val, marker='s', linestyle='None', markersize=16, label=label))
             
         fig.legend(handles=legend_elements, loc='lower center', ncol=min(7, len(legend_elements)), 
-                   bbox_to_anchor=(0.58, 0.02 if nrows > 1 else -0.1), framealpha=0.9, borderaxespad=0)
+                   bbox_to_anchor=(0.52, 0.02 if nrows > 1 else -0.1), framealpha=0.9, borderaxespad=0)
         
         fig.tight_layout()
         fig.subplots_adjust(right=0.88, bottom=0.08 if nrows > 1 else 0.15)

@@ -1,6 +1,6 @@
 import os, sys, logging, argparse
 import csv_results as CSVres
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 
 # Setup logging
 def setup_logging():
@@ -11,6 +11,7 @@ def setup_logging():
     )
 
 WEIB_IMAGES = False
+CHUNK_SIZE = 10
 
 # Fit di un gruppo di chiavi: il worker restituisce i risultati, la scrittura la fa il processo principale
 def process_chunk(chunk):
@@ -62,7 +63,7 @@ def main():
                             processed_keys.add(tuple(row[:10]))
             logging.info(f"Reading {file_path} : END")
 
-    tasks = []
+    raw_files = []
     for file_path in file_paths:
         file = os.path.basename(file_path)
         if "recovery_data_raw" in file:
@@ -74,29 +75,50 @@ def main():
                 val = s.split('#')
                 if len(val) > 1 and val[0] == 'a':
                     arena = val[1]
+            raw_files.append((file_path, algo, arena))
+
+    # i file RAW vengono letti in streaming: una configurazione alla volta, a gruppi verso i worker,
+    # con un numero limitato di gruppi in coda per tenere bassa la RAM
+    def iter_chunks(chunk_size=CHUNK_SIZE):
+        chunk = []
+        for file_path, algo, arena in raw_files:
             logging.info(f"Reading {file_path} : START")
-            data = csv_res.read_recovery_csv(file_path, algo, arena)
+            for key, runs_data in csv_res.iter_recovery_csv(file_path, algo, arena, processed_keys):
+                chunk.append((key, runs_data))
+                if len(chunk) >= chunk_size:
+                    yield chunk
+                    chunk = []
             logging.info(f"Reading {file_path} : END")
-            tasks.extend((k, v) for k, v in data.items() if k not in processed_keys)
-            del data
+        if chunk:
+            yield chunk
 
-    if not tasks:
-        logging.info("No new configurations to fit")
-        return
-
-    # gruppi di chiavi per ridurre l'overhead di comunicazione tra processi
-    n_workers = max(1, min(os.cpu_count() or 1, len(tasks)))
-    chunk_size = max(1, min(25, len(tasks) // (n_workers * 4) or 1))
-    chunks = [tasks[i:i + chunk_size] for i in range(0, len(tasks), chunk_size)]
-    logging.info(f"Starting {len(tasks)} fits on {n_workers} workers ({len(chunks)} chunks)")
+    n_workers = max(1, os.cpu_count() or 1)
+    max_pending = n_workers * 2
+    logging.info(f"Starting fits on {n_workers} workers")
 
     done = 0
-    with Pool(processes=n_workers, initializer=_init_worker, initargs=(args.weib_images,)) as pool:
-        for fitted, n in pool.imap_unordered(process_chunk, chunks):
+    pending = set()
+
+    def collect(finished):
+        nonlocal done
+        for fut in finished:
+            fitted, n = fut.result()
             csv_res.store_recovery(fitted)
             done += n
-            logging.info(f"[{done}/{len(tasks)}] fitted")
+            logging.info(f"[{done}] fitted")
 
+    with ProcessPoolExecutor(max_workers=n_workers, initializer=_init_worker, initargs=(args.weib_images,)) as pool:
+        for chunk in iter_chunks():
+            if len(pending) >= max_pending:
+                finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+                collect(finished)
+            pending.add(pool.submit(process_chunk, chunk))
+        finished, _ = wait(pending)
+        collect(finished)
+
+    if done == 0:
+        logging.info("No new configurations to fit")
+        return
     logging.info("All tasks completed.")
 
 if __name__ == "__main__":

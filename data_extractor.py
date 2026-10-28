@@ -159,21 +159,20 @@ class Results:
                 rows.append(v)
             counts = np.array([len(v) for v in rows], dtype=np.int64)
             vals = np.array([x for v in rows for x in v], dtype=np.int64)
-        if buf_cut > 0:
-            keep_n = np.maximum(np.minimum(counts, full_buff_size) - buf_cut, 0)
-        else:
-            keep_n = counts
-        keep_n = np.minimum(keep_n, max_buff_size)
+        # i messaggi oltre full_buff_size (n_agents-1) si scartano da sinistra,
+        # poi per P.1.1 si oscurano i buf_cut messaggi piu' a destra
+        skip_n = np.maximum(counts - full_buff_size, 0)
+        keep_n = np.minimum(np.maximum(np.minimum(counts, full_buff_size) - buf_cut, 0), max_buff_size)
         row_of = np.repeat(np.arange(n_rows), counts)
-        col_of = np.arange(vals.size) - np.repeat(np.cumsum(counts) - counts, counts)
-        sel = col_of < np.repeat(keep_n, counts)
+        col_of = np.arange(vals.size) - np.repeat(np.cumsum(counts) - counts, counts) - np.repeat(skip_n, counts)
+        sel = (col_of >= 0) & (col_of < np.repeat(keep_n, counts))
         offset = max_steps - n_rows
         out[offset + row_of[sel], col_of[sel]] = vals[sel]
         return out, n_rows
 
 ##########################################################################################################
     def extract_k_data(self,base,path_temp,max_steps,communication,n_agents,msg_exp_time,msg_hops,sub_path,states,buf_cut=0):
-        # buf_cut > 0 -> P.1.1: si oscurano gli ultimi buf_cut messaggi validi di ogni buffer
+        # buf_cut > 0 -> P.1.1: si oscurano buf_cut messaggi validi di ogni buffer, a destra
         x = 1
         full_buff_size = n_agents - x
         max_buff_size = full_buff_size - buf_cut

@@ -12,12 +12,10 @@ def setup_logging():
 
 # Check command line inputs
 # -t <ticks>  : ticks per second (default 10)
-# --p11       : compute only P.1.1 (P results, MsgExpTime > 0, X in [1, n/5, 2n/5])
 def check_inputs():
     ticks = 10
-    only_p11 = False
     args = sys.argv[1:]
-    if len(args) > 3:
+    if len(args) > 2:
         logging.error("Too many arguments --EXIT--")
         exit()
     i = 0
@@ -32,18 +30,15 @@ def check_inputs():
                 logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
                 exit()
             i += 2
-        elif args[i] == '--p11':
-            only_p11 = True
-            i += 1
         else:
-            logging.error("BAD format input\nusage: [-t <positive integer>] [--p11] --EXIT--")
+            logging.error("BAD format input\nusage: [-t <positive integer>] --EXIT--")
             exit()
     if ticks <= 0:
         logging.error("BAD format -t input type\nmust input a positive integer greater than zero --EXIT--")
         exit()
-    return ticks, only_p11
+    return ticks
 
-# Number of rightmost valid messages hidden from the buffers for P.1.1
+# Number of valid messages hidden from the buffers for P.1.1
 def p11_buf_cuts(n_agents):
     return sorted({1, n_agents // 5, 2 * n_agents // 5})
 
@@ -65,13 +60,13 @@ def process_folder(task):
 
 def main():
     setup_logging()
-    ticks_per_sec, only_p11 = check_inputs()
+    ticks_per_sec = check_inputs()
 
     tasks = []
 
     states_by_gt = {25:dex.Results().assign_states(25,100),100:dex.Results().assign_states(100,100)}
     for base in dex.Results().bases:
-        if only_p11 and not os.path.basename(base).lower().startswith("presults"): continue
+        is_p = os.path.basename(base).lower().startswith("presults")
         for adir in sorted(os.listdir(base)):
             if '.' not in adir and '#' in adir:
                 pre_apath = os.path.join(base, adir)
@@ -87,9 +82,8 @@ def main():
                                 for pre_folder in sorted(os.listdir(dtemp)):
                                     if '.' not in pre_folder:
                                         msg_exp_time = int(pre_folder.split('#')[-1])
-                                        # T_m = 0 resta solo per P.0
-                                        if only_p11 and msg_exp_time == 0: continue
-                                        buf_cuts = p11_buf_cuts(n_agents) if only_p11 else [0]
+                                        # P.0 (T_m = 0) e P.1.0 con buffer pieno; per T_m > 0 anche P.1.1 con X in [1, n/5, 2n/5]
+                                        buf_cuts = [0] + (p11_buf_cuts(n_agents) if is_p and msg_exp_time > 0 else [])
                                         sub_path = os.path.join(dtemp,pre_folder)
                                         for folder in sorted(os.listdir(sub_path)):
                                             if '.' not in folder:

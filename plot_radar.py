@@ -36,13 +36,56 @@ def get_protocol_id(algo, comm, msg_hops, max_buff_size, n_agents, msg_time):
 def base_protocol_id(pid):
     return str(pid).split('|')[0]
 
+def _ranking(entries, idx):
+    """Ordine dei protocolli (dal migliore) per la metrica in posizione idx; i valori mancanti vanno in fondo."""
+    valid = [(e[2], e[idx]) for e in entries if e[idx] is not None]
+    return [pid for pid, _ in sorted(valid, key=lambda x: -x[1])]
+
+def dump_accuracy_comparison(acc_compare, base_dir, acc_delta):
+    """
+    Salva radar_data/accuracy_comparison.csv con le tre versioni dell'accuratezza per ogni (T_m, scenario, protocollo)
+    e stampa, per ogni pannello del radar, l'ordine dei protocolli secondo ciascuna metrica,
+    segnalando i pannelli in cui l'ordine cambia rispetto alla metrica a isolinee.
+    """
+    out_dir = os.path.join(base_dir, "radar_data")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "accuracy_comparison.csv")
+    fmt = lambda x: "" if x is None else f"{x:.4f}"
+    with open(out_path, "w") as fw:
+        fw.write("\t".join(["Tm", "scenario", "protocol", "A_isoline", "A_pairwise_all",
+                            f"A_pairwise_delta{'' if acc_delta is None else acc_delta}"]) + "\n")
+        for tm, col, pid, a_iso, a_all, a_delta in acc_compare:
+            fw.write("\t".join([str(tm), col, pid, fmt(a_iso), fmt(a_all), fmt(a_delta)]) + "\n")
+
+    print("\n=== Accuracy: protocol ranking per panel (best first) ===")
+    panels = sorted({(e[0], e[1]) for e in acc_compare})
+    n_changed = 0
+    for tm, col in panels:
+        entries = [e for e in acc_compare if e[0] == tm and e[1] == col]
+        r_iso, r_all = _ranking(entries, 3), _ranking(entries, 4)
+        r_delta = _ranking(entries, 5) if acc_delta is not None else None
+        changed = r_iso != r_all or (r_delta is not None and r_iso != r_delta)
+        n_changed += int(changed)
+        print(f"[Tm={tm:>3} {col:>5}]{'  <-- ranking changes' if changed else ''}")
+        print(f"   isoline      : {' > '.join(r_iso)}")
+        print(f"   pairwise all : {' > '.join(r_all)}")
+        if r_delta is not None:
+            print(f"   pairwise d={acc_delta}: {' > '.join(r_delta)}")
+    print(f"Panels with a different ranking: {n_changed}/{len(panels)}")
+    print(f"Accuracy comparison saved to {out_path}\n")
+
 def main():
     parser = argparse.ArgumentParser(description="Generate radar plot grid synthesis for QS protocols.")
     parser.add_argument("--exclude-protocols", default="", help="Comma-separated protocol IDs to exclude")
     parser.add_argument("--exclude-tm", default="", help="Comma-separated Tm values to exclude")
     parser.add_argument("--short", default="", help="Use 's' command for short plot configurations")
+    parser.add_argument("--acc", default="pairwise", choices=["pairwise", "isoline"],
+                        help="Accuracy metric on the radar: 'pairwise' = mean of q(G,tau) (q=Q if G>=tau, 1-Q otherwise); "
+                             "'isoline' = old metric based on the Q=0.2/0.8 isolines")
+    parser.add_argument("--acc-delta", type=float, default=None,
+                        help="If set, the pairwise accuracy only uses pairs with |G - tau| <= delta (e.g. 0.1)")
     args = parser.parse_args()
-    
+
     exclude_protocols = [s.strip() for s in args.exclude_protocols.split(",") if s.strip()]
     exclude_tm = [s.strip() for s in args.exclude_tm.split(",") if s.strip()]
     use_short = "s" in [s.strip() for s in args.short.split(",") if s.strip()]
@@ -185,7 +228,8 @@ def main():
                 tau_f = float(thrlds)
                 
                 if len(v[0]) > 0:
-                    mean_Q = np.mean(v[0])
+                    # Q mediana nel tempo, arrotondata a 2 decimali: stessa logica delle isolinee di Fig. 2 (plot_active)
+                    median_Q = round(float(np.median(v[0])), 2)
                     latencies = times.get(k, ([], []))[0]
                     # La mediana corrisponde alla logica di print_active e print_borders
                     median_Tc = np.median(latencies) if len(latencies) > 0 else np.nan
@@ -208,10 +252,11 @@ def main():
                         if gt_f not in acc_matrix[tm][col_name][pid][tau_f]:
                             acc_matrix[tm][col_name][pid][tau_f][gt_f] = []
                             time_matrix[tm][col_name][pid][tau_f][gt_f] = []
-                        acc_matrix[tm][col_name][pid][tau_f][gt_f].append(mean_Q)
+                        acc_matrix[tm][col_name][pid][tau_f][gt_f].append(median_Q)
                         time_matrix[tm][col_name][pid][tau_f][gt_f].append(median_Tc)
 
         # Processamento delle matrici accumulate
+        acc_compare = []
         for tm in rows:
             for col in active_cols:
                 for pid in list(acc_matrix[tm][col].keys()):
@@ -223,7 +268,10 @@ def main():
                         
                     total_error = 0.0
                     valid_taus_count = 0
-                    
+                    # accuratezza pairwise: media di q(G,tau) sulle coppie testate
+                    q_sum_all, q_n_all = 0.0, 0
+                    q_sum_delta, q_n_delta = 0.0, 0
+
                     valid_times = []
                     
                     for tau, gt_dict in tau_dict.items():
@@ -241,7 +289,17 @@ def main():
                             current_gt = gts[idx]
                             
                             tval = np.median(t_dict[tau][current_gt])
-                            
+
+                            # q(G,tau) = Q se G >= tau (detection attesa), 1 - Q altrimenti (rejection attesa).
+                            # G = tau rientra nella detection, come nell'Eq. (1); il confronto e' arrotondato
+                            # a 2 cifre per evitare errori di floating point (G e tau sono multipli di 0.01)
+                            q_val = val if round(current_gt - tau, 2) >= 0 else 1.0 - val
+                            q_sum_all += q_val
+                            q_n_all += 1
+                            if args.acc_delta is not None and csv_res.g_tau_gap(current_gt, tau) <= args.acc_delta:
+                                q_sum_delta += q_val
+                                q_n_delta += 1
+
                             if val >= 0.8:
                                 # Calcolo tempo associato (Replica logica print_borders)
                                 if current_gt - tau >= 0.09 and (np.isnan(valst) or current_gt - tau < lim_valst):
@@ -274,13 +332,24 @@ def main():
                         if not np.isnan(valst):
                             valid_times.append(valst)
                         
+                    acc_iso = None
                     if valid_taus_count > 0:
                         mean_error = total_error / valid_taus_count
-                        accuracy = max(0.0, min(1.0, 1.0 - mean_error))
-                        raw_data_grid[tm][col][pid]['Acc'] = accuracy
-                        
+                        acc_iso = max(0.0, min(1.0, 1.0 - mean_error))
+                    acc_pair_all = q_sum_all / q_n_all if q_n_all > 0 else None
+                    acc_pair_delta = q_sum_delta / q_n_delta if q_n_delta > 0 else None
+
+                    if args.acc == "isoline":
+                        acc_used = acc_iso
+                    else:
+                        acc_used = acc_pair_delta if args.acc_delta is not None else acc_pair_all
+                    raw_data_grid[tm][col][pid]['Acc'] = acc_used
+                    acc_compare.append((tm, col, pid, acc_iso, acc_pair_all, acc_pair_delta))
+
                     if valid_times:
                         raw_data_grid[tm][col][pid]['Tc'] = np.mean(valid_times)
+
+        dump_accuracy_comparison(acc_compare, csv_res.base, args.acc_delta)
 
     # 3. Resilienza (Er) e Recovery Time (Tr)
     rec_base = os.path.join(csv_res.base, "rec_data")
@@ -291,6 +360,10 @@ def main():
 
     for key, value in tot_rec.items():
         alg, arena, time, broadcast, agents, buf, msgs, hops, gt, th = key[:10]
+
+        # Er e Tr solo sulle configurazioni difficili |G - tau| <= 0.05, come in Fig. 3 / S8
+        if csv_res.g_tau_gap(gt, th) > csv_res.HARD_BOUND:
+            continue
         
         pid = get_protocol_id(alg, broadcast, hops, buf, agents, msgs)
         if base_protocol_id(pid) not in csv_res.protocols_by_id: 
@@ -321,9 +394,11 @@ def main():
                 raw_data_grid[tm][col_name][pid]['Tr'].append(mean_time)
     # 4. Valori grezzi per il radar:
     #    M  -> scala assoluta (frazione in [0, 1])
-    #    A  -> 1 - errore medio delle isolinee (0.5 se l'isolinea non esiste)
+    #    A  -> default (--acc pairwise): media su (G, tau) di q = Q se G >= tau, 1 - Q altrimenti,
+    #          con Q mediana nel tempo (eventualmente solo |G - tau| <= --acc-delta);
+    #          --acc isoline: 1 - errore medio delle isolinee Q=0.2/0.8, come in Fig. 2 (0.5 se l'isolinea non esiste)
     #    Tc -> media delle latenze mediane sulle soglie in cui si ha detection
-    #    Er, Tr -> medie sulle configurazioni (G, tau), poi trasformate in log10
+    #    Er, Tr -> medie sulle configurazioni (G, tau) con |G - tau| <= 0.05, poi trasformate in log10
     #    La normalizzazione min-max per colonna avviene in process_and_plot_radar_grid.
     #    Un valore mancante (None) viene trattato come il peggiore della colonna.
     for tm in rows:
