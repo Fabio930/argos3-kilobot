@@ -389,6 +389,8 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
             gps_floor_color = color_q;
             if(init_received_B && init_control_received && !init_received_C){
                 init_received_C = true;
+                /* first vote 5 s after start, not on the first tick */
+                last_decision_ticks = kilo_ticks;
                 select_new_point(true);
                 set_motion(FORWARD);
             }

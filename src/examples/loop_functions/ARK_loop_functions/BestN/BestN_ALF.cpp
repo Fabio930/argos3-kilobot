@@ -84,7 +84,9 @@ void CBestN_ALF::SetupInitialKilobotStates(){
     m_vecKilobotOrientations.resize(m_tKilobotEntities.size());
     m_fMinTimeBetweenTwoMsg = Max<Real>(1.0, m_tKilobotEntities.size() * m_fTimeForAMessage / 3.0);
     UInt32 unTotalRobots = m_tKilobotEntities.size();
-    UInt32 unSpecialRobots = static_cast<UInt32>(unTotalRobots * init_distr);
+    /* round, not truncate: 0.7f * 100 would otherwise give 69 */
+    UInt32 unSpecialRobots = Min<UInt32>(unTotalRobots,
+        static_cast<UInt32>(std::round(unTotalRobots * Max<Real>(0.0, init_distr))));
     UInt8 unSpecialOption = 0; 
     if(bTargetRandomWorse && options > 1) {
         unSpecialOption = c_rng->Uniform(CRange<UInt32>(1, options)); 
@@ -111,9 +113,116 @@ void CBestN_ALF::SetupInitialKilobotStates(){
                 m_vecKilobotState[unKilobotID] = unSpecialOption;
             }
         }
+    }
+    PlaceKilobotsOnOwnOption();
+    for(UInt16 it = 0; it < unTotalRobots; it++) {
         SetupInitialKilobotState(*m_tKilobotEntities[it]);
     }
 }
+
+/****************************************/
+/****************************************/
+
+/* Move every robot onto a floor cell of its initial option, so its first floor
+ * sample agrees with the state it was given. Robots go to the centres of random
+ * free cells of their colour, one per cell (cells are wider than a kilobot). If a
+ * colour has fewer cells than robots, the extra robots are packed between the
+ * centres of that colour's cells. */
+void CBestN_ALF::PlaceKilobotsOnOwnOption(){
+    const UInt32 unRows = m_cGridFloor.Rows;
+    const UInt32 unCols = m_cGridFloor.Cols;
+    if(unRows == 0 || unCols == 0 || m_cGridFloor.ColorId.empty()) return;
+    const Real fCellX = 1.0 / m_cGridFloor.InvCellSizeX;
+    const Real fCellY = 1.0 / m_cGridFloor.InvCellSizeY;
+
+    /* Free cells per colour id, in random order */
+    std::vector<std::vector<UInt32>> vecFreeCells(256);
+    for(UInt32 i = 0; i < unRows * unCols; ++i) {
+        vecFreeCells[m_cGridFloor.ColorId[i]].push_back(i);
+    }
+    for(auto& vecCells : vecFreeCells) {
+        for(UInt32 i = vecCells.size(); i > 1; --i) {
+            std::swap(vecCells[i - 1], vecCells[c_rng->Uniform(CRange<UInt32>(0, i))]);
+        }
+    }
+    const std::vector<std::vector<UInt32>> vecAllCells = vecFreeCells;
+
+    auto CellPoint = [&](UInt32 unCell, Real fOffX, Real fOffY) {
+        return CVector3(m_fLimitMinX + ((unCell % unCols) + 0.5 + fOffX) * fCellX,
+                        m_fLimitMinY + ((unCell / unCols) + 0.5 + fOffY) * fCellY,
+                        0.0);
+    };
+
+    /* Pass 1: cell centres. Collisions are ignored because robots not yet moved
+     * still sit at their old spots; centres are a cell apart, so the end result
+     * has no overlaps. */
+    std::vector<CKilobotEntity*> vecOverflow;
+    std::vector<CVector2> vecPlaced;
+    for(CKilobotEntity* pcKb : m_tKilobotEntities) {
+        const UInt8 unColorId = static_cast<UInt8>(m_vecKilobotState[GetKilobotId(*pcKb)] + 1);
+        std::vector<UInt32>& vecCells = vecFreeCells[unColorId];
+        if(vecCells.empty()) {
+            vecOverflow.push_back(pcKb);
+            continue;
+        }
+        const UInt32 unCell = vecCells.back();
+        vecCells.pop_back();
+        CEmbodiedEntity& cBody = pcKb->GetEmbodiedEntity();
+        const CVector3 cPos = CellPoint(unCell, 0.0, 0.0);
+        MoveEntity(cBody, cPos, cBody.GetOriginAnchor().Orientation, false, true);
+        vecPlaced.push_back(CVector2(cPos.GetX(), cPos.GetY()));
+    }
+
+    /* Pass 2: robots that found no free cell centre. Candidate points sit inside
+     * the cells (between centres and near corners), tried in random order; a point
+     * is used if it is at least one kilobot diameter from every robot already
+     * placed. Distances are checked here because the physics collision check is not
+     * reliable before the first step. If the robot's own colour is full, it goes to
+     * any free point and an error is logged. */
+    const Real fMinSpacing = 0.034;   /* kilobot diameter 0.033 m */
+    const Real pfOffsets[] = { -0.49, -0.25, 0.0, 0.25, 0.49 };
+    auto Candidates = [&](const std::vector<UInt32>& vecCells) {
+        std::vector<CVector3> vecPts;
+        for(UInt32 unCell : vecCells)
+            for(Real fX : pfOffsets)
+                for(Real fY : pfOffsets)
+                    vecPts.push_back(CellPoint(unCell, fX, fY));
+        for(UInt32 i = vecPts.size(); i > 1; --i) {
+            std::swap(vecPts[i - 1], vecPts[c_rng->Uniform(CRange<UInt32>(0, i))]);
+        }
+        return vecPts;
+    };
+    auto TryPlace = [&](CKilobotEntity* pcKb, const std::vector<CVector3>& vecPts) {
+        for(const CVector3& cPos : vecPts) {
+            const CVector2 cPos2(cPos.GetX(), cPos.GetY());
+            bool bFree = true;
+            for(const CVector2& cOther : vecPlaced) {
+                if((cOther - cPos2).Length() < fMinSpacing) { bFree = false; break; }
+            }
+            if(!bFree) continue;
+            CEmbodiedEntity& cBody = pcKb->GetEmbodiedEntity();
+            MoveEntity(cBody, cPos, cBody.GetOriginAnchor().Orientation, false, true);
+            vecPlaced.push_back(cPos2);
+            return true;
+        }
+        return false;
+    };
+    std::vector<std::vector<CVector3>> vecCandidates(256);
+    std::vector<UInt32> vecEveryCell;
+    for(const auto& vecCells : vecAllCells) vecEveryCell.insert(vecEveryCell.end(), vecCells.begin(), vecCells.end());
+    std::vector<CVector3> vecAnywhere;
+    for(CKilobotEntity* pcKb : vecOverflow) {
+        const UInt8 unColorId = static_cast<UInt8>(m_vecKilobotState[GetKilobotId(*pcKb)] + 1);
+        if(vecCandidates[unColorId].empty()) vecCandidates[unColorId] = Candidates(vecAllCells[unColorId]);
+        if(TryPlace(pcKb, vecCandidates[unColorId])) continue;
+        if(vecAnywhere.empty()) vecAnywhere = Candidates(vecEveryCell);
+        const bool bElsewhere = TryPlace(pcKb, vecAnywhere);
+        LOGERR << "[BestN] kilobot " << GetKilobotId(*pcKb)
+               << ": no room on the cells of its initial option"
+               << (bElsewhere ? ", placed on another colour" : ", left at its start position") << std::endl;
+    }
+}
+
 /****************************************/
 /****************************************/
 

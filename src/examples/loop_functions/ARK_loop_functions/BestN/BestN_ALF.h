@@ -35,6 +35,9 @@ public:
     /** Setup virtual environment */
     void SetupVirtualEnvironments(TConfigurationNode& t_tree);
     void SetupFloorColorMap();
+
+    /** Moves each kilobot onto a floor cell of its initial option */
+    void PlaceKilobotsOnOwnOption();
     void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity);
 
     /** Get experiment variables */
