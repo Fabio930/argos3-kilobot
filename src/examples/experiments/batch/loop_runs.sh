@@ -34,7 +34,6 @@ experiment_length="2700"
 variation_time="0"
 RUNS=100
 options="$3"
-options_distrib="random"
 spatial_correlation="0"
 numrobots="100"
 comm_type_set="id_aware"
@@ -197,7 +196,6 @@ for exp_len_par in $experiment_length; do
                                                                     sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
                                                                     sed -i "s|__hop_count__|$hop_count|g" $config
                                                                     sed -i "s|__N_OPTIONS__|$options_par|g" $config
-                                                                    sed -i "s|__OPTS_DISTRIB__|$options_distrib|g" $config
                                                                     sed -i "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" $config
                                                                     sed -i "s|__ETA_INIT__|$eta_i_par|g" $config
                                                                     sed -i "s|__ETA_STOP__|$eta_s_par|g" $config

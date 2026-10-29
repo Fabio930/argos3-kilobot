@@ -329,7 +329,9 @@ void CBestN_ALF::SetupFloorColorMap() {
     vecAffinities.reserve(unTotalCells * M);
 
     const Real fMaxDist = std::sqrt(static_cast<Real>(m_cGridFloor.Rows * m_cGridFloor.Rows + m_cGridFloor.Cols * m_cGridFloor.Cols));
-    const Real fAlpha = Min<Real>(1.0, Max<Real>(0.0, m_fSpatialCorrelation));
+    /* The raw weight barely changes the floor below ~0.4 and acts mostly above 0.6;
+     * the 0.4 power spreads the effect so patch size grows about linearly over [0,1]. */
+    const Real fAlpha = std::pow(Min<Real>(1.0, Max<Real>(0.0, m_fSpatialCorrelation)), 0.4);
     std::uniform_real_distribution<Real> cDistNoise(0.0, 1.0);
 
     for (UInt32 r = 0; r < m_cGridFloor.Rows; ++r) {
