@@ -14,7 +14,7 @@ from lifelines.utils import median_survival_times
 from scipy.special import gamma
 from scipy.optimize import brentq
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-plt.rcParams.update({"font.size": 30})
+plt.rcParams.update({"font.size": 26})
 csv.field_size_limit(sys.maxsize)
 
 VIRIDIS = plt.get_cmap('viridis')
@@ -1589,7 +1589,7 @@ class Data:
                 for c_val, lbl in self._legend_entries(pid, variant_map[pid][1], scalarMap):
                     legend_elements.append(Line2D([0], [0], color=c_val, marker=marker_map.get(pid, 'o'), linestyle='None', markersize=14, label=lbl))
             
-            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.62, -0.1))
+            fig.legend(handles=legend_elements, loc='lower center', ncol=6, bbox_to_anchor=(0.58, -0.1))
             fig.tight_layout(rect=[0, 0.05, 1, 1])
             fig.savefig(os.path.join(images_dir, f"pareto_recovery.pdf"), bbox_inches='tight')
             plt.close(fig)
