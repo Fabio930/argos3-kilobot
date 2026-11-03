@@ -304,50 +304,97 @@ class Data:
         return entries
 
 ###################################################
+    def _isoline_cross(self, ground_T, q):
+        """
+        Isolinee Q=0.8 e Q=0.2 lungo G per una colonna tau, con Q interpolato linearmente tra G consecutivi:
+        v8 = primo G in cui Q raggiunge 0.8, v2 = ultimo G in cui Q vale al massimo 0.2.
+        Se gia' il G piu' basso ha Q >= 0.8 (o il piu' alto ha Q <= 0.2) si prende quel G;
+        NaN se Q non arriva mai a 0.8 (isolinea sopra la griglia) o non scende mai a 0.2 (sotto la griglia).
+        Alzando Q in ogni cella entrambe le isolinee scendono (o restano ferme).
+        Restituisce (v2, v8).
+        """
+        G = np.asarray(ground_T, dtype=float)
+        q = np.array([np.nan if v is None else v for v in q], dtype=float)
+        ok = ~np.isnan(q)
+        G, q = G[ok], q[ok]
+        o = np.argsort(G, kind='stable')
+        G, q = G[o], q[o]
+        v2 = v8 = np.nan
+        up = np.flatnonzero(q >= 0.8)
+        if up.size:
+            i = up[0]
+            v8 = G[0] if i == 0 else G[i-1] + (0.8 - q[i-1]) * (G[i] - G[i-1]) / (q[i] - q[i-1])
+        down = np.flatnonzero(q <= 0.2)
+        if down.size:
+            j = down[-1]
+            v2 = G[-1] if j == len(q) - 1 else G[j] + (0.2 - q[j]) * (G[j+1] - G[j]) / (q[j+1] - q[j])
+        return float(v2), float(v8)
+
+###################################################
     def _isolines(self, state_grid, time_grid, ground_T, threshlds):
         """
-        Isolinee Q=0.2 e Q=0.8 (G in funzione di tau, per interpolazione lineare) e tempo di
-        riconoscimento associato. Restituisce (v2, v8, vt, sel) dove sel[th] e' l'indice di G
-        da cui e' preso il tempo (None se non trovato).
+        Isolinee Q=0.2 e Q=0.8 (G in funzione di tau, vedi _isoline_cross) e tempo di riconoscimento associato.
+        state_grid[G][tau] e' il valore finale di Q(t) (ultimo tick, media sulle run).
+        Il tempo e' quello del G piu' vicino a tau + 0.09 tra quelli con Q >= 0.8 e G - tau >= 0.09.
+        Restituisce (v2, v8, vt, sel) dove sel[th] e' l'indice di G da cui e' preso il tempo (None se non trovato).
         """
         v2, v8, vt, sel = [], [], [], []
         for th in range(len(threshlds)):
-            vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
+            col = [state_grid[pt][th] for pt in range(len(ground_T))]
+            a2, a8 = self._isoline_cross(ground_T, col)
             valst, lim_valst, sel_pt = np.nan, np.nan, None
             for pt in range(len(ground_T)):
-                val = state_grid[pt][th]
-                if val is None: continue
+                val = col[pt]
+                if val is None or np.isnan(val) or val < 0.8: continue
                 diff = ground_T[pt] - threshlds[th]
-                if val >= 0.8:
-                    if diff >= 0.09 and (np.isnan(valst) or diff < lim_valst):
-                        valst, lim_valst, sel_pt = (time_grid[pt][th] if time_grid is not None else np.nan), diff, pt
-                    if diff >= 0 and (np.isnan(vals8[1]) or val < vals8[1]):
-                        vals8[1], gt8[1] = val, ground_T[pt]
-                elif val <= 0.2:
-                    if diff <= 0 and (np.isnan(vals2[0]) or val >= vals2[0]):
-                        vals2[0], gt2[0] = val, ground_T[pt]
-                else:
-                    if np.isnan(vals8[0]) or val > vals8[0]: vals8[0], gt8[0] = val, ground_T[pt]
-                    if np.isnan(vals2[1]) or val < vals2[1]: vals2[1], gt2[1] = val, ground_T[pt]
-            if np.isnan(vals8[0]): vals8[0], gt8[0] = vals8[1], gt8[1]
-            elif np.isnan(vals8[1]): vals8[1], gt8[1] = vals8[0], gt8[0]
-            if np.isnan(vals2[0]): vals2[0], gt2[0] = vals2[1], gt2[1]
-            elif np.isnan(vals2[1]): vals2[1], gt2[1] = vals2[0], gt2[0]
-            v2.append(np.interp([0.2], vals2, gt2, left=np.nan)[0])
-            v8.append(np.interp([0.8], vals8, gt8, right=np.nan)[0])
-            vt.append(valst)
-            sel.append(sel_pt)
+                if diff >= 0.09 and (np.isnan(valst) or diff < lim_valst):
+                    valst, lim_valst, sel_pt = (time_grid[pt][th] if time_grid is not None else np.nan), diff, pt
+            v2.append(a2); v8.append(a8); vt.append(valst); sel.append(sel_pt)
         return np.array(v2, dtype=float), np.array(v8, dtype=float), np.array(vt, dtype=float), sel
 
 ###################################################
-    def _isoline_bands(self, ci_entry, sel, ground_T, threshlds):
-        """Bande CI 95% di isolinee e tempi: (v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi)."""
+    def _isoline_bands(self, ci_entry, sel, ground_T, threshlds, central=None):
+        """
+        Bande CI 95% di isolinee e tempi: (v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi).
+        Isolinee: ricalcolate sulle griglie Q(T) + ci_95(T) (limite inferiore) e Q(T) - ci_95(T) (limite
+        superiore), con Q(T) valore finale e ci_95 il suo CI 95% sulle run. Con _isoline_cross alzare Q abbassa
+        le isolinee, quindi la banda contiene sempre l'isolinea centrale. Se su una delle due griglie l'isolinea
+        esce dalla griglia di G, quel limite si porta al bordo (G minimo o massimo).
+        Spostare tutte le celle insieme equivale a supporle perfettamente correlate (vengono dalle stesse
+        simulazioni): la stima e' conservativa.
+        Tempi: CI 95% della mediana sulle run, nel punto sel scelto da _isolines.
+        central = (v2, v8, vt) centrali: la banda viene lasciata vuota (NaN) dove la curva centrale non esiste.
+        """
         q_lo, q_hi, t_lo, t_hi = ci_entry
-        a2, a8, _, _ = self._isolines(q_lo, None, ground_T, threshlds)
-        b2, b8, _, _ = self._isolines(q_hi, None, ground_T, threshlds)
+        g_min, g_max = float(np.min(ground_T)), float(np.max(ground_T))
+        lo2, lo8, _, _ = self._isolines(q_hi, None, ground_T, threshlds)
+        hi2, hi8, _, _ = self._isolines(q_lo, None, ground_T, threshlds)
+
+        def to_edge(lo, hi):
+            lo, hi = lo.copy(), hi.copy()
+            lo[np.isnan(lo) & ~np.isnan(hi)] = g_min
+            hi[np.isnan(hi) & ~np.isnan(lo)] = g_max
+            return lo, hi
+
+        v2_lo, v2_hi = to_edge(lo2, hi2)
+        v8_lo, v8_hi = to_edge(lo8, hi8)
         tl = np.array([t_lo[p][th] if p is not None else np.nan for th, p in enumerate(sel)], dtype=float)
         th_ = np.array([t_hi[p][th] if p is not None else np.nan for th, p in enumerate(sel)], dtype=float)
-        return np.fmin(a2, b2), np.fmax(a2, b2), np.fmin(a8, b8), np.fmax(a8, b8), tl, th_
+        if central is not None:
+            for arrs, c in zip(((v2_lo, v2_hi), (v8_lo, v8_hi), (tl, th_)), central):
+                miss = np.isnan(np.asarray(c, dtype=float))
+                for a in arrs: a[miss] = np.nan
+        return v2_lo, v2_hi, v8_lo, v8_hi, tl, th_
+
+###################################################
+    def _time_tick_step(self, t_max):
+        return 10 if t_max <= 60 else (25 if t_max <= 250 else 50)
+
+    def _time_axis_top(self, t_max, default):
+        # limite superiore dell'asse dei tempi: sopra il massimo disegnato (CI compreso), multiplo del passo dei tick
+        if not np.isfinite(t_max) or t_max <= 0: return default
+        step = self._time_tick_step(t_max)
+        return (np.floor(t_max / step) + 1) * step
 
 ###################################################
     def _show_ci(self):
@@ -2069,7 +2116,8 @@ class Data:
         pids = ["P.0", "P.1.0", "P.1.1", "O.0.0", "O.2.0", "O.1.1", "O.1.0"]
         states_dict = {pid: {} for pid in pids}
         times_dict = {pid: {} for pid in pids}
-        # CI 95% per chiave: (Q_lo, Q_hi, T_lo, T_hi), letti da print_borders e plot_compressed_table
+        # CI 95% per chiave: (Q_lo, Q_hi, T_lo, T_hi), letti da print_borders e plot_compressed_table.
+        # Q e' il valore finale di Q(t) (ultimo tick, media sulle run), Q_lo/Q_hi = Q(T) -/+ ci_95(T)
         self.active_ci = {pid: {} for pid in pids}
         def put(pid, key, vals, times_median, ci_entry):
             states_dict[pid][key] = vals
@@ -2110,7 +2158,7 @@ class Data:
                                                         continue
                                                     vals            = []
                                                     times_median    = []
-                                                    # CI 95%: Q da mean +/- ci per tick, tempi dal CI della mediana sulle run
+                                                    # CI 95%: Q(T) +/- ci_95(T) all'ultimo tick, tempi dal CI della mediana sulle run
                                                     vals_lo, vals_hi, t_lo, t_hi = [], [], [], []
                                                     for gt in ground_T:
                                                         tmp, tmp_tmed = [], []
@@ -2123,9 +2171,11 @@ class Data:
                                                                 q_mean = np.asarray(s_data[0], dtype=float)
                                                                 q_ci = np.asarray(s_data[1], dtype=float)
                                                                 if q_ci.shape != q_mean.shape: q_ci = np.zeros_like(q_mean)
-                                                                tmp.append(round(np.median(q_mean),2))
-                                                                tmp_lo.append(round(np.median(q_mean - q_ci),2))
-                                                                tmp_hi.append(round(np.median(q_mean + q_ci),2))
+                                                                # valore finale di Q(t) e suo CI 95% sulle run (non arrotondato:
+                                                                # ci_95 ha 3 decimali e l'arrotondamento restringerebbe la banda)
+                                                                tmp.append(round(float(q_mean[-1]),2))
+                                                                tmp_lo.append(float(q_mean[-1] - q_ci[-1]))
+                                                                tmp_hi.append(float(q_mean[-1] + q_ci[-1]))
                                                                 tmp_tmed.append(round(np.median(t_data[0]),2))
                                                                 tlo, thi = self._median_ci(t_data[0])
                                                                 tmp_tlo.append(tlo); tmp_thi.append(thi)
@@ -2205,6 +2255,7 @@ class Data:
         tfig, tax   = plt.subplots(nrows=nrows, ncols=ncols,figsize=(8*ncols,5.5*nrows), sharex=False, squeeze=False)
         
         attributes_row_col = np.zeros((nrows,ncols))
+        col_tmax = {}
 
         for a in arena:
             agents_list = ["25"] if a=="smallA" else more_k[1]
@@ -2260,15 +2311,26 @@ class Data:
                             ax[k][col].plot(x_plot, vals_v2, color=c_val, lw=6, ls='--', zorder=z)
                             ax[k][col].plot(x_plot, vals_v8, color=c_val, lw=6, ls='-', zorder=z)
                             tax[k][col].plot(x_plot, times_v, color=c_val, lw=6, zorder=z)
+                            shown_t = [times_v]
                             if ci_entry is not None:
-                                v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds)
+                                v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds, (vals_v2, vals_v8, times_v))
                                 self._fill_ci(ax[k][col], x_plot, v2_lo, v2_hi, color=c_val, zorder=z)
                                 self._fill_ci(ax[k][col], x_plot, v8_lo, v8_hi, color=c_val, zorder=z)
                                 self._fill_ci(tax[k][col], x_plot, t_lo, t_hi, color=c_val, zorder=z)
+                                if self._show_ci(): shown_t.append(t_hi)
+                            for arr in shown_t:
+                                if np.any(~np.isnan(arr)): col_tmax[col] = max(col_tmax.get(col, 0.0), float(np.nanmax(arr)))
 
                             if attributes_row_col[k][col] == 0:
                                 attributes_row_col[k][col] = 1
                                 self._borders_attributes(ax, tax, col, k, o_k, nrows, ncols, col_name)
+
+        # asse y dei tempi: per colonna, contiene il massimo dei valori disegnati (CI compreso)
+        for col, t_max in col_tmax.items():
+            if t_max <= 0: continue
+            for k in range(nrows):
+                tax[k][col].set_ylim(0, self._time_axis_top(t_max, None))
+                tax[k][col].yaxis.set_major_locator(MultipleLocator(self._time_tick_step(t_max)))
 
         fig.tight_layout()
         tfig.tight_layout()
@@ -2549,7 +2611,7 @@ class Data:
         
         min_buf_plotted = np.zeros(3)
         mid_act_plotted = np.zeros(3)
-        max_time = 0
+        max_time = {"main": 0.0, "inset": 0.0}
         ref_x = np.arange(0.5, 1.01, 0.01)
         
         inset_axes_dict = {}
@@ -2635,11 +2697,10 @@ class Data:
                 time_series = tot_times.get(key)
                 
                 v2, v8, vt, sel = self._isolines(state_series, time_series, ground_T, threshlds)
-                if np.any(~np.isnan(vt)): max_time = max(max_time, float(np.nanmax(vt)))
                 ci_entry = getattr(self, "active_ci", {}).get(dk, {}).get(key)
                 bands = {}
                 if ci_entry is not None:
-                    v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds)
+                    v2_lo, v2_hi, v8_lo, v8_hi, t_lo, t_hi = self._isoline_bands(ci_entry, sel, ground_T, threshlds, (v2, v8, vt))
                     bands = {'v2': (v2_lo, v2_hi), 'v8': (v8_lo, v8_hi), 'vt': (t_lo, t_hi)}
 
                 c_val = base_color
@@ -2682,6 +2743,10 @@ class Data:
                         curr_ax.plot(threshlds, data_to_plot, color=c_val, lw=6, ls=ls, alpha=0.75, zorder=z)
                         if name in bands:
                             self._fill_ci(curr_ax, threshlds, bands[name][0], bands[name][1], color=c_val, zorder=z)
+                        if name == 'vt':
+                            shown_t = [data_to_plot] + ([bands['vt'][1]] if 'vt' in bands and self._show_ci() else [])
+                            for arr in shown_t:
+                                if np.any(~np.isnan(arr)): max_time[target_type] = max(max_time[target_type], float(np.nanmax(arr)))
                 
                 if mid_act_plotted[col_idx] == 0:
                     mid_act_plotted[col_idx] = 1
@@ -2709,7 +2774,7 @@ class Data:
                     curr.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                     curr.set_xticklabels([])
                 elif i == 2:
-                    curr.set_xlim(0.5, 1); curr.set_ylim(0, 201)
+                    curr.set_xlim(0.5, 1); curr.set_ylim(0, self._time_axis_top(max_time.get("main", 0.0), 201))
                     curr.xaxis.set_major_locator(MultipleLocator(0.1))
                     curr.set_xlabel(r"$\tau$")
                 
@@ -2730,7 +2795,7 @@ class Data:
                         labelleft=False if i<2 else True, labelright=False
                     )
                     ins_ax.set_xlim(curr.get_xlim())
-                    ins_ax.set_ylim(curr.get_ylim()) if i<2 else ins_ax.set_ylim(0,101)
+                    ins_ax.set_ylim(curr.get_ylim()) if i<2 else ins_ax.set_ylim(0, self._time_axis_top(max_time.get("inset", 0.0), 101))
 
         ax[0][0].set_ylabel(r"$M$"); ax[1][0].set_ylabel(r"$G$"); ax[2][0].set_ylabel(r"$T_c$")
         

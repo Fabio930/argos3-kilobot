@@ -63,7 +63,8 @@ class Results:
         m1_arr = np.asarray(m1)
         if base_mask is None: base_mask = (m1_arr - 1 >= self.min_buff_dim)
         if m1_float is None: m1_float = m1_arr.astype(float)
-        return (base_mask & (np.asarray(m2, dtype=float) >= threshold * m1_float)).view(np.int8)
+        # tolleranza: in virgola mobile 0.56*25 > 14, e il caso di uguaglianza (quorum) andrebbe perso
+        return (base_mask & (np.asarray(m2, dtype=float) >= threshold * m1_float - 1e-9)).view(np.int8)
 
 ##########################################################################################################
     def compute_recovery(self,algo,runs,arenaS,communication,n_agents,buf_dim,msg_hops,gt,thr,quorums,buffers,msg_exp_time,base_mask=None):
@@ -392,7 +393,8 @@ class Results:
     def assign_states(self, n_agents, num_runs):
         states_by_gt = np.zeros((len(self.ground_truth), num_runs, n_agents), dtype=int)
         for gt_idx, gt_value in enumerate(self.ground_truth):
-            num_committed = math.ceil(n_agents * gt_value)
+            # round e non ceil: in virgola mobile 25*0.56 = 14.000000000000002 e ceil darebbe 15 (G effettivo 0.60)
+            num_committed = int(round(n_agents * gt_value))
             for run_idx in range(num_runs):
                 committed_indices = np.random.choice(n_agents, num_committed, replace=False)
                 states_by_gt[gt_idx, run_idx, committed_indices] = 1

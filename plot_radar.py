@@ -228,8 +228,8 @@ def main():
                 tau_f = float(thrlds)
                 
                 if len(v[0]) > 0:
-                    # Q mediana nel tempo, arrotondata a 2 decimali: stessa logica delle isolinee di Fig. 2 (plot_active)
-                    median_Q = round(float(np.median(v[0])), 2)
+                    # valore finale di Q(t) (ultimo tick, media sulle run): stessa logica delle isolinee di Fig. 2 (plot_active)
+                    final_Q = round(float(v[0][-1]), 2)
                     latencies = times.get(k, ([], []))[0]
                     # La mediana corrisponde alla logica di print_active e print_borders
                     median_Tc = np.median(latencies) if len(latencies) > 0 else np.nan
@@ -252,7 +252,7 @@ def main():
                         if gt_f not in acc_matrix[tm][col_name][pid][tau_f]:
                             acc_matrix[tm][col_name][pid][tau_f][gt_f] = []
                             time_matrix[tm][col_name][pid][tau_f][gt_f] = []
-                        acc_matrix[tm][col_name][pid][tau_f][gt_f].append(median_Q)
+                        acc_matrix[tm][col_name][pid][tau_f][gt_f].append(final_Q)
                         time_matrix[tm][col_name][pid][tau_f][gt_f].append(median_Tc)
 
         # Processamento delle matrici accumulate
@@ -281,9 +281,7 @@ def main():
                         # Estrazione del tempo corrispondente alla logica del bordo
                         # In print_borders, si registra il tempo quando Q raggiunge 0.8 e (gt - tau) è minimizzato oltre 0.09
                         valst, lim_valst = np.nan, np.nan
-                        
-                        vals2, vals8, gt2, gt8 = [np.nan]*2, [np.nan]*2, [np.nan]*2, [np.nan]*2
-                        
+
                         for idx in range(len(gts)):
                             val = Qs[idx]
                             current_gt = gts[idx]
@@ -305,22 +303,9 @@ def main():
                                 if current_gt - tau >= 0.09 and (np.isnan(valst) or current_gt - tau < lim_valst):
                                     valst, lim_valst = tval, current_gt - tau
                                     
-                                if current_gt - tau >= 0 and (np.isnan(vals8[1]) or val < vals8[1]):
-                                    vals8[1], gt8[1] = val, current_gt
-                            elif val <= 0.2:
-                                if current_gt - tau <= 0 and (np.isnan(vals2[0]) or val >= vals2[0]):
-                                    vals2[0], gt2[0] = val, current_gt
-                            else:
-                                if np.isnan(vals8[0]) or val > vals8[0]: vals8[0], gt8[0] = val, current_gt
-                                if np.isnan(vals2[1]) or val < vals2[1]: vals2[1], gt2[1] = val, current_gt
 
-                        if np.isnan(vals8[0]): vals8[0], gt8[0] = vals8[1], gt8[1]
-                        elif np.isnan(vals8[1]): vals8[1], gt8[1] = vals8[0], gt8[0]
-                        if np.isnan(vals2[0]): vals2[0], gt2[0] = vals2[1], gt2[1]
-                        elif np.isnan(vals2[1]): vals2[1], gt2[1] = vals2[0], gt2[0]
-                        
-                        v2_interp = np.interp([0.2], vals2, gt2, left=np.nan)[0]
-                        v8_interp = np.interp([0.8], vals8, gt8, right=np.nan)[0]
+                        # isolinee lungo G con la stessa regola di print_borders (primo G con Q >= 0.8, ultimo con Q <= 0.2)
+                        v2_interp, v8_interp = csv_res._isoline_cross(gts, Qs)
                         
                         error_v2 = abs(v2_interp - tau) if not np.isnan(v2_interp) else 0.5
                         error_v8 = abs(v8_interp - tau) if not np.isnan(v8_interp) else 0.5
@@ -395,7 +380,7 @@ def main():
     # 4. Valori grezzi per il radar:
     #    M  -> scala assoluta (frazione in [0, 1])
     #    A  -> default (--acc pairwise): media su (G, tau) di q = Q se G >= tau, 1 - Q altrimenti,
-    #          con Q mediana nel tempo (eventualmente solo |G - tau| <= --acc-delta);
+    #          con Q valore finale di Q(t) (eventualmente solo |G - tau| <= --acc-delta);
     #          --acc isoline: 1 - errore medio delle isolinee Q=0.2/0.8, come in Fig. 2 (0.5 se l'isolinea non esiste)
     #    Tc -> media delle latenze mediane sulle soglie in cui si ha detection
     #    Er, Tr -> medie sulle configurazioni (G, tau) con |G - tau| <= 0.05, poi trasformate in log10
