@@ -414,11 +414,15 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
                     my_state = (uint8_t)(sa_payload & 0x7F);
                     init_control_received = true;
                     update_debug_led();
+                    /* r starts from its base value (its value at quorum 0): the assigned value if static */
+                    if(!init_received_C) control_value = compute_r_threshold(0);
                 }
                 else if(kb_index == 2){
                     control_parameter_q = (uint8_t)(sa_payload & 0x7F);
                     float temp_cp = control_parameter_q / 127.0f;
                     control_parameter = (uint8_t)roundf(temp_cp * 100.0f);
+                    /* Same as above, whichever of control mode and parameter arrives last */
+                    if(!init_received_C) control_value = compute_r_threshold(0);
                 }
             }
             break;
