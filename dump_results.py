@@ -39,9 +39,11 @@ def check_inputs():
 
 # Process folder with retries and memory management
 def process_folder(task):
-    ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par = task
+    ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par,setting,hop_count = task
     results = dex.Results()
     results.ticks_per_sec = ticks_per_sec
+    results.setting = setting
+    results.hop_count = hop_count
     try:
         results.extract_data(ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par)
     except KeyError as e:
@@ -50,9 +52,14 @@ def process_folder(task):
         logging.error(f"Error processing {path}: {e}")
         logging.debug(f"Exception details: {e}", exc_info=True)
     finally:
-        del results, ticks_per_sec,path,exp_length,variation_time,spat_corr,communication,adaptive_com,comm_type,id_aware,priority_k,n_agents,msg_exp_time,msg_hops,n_options,eta,eta_stop,init_distr,function,vote_msg,ctrl_par
+        del results, task
 
-def convert_csv_results_to_pickle(output_dir="proc_data"):
+def merge_csv_results_into_pickle(output_dir="proc_data"):
+    """Move the rows of the new CSV files into the Pickle file with the same name.
+
+    Rows already in the Pickle file are kept; a setting processed again replaces
+    its old rows (same 'setting' and 'option_id'), so nothing is overwritten or duplicated.
+    """
     output_path = Path(os.path.abspath("")) / output_dir
     if not output_path.exists():
         logging.info(f"No CSV conversion needed: {output_path} does not exist.")
@@ -68,17 +75,29 @@ def convert_csv_results_to_pickle(output_dir="proc_data"):
     for csv_file in csv_files:
         pkl_file = csv_file.with_suffix(".pkl")
         try:
-            df = pd.read_csv(csv_file, sep="\t")
-            df.to_pickle(pkl_file)
+            new_df = pd.read_csv(csv_file, sep="\t")
+            if pkl_file.exists():
+                old_df = pd.read_pickle(pkl_file)
+                df = pd.concat([old_df, new_df], ignore_index=True)
+            else:
+                df = new_df
+            if "setting" in df.columns:
+                keys = ["setting"] + (["option_id"] if "option_id" in df.columns else [])
+                has_key = df["setting"].notna()
+                keyed = df[has_key].drop_duplicates(subset=keys, keep="last")
+                df = pd.concat([df[~has_key], keyed], ignore_index=True)
+            tmp_file = pkl_file.with_suffix(".pkl.tmp")
+            df.to_pickle(tmp_file)
+            os.replace(tmp_file, pkl_file)
             os.remove(csv_file)
             converted += 1
-            logging.info(f"Converted {csv_file} -> {pkl_file} and removed CSV.")
+            logging.info(f"Merged {csv_file} into {pkl_file} ({len(df)} rows) and removed CSV.")
         except Exception as e:
             failed += 1
             logging.error(f"Error converting {csv_file}: {e}")
             logging.debug(f"Exception details: {e}", exc_info=True)
 
-    logging.info(f"CSV to PKL conversion completed. Converted={converted}, Failed={failed}.")
+    logging.info(f"CSV to PKL merge completed. Merged={converted}, Failed={failed}.")
 
 def main():
     setup_logging()
@@ -109,6 +128,10 @@ def main():
     }
     required_keys = {v[0] for v in prefix_map.values()}
 
+    # Rows left in CSV files by an interrupted run go into the Pickle files first
+    merge_csv_results_into_pickle()
+    done = dex.done_settings()
+
     for base in dex.Results().bases:
         leaf_dirs = set()
         for root, _dirs, files in os.walk(base):
@@ -137,6 +160,13 @@ def main():
 
             comm_type = meta["comm_type"]
             id_aware = 0 if comm_type == "anon" else 1
+            # Same rule as loop_runs.sh: hop count only with rebroadcast 1
+            hop_count = 1 if (id_aware and meta["communication"] == 1) else 0
+            setting = str(Path(os.path.basename(base)) / Path(leaf).relative_to(base))
+            n_runs = len(list(Path(leaf).glob("*.tsv"))) // max(1, meta["n_agents"])
+            if done.get(setting) == n_runs:
+                logging.info(f"Already processed ({n_runs} runs): {setting}")
+                continue
 
             queue.put((
                 ticks_per_sec,
@@ -159,6 +189,8 @@ def main():
                 meta["function"],
                 meta["vote_msg"],
                 meta["ctrl_par"],
+                setting,
+                hop_count,
             ))
 
     gc.collect()
@@ -240,7 +272,7 @@ def main():
         time.sleep(.5)  # Avoid busy-waiting
 
     logging.info("All tasks completed.")
-    convert_csv_results_to_pickle()
+    merge_csv_results_into_pickle()
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,22 @@
-import os, re, logging
+"""Condensed hybrid plots: ARGoS time series next to the boxplot of the agent-based (Python) model.
+
+One figure for every tested ARGoS setting that the panels do not show:
+number of options, spatial correlation, rebroadcast policy (and hop count),
+message expiring time, arena and number of runs. Inside a figure, rows are the
+control functions and columns the number of voting messages m; the inset shows
+the second eta of that number of options.
+
+The Python boxplot of a panel is built from the runs of the same setting:
+message_timeout matched through MSG_TIME_MAP, quorum minimum 5, same initial
+distribution, same control function and value, same m. When the ARGoS eta is
+not in the Python grid, the two Python eta values around it (+-0.02) are
+averaged run by run. Python has no space, so the same box goes into the panels
+of every spatial correlation.
+
+Usage: python3 plot_results.py [--python-data DIR]
+Reading the Python Parquet files needs pyarrow (e.g. the venv of quorum_sensing_Best_of_N).
+"""
+import argparse, os, re, logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,6 +26,23 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 18})
+
+# ARGoS mean message lifetime (s) -> Python message_timeout (decisions); a decision every 5.1 s
+MSG_TIME_MAP = {14: 3, 29: 6, 59: 12, 120: 24, 242: 48}
+PY_QUORUM_MIN = 5            # min_quorum_length of the kilobots (bestN.c)
+PY_ETA_HALF_STEP = 0.02      # Python eta grid step is 0.04
+ETAS_BY_OPTIONS = {2: (0.5, 0.4), 5: (0.8, 0.7)}   # (main panel, inset)
+ALL_CONFIGS = [
+    {'label': r'$r=0.8$', 'func': 'static', 'ctrl': 0.8},
+    {'label': r'$r(q)=q$', 'func': 'linear', 'ctrl': 0.0},
+    {'label': r'$p(q,0.2)$', 'func': 'polynomial', 'ctrl': 0.2},
+    {'label': r'$p(q,0.4)$', 'func': 'polynomial', 'ctrl': 0.4},
+    {'label': r'$p(q,0.6)$', 'func': 'polynomial', 'ctrl': 0.6},
+    {'label': r'$p(q,0.8)$', 'func': 'polynomial', 'ctrl': 0.8},
+]
+ALL_M_VALUES = [3, 5, 9, 15]
+# Settings of an ARGoS row that get a figure of their own
+FIGURE_KEYS = ['n_options', 'spat_corr', 'communication', 'hop_count', 'msg_exp_time', 'arena', 'n_runs']
 
 ##################################################################################
 # 1. DATA PARSING AND CONVERSION
@@ -21,581 +56,437 @@ def _cast_metadata_value(raw_value: str):
         except ValueError: return raw_value
 
 def m_array_from_cell(cell_value) -> np.ndarray:
+    if cell_value is None:
+        return np.array([], dtype=float)
     if isinstance(cell_value, (float, int, np.number)):
         return np.array([float(cell_value)], dtype=float)
     if isinstance(cell_value, np.ndarray):
         return cell_value.astype(float, copy=False)
     if isinstance(cell_value, (list, tuple)):
-        return np.asarray(cell_value, dtype=float)
+        return np.asarray([np.nan if v is None else v for v in cell_value], dtype=float)
     if isinstance(cell_value, str):
-        clean = cell_value.replace('[', ' ').replace(']', ' ').replace(',', ' ')
+        clean = cell_value.replace('[', ' ').replace(']', ' ').replace(',', ' ').replace('None', 'nan')
         return np.fromstring(clean, dtype=float, sep=' ')
     raise ValueError(f"Unsupported data type in cell: {type(cell_value).__name__}")
 
+def _last_value(cell) -> float:
+    """Last value of a serialized series ("[0.1, 0.2, 0.3]" -> 0.3)."""
+    if isinstance(cell, str):
+        tail = cell.rsplit(',', 1)[-1].strip(' []')
+        try:
+            return float(tail)
+        except ValueError:
+            arr = m_array_from_cell(cell)
+            return float(arr[-1]) if arr.size else np.nan
+    arr = m_array_from_cell(cell)
+    return float(arr[-1]) if arr.size else np.nan
+
 ##################################################################################
-# 2. FILENAME AND METADATA MANAGEMENT
+# 2. ARGOS DATA
 ##################################################################################
 
-EXCLUDED_FILENAME_KEYS = {
-    "cohesion_adaptive_com", "adaptive_com", "agents", "arena", "comm_type", 
-    "id_aware", "msg_hops", "priority_k", "runs", "spatcorr", "time", "variation_time"
-}
+# File name field -> column (only used where the rows themselves lack the column)
+FILENAME_KEYS = {"options": "n_options", "spatcorr": "spat_corr", "runs": "n_runs",
+                 "arena": "arena", "time": "exp_length", "agents": "n_agents"}
 
 def metadata_from_filename(file_name: str) -> dict:
     stem = Path(file_name).stem
-    metadata = {}
-    if "resume_" in stem:
-        metadata_section = stem.split("resume_", 1)[1]
-    elif "results_processed_" in stem:
-        metadata_section = stem.split("results_processed_", 1)[1]
-        metadata_section = metadata_section.split("_residence_data")[0]
-    else:
+    if "resume_" not in stem:
         return {}
-
-    key_translation = {
-        "o": "options",
-        "r_shape": "function",
-        "msg_per_step": "vote_msg",
-        "sigmd_par": "control_par",
-    }
-
-    parts = metadata_section.split("_")
-    for part in parts:
+    metadata = {}
+    for part in stem.split("resume_", 1)[1].split("_"):
         if "#" not in part: continue
-        col_name, col_value = part.split("#", 1)
-        mapped_key = key_translation.get(col_name, col_name)
-        parsed_value = _cast_metadata_value(col_value)
-        metadata[mapped_key] = parsed_value
+        key, value = part.split("#", 1)
+        if key in FILENAME_KEYS:
+            metadata[FILENAME_KEYS[key]] = _cast_metadata_value(value)
     return metadata
 
-def parse_series_columns(df: pd.DataFrame, columns=("data", "std")) -> pd.DataFrame:
-    """Parse text-encoded series into arrays once, so plotting doesn't re-parse them."""
-    for col in columns:
-        if col in df.columns:
-            df[col] = [m_array_from_cell(v) for v in df[col]]
-    return df
-
-PYTH_DROP_COLS = [
-    'dir_sw', 'exp_length', 'rec_time', 'n_agents', 'vote_model',
-    'min_qrm_buf', 'msg_time_exp', 'epsilon', 'r_cmpt', 'r_step',
-    '_m', 'source_file', 'rType', 'directSwitch', 'steps', 'rt',
-    'options', 'n_options'
-]
-PYTH_RENAME_MAP = {
-    'r_shape': 'function',
-    'sigmd_par': 'control_par',
-    'msg_per_step': 'vote_msg'
-}
-ARGOS_DROP_COLS = [
-    'adaptive_com', 'comm_type', 'id_aware', 'priority_k',
-    'msg_exp_time', 'msg_hops', 'variation_time', 'eta_stop',
-    'time', 'arena', 'agents', 'spatcorr', 'options'
-]
-
-def clean_argos_df(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.drop(columns=[c for c in ARGOS_DROP_COLS if c in df.columns])
-    if 'option_id' in df.columns:
-        df = df[df['option_id'] != -1]
-    return df
-
-def clean_python_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Align agent-based (Python) results with the ARGoS column names and values."""
-    df = df.drop(columns=[c for c in PYTH_DROP_COLS if c in df.columns])
-    df = df.rename(columns=PYTH_RENAME_MAP)
-    if 'option_id' in df.columns:
-        df = df[df['option_id'] != -1]
-    if 'function' in df.columns:
-        df['function'] = df['function'].replace({'poly3': 'polynomial', 'direct': 'linear'})
-    if 'r_type' in df.columns:
-        df.loc[df['r_type'] == 'static', 'function'] = 'static'
-        df = df.drop(columns=['r_type', 'r_value'], errors='ignore')
-    if 'static_v' in df.columns:
-        static_mask = df['function'] == 'static'
-        df.loc[static_mask, 'control_par'] = df.loc[static_mask, 'static_v']
-        df = df.drop(columns=['static_v'])
-    return df
-
-def _to_numeric_if_possible(series: pd.Series) -> pd.Series:
-    try:
-        return pd.to_numeric(series)
-    except (ValueError, TypeError):
-        return series
-
-def load_pickles_with_file_meta(proc_dir: str, file_meta_keys: set) -> list:
-    base_path = Path(os.path.abspath("")) / proc_dir
-    if not base_path.exists():
-        return []
-    all_files = sorted(base_path.glob("*resume_*.pkl"))+sorted(base_path.glob("*results_processed_*.pkl"))
-    datasets = []
-    for file_path in all_files:
+def load_argos_metric(metric: str, proc_dir: str = "proc_data") -> pd.DataFrame:
+    """All rows of one ARGoS metric, every setting as a column."""
+    base_path = Path(os.path.abspath("")) / proc_dir / metric
+    frames = []
+    for file_path in sorted(base_path.glob("*resume_*.pkl")):
         try:
-            file_df = pd.read_pickle(file_path)
-            if not isinstance(file_df, pd.DataFrame):
-                file_df = pd.DataFrame(file_df)
-                
-            runs_match = re.search(r'_runs#(\d+)', file_path.name)
-            if runs_match:
-                file_df['runs'] = int(runs_match.group(1))
-                
-            arena_match = re.search(r'_arena#([^_\.]+)', file_path.name)
-            if arena_match:
-                arena_val = arena_match.group(1)
-                file_df['arena'] = int(arena_val) if arena_val.isdigit() else arena_val
-                
-            metadata = metadata_from_filename(file_path.name)
-            df_meta = {k: v for k, v in metadata.items() if k not in file_meta_keys}
-            file_meta = {k: v for k, v in metadata.items() if k in file_meta_keys}
-            for col_name, col_value in df_meta.items():
-                if col_name not in ['runs', 'arena'] or col_name not in file_df.columns:
-                    file_df[col_name] = col_value
-            datasets.append((file_df, file_meta))
+            df = pd.read_pickle(file_path)
+            if not isinstance(df, pd.DataFrame):
+                df = pd.DataFrame(df)
+            for col, value in metadata_from_filename(file_path.name).items():
+                if col not in df.columns:
+                    df[col] = value
+            frames.append(df)
+        except ModuleNotFoundError as e:
+            logging.error(f"Cannot load {file_path.name} ({e}): it was written with another numpy version. "
+                          f"Run dump_results.py and plot_results.py with the same interpreter.")
         except Exception as e:
-            print(f"Error loading {file_path.name}: {e}")
-    return datasets
+            logging.error(f"Error loading {file_path.name}: {e}")
+    if not frames:
+        return pd.DataFrame()
+    df = pd.concat(frames, ignore_index=True)
 
+    # Files written before hop_count/ci95 were stored
+    if 'hop_count' not in df.columns:
+        df['hop_count'] = np.where(pd.to_numeric(df['communication'], errors='coerce') == 1, 1, 0)
+    df['hop_count'] = pd.to_numeric(df['hop_count'], errors='coerce').fillna(0).astype(int)
+    if 'option_id' not in df.columns:
+        df['option_id'] = np.nan
+    df['option_id'] = pd.to_numeric(df['option_id'], errors='coerce')
+    df['data'] = [m_array_from_cell(v) for v in df['data']]
+    if 'ci95' in df.columns:
+        df['ci95'] = [m_array_from_cell(v) for v in df['ci95']]
+    elif 'std' in df.columns:
+        # Old files: std across runs -> half-width of the 95% CI
+        n = pd.to_numeric(df['n_runs'], errors='coerce').fillna(1).astype(int).clip(lower=2)
+        df['ci95'] = [stats.t.ppf(0.975, k - 1) * m_array_from_cell(s) / np.sqrt(k) for s, k in zip(df['std'], n)]
+    else:
+        df['ci95'] = [np.full(len(d), np.nan) for d in df['data']]
+    for col in ['n_options', 'spat_corr', 'communication', 'msg_exp_time', 'n_runs', 'eta', 'control_par', 'vote_msg', 'init_distr']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    df['eta'] = df['eta'].round(3)
+    df['function'] = df['function'].astype(str).str.strip().str.lower()
+    if 'arena' not in df.columns:
+        df['arena'] = ''
+    df['arena'] = df['arena'].fillna('').astype(str)
+    return df
 
 ##################################################################################
-# 4. STANDARD PLOTTING
+# 3. PYTHON (AGENT-BASED) DATA
 ##################################################################################
 
-def plot_condensed_hybrid_cohesion(argos_df: pd.DataFrame, pyth_df: pd.DataFrame, quorum_df: pd.DataFrame = None,ctrl_df: pd.DataFrame = None,msgs_df: pd.DataFrame = None,omit_m: list = None, omit_labels: list = None,enable_python: bool = True) -> int:
-    if omit_m is None: omit_m = [15]
-    if omit_labels is None: omit_labels = []
+PY_COLUMNS = ['run_id', 'r_type', 'init_distr', 'n_options', 'eta', 'min_qrm_buf', 'msg_time_exp',
+              'msg_per_step', 'sigmd_par', 'r_value', 'r_shape', 'option_id', 'data']
 
-    if not enable_python:
-        pyth_df = pd.DataFrame()
+def _python_eta_candidates(eta: float) -> list:
+    return [round(eta, 3), round(eta - PY_ETA_HALF_STEP, 3), round(eta + PY_ETA_HALF_STEP, 3)]
 
-    all_runs = set()
-    for df_src in [argos_df, pyth_df, quorum_df, ctrl_df, msgs_df]:
-        if df_src is not None and not df_src.empty and 'runs' in df_src.columns:
-            all_runs.update(df_src['runs'].dropna().unique())
-            
-    runs_list = sorted(list(all_runs)) if all_runs else [None]
+def load_python_final_values(python_dir: str, argos_df: pd.DataFrame) -> pd.DataFrame:
+    """Final residence value per run of the Python settings that can match an ARGoS panel.
 
+    Reads the residence Parquet files in streaming, keeping only the rows that can
+    match (quorum minimum, m, eta), and reduces every series to its last value.
+    """
+    files = sorted(Path(python_dir).glob("results_processed_*_residence_data.parquet"))
+    if not files:
+        logging.warning(f"No Python residence Parquet files in {python_dir}: plots without boxplots")
+        return pd.DataFrame()
+    try:
+        import pyarrow.dataset as ds
+    except ImportError:
+        logging.error("pyarrow is needed for the Python data: run with the venv of quorum_sensing_Best_of_N")
+        return pd.DataFrame()
+
+    etas = sorted({e for eta in argos_df['eta'].dropna().unique() for e in _python_eta_candidates(float(eta))})
+    eta_filter = None
+    for e in etas:
+        cond = (ds.field('eta') >= e - 1e-6) & (ds.field('eta') <= e + 1e-6)
+        eta_filter = cond if eta_filter is None else (eta_filter | cond)
+
+    frames = []
+    for f in files:
+        dataset = ds.dataset(str(f), format="parquet")
+        cols = [c for c in PY_COLUMNS if c in dataset.schema.names]
+        expr = (ds.field('min_qrm_buf') == PY_QUORUM_MIN) & ds.field('msg_per_step').isin(ALL_M_VALUES)
+        if eta_filter is not None:
+            expr = expr & eta_filter
+        for batch in dataset.to_batches(columns=cols, filter=expr):
+            chunk = batch.to_pandas()
+            if chunk.empty:
+                continue
+            chunk['value'] = [_last_value(v) for v in chunk['data']]
+            frames.append(chunk.drop(columns=['data']))
+    if not frames:
+        return pd.DataFrame()
+    py = pd.concat(frames, ignore_index=True)
+
+    init = py['init_distr'].astype(str).str.strip()
+    py['init_mode'] = init.str.extract(r'([A-Za-z]*)$', expand=False).fillna('')
+    py['init_value'] = pd.to_numeric(init.str.replace(r'[A-Za-z]+$', '', regex=True), errors='coerce')
+    shape = py['r_shape'].astype(str)
+    py['function'] = np.where(py['r_type'].astype(str) == 'static', 'static',
+                              np.where(shape.str.contains('poly'), 'polynomial',
+                                       np.where(shape == 'direct', 'linear', shape)))
+    py['control_par'] = np.where(py['function'] == 'static', py['r_value'],
+                                 np.where(py['function'] == 'polynomial', py['sigmd_par'], 0.0))
+    py['eta'] = pd.to_numeric(py['eta'], errors='coerce').round(3)
+    py['control_par'] = pd.to_numeric(py['control_par'], errors='coerce').round(3)
+    return py
+
+class PythonBoxes:
+    """Per-run Python values for an ARGoS panel, cached by setting."""
+
+    def __init__(self, py: pd.DataFrame):
+        self.py = py
+        self.cache = {}
+        if py is None or py.empty:
+            self.groups = {}
+            return
+        keys = ['n_options', 'init_value', 'msg_time_exp', 'msg_per_step', 'function', 'control_par', 'eta']
+        # Initialization 'a' (or none): the one used by the ARGoS arena
+        sel = py[py['init_mode'].isin(['a', ''])]
+        self.groups = {self._key(*k): g for k, g in sel.groupby(keys)}
+
+    @staticmethod
+    def _key(n_opts, init, mt, m, func, ctrl, eta):
+        return (int(n_opts), round(float(init), 3), int(mt), int(m), str(func), round(float(ctrl), 3), round(float(eta), 3))
+
+    def _per_run(self, n_opts, init, mt, m, func, ctrl, eta, eta_target):
+        group = self.groups.get(self._key(n_opts, init, mt, m, func, ctrl, eta))
+        if group is None:
+            return None
+        # One value per run: the best option, or the winning option when every option is equal
+        by_run = group.pivot_table(index='run_id', columns='option_id', values='value', aggfunc='last')
+        by_run = by_run[[c for c in by_run.columns if c != -1]]
+        if by_run.empty:
+            return None
+        symmetric = np.isclose(eta_target, (n_opts - 1.0) / n_opts, atol=1e-3)
+        if symmetric:
+            return by_run.max(axis=1)
+        return by_run[0] if 0 in by_run.columns else None
+
+    def box(self, n_opts, init, argos_msg_time, m, func, ctrl, eta_target):
+        mt = MSG_TIME_MAP.get(int(argos_msg_time)) if pd.notnull(argos_msg_time) else None
+        if mt is None or not self.groups:
+            return np.array([])
+        cache_key = (n_opts, init, mt, m, func, ctrl, eta_target)
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        exact = self._per_run(n_opts, init, mt, m, func, ctrl, eta_target, eta_target)
+        if exact is not None:
+            values = exact.dropna().to_numpy()
+        else:
+            # ARGoS eta not in the Python grid: average of the two eta values around it, run by run
+            lo = self._per_run(n_opts, init, mt, m, func, ctrl, eta_target - PY_ETA_HALF_STEP, eta_target)
+            hi = self._per_run(n_opts, init, mt, m, func, ctrl, eta_target + PY_ETA_HALF_STEP, eta_target)
+            if lo is None or hi is None:
+                values = np.array([])
+            else:
+                both = pd.concat([lo, hi], axis=1, join='inner').dropna()
+                values = both.mean(axis=1).to_numpy()
+        self.cache[cache_key] = values
+        return values
+
+##################################################################################
+# 4. PLOTTING
+##################################################################################
+
+def _figure_title(setting: dict) -> str:
+    rb = int(setting['communication'])
+    hop = int(setting['hop_count'])
+    rb_text = {1: "rebroadcast 1 (hop count, no hop limit)" if hop else "rebroadcast 1",
+               2: "rebroadcast 2 (no hop count)" if not hop else "rebroadcast 2 (hop count)"}.get(rb, f"rebroadcast {rb}")
+    mt = setting['msg_exp_time']
+    mt_text = f"timeout {int(mt)} s" + (f" (Python mt {MSG_TIME_MAP[int(mt)]})" if int(mt) in MSG_TIME_MAP else "")
+    corr = setting['spat_corr']
+    return f"{int(setting['n_options'])} options,  spatial corr. {corr:g},  {rb_text},  {mt_text}"
+
+def _figure_name(setting: dict) -> str:
+    name = (f"condensed_hybrid_opts{int(setting['n_options'])}_corr{setting['spat_corr']:g}"
+            f"_rb{int(setting['communication'])}_hop{int(setting['hop_count'])}_mt{int(setting['msg_exp_time'])}")
+    if setting.get('arena'):
+        name += f"_arena{setting['arena']}"
+    if pd.notnull(setting.get('n_runs')):
+        name += f"_runs{int(setting['n_runs'])}"
+    return name
+
+def _select(df, eta, func, ctrl, m):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    mask = (np.isclose(df['eta'], eta, atol=1e-3)
+            & (df['function'] == func)
+            & np.isclose(df['control_par'], ctrl, atol=1e-3)
+            & (df['vote_msg'] == m))
+    return df[mask]
+
+def plot_setting(setting: dict, coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBoxes,
+                 output_path: Path, omit_m=None, omit_labels=None) -> int:
+    """One figure for one ARGoS setting (coh/msgs already restricted to it)."""
+    omit_m = omit_m or []
+    omit_labels = omit_labels or []
+    n_opts = int(setting['n_options'])
+    eta_main, eta_inset = ETAS_BY_OPTIONS.get(n_opts, (None, None))
+    if eta_main is None:
+        logging.warning(f"No eta pair for {n_opts} options, setting skipped")
+        return 0
+    configs = [c for c in ALL_CONFIGS if c['label'] not in omit_labels]
+    m_values = [m for m in ALL_M_VALUES if m not in omit_m]
+    pyth_color = 'tab:gray'
+
+    panels = []
+    for conf in configs:
+        for m in m_values:
+            p = {'conf': conf, 'm': m}
+            for which, eta in (('main', eta_main), ('inset', eta_inset)):
+                a = _select(coh, eta, conf['func'], conf['ctrl'], m)
+                p[f'a_{which}'] = a
+                p[f'msg_{which}'] = _select(msgs, eta, conf['func'], conf['ctrl'], m)
+                init = a['init_distr'].iloc[0] if not a.empty and 'init_distr' in a.columns else np.nan
+                p[f'p_{which}'] = (boxes.box(n_opts, init, setting['msg_exp_time'], m, conf['func'], conf['ctrl'], eta)
+                                   if pd.notnull(init) else np.array([]))
+            if not (p['a_main'].empty and p['a_inset'].empty):
+                panels.append(p)
+    if not panels:
+        return 0
+
+    # Fixed grid: one row per control function, one column per m (cells without data stay empty)
+    row_labels = [c['label'] for c in configs if any(p['conf'] is c for p in panels)]
+    col_values = [m for m in m_values if any(p['m'] == m for p in panels)]
+    n_rows, n_cols = len(row_labels), len(col_values)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows + 0.8), squeeze=False,
+                             sharex=True, sharey=True)
+    used = np.zeros((n_rows, n_cols), dtype=bool)
+    any_box = False
+    any_msgs = False
+
+    for p in panels:
+        row_idx = row_labels.index(p['conf']['label'])
+        col_idx = col_values.index(p['m'])
+        used[row_idx, col_idx] = True
+        ax = axes[row_idx, col_idx]
+        max_x = 0
+        final_opt0 = 0.5
+        if not p['a_main'].empty:
+            ends = [d[~np.isnan(d)][-1] for d in p['a_main']['data'] if np.any(~np.isnan(d))]
+            if ends: final_opt0 = float(np.mean(ends))
+        has_inset = not p['a_inset'].empty or len(p['p_inset']) > 0
+        ax_in = None
+        if has_inset:
+            ax_in = ax.inset_axes([0.275, 0.05, 0.45, 0.5] if final_opt0 > 0.5 else [0.275, 0.45, 0.45, 0.5])
+            ax_in.grid(alpha=0.2)
+
+        def draw(a_df, msg_df, target_ax):
+            nonlocal max_x, any_msgs
+            for _, row in a_df.iterrows():
+                y, ci = row['data'], row['ci95']
+                n = min(len(y), len(ci))
+                if n == 0: continue
+                x = np.arange(n)
+                max_x = max(max_x, n)
+                target_ax.plot(x, y[:n], color='black', linestyle='-', linewidth=2)
+                if np.any(~np.isnan(ci[:n])):
+                    target_ax.fill_between(x, y[:n] - ci[:n], y[:n] + ci[:n], facecolor='black', alpha=0.25)
+            for _, row in msg_df.iterrows():
+                y = row['data']
+                if len(y) == 0: continue
+                max_x = max(max_x, len(y))
+                target_ax.plot(np.arange(len(y)), y, color='black', linestyle=(0, (5, 5)), linewidth=2)
+                any_msgs = True
+
+        draw(p['a_main'], p['msg_main'], ax)
+        if ax_in is not None:
+            draw(p['a_inset'], p['msg_inset'], ax_in)
+
+        box_width = max(1, max_x * 0.05)
+        box_pos = max_x + box_width * 1.5
+        for values, target_ax in [(p['p_main'], ax), (p['p_inset'], ax_in)]:
+            if target_ax is None or len(values) == 0:
+                continue
+            bp = target_ax.boxplot(values, positions=[box_pos], widths=box_width, patch_artist=True, showfliers=False)
+            for patch in bp['boxes']:
+                patch.set_facecolor(pyth_color)
+                patch.set_alpha(0.7)
+            for median in bp['medians']:
+                median.set_color('black')
+            any_box = True
+
+        y_ticks = np.linspace(0, 1.0, 5)
+        ax.set_xlim(left=0, right=box_pos + box_width * 2)
+        ax.set_ylim(-0.03, 1.03)
+        ax.set_yticks(y_ticks)
+        # x in ARGoS ticks (10 per second): labels in seconds
+        major_step, minor_step = 9000, 3000
+        major = np.arange(0, max_x + 1, major_step)
+        ax.set_xticks(list(major) + [box_pos])
+        ax.set_xticklabels([str(int(t * 0.1)) for t in major] + [""])
+        ax.set_xticks(np.arange(0, max_x + 1, minor_step), minor=True)
+        ax.grid(which='major', ls="--", alpha=0.4)
+        ax.grid(which='minor', ls="--", alpha=0.4)
+        if ax_in is not None:
+            ax_in.set_xlim(ax.get_xlim())
+            ax_in.set_xticks(list(major) + [box_pos])
+            ax_in.set_xticks(np.arange(0, max_x + 1, minor_step), minor=True)
+            ax_in.set_ylim(-0.03, 1.03)
+            ax_in.set_yticks(y_ticks)
+            ax_in.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=True, left=True, length=2)
+
+        if row_idx == 0:
+            ax.set_title(rf"$m={p['m']}$")
+        if col_idx == n_cols - 1:
+            ax.text(1.05, 0.5, p['conf']['label'], transform=ax.transAxes, ha='left', va='center', rotation=270)
+        if row_idx == n_rows - 1:
+            ax.set_xlabel("T (s)")
+
+    for r in range(n_rows):
+        for c in range(n_cols):
+            if not used[r, c]:
+                axes[r, c].set_visible(False)
+
+    legend = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$ (95% CI)')]
+    if any_msgs:
+        legend.append(Line2D([0], [0], color='black', ls='--', lw=4, label=r'$\|\mathcal{B}\|$'))
+    if any_box:
+        legend.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
+    fig.suptitle(_figure_title(setting))
+    fig.legend(handles=legend, loc='upper right', bbox_to_anchor=(0.96, .015), ncol=len(legend))
+    fig.tight_layout()
+    name = _figure_name(setting)
+    fig.savefig(output_path / f"{name}.pdf", dpi=300, bbox_inches="tight")
+    fig.savefig(output_path / f"{name}.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return 1
+
+def plot_condensed_hybrid(coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBoxes, omit_m=None, omit_labels=None) -> int:
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion_hybrid_condensed"
     output_path.mkdir(parents=True, exist_ok=True)
-    image_count = 0
-
-    for current_run in runs_list:
-        
-        def filter_by_run(df):
-            if df is None or df.empty: return df
-            if 'runs' in df.columns and current_run is not None:
-                return df[df['runs'] == current_run].copy()
-            return df.copy()
-
-        cur_argos = filter_by_run(argos_df)
-        cur_pyth = filter_by_run(pyth_df)
-        cur_quorum = filter_by_run(quorum_df)
-        cur_ctrl = filter_by_run(ctrl_df)
-        cur_msgs = filter_by_run(msgs_df)
-
-        dfs_to_clean = [cur_argos, cur_pyth, cur_quorum, cur_ctrl, cur_msgs]
-        for df in dfs_to_clean:
-            if df is not None and not df.empty and 'init_distr' in df.columns:
-                df['init_distr'] = df['init_distr'].apply(
-                    lambda x: float(re.sub(r'[a-zA-Z]', '', str(x))) if pd.notnull(x) and str(x).strip() != '' else x
-                )
-
-        if not cur_argos.empty and 'option_id' in cur_argos.columns: 
-            cur_argos = cur_argos[cur_argos['option_id'] == 0]
-        if cur_quorum is not None and not cur_quorum.empty and 'option_id' in cur_quorum.columns: 
-            cur_quorum = cur_quorum[cur_quorum['option_id'] == 0]
-        if cur_ctrl is not None and not cur_ctrl.empty and 'option_id' in cur_ctrl.columns: 
-            cur_ctrl = cur_ctrl[cur_ctrl['option_id'] == 0]
-        if cur_msgs is not None and not cur_msgs.empty and 'option_id' in cur_msgs.columns: 
-            cur_msgs = cur_msgs[cur_msgs['option_id'] == 0]
-
-        py_group_cols = ['function', 'control_par', 'vote_msg', 'eta', 'init_distr', 'communication', 'options', 'n_options', 'n_opts', 'N']
-        if not cur_pyth.empty:
-            cur_pyth['data_arr'] = cur_pyth['data'].apply(m_array_from_cell) 
-            py_group_cols_exist = [c for c in py_group_cols if c in cur_pyth.columns]
-            
-            def process_python_config(group):
-                opts = sorted(group['option_id'].unique())
-                opt_data = {}
-                for opt in opts:
-                    opt_rows = group[group['option_id'] == opt]
-                    vals = []
-                    for d in opt_rows['data_arr']:
-                        if len(d) >= 10: vals.append(np.mean(d[-1:]))
-                        elif len(d) > 0: vals.append(np.mean(d)) 
-                    opt_data[opt] = np.array(vals)
-                    
-                min_runs = min([len(v) for v in opt_data.values()]) if opt_data else 0
-                if min_runs == 0: return pd.DataFrame()
-                for opt in opts: opt_data[opt] = opt_data[opt][:min_runs]
-                    
-                stacked = np.stack([opt_data[opt] for opt in opts]) 
-                
-                try:
-                    init_d = float(group['init_distr'].iloc[0]) if 'init_distr' in group.columns else 0.5
-                    N = int(round(1.0 / init_d)) if init_d > 0 else 2
-                except Exception:
-                    N = 2
-                    
-                eta_val = float(group['eta'].iloc[0]) if 'eta' in group.columns else 0.5
-                is_symmetric = np.isclose(eta_val, (N - 1.0) / N, atol=1e-3)
-                
-                if is_symmetric:
-                    winning_indices = np.argmax(stacked, axis=0)
-                    run_indices = np.arange(min_runs)
-                    opt0_vals = stacked[winning_indices, run_indices]
-                else:
-                    opt0_vals = opt_data[0] if 0 in opt_data else np.zeros(min_runs)
-                        
-                res = []
-                if len(opt0_vals) > 0: 
-                    res.append({'option_id': 0, 'box_data': opt0_vals})
-                return pd.DataFrame(res)
-            
-            pyth_agg = cur_pyth.groupby(py_group_cols_exist, dropna=False).apply(process_python_config, include_groups=False).reset_index()
-        else:
-            pyth_agg = pd.DataFrame()
-
-        def get_mask(df, target_eta, target_func, target_ctrl, target_vote):
-            if df is None or df.empty:
-                return pd.Series(False, index=[] if df is None else df.index)
-            mask = pd.Series(True, index=df.index)
-            
-            if 'eta' in df.columns: mask &= np.isclose(pd.to_numeric(df['eta'], errors='coerce'), target_eta, atol=1e-2)
-            else: return pd.Series(False, index=df.index)
-                
-            if 'function' in df.columns: mask &= df['function'].astype(str).str.strip().str.lower() == target_func.lower()
-            if 'control_par' in df.columns: mask &= np.isclose(pd.to_numeric(df['control_par'], errors='coerce'), target_ctrl, atol=1e-3)
-            if 'vote_msg' in df.columns: mask &= pd.to_numeric(df['vote_msg'], errors='coerce') == target_vote
-                
-            return mask
-
-        all_configs = [
-            {'label': r'$r=0.8$', 'func': 'static', 'ctrl': 0.8},
-            {'label': r'r(q)=q', 'func': 'linear', 'ctrl': 0.0},
-            {'label': r'$p(q,0.5)$', 'func': 'polynomial', 'ctrl': 0.5},
-            {'label': r'$p(q,0.7)$', 'func': 'polynomial', 'ctrl': 0.7}
-        ]
-        all_m_values = [3, 5, 9, 15]
-
-        base_configs = [c for c in all_configs if c['label'] not in omit_labels]
-        m_values = [m for m in all_m_values if m not in omit_m]
-
-        if not base_configs or not m_values:
-            print("Error: Grid is empty due to omitted values.")
-            return 0
-
-        pyth_color = 'tab:gray' 
-        for df in [cur_argos, cur_quorum, cur_ctrl, cur_msgs, pyth_agg]:
-            if df is not None and not df.empty and 'eta' in df.columns:
-                df.loc[:, 'eta'] = pd.to_numeric(df['eta'], errors='coerce').round(3)
-                
-        for n_opts in [2, 5]:
-            eta_main = 0.5 if n_opts == 2 else 0.8
-            eta_inset = 0.4 if n_opts == 2 else 0.7
-            
-            valid_panels = []
-
-            for c_conf in base_configs:
-                for m_val in m_values:
-                    a_main = cur_argos[get_mask(cur_argos, eta_main, c_conf['func'], c_conf['ctrl'], m_val)]
-                    q_main = cur_quorum[get_mask(cur_quorum, eta_main, c_conf['func'], c_conf['ctrl'], m_val)] if cur_quorum is not None else None
-                    c_main = cur_ctrl[get_mask(cur_ctrl, eta_main, c_conf['func'], c_conf['ctrl'], m_val)] if cur_ctrl is not None else None
-                    m_main = cur_msgs[get_mask(cur_msgs, eta_main, c_conf['func'], c_conf['ctrl'], m_val)] if cur_msgs is not None else None
-                    p_main = pyth_agg[get_mask(pyth_agg, eta_main, c_conf['func'], c_conf['ctrl'], m_val)] if not pyth_agg.empty else pd.DataFrame()
-
-                    a_inset = cur_argos[get_mask(cur_argos, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)]
-                    q_inset = cur_quorum[get_mask(cur_quorum, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)] if cur_quorum is not None else None
-                    c_inset = cur_ctrl[get_mask(cur_ctrl, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)] if cur_ctrl is not None else None
-                    m_inset = cur_msgs[get_mask(cur_msgs, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)] if cur_msgs is not None else None
-                    p_inset = pyth_agg[get_mask(pyth_agg, eta_inset, c_conf['func'], c_conf['ctrl'], m_val)] if not pyth_agg.empty else pd.DataFrame()
-
-                    if not (a_main.empty and p_main.empty and a_inset.empty and p_inset.empty):
-                        valid_panels.append({
-                            'c_conf': c_conf, 'm_val': m_val,
-                            'a_main': a_main, 'q_main': q_main, 'c_main': c_main, 'm_main': m_main, 'p_main': p_main,
-                            'a_inset': a_inset, 'q_inset': q_inset, 'c_inset': c_inset, 'm_inset': m_inset, 'p_inset': p_inset
-                        })
-                        
-            n_panels = len(valid_panels)
-            if n_panels == 0:
-                continue
-                
-            n_cols = min(n_panels, len(m_values))
-            n_rows = int(np.ceil(n_panels / n_cols))
-            sem_0x = True if (n_rows > 1) else False
-            sem_0y = True if (n_cols > 1) else False
-            sem_0 = True if sem_0x or sem_0y else False
-            fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows), squeeze=sem_0, sharex=sem_0x, sharey=sem_0y)
-            axes_flat = axes.flatten()
-
-            for i, panel in enumerate(valid_panels):
-                ax = axes_flat[i]
-                c_conf = panel['c_conf']
-                m_val = panel['m_val']
-                
-                a_main = panel['a_main']
-                q_main = panel['q_main']
-                c_main = panel['c_main']
-                m_main = panel['m_main']
-                p_main = panel['p_main']
-                
-                a_inset = panel['a_inset']
-                q_inset = panel['q_inset']
-                c_inset = panel['c_inset']
-                m_inset = panel['m_inset']
-                p_inset = panel['p_inset']
-                    
-                max_x = 0
-                final_opt0_val = 0.5 
-                
-                if not a_main.empty:
-                    end_vals = []
-                    for _, row in a_main.iterrows():
-                        arr = m_array_from_cell(row['data'])
-                        if len(arr) > 0: end_vals.append(arr[-1])
-                    if end_vals: final_opt0_val = np.mean(end_vals)
-                
-                # Check if there is any data to plot in the inset
-                has_inset_data = any(
-                    df is not None and not df.empty 
-                    for df in [a_inset, q_inset, c_inset, m_inset, p_inset]
-                )
-                
-                if has_inset_data:
-                    inset_loc = [0.275, 0.05, 0.45, 0.5] if final_opt0_val > 0.5 else [0.275, 0.45, 0.45, 0.5]
-                    ax_in = ax.inset_axes(inset_loc)
-                    ax_in.grid(alpha=0.2)
-                else:
-                    ax_in = None
-                
-                def plot_target(a_df, q_df, c_df, msg_df, p_df, target_ax):
-                    nonlocal max_x
-                    datasets = [
-                        ('cohesion', a_df, '-'), 
-                        ('quorum', q_df, ':'), 
-                        ('ctrl', c_df, '-.'),
-                        ('msgs', msg_df, (0, (5, 5)))
-                    ]
-                    
-                    for d_name, d_df, d_style in datasets:
-                        if d_df is None or d_df.empty: continue
-                        for _, row in d_df.iterrows():
-                            try:
-                                y = m_array_from_cell(row['data'])
-                                s = m_array_from_cell(row['std'])
-                                n_runs = int(row.get('runs', 1))
-                            except Exception: continue
-                            
-                            n_steps = min(len(y), len(s))
-                            if n_steps == 0 or n_runs < 2: continue 
-                            max_x = max(max_x, n_steps)
-                            c_color = 'black'
-                            x_arr = np.arange(n_steps)
-                            if d_name == 'cohesion':
-                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
-                                t_crit = stats.t.ppf(0.975, df=n_runs - 1)
-                                ci_margin = t_crit * (s[:n_steps] / np.sqrt(n_runs))
-                                target_ax.fill_between(
-                                    x_arr, 
-                                    y[:n_steps] - ci_margin, 
-                                    y[:n_steps] + ci_margin, 
-                                    facecolor=c_color, 
-                                    alpha=0.25
-                                )
-                            elif d_name == 'msgs':
-                                target_ax.plot(x_arr, y[:n_steps], color=c_color, linestyle=d_style, linewidth=2)
-                    merged_box = []
-                    if p_df is not None and not p_df.empty:
-                        for _, row in p_df.iterrows():
-                            if 'box_data' in row and len(row['box_data']) > 0:
-                                merged_box.extend(row['box_data'])
-                    return merged_box
-
-                box_main = plot_target(a_main, q_main, c_main, m_main, p_main, ax)
-                
-                if has_inset_data:
-                    box_inset = plot_target(a_inset, q_inset, c_inset, m_inset, p_inset, ax_in)
-                else:
-                    box_inset = []
-
-                box_width = max(1, max_x * 0.05)
-                box_pos = max_x + box_width * 1.5
-                
-                plot_targets_list = [(box_main, ax)]
-                if has_inset_data:
-                    plot_targets_list.append((box_inset, ax_in))
-                
-                for merged_box, target_ax in plot_targets_list:
-                    if merged_box and enable_python:
-                        bp = target_ax.boxplot(merged_box, positions=[box_pos], widths=box_width, patch_artist=True, showfliers=False)
-                        for patch in bp['boxes']:
-                            patch.set_facecolor(pyth_color)
-                            patch.set_alpha(0.7)
-                        for median in bp['medians']:
-                            median.set_color('black')
-                            
-                y_ticks = np.linspace(0, 1.0, 5)     
-                ax.set_xlim(left=0, right=box_pos + box_width * 2)
-                ax.set_ylim(-0.03, 1.03)
-                ax.set_yticks(y_ticks)
-                
-                # 1. Define steps in data-space (accounting for the *0.1 label factor)
-                major_step = 9000  # Labelled as multiples of 900
-                minor_step = 3000  # Spaced as multiples of 300
-                
-                major_line_ticks = np.arange(0, max_x + 1, major_step)
-                all_major_ticks = list(major_line_ticks) + [box_pos]
-                all_major_labels = [str(int(t * 0.1)) for t in major_line_ticks] + [""]
-                
-                minor_ticks = np.arange(0, max_x + 1, minor_step)
-                
-                # 2. Apply to main axis
-                ax.set_xticks(all_major_ticks)
-                ax.set_xticklabels(all_major_labels)
-                ax.set_xticks(minor_ticks, minor=True)
-                ax.grid(which='major', ls="--", alpha=0.4)
-                ax.grid(which='minor', ls="--", alpha=0.4)
-                
-                # 3. Apply to inset axis
-                if has_inset_data:
-                    ax_in.set_xlim(ax.get_xlim())
-                    ax_in.set_xticks(all_major_ticks)
-                    ax_in.set_xticks(minor_ticks, minor=True)
-                    ax_in.set_ylim(-0.03, 1.03)
-                    ax_in.set_yticks(y_ticks)
-                    ax_in.tick_params(axis='both', which='both', labelbottom=False, labelleft=False, bottom=True, left=True, length=2)
-                
-                # Apply title and axes on borders only
-                row_idx = i // n_cols
-                col_idx = i % n_cols
-                
-                if row_idx == 0: 
-                    ax.set_title(rf"$m={m_val}$")
-                    
-                if col_idx == n_cols - 1 or i == n_panels - 1: 
-                    ax.text(1.05, 0.5, c_conf['label'], transform=ax.transAxes, ha='left', va='center', rotation=270)
-                    
-                if row_idx == n_rows - 1 or (i + n_cols >= n_panels): 
-                    ax.set_xlabel("T")
-                
-            # Suppress missing subpanels from layout division
-            for j in range(n_panels, len(axes_flat)):
-                axes_flat[j].set_visible(False)
-
-            legend_elements = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$')]
-            
-            if cur_msgs is not None and not cur_msgs.empty:
-                legend_elements.append(Line2D([0], [0], color='black', ls='--', lw=4, label=r'$\|\mathcal{B}\|$'))
-            if enable_python:
-                legend_elements.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
-            
-            fig.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.96, .015), ncol=len(legend_elements))
-                
-            fig.tight_layout()
-            
-            runs_suffix = f"_runs{int(current_run)}" if current_run is not None else ""
-            fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.pdf", dpi=300, bbox_inches="tight")
-            fig.savefig(output_path / f"condensed_hybrid_opts{n_opts}{runs_suffix}.png", dpi=300, bbox_inches="tight")
-            plt.close(fig)
-            image_count += 1
-            
-    return image_count
-
+    # The dominant option (option_id 0) is the plotted density
+    coh = coh[coh['option_id'] == 0]
+    keys = [k for k in FIGURE_KEYS if k in coh.columns]
+    count = 0
+    for values, group in coh.groupby(keys, dropna=False):
+        setting = dict(zip(keys, values))
+        msg_mask = pd.Series(True, index=msgs.index) if not msgs.empty else None
+        if not msgs.empty:
+            for k in keys:
+                if k in msgs.columns:
+                    msg_mask &= (msgs[k] == setting[k]) | (msgs[k].isna() & pd.isna(setting[k]))
+        msg_group = msgs[msg_mask] if not msgs.empty else msgs
+        count += plot_setting(setting, group, msg_group, boxes, output_path, omit_m, omit_labels)
+    return count
 
 ##################################################################################
-# 6. MAIN EXECUTION
+# 5. CHECKS AND MAIN
 ##################################################################################
 
-def count_configuration_overlaps():
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', 1000)
-    
-    file_meta_keys = {'options'}
-    
-    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys)
-    
-    argos_clean_list = [clean_argos_df(df) for df, _ in coh_sets if not df.empty]
-    pyth_clean_list = [clean_python_df(df) for df, _ in pyth_sets if not df.empty]
-
-    if not argos_clean_list or not pyth_clean_list:
-        print("Errore: Impossibile trovare dati validi da confrontare.")
-        return
-
-    argos_master = pd.concat(argos_clean_list, ignore_index=True)
-    pyth_master = pd.concat(pyth_clean_list, ignore_index=True)
-
-    common_cols = set(argos_master.columns).intersection(set(pyth_master.columns))
-    exclude_cols = {'data', 'std', 'run_id'}
-    overlap_keys = list(common_cols - exclude_cols)
-    overlap_keys.sort() 
-
-    for col in overlap_keys:
-        argos_master[col] = _to_numeric_if_possible(argos_master[col])
-        pyth_master[col] = _to_numeric_if_possible(pyth_master[col])
-
-    argos_configs = argos_master[overlap_keys].drop_duplicates()
-    pyth_configs = pyth_master[overlap_keys].drop_duplicates()
-
-    overlap_df = pd.merge(argos_configs, pyth_configs, on=overlap_keys, how='inner')
-    sort_cols = [c for c in ['options', 'function', 'eta', 'vote_msg', 'control_par'] if c in overlap_df.columns]
-    if sort_cols:
-        overlap_df = overlap_df.sort_values(by=sort_cols).reset_index(drop=True)
-
-    print("\n" + "="*90)
-    print(f" CHIAVI UTILIZZATE PER IL MATCH: {overlap_keys}")
-    print("="*90)
-    print(f" -> Configurazioni uniche totali in ARGoS  : {len(argos_configs)}")
-    print(f" -> Configurazioni uniche totali in Python : {len(pyth_configs)}")
-    print(f" -> MATCH ESATTI TROVATI                   : {len(overlap_df)}")
-    print("="*90)
-    
-    if not overlap_df.empty:
-        print("\nElenco delle configurazioni sovrapposte:")
-        print(overlap_df)
-    print("="*90 + "\n")
+def count_configuration_overlaps(coh: pd.DataFrame, boxes: PythonBoxes) -> None:
+    """Print the ARGoS panels without a matching Python setting."""
+    coh = coh[coh['option_id'] == 0]
+    missing = []
+    total = 0
+    for _, row in coh.drop_duplicates(subset=['n_options', 'init_distr', 'msg_exp_time', 'vote_msg', 'function', 'control_par', 'eta']).iterrows():
+        total += 1
+        values = boxes.box(int(row['n_options']), row['init_distr'], row['msg_exp_time'], int(row['vote_msg']),
+                           row['function'], row['control_par'], row['eta'])
+        if len(values) == 0:
+            missing.append((int(row['n_options']), row['eta'], row['function'], row['control_par'], int(row['vote_msg']), row['msg_exp_time']))
+    print(f"ARGoS settings: {total}, with a matching Python boxplot: {total - len(missing)}")
+    for m in missing:
+        print(f"  no Python data: options={m[0]} eta={m[1]} {m[2]} {m[3]} m={m[4]} timeout={m[5]}")
 
 def main():
-    total_imgs = 0
-    
-    file_meta_keys = {"eta", "options", "communication", "function"}
-    
-    coh_sets = load_pickles_with_file_meta("./proc_data/cohesion", file_meta_keys)
-    quorum_sets = load_pickles_with_file_meta("./proc_data/quorum", file_meta_keys)
-    ctrl_sets = load_pickles_with_file_meta("./proc_data/ctrl", file_meta_keys)
-    msgs_sets = load_pickles_with_file_meta("./proc_data/msgs", file_meta_keys)
-    pyth_sets = load_pickles_with_file_meta("../../quorum_sensing_Best_of_N/argos_comp_compressed_data", file_meta_keys) 
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--python-data", default=os.path.join("..", "quorum_sensing_Best_of_N", "compressed_data"),
+                        help="folder with the Python results_processed_*_residence_data.parquet files")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
-    def process_argos_sets(datasets):
-        clean_list = [clean_argos_df(df) for df, _ in datasets if not df.empty]
-        if not clean_list:
-            return pd.DataFrame()
-        return parse_series_columns(pd.concat(clean_list, ignore_index=True))
-
-    argos_df = process_argos_sets(coh_sets)
-    quorum_df = process_argos_sets(quorum_sets)
-    ctrl_df = process_argos_sets(ctrl_sets)
-    msgs_df = process_argos_sets(msgs_sets)
-
-    pyth_list = []
-    for df, _ in pyth_sets:
-        if not df.empty:
-            df = clean_python_df(df)
-            df['communication'] = 0
-            pyth_list.append(df)
-    pyth_df = pd.concat(pyth_list, ignore_index=True) if pyth_list else pd.DataFrame()
-
-    enable_python_flag = not pyth_df.empty
-
-    if not argos_df.empty:
-        total_imgs += plot_condensed_hybrid_cohesion(
-            argos_df=argos_df, 
-            pyth_df=pyth_df, 
-            quorum_df=quorum_df, 
-            ctrl_df=ctrl_df, 
-            msgs_df=msgs_df,
-            enable_python=enable_python_flag
-        )
-
-    print(f"\nExecution finished. Total images saved: {total_imgs}")
+    coh = load_argos_metric("cohesion")
+    msgs = load_argos_metric("msgs")
+    if coh.empty:
+        print("No ARGoS cohesion data in proc_data/cohesion")
+        return
+    boxes = PythonBoxes(load_python_final_values(args.python_data, coh))
+    count_configuration_overlaps(coh, boxes)
+    total = plot_condensed_hybrid(coh, msgs, boxes)
+    print(f"\nExecution finished. Total images saved: {total}")
 
 if __name__ == "__main__":
     main()

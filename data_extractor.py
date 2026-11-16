@@ -1,9 +1,61 @@
-import os, csv, logging, re
+import os, csv, logging, re, fcntl
 import numpy as np
 from pathlib import Path
+from scipy.stats import t as t_dist
+
+PROC_DIR = "proc_data"
+# Settings already in proc_data, one per line: <setting>\t<number of runs>
+DONE_LIST = "processed_settings.txt"
+
+
+def mean_ci95(per_run: np.ndarray):
+    """Mean over runs (axis 0) and half-width of its 95% confidence interval (Student t).
+
+    Same method as the Python model (quorum_sensing_Best_of_N/data_extractor.py).
+    NaN values (e.g. a group with no agents in that run) are left out step by step;
+    the half-width is NaN where fewer than two runs have a value.
+    """
+    per_run = np.asarray(per_run, dtype=np.float64)
+    n = np.sum(~np.isnan(per_run), axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mean = np.where(n > 0, np.nansum(per_run, axis=0) / np.maximum(n, 1), np.nan)
+        dev = np.where(np.isnan(per_run), 0.0, per_run - mean)
+        std = np.sqrt(np.sum(dev ** 2, axis=0) / np.maximum(n - 1, 1))
+        half = np.where(n >= 2, t_dist.ppf(0.975, np.maximum(n - 1, 1)) * std / np.sqrt(np.maximum(n, 1)), np.nan)
+    return mean, half
+
+
+def _as_list(values: np.ndarray) -> list:
+    return [None if np.isnan(v) else round(float(v), 4) for v in values]
+
+
+def done_settings(proc_dir: str = PROC_DIR) -> dict:
+    """{setting: number of runs} of the settings already written to proc_data."""
+    path = os.path.join(os.path.abspath(""), proc_dir, DONE_LIST)
+    done = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if len(parts) == 2 and parts[1].isdigit():
+                    done[parts[0]] = int(parts[1])
+    return done
+
+
+def mark_done(setting: str, num_runs: int, proc_dir: str = PROC_DIR) -> None:
+    output_path = os.path.join(os.path.abspath(""), proc_dir)
+    os.makedirs(output_path, exist_ok=True)
+    with open(os.path.join(output_path, DONE_LIST), "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            f.write(f"{setting}\t{num_runs}\n")
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
 class Results:
     ticks_per_sec = 10
+    setting = ""     # relative path of the raw folder, unique for every tested setting
+    hop_count = 0
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
     FILE_RE = re.compile(r"agent#(?P<agent>\d+).*?(?:seed|run)#(?P<run>\d+)")
 
@@ -68,14 +120,16 @@ class Results:
             others_cohesion = np.zeros_like(winner_cohesion)
 
         final_means = []
-        final_stds = []
+        final_cis = []
 
         # option_id = 0 logico (Maggioranza), option_id = 1 logico (Resto)
+        # One value per run and step: mean and 95% CI across runs
         for group in [winner_cohesion, others_cohesion]:
-            final_means.append(np.around(np.mean(group, axis=0), decimals=3).tolist())
-            final_stds.append(np.around(np.std(group, axis=0), decimals=3).tolist())
+            mean, half = mean_ci95(group)
+            final_means.append(_as_list(mean))
+            final_cis.append(_as_list(half))
 
-        return final_means, final_stds
+        return final_means, final_cis
 
 ##########################################################################################################
     def extract_data(self,ticks_per_sec:int,path:str,exp_length:int,variation_time:float,spat_corr:int,communication:int,
@@ -195,6 +249,8 @@ class Results:
             spat_corr=spat_corr, n_options=n_options, eta=eta, eta_stop=eta_stop,
             init_distr=init_distr, function=function, vote_msg=vote_msg, ctrl_par=ctrl_par,
             num_runs=num_runs, arenaS=arenaS, data_type="msgs" )
+        if self.setting:
+            mark_done(self.setting, num_runs)
         
 ##########################################################################################################
     def compute_average_metric_through_run(self, metric_data: np.ndarray, state_data: np.ndarray, n_options: int, is_quorum: bool = False):
@@ -235,33 +291,18 @@ class Results:
             others_sums = np.zeros_like(winner_sums)
             others_sq_sums = np.zeros_like(winner_sq_sums)
 
-        groups = [
-            (np.sum(winner_counts, axis=0), np.sum(winner_sums, axis=0), np.sum(winner_sq_sums, axis=0)),
-            (np.sum(others_counts, axis=0), np.sum(others_sums, axis=0), np.sum(others_sq_sums, axis=0))
-        ]
-
         final_means = []
-        final_stds = []
+        final_cis = []
+        # Mean over the agents of the group inside each run, then mean and 95% CI across runs.
+        # A run with no agent in the group has no value at that step (NaN, left out).
+        for group_counts, group_sums in [(winner_counts, winner_sums), (others_counts, others_sums)]:
+            with np.errstate(invalid="ignore", divide="ignore"):
+                per_run = np.where(group_counts > 0, group_sums / np.where(group_counts > 0, group_counts, 1.0), np.nan)
+            mean, half = mean_ci95(per_run)
+            final_means.append(_as_list(mean))
+            final_cis.append(_as_list(half))
 
-        for group_counts, group_sums, group_sq_sums in groups:
-            # Both Quorum and Ctrl must be divided by the number of agents in THAT group
-            safe_div = np.where(group_counts > 0, group_counts, 1.0)
-            mean_opt = group_sums / safe_div
-            mean_sq_opt = group_sq_sums / safe_div
-            
-            # Zero out means where there are no agents to avoid artifacts
-            mean_opt = np.where(group_counts > 0, mean_opt, 0.0)
-            mean_sq_opt = np.where(group_counts > 0, mean_sq_opt, 0.0)
-
-            # Pooled Variance
-            variance = mean_sq_opt - (mean_opt**2)
-            variance = np.where(variance > 0, variance, 0.0)
-            std_opt = np.sqrt(variance)
-
-            final_means.append(np.around(mean_opt, decimals=3).tolist())
-            final_stds.append(np.around(std_opt, decimals=3).tolist())
-
-        return final_means, final_stds
+        return final_means, final_cis
     
 ##########################################################################################################
     def compute_overall_average_through_run(self, data: np.ndarray):
@@ -276,9 +317,8 @@ class Results:
         # Normalizziamo per numero massimo di messaggi
         norm_avg_per_run = avg_per_run / max_msgs
         
-        final_mean = np.around(np.mean(norm_avg_per_run, axis=0), decimals=3).tolist()
-        final_std = np.around(np.std(norm_avg_per_run, axis=0), decimals=3).tolist()
-        return final_mean, final_std
+        mean, half = mean_ci95(norm_avg_per_run)
+        return _as_list(mean), _as_list(half)
     
 ##########################################################################################################
     def dump_resume_per_opt_csv(self, data_in, data_std, option_id: int, **kwargs):
@@ -288,21 +328,28 @@ class Results:
     def dump_resume_csv(self,data_in,data_std,exp_length:int,communication:int,
                        adaptive_com:int,comm_type:str,id_aware:int,priority_k:int,n_agents:int,msg_exp_time:int,msg_hops:int,variation_time:float,spat_corr:int,n_options:int,
                        eta:float,eta_stop:float,init_distr:float,function:str,vote_msg:int,ctrl_par:float,num_runs:int,arenaS:str,data_type:str,option_id=None):
-        name_fields=["communication","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","variation_time","eta","eta_stop","init_distr","function","vote_msg","control_par"]
-        values=[communication,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,variation_time,eta,eta_stop,init_distr,function,vote_msg,ctrl_par]
-        if option_id is not None:
-            name_fields.append("option_id")
-            values.append(option_id)
-        name_fields += ["data", "std"]
+        # data_std is the half-width of the 95% CI across runs of data_in (column 'ci95').
+        # Every setting is a column, so the rows of different settings never mix after merging.
+        name_fields=["communication","hop_count","adaptive_com","comm_type","id_aware","priority_k","msg_exp_time","msg_hops","variation_time","spat_corr","n_options","n_agents","exp_length","arena","eta","eta_stop","init_distr","function","vote_msg","control_par","n_runs","setting"]
+        values=[communication,self.hop_count,adaptive_com,comm_type,id_aware,priority_k,msg_exp_time,msg_hops,variation_time,spat_corr,n_options,n_agents,exp_length,arenaS,eta,eta_stop,init_distr,function,vote_msg,ctrl_par,num_runs,self.setting]
+        name_fields.append("option_id")
+        values.append("" if option_id is None else option_id)  # empty for metrics not split by option (msgs)
+        name_fields += ["data", "ci95"]
         values += [data_in, data_std]
 
-        output_path = os.path.join(os.path.abspath(""), "proc_data", data_type)
+        output_path = os.path.join(os.path.abspath(""), PROC_DIR, data_type)
         os.makedirs(output_path, exist_ok=True)
         file_name = f"{data_type}_resume_time#{exp_length}_agents#{n_agents}_options#{n_options}_spatcorr#{spat_corr}_runs#{num_runs}_arena#{arenaS}.csv"
         file_path = os.path.join(output_path, file_name)
-        write_header = not os.path.exists(file_path)
+        # Several processes append to the same file: lock it, and write the header only into an empty file
         with open(file_path, mode='a', newline='\n') as fw:
-            fwriter = csv.writer(fw, delimiter='\t')
-            if write_header:
-                fwriter.writerow(name_fields)
-            fwriter.writerow(values)
+            fcntl.flock(fw, fcntl.LOCK_EX)
+            try:
+                fw.seek(0, os.SEEK_END)
+                fwriter = csv.writer(fw, delimiter='\t')
+                if fw.tell() == 0:
+                    fwriter.writerow(name_fields)
+                fwriter.writerow(values)
+                fw.flush()
+            finally:
+                fcntl.flock(fw, fcntl.LOCK_UN)

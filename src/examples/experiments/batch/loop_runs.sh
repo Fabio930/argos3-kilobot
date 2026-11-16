@@ -1,7 +1,7 @@
 #! /bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name>"
+if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
+    echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name> <options> [arena_label]"
     exit 1
 fi
 
@@ -15,7 +15,9 @@ if [ ! -e $base_config ]; then
     fi
 fi
 
-res_dir=$wdir/"results_loop_runs"
+# The arena label ends the folder name: data_extractor.py reads it from there (arena#<label>)
+arena_label="${4:-bigA}"
+res_dir=$wdir/"results_loop_runs_${arena_label}"
 if [[ ! -e $res_dir ]]; then
     mkdir $res_dir
     echo "mkdir: directory '$res_dir' "
@@ -34,13 +36,15 @@ experiment_length="2700"
 variation_time="0"
 RUNS=100
 options="$3"
-spatial_correlation="0"
+spatial_correlation="0 1"
 numrobots="100"
 comm_type_set="id_aware"
-rebroadcast="2"
+rebroadcast="1 2"
 adaptive_set="0"
 priority_k_set="0"
-msgs_timeout="10"
+# Mean message lifetime in seconds. A decision every 5.1 s: these give the same mean number of
+# decisions per message as message_timeout 3 6 12 24 48 in the Python model
+msgs_timeout="14 29 59 120 242"
 control="static linear polynomial"
 voting_msgs="3 5 9 15"
 
@@ -165,7 +169,8 @@ for exp_len_par in $experiment_length; do
                                                         elif [[ $control_par == "linear" ]]; then
                                                             control_parameter="0.0"
                                                         else
-                                                            control_parameter="0.5 0.7"
+                                                            # Same base values as function_parameter in the Python model
+                                                            control_parameter="0.2 0.4 0.6 0.8"
                                                         fi
                                                         for voting_msgs_par in $voting_msgs; do
                                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
@@ -177,12 +182,23 @@ for exp_len_par in $experiment_length; do
                                                                 if [[ ! -e $ctrl_par_dir ]]; then
                                                                     mkdir $ctrl_par_dir
                                                                 fi
-                                                                if find "$ctrl_par_dir" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
-                                                                    echo "Skipping non-empty results directory: $ctrl_par_dir"
-                                                                    continue
-                                                                fi
                                                                 for i in $(seq 1 $RUNS); do
                                                                     kilo_file="run#${i}.tsv"
+                                                                    # A run is done when the logs of all its robots are there
+                                                                    run_done=1
+                                                                    for j in $(seq 0 $last_id); do
+                                                                        if [[ ! -s "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}" ]]; then
+                                                                            run_done=0
+                                                                            break
+                                                                        fi
+                                                                    done
+                                                                    if [[ $run_done == 1 ]]; then
+                                                                        continue
+                                                                    fi
+                                                                    # Partial logs of this run (interrupted batch) and logs left in the working folder:
+                                                                    # the robots append to their log file, so they would mix with the new run
+                                                                    rm -f "$ctrl_par_dir"/quorum_log_agent#*_"$kilo_file"
+                                                                    rm -f quorum_log_agent#*.tsv
                                                                     config=`printf 'config_nrobots%s_comm%s_rebroad%s_adap%s_priorityk%s_MsgExpTime%s_MsgHop%s_Opt%s_OptCorr%s_Eta%s_EtaStop%s_VarTime%s_InitDistr%s_Ctrl%s_Vote%s_CPar%s_run%s.argos' $agents_par $comm_type $comm_par $adaptive_par $priority_k_par $msgs_par $msgs_hop_par $options_par $spatial_correlation_par $eta_i_par $eta_s_par $var_time_par $init_par $control_par $voting_msgs_par $control_parameter_par $i`
                                                                     cp $base_config $config
                                                                     sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
@@ -207,12 +223,23 @@ for exp_len_par in $experiment_length; do
                                                                     sed -i "s|__KILOLOG__|$kilo_file|g" $config
                                                                     echo "Running next configuration -- $config"
                                                                     argos3 -c './'$config
+                                                                    argos_status=$?
+                                                                    missing=0
                                                                     for j in $(seq 0 $last_id); do
-                                                                        rename="quorum_log_agent#$j"_"$kilo_file"
-                                                                        mv "quorum_log_agent#$j.tsv" $rename
-                                                                        mv $rename $ctrl_par_dir
+                                                                        if [[ ! -s "quorum_log_agent#$j.tsv" ]]; then
+                                                                            missing=1
+                                                                        fi
                                                                     done
-                                                                    rm *.argos
+                                                                    if [[ $argos_status -ne 0 || $missing == 1 ]]; then
+                                                                        # Only complete runs go into the results
+                                                                        echo "Run $i failed or incomplete (exit $argos_status) -- $config: logs discarded" 1>&2
+                                                                        rm -f quorum_log_agent#*.tsv
+                                                                    else
+                                                                        for j in $(seq 0 $last_id); do
+                                                                            mv "quorum_log_agent#$j.tsv" "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}"
+                                                                        done
+                                                                    fi
+                                                                    rm -f *.argos
                                                                 done
                                                             done
                                                         done
