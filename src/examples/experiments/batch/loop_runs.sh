@@ -1,7 +1,7 @@
 #! /bin/bash
 
-if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
-    echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name> <options> [arena_label]"
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo "Usage: loop_runs.sh (from src folder) <base_config_dir> <base_config_file_name> [arena_label]"
     exit 1
 fi
 
@@ -15,8 +15,55 @@ if [ ! -e $base_config ]; then
     fi
 fi
 
+# Only one batch per folder: runs, logs and proc_data would otherwise mix
+exec 9>"$wdir/.batch.lock"
+if ! flock -n 9; then
+    echo "Error: another batch is running in $wdir" 1>&2
+    exit 1
+fi
+
+# Parallel runs sized on this machine (see resources.sh)
+source "$(dirname "$0")/resources.sh"
+PY="${PY:-python3}"
+# Settings already processed into proc_data: <setting>\t<runs>
+done_list="$wdir/proc_data/processed_settings.txt"
+# Every run works in a folder of its own, so runs never share log or config files
+work_root="$wdir/.work"
+mkdir -p "$work_root"
+
+# One run in its own folder: logs moved to the setting folder only if all robots wrote them.
+# Arguments: run number, setting folder, robots, then the sed expressions for the config.
+run_job() {
+    local i=$1 ctrl_par_dir=$2 robots=$3
+    shift 3
+    local kilo_file="run#${i}.tsv"
+    local work="$work_root/$(echo "$ctrl_par_dir" | md5sum | cut -c1-16)_run${i}"
+    rm -rf "$work"
+    mkdir -p "$work"
+    # Absolute paths to the controller and loop functions: ARGoS runs inside the work folder
+    sed "$@" -e "s|__SEED__|$i|g" -e "s|__KILOLOG__|$kilo_file|g" -e "s|\"build/|\"$wdir/build/|g" "$base_config" > "$work/exp.argos"
+    (cd "$work" && nice -n "$JOB_NICE" argos3 -c exp.argos > argos.log 2>&1)
+    local argos_status=$?
+    local missing=0
+    for (( j = 0; j < robots; j++ )); do
+        if [[ ! -s "$work/quorum_log_agent#$j.tsv" ]]; then
+            missing=1
+            break
+        fi
+    done
+    if [[ $argos_status -ne 0 || $missing == 1 ]]; then
+        # Only complete runs go into the results
+        echo "Run $i failed or incomplete (exit $argos_status) -- $ctrl_par_dir: logs discarded" 1>&2
+    else
+        for (( j = 0; j < robots; j++ )); do
+            mv "$work/quorum_log_agent#$j.tsv" "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}"
+        done
+    fi
+    rm -rf "$work"
+}
+
 # The arena label ends the folder name: data_extractor.py reads it from there (arena#<label>)
-arena_label="${4:-bigA}"
+arena_label="${3:-bigA}"
 res_dir=$wdir/"results_loop_runs_${arena_label}"
 if [[ ! -e $res_dir ]]; then
     mkdir $res_dir
@@ -35,7 +82,7 @@ control_parameter=""
 experiment_length="2700"
 variation_time="0"
 RUNS=100
-options="$3"
+options="2 5"
 spatial_correlation="0 1"
 numrobots="100"
 comm_type_set="id_aware"
@@ -170,7 +217,7 @@ for exp_len_par in $experiment_length; do
                                                             control_parameter="0.0"
                                                         else
                                                             # Same base values as function_parameter in the Python model
-                                                            control_parameter="0.2 0.4 0.6 0.8"
+                                                            control_parameter="0.6 0.8"
                                                         fi
                                                         for voting_msgs_par in $voting_msgs; do
                                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
@@ -182,6 +229,12 @@ for exp_len_par in $experiment_length; do
                                                                 if [[ ! -e $ctrl_par_dir ]]; then
                                                                     mkdir $ctrl_par_dir
                                                                 fi
+                                                                setting_key="results_loop_runs_${arena_label}/${ctrl_par_dir#$res_dir/}"
+                                                                # Processed into proc_data with all its runs: nothing left to do (its raw logs are gone)
+                                                                if grep -qxF "${setting_key}	${RUNS}" "$done_list" 2>/dev/null; then
+                                                                    continue
+                                                                fi
+                                                                run_pids=()
                                                                 for i in $(seq 1 $RUNS); do
                                                                     kilo_file="run#${i}.tsv"
                                                                     # A run is done when the logs of all its robots are there
@@ -195,52 +248,39 @@ for exp_len_par in $experiment_length; do
                                                                     if [[ $run_done == 1 ]]; then
                                                                         continue
                                                                     fi
-                                                                    # Partial logs of this run (interrupted batch) and logs left in the working folder:
-                                                                    # the robots append to their log file, so they would mix with the new run
+                                                                    # Partial logs of this run (interrupted batch)
                                                                     rm -f "$ctrl_par_dir"/quorum_log_agent#*_"$kilo_file"
-                                                                    rm -f quorum_log_agent#*.tsv
-                                                                    config=`printf 'config_nrobots%s_comm%s_rebroad%s_adap%s_priorityk%s_MsgExpTime%s_MsgHop%s_Opt%s_OptCorr%s_Eta%s_EtaStop%s_VarTime%s_InitDistr%s_Ctrl%s_Vote%s_CPar%s_run%s.argos' $agents_par $comm_type $comm_par $adaptive_par $priority_k_par $msgs_par $msgs_hop_par $options_par $spatial_correlation_par $eta_i_par $eta_s_par $var_time_par $init_par $control_par $voting_msgs_par $control_parameter_par $i`
-                                                                    cp $base_config $config
-                                                                    sed -i "s|__BROADCAST_POLICY__|$comm_par|g" $config
-                                                                    sed -i "s|__ADAPTIVE_COMM__|$adaptive_par|g" $config
-                                                                    sed -i "s|__ID_AWARE__|$id_aware_val|g" $config
-                                                                    sed -i "s|__PRIORITY_K__|$priority_k_par|g" $config
-                                                                    sed -i "s|__NUMROBOTS__|$agents_par|g" $config
-                                                                    sed -i "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" $config
-                                                                    sed -i "s|__SEED__|$i|g" $config
-                                                                    sed -i "s|__TIME_EXPERIMENT__|$exp_len_par|g" $config
-                                                                    sed -i "s|__MSGS_HOPS__|$msgs_hop_par|g" $config
-                                                                    sed -i "s|__hop_count__|$hop_count|g" $config
-                                                                    sed -i "s|__N_OPTIONS__|$options_par|g" $config
-                                                                    sed -i "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" $config
-                                                                    sed -i "s|__ETA_INIT__|$eta_i_par|g" $config
-                                                                    sed -i "s|__ETA_STOP__|$eta_s_par|g" $config
-                                                                    sed -i "s|__VAR_TIME__|$var_time_par|g" $config
-                                                                    sed -i "s|__INIT_DISTR__|$init_par|g" $config
-                                                                    sed -i "s|__CONTROL_TYPE__|$control_par|g" $config
-                                                                    sed -i "s|__VOTING_MSGS__|$voting_msgs_par|g" $config
-                                                                    sed -i "s|__CONTROL_PARAMETER__|$control_parameter_par|g" $config
-                                                                    sed -i "s|__KILOLOG__|$kilo_file|g" $config
-                                                                    echo "Running next configuration -- $config"
-                                                                    argos3 -c './'$config
-                                                                    argos_status=$?
-                                                                    missing=0
-                                                                    for j in $(seq 0 $last_id); do
-                                                                        if [[ ! -s "quorum_log_agent#$j.tsv" ]]; then
-                                                                            missing=1
-                                                                        fi
-                                                                    done
-                                                                    if [[ $argos_status -ne 0 || $missing == 1 ]]; then
-                                                                        # Only complete runs go into the results
-                                                                        echo "Run $i failed or incomplete (exit $argos_status) -- $config: logs discarded" 1>&2
-                                                                        rm -f quorum_log_agent#*.tsv
-                                                                    else
-                                                                        for j in $(seq 0 $last_id); do
-                                                                            mv "quorum_log_agent#$j.tsv" "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}"
-                                                                        done
-                                                                    fi
-                                                                    rm -f *.argos
+                                                                    wait_for_free_slot
+                                                                    echo "Running run $i -- $setting_key"
+                                                                    run_job "$i" "$ctrl_par_dir" "$agents_par" \
+                                                                        -e "s|__BROADCAST_POLICY__|$comm_par|g" -e "s|__ADAPTIVE_COMM__|$adaptive_par|g" \
+                                                                        -e "s|__ID_AWARE__|$id_aware_val|g" -e "s|__PRIORITY_K__|$priority_k_par|g" \
+                                                                        -e "s|__NUMROBOTS__|$agents_par|g" -e "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" \
+                                                                        -e "s|__TIME_EXPERIMENT__|$exp_len_par|g" -e "s|__MSGS_HOPS__|$msgs_hop_par|g" \
+                                                                        -e "s|__hop_count__|$hop_count|g" -e "s|__N_OPTIONS__|$options_par|g" \
+                                                                        -e "s|__OPTS_SPTIL_CORR__|$spatial_correlation_par|g" -e "s|__ETA_INIT__|$eta_i_par|g" \
+                                                                        -e "s|__ETA_STOP__|$eta_s_par|g" -e "s|__VAR_TIME__|$var_time_par|g" \
+                                                                        -e "s|__INIT_DISTR__|$init_par|g" -e "s|__CONTROL_TYPE__|$control_par|g" \
+                                                                        -e "s|__VOTING_MSGS__|$voting_msgs_par|g" -e "s|__CONTROL_PARAMETER__|$control_parameter_par|g" &
+                                                                    run_pids+=($!)
                                                                 done
+                                                                (( ${#run_pids[@]} > 0 )) && wait "${run_pids[@]}"
+                                                                # All runs there: process the setting in the background while the next one runs,
+                                                                # then delete its raw logs (about 4.7 GB per setting). They stay if processing fails.
+                                                                n_logs=$(find "$ctrl_par_dir" -maxdepth 1 -name 'quorum_log_agent#*.tsv' | wc -l)
+                                                                if (( n_logs == RUNS * agents_par )); then
+                                                                    wait_for_free_slot
+                                                                    (
+                                                                        if nice -n "$JOB_NICE" "$PY" dump_results.py --leaf "$ctrl_par_dir" > "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log" 2>&1; then
+                                                                            find "$ctrl_par_dir" -maxdepth 1 -name 'quorum_log_agent#*.tsv' -delete
+                                                                            rm -f "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log"
+                                                                        else
+                                                                            echo "Processing failed for $setting_key: raw logs kept (see $work_root)" 1>&2
+                                                                        fi
+                                                                    ) &
+                                                                else
+                                                                    echo "Setting incomplete ($n_logs of $(( RUNS * agents_par )) logs), not processed: $setting_key" 1>&2
+                                                                fi
                                                             done
                                                         done
                                                     done
@@ -257,3 +297,7 @@ for exp_len_par in $experiment_length; do
         done
     done
 done
+
+# Wait for the runs and processing still in the background
+wait
+echo "All simulations completed."
