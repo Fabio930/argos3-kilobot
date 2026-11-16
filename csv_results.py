@@ -407,6 +407,17 @@ class Data:
             ax.fill_between(x, lo, hi, color=color, alpha=0.2, lw=0, **kw)
 
 ###################################################
+    INSET_ZORDER = 1000
+
+    def _inset(self, ax, bounds, **kw):
+        # inset sempre sopra ogni elemento del main panel: lo zorder di default delle inset_axes (5)
+        # e' inferiore a quello delle curve (_zorder -> 2 + indice protocollo), che altrimenti le coprirebbero
+        ins = ax.inset_axes(bounds, zorder=self.INSET_ZORDER, **kw)
+        ins.patch.set_facecolor('white')
+        ins.patch.set_alpha(1.0)
+        return ins
+
+###################################################
     def _median_ci(self, values, z=1.96):
         # CI 95% della mediana senza ipotesi sulla distribuzione (statistiche d'ordine)
         v = np.sort(np.asarray(values, dtype=float))
@@ -1413,7 +1424,7 @@ class Data:
 
                     if insert_tm_list:
                         best_box = self.find_emptiest_inset_position(ax)
-                        ins = ax.inset_axes(best_box)
+                        ins = self._inset(ax, best_box)
                         
                         draw_pass(ins, "inset")
                         
@@ -1574,7 +1585,7 @@ class Data:
 
                     if insert_tm_list:
                         best_box = [1.0 - 0.44 - 0.03, 1.0 - 0.44 - 0.03, 0.44, 0.44]
-                        ins = ax.inset_axes(best_box, sharex=ax, sharey=ax)
+                        ins = self._inset(ax, best_box, sharex=ax, sharey=ax)
                         ins.autoscale(False)
                         draw_pass(ins, insert_tm_list[0], "inset")
                         ins.tick_params(labelbottom=False, labeltop=False, labelleft=False, labelright=False)
@@ -2667,7 +2678,7 @@ class Data:
                         target_ax = ax[0][col_idx]
                     else:
                         if (0, col_idx) not in inset_axes_dict:
-                            ins = ax[0][col_idx].inset_axes([0.52, 0.03, 0.45, 0.45])
+                            ins = self._inset(ax[0][col_idx], [0.52, 0.03, 0.45, 0.45])
                             ins.set_xlim(0, 901); ins.set_ylim(-0.01, 1.01)
                             ins.tick_params(labelbottom=False, labelleft=False)
                             ins.grid(True, ls=':', color='silver')
@@ -2733,7 +2744,7 @@ class Data:
                                 else:
                                     best_box = self.find_emptiest_inset_position(ax[r_idx][col_idx], width=0.48, height=0.48)
                                 
-                                ins = ax[r_idx][col_idx].inset_axes(best_box)
+                                ins = self._inset(ax[r_idx][col_idx], best_box)
                                 ins.grid(True, ls=':', color='silver')
                                 if r_idx == 1: ins.set_ylim(0.5, 1); ins.plot(ref_x, ref_x, color='black', lw=2, ls=':')
                                 inset_axes_dict[(r_idx, col_idx)] = ins
