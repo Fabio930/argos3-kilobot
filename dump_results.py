@@ -1,4 +1,4 @@
-import os, sys, logging, gc, time, psutil
+import os, sys, logging, gc, time, psutil, argparse
 import pandas as pd
 import data_extractor as dex
 from pathlib import Path
@@ -14,28 +14,14 @@ def setup_logging():
 
 # Check command line inputs
 def check_inputs():
-    ticks = 10
-    if len(sys.argv) > 3:
-        logging.error("Too many arguments --EXIT--")
-        exit()
-    if len(sys.argv) > 1:
-        for i in range(len(sys.argv)):
-            if sys.argv[i] == '-t':
-                if i + 1 >= len(sys.argv):
-                    logging.error("BAD format input --EXIT--")
-                    exit()
-                try:
-                    ticks = int(sys.argv[i + 1])
-                except:
-                    logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
-                    exit()
-            else:
-                logging.error("BAD format input\n-t must be followed by a positive integer --EXIT--")
-                exit()
-    if ticks <= 0:
-        logging.error("BAD format -t input type\nmust input a positive integer --EXIT--")
-        exit()
-    return ticks
+    parser = argparse.ArgumentParser(description="Process the ARGoS kilobot logs into proc_data.")
+    parser.add_argument("-t", type=int, default=10, help="ARGoS ticks per second (default 10)")
+    parser.add_argument("--leaf", default=None,
+                        help="process only this setting folder, in this process, without merging into the Pickle files")
+    args = parser.parse_args()
+    if args.t <= 0:
+        parser.error("-t must be a positive integer")
+    return args
 
 # Process folder with retries and memory management
 def process_folder(task):
@@ -99,34 +85,94 @@ def merge_csv_results_into_pickle(output_dir="proc_data"):
 
     logging.info(f"CSV to PKL merge completed. Merged={converted}, Failed={failed}.")
 
+prefix_map = {
+    "ExperimentLength": ("exp_length", int),
+    "VariationTime": ("variation_time", int),
+    "SpatCorr": ("spat_corr", float),
+    "Options": ("n_options", int),
+    "Eta": ("eta", float),
+    "EtaStop": ("eta_stop", float),
+    "Robots": ("n_agents", int),
+    "CommType": ("comm_type", str),
+    "Rebroadcast": ("communication", int),
+    "Adaptive": ("adaptive_com", int),
+    "PriorityK": ("priority_k", int),
+    "MsgExpTime": ("msg_exp_time", int),
+    "MsgHops": ("msg_hops", int),
+    "InitDistr": ("init_distr", float),
+    "Control": ("function", str),
+    "VotingMsgs": ("vote_msg", int),
+    "ControlParameter": ("ctrl_par", float),
+}
+required_keys = {v[0] for v in prefix_map.values()}
+
+def task_for_leaf(base, leaf, ticks_per_sec, done=None):
+    """Task tuple for process_folder from the settings in the folder path, or None to skip it."""
+    rel_parts = Path(leaf).relative_to(base).parts
+    meta = {}
+    for part in rel_parts:
+        if "#" not in part:
+            continue
+        prefix, raw_val = part.split("#", 1)
+        if prefix in prefix_map:
+            key, caster = prefix_map[prefix]
+            try:
+                meta[key] = caster(raw_val)
+            except ValueError:
+                logging.error(f"Bad value for {prefix} in {part} (path: {leaf})")
+                meta[key] = None
+
+    missing = sorted(required_keys.difference(meta.keys()))
+    if missing:
+        logging.warning(f"Skipping {leaf}, missing keys: {missing}")
+        return None
+
+    comm_type = meta["comm_type"]
+    id_aware = 0 if comm_type == "anon" else 1
+    # Same rule as loop_runs.sh: hop count only with rebroadcast 1
+    hop_count = 1 if (id_aware and meta["communication"] == 1) else 0
+    setting = str(Path(os.path.basename(base)) / Path(leaf).relative_to(base))
+    n_runs = len(list(Path(leaf).glob("*.tsv"))) // max(1, meta["n_agents"])
+    if done is not None and done.get(setting) == n_runs:
+        logging.info(f"Already processed ({n_runs} runs): {setting}")
+        return None
+
+    return (ticks_per_sec, leaf, meta["exp_length"], meta["variation_time"], meta["spat_corr"],
+            meta["communication"], meta["adaptive_com"], comm_type, id_aware, meta["priority_k"],
+            meta["n_agents"], meta["msg_exp_time"], meta["msg_hops"], meta["n_options"], meta["eta"],
+            meta["eta_stop"], meta["init_distr"], meta["function"], meta["vote_msg"], meta["ctrl_par"],
+            setting, hop_count)
+
+def process_leaf(leaf, ticks_per_sec):
+    """Process one setting folder in this process. Returns 0 if it is now in proc_data."""
+    leaf = os.path.abspath(leaf)
+    base = next((str(p) for p in [Path(leaf)] + list(Path(leaf).parents) if p.name.startswith("results_")), None)
+    if base is None:
+        logging.error(f"{leaf} is not inside a results_* folder")
+        return 1
+    task = task_for_leaf(base, leaf, ticks_per_sec)
+    if task is None:
+        return 1
+    setting, n_agents = task[20], task[10]
+    n_runs = len(list(Path(leaf).glob("*.tsv"))) // max(1, n_agents)
+    process_folder(task)
+    if dex.done_settings().get(setting) != n_runs:
+        logging.error(f"Processing failed: {setting}")
+        return 1
+    return 0
+
 def main():
     setup_logging()
-    ticks_per_sec = check_inputs()
+    args = check_inputs()
+    ticks_per_sec = args.t
+    if args.leaf is not None:
+        # One setting, called by loop_runs.sh as soon as all its runs are there
+        sys.exit(process_leaf(args.leaf, ticks_per_sec))
 
     # Using a manager to handle the queue
     manager = Manager()
     queue = manager.Queue()
 
-    prefix_map = {
-        "ExperimentLength": ("exp_length", int),
-        "VariationTime": ("variation_time", int),
-        "SpatCorr": ("spat_corr", float),
-        "Options": ("n_options", int),
-        "Eta": ("eta", float),
-        "EtaStop": ("eta_stop", float),
-        "Robots": ("n_agents", int),
-        "CommType": ("comm_type", str),
-        "Rebroadcast": ("communication", int),
-        "Adaptive": ("adaptive_com", int),
-        "PriorityK": ("priority_k", int),
-        "MsgExpTime": ("msg_exp_time", int),
-        "MsgHops": ("msg_hops", int),
-        "InitDistr": ("init_distr", float),
-        "Control": ("function", str),
-        "VotingMsgs": ("vote_msg", int),
-        "ControlParameter": ("ctrl_par", float),
-    }
-    required_keys = {v[0] for v in prefix_map.values()}
 
     # Rows left in CSV files by an interrupted run go into the Pickle files first
     merge_csv_results_into_pickle()
@@ -139,59 +185,9 @@ def main():
                 leaf_dirs.add(root)
 
         for leaf in sorted(leaf_dirs):
-            rel_parts = Path(leaf).relative_to(base).parts
-            meta = {}
-            for part in rel_parts:
-                if "#" not in part:
-                    continue
-                prefix, raw_val = part.split("#", 1)
-                if prefix in prefix_map:
-                    key, caster = prefix_map[prefix]
-                    try:
-                        meta[key] = caster(raw_val)
-                    except ValueError:
-                        logging.error(f"Bad value for {prefix} in {part} (path: {leaf})")
-                        meta[key] = None
-
-            missing = sorted(required_keys.difference(meta.keys()))
-            if missing:
-                logging.warning(f"Skipping {leaf}, missing keys: {missing}")
-                continue
-
-            comm_type = meta["comm_type"]
-            id_aware = 0 if comm_type == "anon" else 1
-            # Same rule as loop_runs.sh: hop count only with rebroadcast 1
-            hop_count = 1 if (id_aware and meta["communication"] == 1) else 0
-            setting = str(Path(os.path.basename(base)) / Path(leaf).relative_to(base))
-            n_runs = len(list(Path(leaf).glob("*.tsv"))) // max(1, meta["n_agents"])
-            if done.get(setting) == n_runs:
-                logging.info(f"Already processed ({n_runs} runs): {setting}")
-                continue
-
-            queue.put((
-                ticks_per_sec,
-                leaf,
-                meta["exp_length"],
-                meta["variation_time"],
-                meta["spat_corr"],
-                meta["communication"],
-                meta["adaptive_com"],
-                comm_type,
-                id_aware,
-                meta["priority_k"],
-                meta["n_agents"],
-                meta["msg_exp_time"],
-                meta["msg_hops"],
-                meta["n_options"],
-                meta["eta"],
-                meta["eta_stop"],
-                meta["init_distr"],
-                meta["function"],
-                meta["vote_msg"],
-                meta["ctrl_par"],
-                setting,
-                hop_count,
-            ))
+            task = task_for_leaf(base, leaf, ticks_per_sec, done)
+            if task is not None:
+                queue.put(task)
 
     gc.collect()
     logging.info(f"Starting {queue.qsize()} tasks")

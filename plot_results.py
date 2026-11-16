@@ -1,8 +1,9 @@
 """Condensed hybrid plots: ARGoS time series next to the boxplot of the agent-based (Python) model.
 
-One figure for every tested ARGoS setting that the panels do not show:
-number of options, spatial correlation, rebroadcast policy (and hop count),
-message expiring time, arena and number of runs. Inside a figure, rows are the
+One figure for every tested ARGoS setting that the panels do not show, saved as
+proc_data/images/cohesion_hybrid_condensed/options_<n>/corr_<c>/rebroadcast_<r>_hop_<h>/
+timeout_<s>s_python_mt<m>[_arena<a>][_runs<k>].png/.pdf (the folders tell the settings apart,
+the figures have no title). Inside a figure, rows are the
 control functions and columns the number of voting messages m; the inset shows
 the second eta of that number of options.
 
@@ -16,7 +17,7 @@ of every spatial correlation.
 Usage: python3 plot_results.py [--python-data DIR]
 Reading the Python Parquet files needs pyarrow (e.g. the venv of quorum_sensing_Best_of_N).
 """
-import argparse, os, re, logging
+import argparse, json, os, re, logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -32,15 +33,46 @@ MSG_TIME_MAP = {14: 3, 29: 6, 59: 12, 120: 24, 242: 48}
 PY_QUORUM_MIN = 5            # min_quorum_length of the kilobots (bestN.c)
 PY_ETA_HALF_STEP = 0.02      # Python eta grid step is 0.04
 ETAS_BY_OPTIONS = {2: (0.5, 0.4), 5: (0.8, 0.7)}   # (main panel, inset)
-ALL_CONFIGS = [
-    {'label': r'$r=0.8$', 'func': 'static', 'ctrl': 0.8},
-    {'label': r'$r(q)=q$', 'func': 'linear', 'ctrl': 0.0},
-    {'label': r'$p(q,0.2)$', 'func': 'polynomial', 'ctrl': 0.2},
-    {'label': r'$p(q,0.4)$', 'func': 'polynomial', 'ctrl': 0.4},
-    {'label': r'$p(q,0.6)$', 'func': 'polynomial', 'ctrl': 0.6},
-    {'label': r'$p(q,0.8)$', 'func': 'polynomial', 'ctrl': 0.8},
-]
 ALL_M_VALUES = [3, 5, 9, 15]
+DEFAULT_CONFIG = "plot_config.json"
+# What to plot. A missing key or null means "every value in the data".
+#   options, spatial_correlation, rebroadcast, msg_timeout: which figures
+#   m: columns; static_r, linear, polynomial_x0: rows (static on top, then linear, then
+#   polynomial, values ascending)
+CONFIG_KEYS = {"options", "spatial_correlation", "rebroadcast", "msg_timeout", "m", "static_r", "linear", "polynomial_x0"}
+
+def load_plot_config(path: str) -> dict:
+    """Read the plot selection; with no file every setting in the data is plotted."""
+    if not path or not os.path.exists(path):
+        logging.info(f"No plot config {path}: plotting every setting")
+        return {}
+    with open(path) as f:
+        cfg = json.load(f)
+    unknown = set(cfg) - CONFIG_KEYS - {k for k in cfg if k.startswith("_")}
+    if unknown:
+        raise ValueError(f"Unknown keys in {path}: {sorted(unknown)} (allowed: {sorted(CONFIG_KEYS)})")
+    return cfg
+
+def _wanted(values, selection) -> list:
+    """Values present in the data, kept by the config selection (None = all), ascending."""
+    present = sorted({round(float(v), 3) for v in values if pd.notnull(v)})
+    if selection is None:
+        return present
+    chosen = {round(float(v), 3) for v in selection}
+    return [v for v in present if v in chosen]
+
+def row_configs(coh: pd.DataFrame, cfg: dict) -> list:
+    """Rows of a figure: static r ascending, then linear, then polynomial x0 ascending."""
+    rows = []
+    static = coh.loc[coh['function'] == 'static', 'control_par']
+    for v in _wanted(static, cfg.get("static_r")):
+        rows.append({'label': rf'$r={v:g}$', 'func': 'static', 'ctrl': v})
+    if cfg.get("linear", True) and (coh['function'] == 'linear').any():
+        rows.append({'label': r'$r(q)=q$', 'func': 'linear', 'ctrl': 0.0})
+    poly = coh.loc[coh['function'] == 'polynomial', 'control_par']
+    for v in _wanted(poly, cfg.get("polynomial_x0")):
+        rows.append({'label': rf'$p(q,{v:g})$', 'func': 'polynomial', 'ctrl': v})
+    return rows
 # Settings of an ARGoS row that get a figure of their own
 FIGURE_KEYS = ['n_options', 'spat_corr', 'communication', 'hop_count', 'msg_exp_time', 'arena', 'n_runs']
 
@@ -269,24 +301,21 @@ class PythonBoxes:
 # 4. PLOTTING
 ##################################################################################
 
-def _figure_title(setting: dict) -> str:
-    rb = int(setting['communication'])
-    hop = int(setting['hop_count'])
-    rb_text = {1: "rebroadcast 1 (hop count, no hop limit)" if hop else "rebroadcast 1",
-               2: "rebroadcast 2 (no hop count)" if not hop else "rebroadcast 2 (hop count)"}.get(rb, f"rebroadcast {rb}")
-    mt = setting['msg_exp_time']
-    mt_text = f"timeout {int(mt)} s" + (f" (Python mt {MSG_TIME_MAP[int(mt)]})" if int(mt) in MSG_TIME_MAP else "")
-    corr = setting['spat_corr']
-    return f"{int(setting['n_options'])} options,  spatial corr. {corr:g},  {rb_text},  {mt_text}"
+def _figure_path(setting: dict) -> Path:
+    """Folder and file name of a figure: one folder level per setting not shown in the panels.
 
-def _figure_name(setting: dict) -> str:
-    name = (f"condensed_hybrid_opts{int(setting['n_options'])}_corr{setting['spat_corr']:g}"
-            f"_rb{int(setting['communication'])}_hop{int(setting['hop_count'])}_mt{int(setting['msg_exp_time'])}")
+    options_<n>/corr_<c>/rebroadcast_<r>_hop_<h>/timeout_<s>s_python_mt<m>[_arena<a>][_runs<k>]
+    """
+    rb, hop = int(setting['communication']), int(setting['hop_count'])
+    folder = (Path(f"options_{int(setting['n_options'])}") / f"corr_{setting['spat_corr']:g}"
+              / f"rebroadcast_{rb}_hop_{hop}")
+    mt = int(setting['msg_exp_time'])
+    name = f"timeout_{mt}s" + (f"_python_mt{MSG_TIME_MAP[mt]}" if mt in MSG_TIME_MAP else "")
     if setting.get('arena'):
         name += f"_arena{setting['arena']}"
     if pd.notnull(setting.get('n_runs')):
         name += f"_runs{int(setting['n_runs'])}"
-    return name
+    return folder / name
 
 def _select(df, eta, func, ctrl, m):
     if df is None or df.empty:
@@ -298,17 +327,15 @@ def _select(df, eta, func, ctrl, m):
     return df[mask]
 
 def plot_setting(setting: dict, coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBoxes,
-                 output_path: Path, omit_m=None, omit_labels=None) -> int:
+                 output_path: Path, cfg: dict) -> int:
     """One figure for one ARGoS setting (coh/msgs already restricted to it)."""
-    omit_m = omit_m or []
-    omit_labels = omit_labels or []
     n_opts = int(setting['n_options'])
     eta_main, eta_inset = ETAS_BY_OPTIONS.get(n_opts, (None, None))
     if eta_main is None:
         logging.warning(f"No eta pair for {n_opts} options, setting skipped")
         return 0
-    configs = [c for c in ALL_CONFIGS if c['label'] not in omit_labels]
-    m_values = [m for m in ALL_M_VALUES if m not in omit_m]
+    configs = row_configs(coh, cfg)
+    m_values = [int(m) for m in _wanted(coh['vote_msg'], cfg.get("m"))]
     pyth_color = 'tab:gray'
 
     panels = []
@@ -420,25 +447,30 @@ def plot_setting(setting: dict, coh: pd.DataFrame, msgs: pd.DataFrame, boxes: Py
             if not used[r, c]:
                 axes[r, c].set_visible(False)
 
-    legend = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$ (95% CI)')]
+    legend = [Line2D([0], [0], color='black', ls='-', lw=4, label=r'$\rho^*$')]
     if any_msgs:
         legend.append(Line2D([0], [0], color='black', ls='--', lw=4, label=r'$\|\mathcal{B}\|$'))
     if any_box:
         legend.append(Patch(facecolor=pyth_color, edgecolor='black', alpha=0.7, label='agent-based'))
-    fig.suptitle(_figure_title(setting))
     fig.legend(handles=legend, loc='upper right', bbox_to_anchor=(0.96, .015), ncol=len(legend))
     fig.tight_layout()
-    name = _figure_name(setting)
-    fig.savefig(output_path / f"{name}.pdf", dpi=300, bbox_inches="tight")
-    fig.savefig(output_path / f"{name}.png", dpi=300, bbox_inches="tight")
+    target = output_path / _figure_path(setting)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(target.with_suffix(".pdf"), dpi=300, bbox_inches="tight")
+    fig.savefig(target.with_suffix(".png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
     return 1
 
-def plot_condensed_hybrid(coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBoxes, omit_m=None, omit_labels=None) -> int:
+def plot_condensed_hybrid(coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBoxes, cfg: dict) -> int:
     output_path = Path(os.path.abspath("")) / "proc_data" / "images" / "cohesion_hybrid_condensed"
     output_path.mkdir(parents=True, exist_ok=True)
     # The dominant option (option_id 0) is the plotted density
     coh = coh[coh['option_id'] == 0]
+    # Figures chosen in the config
+    for key, col in (("options", "n_options"), ("spatial_correlation", "spat_corr"),
+                     ("rebroadcast", "communication"), ("msg_timeout", "msg_exp_time")):
+        if cfg.get(key) is not None:
+            coh = coh[coh[col].round(3).isin({round(float(v), 3) for v in cfg[key]})]
     keys = [k for k in FIGURE_KEYS if k in coh.columns]
     count = 0
     for values, group in coh.groupby(keys, dropna=False):
@@ -449,7 +481,7 @@ def plot_condensed_hybrid(coh: pd.DataFrame, msgs: pd.DataFrame, boxes: PythonBo
                 if k in msgs.columns:
                     msg_mask &= (msgs[k] == setting[k]) | (msgs[k].isna() & pd.isna(setting[k]))
         msg_group = msgs[msg_mask] if not msgs.empty else msgs
-        count += plot_setting(setting, group, msg_group, boxes, output_path, omit_m, omit_labels)
+        count += plot_setting(setting, group, msg_group, boxes, output_path, cfg)
     return count
 
 ##################################################################################
@@ -475,6 +507,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--python-data", default=os.path.join("..", "quorum_sensing_Best_of_N", "compressed_data"),
                         help="folder with the Python results_processed_*_residence_data.parquet files")
+    parser.add_argument("--config", default=DEFAULT_CONFIG,
+                        help=f"JSON file choosing the figures, rows and columns to plot (default {DEFAULT_CONFIG})")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -485,7 +519,7 @@ def main():
         return
     boxes = PythonBoxes(load_python_final_values(args.python_data, coh))
     count_configuration_overlaps(coh, boxes)
-    total = plot_condensed_hybrid(coh, msgs, boxes)
+    total = plot_condensed_hybrid(coh, msgs, boxes, load_plot_config(args.config))
     print(f"\nExecution finished. Total images saved: {total}")
 
 if __name__ == "__main__":

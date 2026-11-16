@@ -1,0 +1,11 @@
+{
+    "_help": "Selection for plot_results.py. A missing key or null plots every value found in the data. One figure per options x spatial_correlation x rebroadcast x msg_timeout; columns = m; rows = static r (ascending, top), linear, polynomial x0 (ascending, bottom).",
+    "options": [2, 5],
+    "spatial_correlation": [0, 1],
+    "rebroadcast": [1, 2],
+    "msg_timeout": [14, 29, 59, 120, 242],
+    "m": [3, 5, 9, 15],
+    "static_r": [0.8],
+    "linear": true,
+    "polynomial_x0": [0.6, 0.8]
+}
