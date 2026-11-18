@@ -285,7 +285,7 @@ for exp_len_par in $experiment_length; do
                                                                 if (( n_logs == RUNS * agents_par )); then
                                                                     wait_for_free_slot
                                                                     (
-                                                                        if nice -n "$JOB_NICE" "$PY" dump_results.py --leaf "$ctrl_par_dir" > "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log" 2>&1; then
+                                                                        if nice -n "$JOB_NICE" "$PY" "$wdir/analysis/dump_results.py" --leaf "$ctrl_par_dir" > "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log" 2>&1; then
                                                                             find "$ctrl_par_dir" -maxdepth 1 -name 'quorum_log_agent#*.tsv' -delete
                                                                             rm -f "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log"
                                                                         else

@@ -43,6 +43,11 @@ CONFIG_KEYS = {"options", "spatial_correlation", "rebroadcast", "msg_timeout", "
 
 def load_plot_config(path: str) -> dict:
     """Read the plot selection; with no file every setting in the data is plotted."""
+    if path and not os.path.exists(path) and not os.path.isabs(path):
+        # not in the working directory: use the copy next to this script
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        if os.path.exists(here):
+            path = here
     if not path or not os.path.exists(path):
         logging.info(f"No plot config {path}: plotting every setting")
         return {}

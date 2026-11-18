@@ -61,6 +61,23 @@ argos3 -c src/examples/experiments/kilobot_gradient_simple.argos
 argos3 -c src/examples/experiments/kilobot_sync.argos
 ```
 
+# BestN social interaction modulation
+
+The robot-to-robot protocol (`src/examples/behaviors/quorum_comm.*`, `quorum_structure.*`) is identical
+to the one in `quorum_analysis`.
+
+Batch (from the repository root):
+```shell
+./src/examples/experiments/batch/loop_runs.sh src/examples/experiments/batch kilobot_ALF_BestN.argos
+```
+
+Analysis scripts are in `analysis/`; run them from the repository root, where `proc_data/` and the result
+folders are (`plot_config.json` in the working directory wins over the one in `analysis/`):
+```shell
+python3 analysis/dump_results.py
+python3 analysis/plot_results.py
+```
+
 # Differences between Kilombo and ARGoS
 
 ## Kilombo
