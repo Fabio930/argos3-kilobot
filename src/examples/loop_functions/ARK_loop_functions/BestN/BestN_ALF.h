@@ -40,6 +40,12 @@ public:
     void PlaceKilobotsOnOwnOption();
     void SendBoundsInitInformation(CKilobotEntity &c_kilobot_entity);
 
+    /** Anonymous buffer length (packet type 1) */
+    void SendQueueInitInformation(CKilobotEntity &c_kilobot_entity);
+
+    /** Robot-to-robot protocol parameters (same as quorum_analysis) */
+    void ReadCommunicationParameters(TConfigurationNode& t_node);
+
     /** Get experiment variables */
     void GetExperimentVariables(TConfigurationNode& t_tree);
 
@@ -90,7 +96,7 @@ private:
     UInt16                  msgs_timeout;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
-    UInt8                   adaptive_comm;
+    UInt16                  queue_lenght = 0;
     UInt8                   m_unIdAware;
     UInt8                   m_unhop_count;
     UInt8                   m_unPrioritySamplingK;

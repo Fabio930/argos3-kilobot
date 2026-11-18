@@ -1,116 +1,5 @@
 #include "bestN.h"
 
-void generic_fifo_init(generic_fifo_t* fifo) {
-    fifo->head = 0;
-    fifo->tail = 0;
-    fifo->count = 0;
-}
-
-/* Drops FIFO entries whose agent is no longer in the quorum buffer, keeping order. */
-void sync_rebroadcast_fifo() {
-    if (rebroadcast_fifo.count == 0) return;
-    if (id_aware) {
-        /* One pass over the quorum and one over the FIFO, instead of a lookup per entry. */
-        uint8_t present[256] = {0};
-        for (uint8_t i = 0; i < num_quorum_items; ++i) {
-            if (quorum_array[i] != NULL) present[quorum_array[i]->agent_id] = 1;
-        }
-        generic_fifo_t* f = &rebroadcast_fifo;
-        uint8_t kept = 0;
-        for (uint8_t i = 0; i < f->count; ++i) {
-            fifo_item_t item = f->buffer[(uint8_t)((f->head + i) % FIFO_BUFFER_SIZE)];
-            if (present[item.agent_id]) {
-                f->buffer[(uint8_t)((f->head + kept) % FIFO_BUFFER_SIZE)] = item;
-                kept++;
-            }
-        }
-        f->count = kept;
-        f->tail = (uint8_t)((f->head + kept) % FIFO_BUFFER_SIZE);
-        return;
-    }
-    uint8_t initial_count = rebroadcast_fifo.count;
-    for (uint8_t i = 0; i < initial_count; i++) {
-        fifo_item_t item;
-        generic_fifo_peek(&rebroadcast_fifo, &item);
-        generic_fifo_dequeue(&rebroadcast_fifo);
-        if (find_quorum_index_by_id(item.agent_id) != 0b1111111111111111) {
-            generic_fifo_update(&rebroadcast_fifo, item.agent_id, item.agent_state, item.msg_n_hops, buffer_length, id_aware);
-        }
-    }
-}
-
-void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag) {
-    if (capacity == 0) {
-        generic_fifo_init(fifo);
-        return;
-    }
-    while(fifo->count > capacity) {
-        fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
-        fifo->count--;
-    }
-    if (!id_aware_flag) {
-        if (fifo->count >= capacity) {
-            fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
-            fifo->count--;
-        }
-        fifo->buffer[fifo->tail].agent_id = 0;
-        fifo->buffer[fifo->tail].agent_state = agent_state;
-        fifo->buffer[fifo->tail].msg_n_hops = msg_n_hops;
-        fifo->tail = (uint8_t)((fifo->tail + 1) % FIFO_BUFFER_SIZE);
-        fifo->count++;
-        return;
-    }
-    int16_t found = -1;
-    for(uint8_t i = 0; i < fifo->count; ++i) {
-        uint8_t idx = (uint8_t)((fifo->head + i) % FIFO_BUFFER_SIZE);
-        if(fifo->buffer[idx].agent_id == agent_id) {
-            found = i;
-            break;
-        }
-    }
-    if(found < 0) {
-        if (fifo->count >= capacity) {
-            fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
-            fifo->count--;
-        }
-        fifo->buffer[fifo->tail].agent_id = agent_id;
-        fifo->buffer[fifo->tail].agent_state = agent_state;
-        fifo->buffer[fifo->tail].msg_n_hops = msg_n_hops;
-        fifo->tail = (uint8_t)((fifo->tail + 1) % FIFO_BUFFER_SIZE);
-        fifo->count++;
-    } else {
-        uint8_t last_offset = (uint8_t)(fifo->count - 1);
-        if ((uint8_t)found != last_offset) {
-            for(uint8_t i = (uint8_t)found; i < last_offset; ++i) {
-                uint8_t from = (uint8_t)((fifo->head + i + 1) % FIFO_BUFFER_SIZE);
-                uint8_t to = (uint8_t)((fifo->head + i) % FIFO_BUFFER_SIZE);
-                fifo->buffer[to] = fifo->buffer[from];
-            }
-            uint8_t last_idx = (uint8_t)((fifo->head + last_offset) % FIFO_BUFFER_SIZE);
-            fifo->buffer[last_idx].agent_id = agent_id;
-            fifo->buffer[last_idx].agent_state = agent_state;
-            fifo->buffer[last_idx].msg_n_hops = msg_n_hops;
-        } else {
-            uint8_t idx = (uint8_t)((fifo->head + last_offset) % FIFO_BUFFER_SIZE);
-            fifo->buffer[idx].agent_state = agent_state;
-            fifo->buffer[idx].msg_n_hops = msg_n_hops;
-        }
-    }
-}
-
-uint8_t generic_fifo_peek(generic_fifo_t* fifo, fifo_item_t* item_out) {
-    if (fifo->count == 0) return 0;
-    *item_out = fifo->buffer[fifo->head];
-    return 1;
-}
-
-uint8_t generic_fifo_dequeue(generic_fifo_t* fifo) {
-    if (fifo->count == 0) return 0;
-    fifo->head = (uint8_t)((fifo->head + 1) % FIFO_BUFFER_SIZE);
-    fifo->count--;
-    return 1;
-}
-
 float random_in_range(float min, float max){
     float r = (float)rand_hard() / 256.0f;
     return min + (r*(max-min));
@@ -154,124 +43,19 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        float p = random_in_range(0,1);
-        switch(broadcasting_flag){
-            case 0:
-                broadcast();
-                break;
-            case 1:
-                if(p<0.5){
-                    selected_msg_indx = select_a_random_message();
-                    switch(msg_n_hops){
-                        case 0:
-                            if(selected_msg_indx != 0b1111111111111111) rnd_rebroadcast();
-                            else broadcast();
-                            break;
-                        default:
-                            if(adaptive_comm == 1) compute_msg_hops();
-                            uint8_t hop_limit = (adaptive_comm == 1) ? msg_n_hops_rnd : msg_n_hops;
-                            if(selected_msg_indx != 0b1111111111111111 && quorum_array[selected_msg_indx]->delivered < hop_limit) rnd_rebroadcast();
-                            else broadcast();
-                            break;
-                    }
-                }
-                else broadcast();
-                break;
-            case 2:
-                if(p<0.5){
-                    if(id_aware){
-                        bool found_valid = false;
-                        fifo_item_t item_to_send;
-                        while(rebroadcast_fifo.count > 0 && !found_valid) {
-                            generic_fifo_peek(&rebroadcast_fifo, &item_to_send);
-                            uint16_t q_idx = find_quorum_index_by_id(item_to_send.agent_id);
-                            
-                            if (q_idx != 0b1111111111111111) {
-                                fifo_rebroadcast(quorum_array[q_idx]->agent_id, quorum_array[q_idx]->agent_state, quorum_array[q_idx]->msg_n_hops);
-                                generic_fifo_dequeue(&rebroadcast_fifo);
-                                found_valid = true;
-                            } else {
-                                generic_fifo_dequeue(&rebroadcast_fifo);
-                            }
-                        }
-                        if (!found_valid) {
-                            broadcast();
-                        }
-                    }
-                    else broadcast();
-                }
-                else broadcast();                
-                break;
-            default:
-                break;   
-        }
-        selected_msg_indx = 0b1111111111111111;
+        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+        comm_talk((uint8_t)kilo_uid, my_state, my_message.data);
         sending_msg = true;
     }
 }
 
-void broadcast(){
-    sa_type = 0;
-    sa_id = kilo_uid;
-    sa_payload = my_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-void rnd_rebroadcast(){
-    sa_type = sat_inc_u8(quorum_array[selected_msg_indx]->msg_n_hops);
-    sa_id = quorum_array[selected_msg_indx]->agent_id;
-    sa_payload = quorum_array[selected_msg_indx]->agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_array[selected_msg_indx]->delivered = sat_inc_u8(quorum_array[selected_msg_indx]->delivered);
-    quorum_array[selected_msg_indx]->msg_n_hops = sa_type;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops){
-    sa_type = sat_inc_u8(msg_hops);
-    sa_id = agent_id;
-    sa_payload = agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-
-    uint16_t q_idx = find_quorum_index_by_id(agent_id);
-    if(q_idx != 0b1111111111111111){
-        quorum_array[q_idx]->delivered = sat_inc_u8(quorum_array[q_idx]->delivered);
-        quorum_array[q_idx]->msg_n_hops = sa_type;
-    }
-    return 1;
-}
-
-void compute_msg_hops(){
-    if(kilo_ticks > buff_ticks_sec + buff_ticks){
-        buff_ticks = kilo_ticks;
-        if(buffer_update_rng > 0){
-            msg_n_hops_rnd = 0;
-        }
-        else{
-            msg_n_hops_rnd += 1;
-        }
-        buffer_update_rng = 0;
-    }
-    if(msg_n_hops_rnd > msg_n_hops){
-        msg_n_hops_rnd = msg_n_hops;
-    }
-}
-
 uint8_t compute_quorum_value(){
-    uint8_t eligible = eligible_quorum_items();
-    if(quorum_array == NULL || eligible < min_quorum_length) return 0;
+    uint8_t start = comm_first_sample();
+    uint8_t eligible = num_quorum_items - start;
+    if(eligible < min_quorum_length) return 0;
     uint16_t agreeing = 1;
-    uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
-        if(quorum_array[i] != NULL && quorum_array[i]->agent_state == my_state){
+        if(quorum_buf[i].agent_state == my_state){
             ++agreeing;
         }
     }
@@ -399,11 +183,11 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
         case MSG_B:
             if(init_received_A){
                 if(kb_index == 0){
-                    msg_n_hops = (uint8_t)(sa_payload & 0x1F);
-                    msg_n_hops_rnd = msg_n_hops;
-                    if(!id_aware){
-                        msg_n_hops = 0;
-                        msg_n_hops_rnd = 0;
+                    if(!comm_ready){
+                        /* last communication parameter: the protocol can start */
+                        comm_configure(!cfg_id_aware, cfg_rebroadcast, cfg_expiring_s, (uint8_t)(sa_payload & 0x1F),
+                                       cfg_hop_count, cfg_queue_lenght, cfg_k_sampling, TICKS_PER_SEC);
+                        comm_ready = true;
                     }
                     init_received_B = true;
                 }
@@ -429,26 +213,12 @@ void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index){
     }
 }
 
-void update_messages(const uint8_t Msg_n_hops){
-    uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-    uint8_t result = update_q(&quorum_array,&quorum_list,NULL,received_id,received_committed,expiring_time,Msg_n_hops,hop_count);
-    if(result == 2 && broadcasting_flag == 1 && adaptive_comm == 1) buffer_update_rng += 1;
-    sort_q(&quorum_array);
-    if(id_aware && broadcasting_flag == 2){
-        if(result == 1 || result == 2) {
-            generic_fifo_update(&rebroadcast_fifo, received_id, received_committed, Msg_n_hops, buffer_length, 1);
-        }
-    }
-}
-
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
-    if(sa_id!=(uint8_t)kilo_uid){
+    if(comm_ready && sa_id!=(uint8_t)kilo_uid){
         sa_type = data[1];
         sa_payload = data[2];
-        received_id = sa_id;
-        received_committed = (uint8_t)sa_payload;
-        update_messages(sa_type);
+        comm_receive(sa_id, (uint8_t)sa_payload, sa_type);
     }
     else sa_id = 0;
 }
@@ -469,32 +239,17 @@ void parse_smart_arena_broadcast(uint8_t data[9]){
                         build_arena(&the_arena);
                     }
                     update_arena_from_received_bounds();
-                    uint32_t msg_timeout = sa_payload;
-                    adaptive_comm = (uint8_t)((packet_data >> 5) & 0x01);
-                    broadcasting_flag = (uint8_t)(packet_data & 0x1F);
-                    if(broadcasting_flag == 0){
-                        adaptive_comm = 0;
-                    }
-                    set_quorum_vars(msg_timeout * TICKS_PER_SEC,5);
+                    cfg_expiring_s = sa_payload;
+                    cfg_rebroadcast = (uint8_t)(packet_data & 0x1F);
                     init_received_A = true;
                 }
+                else if(packet_type == 1){
+                    cfg_queue_lenght = (uint8_t)(sa_payload & 0xFF);
+                }
                 else if(packet_type == 2){
-                    priority_sampling_k = (uint8_t)(sa_payload & 0x7F);
-                    id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
-                    hop_count = (uint8_t)((sa_payload >> 8) & 0x01);
-                    
-                    if(priority_sampling_k > buffer_length){
-                        priority_sampling_k = buffer_length;
-                    }
-                    if(!id_aware){
-                        broadcasting_flag = 0;
-                        msg_n_hops = 0;
-                        msg_n_hops_rnd = 0;
-                        adaptive_comm = 0;
-                    }
-                    if(broadcasting_flag == 0){
-                        adaptive_comm = 0;
-                    }
+                    cfg_k_sampling = (uint8_t)(sa_payload & 0x7F);
+                    cfg_id_aware = (uint8_t)((sa_payload >> 7) & 0x01);
+                    cfg_hop_count = (uint8_t)((sa_payload >> 8) & 0x01);
                 }
                 else if(packet_type == 3){
                     gps_max_x_q = (uint8_t)((sa_payload >> 7) & 0x7F);
@@ -629,16 +384,14 @@ void decision(){
 }
 
 uint8_t majority_vote() {
-    uint8_t eligible = eligible_quorum_items();
-    if (quorum_array == NULL || eligible == 0) return my_state;
-    uint8_t valid_states[FIFO_BUFFER_SIZE];
+    uint8_t start = comm_first_sample();
+    uint8_t eligible = num_quorum_items - start;
+    if (eligible == 0) return my_state;
+    uint8_t valid_states[QUORUM_CAPACITY];
     uint8_t vote_count = 0;
-    uint8_t start = buffer_skip_prefix();
     for(uint8_t i = start; i < num_quorum_items; ++i){
-        if(quorum_array[i] != NULL){
-            valid_states[vote_count] = quorum_array[i]->agent_state;
-            vote_count++;
-        }
+        valid_states[vote_count] = quorum_buf[i].agent_state;
+        vote_count++;
     }
     if (vote_count < voting_msgs || voting_msgs == 0) return my_state;
     for (uint8_t i = 0; i < voting_msgs; i++) {
@@ -674,9 +427,7 @@ void setup(){
     my_state = 255;
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
-    init_array_qrm(&quorum_array, FIFO_BUFFER_SIZE);
-    id_aware = 1;
-    priority_sampling_k = 0;
+    comm_configure(0, 0, 0, 0, 0, 0, 0, TICKS_PER_SEC);
     
     uint8_t seed = rand_hard();
     rand_seed(seed);
@@ -686,28 +437,25 @@ void setup(){
     snprintf(log_title,30,"quorum_log_agent#%d.tsv",kilo_uid);
     fp = fopen(log_title,"a");
     set_motion(STOP);
-    generic_fifo_init(&rebroadcast_fifo);
 }
 
 void loop(){
     delta_elapsed = kilo_ticks - ticks_elapsed;
     ticks_elapsed = kilo_ticks;
-    decrement_quorum_counter(&quorum_array, delta_elapsed);
-    erase_expired_items(&quorum_array,&quorum_list);
-    sync_rebroadcast_fifo();
+    comm_tick(delta_elapsed);
     if(my_state != 255 && init_received_C){
         random_way_point_model();
         quorum_value = compute_quorum_value();
         decision();
         talk();
     }
-    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, true_quorum_items, quorum_value / 100.0f, control_value / 100.0f);
+    fprintf(fp,"%d\t %d\t %.2f\t %.2f\n", my_state, comm_distinct_ids(), quorum_value / 100.0f, control_value / 100.0f);
 }
 
 void deallocate_memory(){
     fclose(fp);
     destroy_tree(&the_arena);
-    destroy_quorum_memory(&quorum_array,&quorum_list);
+    quorum_clear();
     return;
 }
 

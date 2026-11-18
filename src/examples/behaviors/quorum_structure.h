@@ -1,15 +1,29 @@
+/* Quorum buffer shared by the ID-aware and the anonymous communication models.
+ * This file is identical in quorum_analysis and QS_social_interaction_modulation:
+ * change it in both branches.
+ *
+ * The buffer is a plain array of entries (no linked list), so insertion,
+ * eviction and expiry can never leave dangling pointers behind.
+ *
+ *  - ID-aware  (quorum_analysis):   one entry per sender ID, entries expire
+ *    when their counter reaches 0 (never when expiring_ticks_quorum == 0),
+ *    array kept sorted by descending counter.
+ *  - anonymous (Parker_replica):    every received message is appended, the
+ *    buffer holds at most buffer_lenght entries; when it is full the entry at
+ *    index 0 is evicted. With expiring_ticks_quorum > 0 the array is kept
+ *    sorted by ascending counter (index 0 = closest to expiry), with
+ *    expiring_ticks_quorum == 0 it is a pure FIFO (index 0 = oldest).
+ */
+#ifndef QUORUM_STRUCTURE_H
+#define QUORUM_STRUCTURE_H
+
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-uint32_t expiring_ticks_quorum = 10000;
-uint8_t min_quorum_length;
-uint8_t num_quorum_items;
-uint8_t true_quorum_items;
-uint8_t buffer_length = 128;
-uint8_t priority_sampling_k = 0;
-uint8_t id_aware = 1;
-uint8_t hop_count = 0;
+#define QUORUM_CAPACITY 255
+#define QUORUM_NOT_FOUND 0xFFFF
 
 typedef struct quorum_structure{
     uint32_t counter;
@@ -17,21 +31,56 @@ typedef struct quorum_structure{
     uint8_t delivered;
     uint8_t agent_state;
     uint8_t msg_n_hops;
-    struct quorum_structure *next,*prev;
 }quorum_a;
 
-void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length);
+extern quorum_a quorum_buf[QUORUM_CAPACITY];
+extern uint8_t num_quorum_items;
+extern uint8_t buffer_lenght;
+extern uint8_t quorum_anonymous;
+extern uint32_t expiring_ticks_quorum;
+extern uint8_t min_quorum_length;
+extern float quorum_threshold;
+extern uint8_t quorum_reached;
 
-void sort_q(quorum_a **Array[]);
+/* Configure the buffer: capacity is clamped to [1, QUORUM_CAPACITY]. */
+void quorum_init(uint8_t capacity, uint32_t expiring_ticks, uint8_t anonymous);
 
-void init_array_qrm(quorum_a **Array[], uint8_t N);
+void quorum_clear();
 
-void decrement_quorum_counter(quorum_a **Array[],uint64_t ticks);
+void set_quorum_threshold(const uint8_t Quorum_threshold_percent);
 
-void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum);
+/* ID-aware insertion.
+ * returns 0: sender already known, nothing changed
+ *         1: new sender appended
+ *         2: known sender updated (counter, state, hops and delivered refreshed)
+ * Hop_count = 0: a known sender is updated when its state changed.
+ * Hop_count = 1: a known sender is updated when the new message travelled at most
+ *                as many hops as the stored one, even with the same state (the
+ *                expiry timer restarts). */
+uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t Hop_count);
 
-void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum);
+/* Anonymous insertion: always appends, evicting index 0 when full. Returns 1. */
+uint8_t quorum_push_anonymous(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time);
 
-uint16_t select_a_random_message();
+void quorum_remove_at(uint8_t idx);
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t hop_count);
+void quorum_sort();
+
+void quorum_decrement(uint64_t ticks);
+
+/* Removes every entry whose counter reached 0 (ID-aware model only, nothing
+ * expires when expiring_ticks_quorum == 0). */
+void quorum_erase_expired();
+
+uint16_t quorum_find_by_id(const uint8_t agent_id);
+
+/* First entry never rebroadcast: oldest first in FIFO mode, otherwise the
+ * last array position first (anonymous rebroadcast policy 2). */
+uint16_t quorum_select_undelivered();
+
+uint8_t quorum_distinct_ids();
+
+/* Quorum test: ignores the first k_sampling entries of the array. */
+uint8_t quorum_check(const uint8_t my_state, const uint8_t k_sampling);
+
+#endif

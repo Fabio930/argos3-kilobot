@@ -236,13 +236,70 @@ void CBestN_ALF::SetupInitialKilobotState(CKilobotEntity &c_kilobot_entity){
 /****************************************/
 /****************************************/
 
+/* Robot-to-robot protocol parameters: the same as quorum_analysis (see behaviors/quorum_comm.h).
+ * The quorum_analysis names are accepted, the old QS names are kept as aliases. */
+void CBestN_ALF::ReadCommunicationParameters(TConfigurationNode& t_node){
+    if(NodeAttributeExists(t_node, "communication")){
+        std::string strComm;
+        GetNodeAttribute(t_node, "communication", strComm);
+        if(strComm == "id") m_unIdAware = 1;
+        else if(strComm == "anonymous") m_unIdAware = 0;
+        else THROW_ARGOSEXCEPTION("bestN: 'communication' must be id or anonymous, got '" << strComm << "'");
+    }
+    else{
+        UInt32 unIdAware;
+        GetNodeAttributeOrDefault<UInt32>(t_node, "id_aware", unIdAware, 1);
+        if(unIdAware > 1) THROW_ARGOSEXCEPTION("bestN: 'id_aware' must be 0 or 1");
+        m_unIdAware = unIdAware;
+    }
+    if(NodeAttributeExists(t_node, "adaptive_comm")){
+        UInt32 unAdaptive;
+        GetNodeAttribute(t_node, "adaptive_comm", unAdaptive);
+        if(unAdaptive != 0) THROW_ARGOSEXCEPTION("bestN: 'adaptive_comm' has been removed, set it to 0 or delete it");
+    }
+    UInt32 unValue;
+    GetNodeAttribute(t_node, "rebroadcast", unValue);
+    if(unValue > 2) THROW_ARGOSEXCEPTION("bestN: 'rebroadcast' must be 0, 1 or 2");
+    rebroadcast = unValue;
+    if(NodeAttributeExists(t_node, "expiring_quorum_sec")) GetNodeAttribute(t_node, "expiring_quorum_sec", unValue);
+    else GetNodeAttribute(t_node, "msgs_timeout", unValue);
+    if(unValue > 0x3FFF) THROW_ARGOSEXCEPTION("bestN: message expiring time must be at most 16383 s");
+    msgs_timeout = unValue;
+    GetNodeAttributeOrDefault<UInt32>(t_node, "msgs_n_hops", unValue, 0);
+    if(unValue > 31) THROW_ARGOSEXCEPTION("bestN: 'msgs_n_hops' must be at most 31");
+    msgs_n_hops = unValue;
+    GetNodeAttributeOrDefault<UInt32>(t_node, "hop_count", unValue, 0);
+    if(unValue > 1) THROW_ARGOSEXCEPTION("bestN: 'hop_count' must be 0 or 1");
+    m_unhop_count = unValue;
+    if(NodeAttributeExists(t_node, "k_sampling")) GetNodeAttribute(t_node, "k_sampling", unValue);
+    else GetNodeAttributeOrDefault<UInt32>(t_node, "priority_sampling_k", unValue, 0);
+    if(unValue > 127) THROW_ARGOSEXCEPTION("bestN: 'k_sampling' must be at most 127");
+    m_unPrioritySamplingK = unValue;
+    if(m_unIdAware == 0){
+        if(rebroadcast != 0) THROW_ARGOSEXCEPTION("bestN: anonymous robots never rebroadcast, set rebroadcast=\"0\"");
+        if(!NodeAttributeExists(t_node, "queue_lenght")) THROW_ARGOSEXCEPTION("bestN: anonymous communication needs 'queue_lenght'");
+        GetNodeAttribute(t_node, "queue_lenght", unValue);
+        if(unValue < 1 || unValue > 255) THROW_ARGOSEXCEPTION("bestN: 'queue_lenght' must be in [1,255]");
+        queue_lenght = unValue;
+        msgs_n_hops = 0;
+        m_unhop_count = 0;
+    }
+    else{
+        /* k_sampling and queue_lenght belong to the anonymous model only */
+        m_unPrioritySamplingK = 0;
+        queue_lenght = 0;
+    }
+}
+
+/****************************************/
+/****************************************/
+
 void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     CSimulator &simulator = GetSimulator();
     m_random_seed = simulator.GetRandomSeed();
     /* Get the structure variables from the .argos file*/
     TConfigurationNode& tHierarchicalStructNode=GetNode(t_tree,"bestN");
     /* Get dimensions and quality scaling factor*/
-    GetNodeAttribute(tHierarchicalStructNode,"rebroadcast",rebroadcast);
     GetNodeAttribute(tHierarchicalStructNode,"options",options);
     GetNodeAttribute(tHierarchicalStructNode,"variation_time",variation_time);
     GetNodeAttribute(tHierarchicalStructNode,"eta_init",eta_init);
@@ -257,12 +314,7 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
         strInitDistr.pop_back();
     }
     init_distr = std::stof(strInitDistr);
-    GetNodeAttribute(tHierarchicalStructNode,"msgs_timeout",msgs_timeout);
-    GetNodeAttribute(tHierarchicalStructNode,"msgs_n_hops",msgs_n_hops);
-    GetNodeAttributeOrDefault(tHierarchicalStructNode,"adaptive_comm",adaptive_comm,static_cast<UInt8>(0));
-    GetNodeAttributeOrDefault(tHierarchicalStructNode,"id_aware",m_unIdAware,static_cast<UInt8>(1));
-    GetNodeAttributeOrDefault(tHierarchicalStructNode,"hop_count",m_unhop_count,static_cast<UInt8>(0));
-    GetNodeAttributeOrDefault(tHierarchicalStructNode,"priority_sampling_k",m_unPrioritySamplingK,static_cast<UInt8>(0));
+    ReadCommunicationParameters(tHierarchicalStructNode);
     GetNodeAttribute(tHierarchicalStructNode,"control",control);
     GetNodeAttribute(tHierarchicalStructNode,"voting_msgs",voting_msgs);
     GetNodeAttribute(tHierarchicalStructNode,"control_parameter",control_parameter);
@@ -271,20 +323,6 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     eta_stop = Min<Real>(1.0, Max<Real>(0.0, eta_stop));
     variation_time = Max<uint16_t>(0,variation_time);
     options = Max<UInt8>(1, options);
-    rebroadcast = Min<UInt8>(31, rebroadcast);
-    msgs_n_hops = Min<UInt8>(31, msgs_n_hops);
-    adaptive_comm = Min<UInt8>(1, adaptive_comm);
-    m_unIdAware = Min<UInt8>(1, m_unIdAware);
-    m_unhop_count = Min<UInt8>(1, m_unhop_count);
-    m_unPrioritySamplingK = Min<UInt8>(127, m_unPrioritySamplingK);
-    if(m_unIdAware == 0){
-        rebroadcast = 0;
-        msgs_n_hops = 0;
-        adaptive_comm = 0;
-    }
-    if(rebroadcast == 0){
-        adaptive_comm = 0;
-    }
     voting_msgs = Min<UInt8>(127, voting_msgs);
     control_parameter = Min<Real>(1.0, Max<Real>(0.0, control_parameter));
     m_unControlMode = ControlModeFromString(control);
@@ -550,20 +588,24 @@ void CBestN_ALF::UpdateVirtualSensor(CKilobotEntity &c_kilobot_entity){
                     break;
                 case 2:
                     m_vecStart_experiment[unKilobotID]=3;
-                    SendBoundsInitInformation(c_kilobot_entity);
+                    SendQueueInitInformation(c_kilobot_entity);
                     break;
                 case 3:
                     m_vecStart_experiment[unKilobotID]=4;
-                    SendStateInformation(c_kilobot_entity);
+                    SendBoundsInitInformation(c_kilobot_entity);
                     break;
                 case 4:
                     m_vecStart_experiment[unKilobotID]=5;
+                    SendStateInformation(c_kilobot_entity);
+                    break;
+                case 5:
+                    m_vecStart_experiment[unKilobotID]=6;
                     SendInformationGPS(c_kilobot_entity);
                     break;
             }
             start_experiment=1;
             for(size_t i = 0; i < m_vecStart_experiment.size(); ++i){
-                if(m_vecStart_experiment[i]!=5){
+                if(m_vecStart_experiment[i]!=6){
                     start_experiment=0;
                     break;
                 }
@@ -587,7 +629,7 @@ void CBestN_ALF::SendStructInitInformation(CKilobotEntity &c_kilobot_entity){
     const UInt16 unPayload = msgs_timeout & 0x3FFFu;
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
-    const UInt8 unPacketData = static_cast<UInt8>(((adaptive_comm & 0x01u) << 5) | (rebroadcast & 0x1Fu));
+    const UInt8 unPacketData = static_cast<UInt8>(rebroadcast & 0x1Fu);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>((0u << 6) | (unPacketData & 0x3Fu));
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
@@ -607,6 +649,22 @@ void CBestN_ALF::SendBufferInitInformation(CKilobotEntity &c_kilobot_entity){
     m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
     m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(2u << 6);
+    GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
+}
+
+/****************************************/
+/****************************************/
+
+/* Packet type 1: length of the anonymous buffer (0 for ID-aware robots). */
+void CBestN_ALF::SendQueueInitInformation(CKilobotEntity &c_kilobot_entity){
+    UInt16 unKilobotID = GetKilobotId(c_kilobot_entity);
+    m_vecLastTimeMessaged[unKilobotID]=m_fTimeInSeconds;
+    m_tMessages[unKilobotID].type = 0;
+    for(UInt8 i = 0; i < 9; ++i) m_tMessages[unKilobotID].data[i] = 0;
+    const UInt16 unPayload = static_cast<UInt16>(queue_lenght & 0xFFu);
+    m_tMessages[unKilobotID].data[0] = static_cast<UInt8>(((unPayload >> 7) & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[1] = static_cast<UInt8>((unPayload & 0x7Fu) << 1);
+    m_tMessages[unKilobotID].data[2] = static_cast<UInt8>(1u << 6);
     GetSimulator().GetMedium<CKilobotCommunicationMedium>("kilocomm").SendOHCMessageTo(c_kilobot_entity,&m_tMessages[unKilobotID]);
 }
 

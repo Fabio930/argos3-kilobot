@@ -100,6 +100,7 @@ spatial_correlation="0 1"
 numrobots="100"
 comm_type_set="id_aware"
 rebroadcast="1 2"
+# adaptive_comm was removed: the Adaptive#0 directory level is kept so the analysis scripts still work
 adaptive_set="0"
 priority_k_set="0"
 # Mean message lifetime in seconds. A decision every 5.1 s: these give the same mean number of
@@ -266,7 +267,7 @@ for exp_len_par in $experiment_length; do
                                                                     wait_for_free_slot
                                                                     echo "[$(date '+%F %T')] Started run $i -- ${setting_key#results_loop_runs_${arena_label}/}"
                                                                     run_job "$i" "$ctrl_par_dir" "$agents_par" \
-                                                                        -e "s|__BROADCAST_POLICY__|$comm_par|g" -e "s|__ADAPTIVE_COMM__|$adaptive_par|g" \
+                                                                        -e "s|__BROADCAST_POLICY__|$comm_par|g" -e "s|__QUEUE_LENGHT__|$((agents_par - 1))|g" \
                                                                         -e "s|__ID_AWARE__|$id_aware_val|g" -e "s|__PRIORITY_K__|$priority_k_par|g" \
                                                                         -e "s|__NUMROBOTS__|$agents_par|g" -e "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" \
                                                                         -e "s|__TIME_EXPERIMENT__|$exp_len_par|g" -e "s|__MSGS_HOPS__|$msgs_hop_par|g" \

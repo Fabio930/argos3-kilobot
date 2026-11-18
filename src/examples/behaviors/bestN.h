@@ -7,9 +7,9 @@
 #include "tree_structure.c"
 #include "quorum_structure.c"
 #include "distribution_functions.c"
+#include "quorum_comm.c"
 
 #define PI 3.14159265358979323846
-#define FIFO_BUFFER_SIZE 128
 
 FILE *fp;
 
@@ -50,19 +50,6 @@ typedef struct position{
     float position_x,position_y;
 }position_t;
 
-typedef struct {
-    uint8_t agent_id;
-    uint8_t agent_state;
-    uint8_t msg_n_hops;
-} fifo_item_t;
-
-typedef struct {
-    fifo_item_t buffer[FIFO_BUFFER_SIZE];
-    uint8_t head;
-    uint8_t tail;
-    uint8_t count;
-} generic_fifo_t;
-
 uint64_t delta_elapsed = 0;
 uint64_t ticks_elapsed = 0;
 motion_t current_motion_type = STOP;
@@ -80,7 +67,6 @@ float gps_angle;
 float RotSpeed = 45.0;
 
 uint8_t my_state;
-uint8_t msg_n_hops;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -97,26 +83,21 @@ const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
 const uint16_t decision_ticks = TICKS_PER_SEC * 5;
 uint32_t last_decision_ticks = 0;
-uint8_t broadcasting_flag = 0;
-uint8_t adaptive_comm = 0;
-uint32_t buff_ticks_sec = TICKS_PER_SEC * .2;
-uint32_t buff_ticks = 0;
-uint8_t msg_n_hops_rnd = 0;
-uint64_t buffer_update_rng = 0;
+
+/* communication parameters from the ALF handshake, applied with comm_configure()
+ * once all of them arrived (protocol in quorum_comm.h) */
+uint8_t cfg_rebroadcast = 0;
+uint16_t cfg_expiring_s = 0;
+uint8_t cfg_id_aware = 1;
+uint8_t cfg_hop_count = 0;
+uint8_t cfg_k_sampling = 0;
+uint8_t cfg_queue_lenght = 1;
+bool comm_ready = false;
 
 bool sending_msg = false;
 message_t my_message;
 
-uint8_t received_id;
-uint8_t received_committed;
-
 arena_a *the_arena = NULL;
-
-uint16_t selected_msg_indx = 0b1111111111111111;
-quorum_a *quorum_list = NULL;
-quorum_a **quorum_array;
-
-generic_fifo_t rebroadcast_fifo;
 
 char log_title[30];
 uint8_t led = RGB(0,0,0);
@@ -134,27 +115,17 @@ uint8_t gps_max_x_q = 105;
 uint8_t gps_max_y_q = 105;
 uint8_t gps_floor_color = 0;
 
-void generic_fifo_init(generic_fifo_t* fifo);
-void generic_fifo_update(generic_fifo_t* fifo, uint8_t agent_id, uint8_t agent_state, uint8_t msg_n_hops, uint8_t capacity, uint8_t id_aware_flag);
-uint8_t generic_fifo_peek(generic_fifo_t* fifo, fifo_item_t* item_out);
-uint8_t generic_fifo_dequeue(generic_fifo_t* fifo);
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops);
-
 void decision();
 void set_motion( motion_t new_motion_type);
 message_t *message_tx();
 void message_tx_success();
 void talk();
-void broadcast();
-void rnd_rebroadcast();
-void compute_msg_hops();
 float random_in_range(float min, float max);
 uint8_t compute_quorum_value();
 uint8_t compute_r_threshold(uint8_t quorum_value);
 uint8_t majority_vote();
 void select_new_point(bool force);
 void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
-void update_messages(const uint8_t Msg_n_hops);
 void parse_kilo_message(uint8_t data[9]);
 void parse_smart_arena_broadcast(uint8_t data[9]);
 uint8_t led_from_color_value(uint8_t color_value);
@@ -168,30 +139,6 @@ void loop();
 uint8_t main();
 void deallocate_memory();
 
-static uint8_t buffer_skip_prefix(){
-    if(priority_sampling_k == 0){
-        return 0;
-    }
-    if(priority_sampling_k >= num_quorum_items){
-        return num_quorum_items;
-    }
-    return priority_sampling_k;
-}
-
-static uint8_t eligible_quorum_items(){
-    uint8_t start = buffer_skip_prefix();
-    return (num_quorum_items > start) ? (num_quorum_items - start) : 0;
-}
-
-static uint16_t find_quorum_index_by_id(const uint8_t agent_id){
-    for(uint8_t i = 0; i < num_quorum_items; ++i){
-        if(quorum_array[i] != NULL && quorum_array[i]->agent_id == agent_id){
-            return i;
-        }
-    }
-    return 0b1111111111111111;
-}
-
 static float clamp01(float value){
     if(value < 0.0f){
         return 0.0f;
@@ -200,10 +147,6 @@ static float clamp01(float value){
         return 1.0f;
     }
     return value;
-}
-
-static uint8_t sat_inc_u8(const uint8_t value){
-    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
 }
 
 static void update_arena_from_received_bounds(){
