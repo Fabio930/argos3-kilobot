@@ -1,5 +1,4 @@
 build
-**/*.sh
 **/*vscode
 **/*LOG*
 **/*log*
@@ -14,5 +13,3 @@ build
 *_images*# batch runtime scratch
 .work/
 .batch.lock
-# tracked scripts despite **/*.sh
-!src/examples/experiments/batch/loop_runs.sh
