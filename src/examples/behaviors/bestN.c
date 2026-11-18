@@ -3,9 +3,9 @@
  */
 #include "bestN.h"
 
-/* ticks elapsed before the CONFIG message arrived: the per-tick logs of the
- * dynamic and confined variants start from tick 0, so these lines are written
- * (with the default values) once the variant is known */
+/* ticks elapsed before the CONFIG message arrived: the per-tick logs of every
+ * variant start from tick 0, so these lines are written (with the default
+ * values, an empty buffer for the static variants) once the variant is known */
 uint32_t pending_log_lines = 0;
 
 /* optional position trace, used by the minitests: set BESTN_POSITION_LOG=1 */
@@ -289,8 +289,9 @@ void parse_alf_message(uint8_t data[9]){
                 led = RGB(3,3,0);
                 set_color(led);
                 init_received_config = true;
-                if(dynamic_env || confined_env){
-                    for(uint32_t i = 0; i < pending_log_lines; i++) log_step();
+                for(uint32_t i = 0; i < pending_log_lines; i++){
+                    if(dynamic_env || confined_env) log_step();
+                    else fputc('\n',fp);
                 }
                 pending_log_lines = 0;
             }
@@ -378,12 +379,13 @@ void message_rx(message_t *msg, distance_measurement_t *d){
 /*-------------------------------------------------------------------*/
 
 /* static variants: one line per tick with the IDs in the buffer (array
- * order), nothing when the buffer is empty */
+ * order), an empty line when the buffer is empty so that line i is always tick i */
 void log_buffer_ids(){
     for (uint8_t i = 0; i < num_quorum_items; i++){
-        if(i == num_quorum_items-1) fprintf(fp,"%d\n",quorum_buf[i].agent_id);
-        else fprintf(fp,"%d,",quorum_buf[i].agent_id);
+        if(i > 0) fputc(',',fp);
+        fprintf(fp,"%d",quorum_buf[i].agent_id);
     }
+    fputc('\n',fp);
 }
 
 /* dynamic: state, quorum reached, distinct IDs in the buffer
