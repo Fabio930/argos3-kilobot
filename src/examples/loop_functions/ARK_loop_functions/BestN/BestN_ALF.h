@@ -92,6 +92,7 @@ private:
     UInt16                  expiring_quorum_sec;
     UInt8                   msgs_n_hops;
     UInt8                   rebroadcast;
+    UInt8                   hop_count;
     UInt16                  queue_lenght;
     UInt8                   k_sampling;
 

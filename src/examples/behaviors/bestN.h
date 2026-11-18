@@ -5,7 +5,7 @@
  * .argos file (<hierarchicStruct communication/dynamic/confined>) and sent
  * by the ALF during the init handshake (see bestN_protocol.h):
  *  - communication: ID-aware buffer (one entry per sender) or anonymous
- *    circular buffer (Parker replica)
+ *    circular buffer (Parker replica), see quorum_comm.h
  *  - dynamic:  the robot flips its committed state following a schedule
  *  - confined: the robot picks waypoints only in its own half of the arena
  */
@@ -17,6 +17,7 @@
 #include "tree_structure.c"
 #include "quorum_structure.c"
 #include "distribution_functions.c"
+#include "quorum_comm.c"
 
 #define PI 3.14159265358979323846
 FILE *fp;
@@ -76,7 +77,6 @@ float RotSpeed = 45.0;
 
 /* current state */
 state_t my_state;
-uint8_t msg_n_hops = 0;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -90,7 +90,6 @@ uint16_t sa_payload = 0;
 bool anonymous_comm = false;
 bool dynamic_env = false;
 bool confined_env = false;
-uint8_t k_sampling = 0;
 
 /* init handshake */
 bool init_received_config = false;
@@ -116,42 +115,14 @@ uint8_t next_state_change = 0;
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
 uint32_t last_broadcast_ticks = 0;
-uint8_t broadcasting_flag = 0;
 
 /* Flag for decision to send a word */
 bool sending_msg = false;
 message_t my_message;
 
-/* lists for decision handling */
-uint8_t received_id;
-uint8_t received_committed;
-
 /* map of the environment */
 arena_a *the_arena = NULL;
 
-uint64_t num_own_info=0;
-uint64_t num_other_info=0;
-uint16_t selected_msg_indx = QUORUM_NOT_FOUND;
-
-#define FIFO_MSG_SIZE 128
-
-/* Struttura per il singolo elemento della coda */
-typedef struct {
-    uint8_t agent_id;
-    uint8_t msg_n_hops;
-    uint8_t agent_state;
-} fifo_msg_t;
-
-/* Struttura per il buffer circolare della FIFO */
-typedef struct {
-    fifo_msg_t buffer[FIFO_MSG_SIZE];
-    uint8_t head;
-    uint8_t tail;
-    uint8_t count;
-} fifo_msg_buffer_t;
-
-/* Istanza globale della coda di rebroadcast (ID-aware, policy 2) */
-fifo_msg_buffer_t rebroadcast_fifo;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
 
@@ -171,38 +142,9 @@ message_t *message_tx();
 void message_tx_success();
 
 /*-------------------------------------------------------------------*/
-/*                      Broadcasting functions                       */
+/*        Broadcasting (protocol in quorum_comm.c)                   */
 /*-------------------------------------------------------------------*/
 void talk();
-
-void talk_id_aware();
-
-void talk_anonymous();
-
-void broadcast();
-
-void anonymous_rebroadcast();
-
-/*-------------------------------------------------------------------*/
-/*             Rebroadcasting & FIFO Functions (ID-aware)            */
-/*-------------------------------------------------------------------*/
-void rnd_rebroadcast();
-
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx);
-
-void fifo_msg_init(fifo_msg_buffer_t* fifo);
-
-uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state);
-
-uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id);
-
-uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state);
-
-uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
-
-uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
-
-uint16_t select_a_random_message();
 
 float random_in_range(float min, float max);
 
@@ -215,8 +157,6 @@ void select_new_point(bool force);
 /*                   Parse ALF and kilobot messages                  */
 /*-------------------------------------------------------------------*/
 void parse_alf_message(uint8_t data[9]);
-
-void update_messages(const uint8_t Msg_n_hops);
 
 void parse_kilo_message(uint8_t data[9]);
 

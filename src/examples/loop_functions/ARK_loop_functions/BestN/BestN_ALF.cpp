@@ -61,6 +61,7 @@ CBestN_ALF::CBestN_ALF() :
     expiring_quorum_sec(0),
     msgs_n_hops(0),
     rebroadcast(0),
+    hop_count(0),
     queue_lenght(0),
     k_sampling(0),
     start_commitment_variation_time(0),
@@ -276,11 +277,16 @@ void CBestN_ALF::SetupVirtualEnvironments(TConfigurationNode& t_tree){
     GetNodeAttributeOrDefault<UInt32>(tNode, "msgs_n_hops", unHops, 0);
     if(unHops > 255) THROW_ARGOSEXCEPTION("hierarchicStruct: 'msgs_n_hops' must be at most 255");
     msgs_n_hops = unHops;
+    UInt32 unHopCount;
+    GetNodeAttributeOrDefault<UInt32>(tNode, "hop_count", unHopCount, 0);
+    if(unHopCount > 1) THROW_ARGOSEXCEPTION("hierarchicStruct: 'hop_count' must be 0 or 1");
+    hop_count = unHopCount;
     GetNodeAttributeOrDefault<float>(tNode, "quorum_threshold", quorum_threshold, 0.8);
     if(quorum_threshold < 0 || quorum_threshold > 1) THROW_ARGOSEXCEPTION("hierarchicStruct: 'quorum_threshold' must be in [0,1]");
 
     /* anonymous communication */
     if(anonymous_comm){
+        if(rebroadcast != 0) THROW_ARGOSEXCEPTION("hierarchicStruct: anonymous robots never rebroadcast, set rebroadcast=\"0\"");
         const UInt32 unQueue = ReadRequired<UInt32>(tNode, "queue_lenght", "buffer length of the anonymous communication");
         if(unQueue < 1 || unQueue > 255) THROW_ARGOSEXCEPTION("hierarchicStruct: 'queue_lenght' must be in [1,255]");
         queue_lenght = unQueue;
@@ -383,6 +389,7 @@ void CBestN_ALF::SendConfigInformation(CKilobotEntity &c_kilobot_entity){
     if(anonymous_comm) unFlags |= CFG_FLAG_ANONYMOUS;
     if(dynamic_env) unFlags |= CFG_FLAG_DYNAMIC;
     if(confined_env) unFlags |= CFG_FLAG_CONFINED;
+    if(hop_count) unFlags |= CFG_FLAG_HOP_COUNT;
     tMessage.data[2] = unFlags;
     tMessage.data[3] = rebroadcast;
     WriteU16(&tMessage.data[4], expiring_quorum_sec);

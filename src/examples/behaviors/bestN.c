@@ -7,7 +7,6 @@
  * dynamic and confined variants start from tick 0, so these lines are written
  * (with the default values) once the variant is known */
 uint32_t pending_log_lines = 0;
-uint16_t msg_expiring_sec = 0;
 
 /* optional position trace, used by the minitests: set BESTN_POSITION_LOG=1 */
 FILE *pos_fp = NULL;
@@ -54,231 +53,10 @@ void message_tx_success(){
 void talk(){
     if (!sending_msg && kilo_ticks > last_broadcast_ticks + broadcasting_ticks){
         last_broadcast_ticks = kilo_ticks;
-        if(anonymous_comm) talk_anonymous();
-        else talk_id_aware();
-        selected_msg_indx = QUORUM_NOT_FOUND;
+        for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
+        comm_talk((uint8_t)kilo_uid, my_state, my_message.data);
         sending_msg = true;
     }
-}
-
-void talk_id_aware(){
-    float p;
-    switch(broadcasting_flag){
-        case 0:
-            broadcast();
-            break;
-        case 1:
-            p = random_in_range(0,1);
-            if(p<0.5){
-                selected_msg_indx = select_a_random_message();
-                switch(msg_n_hops){
-                    case 0:
-                        if(selected_msg_indx != QUORUM_NOT_FOUND) rnd_rebroadcast();
-                        else broadcast();
-                        break;
-                    default:
-                        if(selected_msg_indx != QUORUM_NOT_FOUND && quorum_buf[selected_msg_indx].delivered < msg_n_hops) rnd_rebroadcast();
-                        else broadcast();
-                        break;
-                }
-            }
-            else broadcast();
-            break;
-        case 2:
-            p = random_in_range(0,1);
-            if(p<0.5){
-                uint8_t agent_id;
-                if(fifo_msg_peek(&rebroadcast_fifo, &agent_id)) {
-                    uint8_t fifo_hops = 0;
-                    uint8_t agent_state = 0;
-                    uint8_t agent_idx = 0xFF;
-                    for(uint8_t i=0, idx=rebroadcast_fifo.head; i<rebroadcast_fifo.count; ++i, idx=(idx+1)%FIFO_MSG_SIZE) {
-                        if(rebroadcast_fifo.buffer[idx].agent_id == agent_id) {
-                            fifo_hops = rebroadcast_fifo.buffer[idx].msg_n_hops;
-                            agent_state = rebroadcast_fifo.buffer[idx].agent_state;
-                            agent_idx = idx;
-                            break;
-                        }
-                    }
-                    if(agent_idx != 0xFF) {
-                        fifo_rebroadcast(agent_id, agent_state, fifo_hops, agent_idx);
-                        fifo_msg_dequeue(&rebroadcast_fifo);
-                    } else broadcast();
-                } else broadcast();
-            }
-            else broadcast();
-            break;
-        default:
-            broadcast();
-            break;
-    }
-}
-
-void talk_anonymous(){
-    switch(broadcasting_flag){
-        case 0:
-            broadcast();
-            break;
-        case 1:
-            selected_msg_indx = select_a_random_message();
-            if(selected_msg_indx != QUORUM_NOT_FOUND && quorum_buf[selected_msg_indx].delivered == 0) anonymous_rebroadcast();
-            else broadcast();
-            break;
-        case 2:
-            selected_msg_indx = quorum_select_undelivered();
-            if(selected_msg_indx != QUORUM_NOT_FOUND) anonymous_rebroadcast();
-            else broadcast();
-            break;
-        default:
-            broadcast();
-            break;
-    }
-}
-
-void broadcast(){
-    // frequency log
-    num_own_info += 1;
-    // message: a robot's own state always travels with 0 hops
-    sa_type = 0;
-    sa_id = kilo_uid;
-    sa_payload = my_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-void anonymous_rebroadcast(){
-    // frequency log
-    num_other_info += 1;
-    // message
-    sa_type = 0;
-    sa_id = quorum_buf[selected_msg_indx].agent_id;
-    sa_payload = quorum_buf[selected_msg_indx].agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    quorum_buf[selected_msg_indx].delivered = 1;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-static uint8_t sat_inc_u8(const uint8_t value){
-    return (value == UINT8_MAX) ? UINT8_MAX : (uint8_t)(value + 1);
-}
-
-void fifo_msg_init(fifo_msg_buffer_t* fifo) {
-    fifo->head = 0;
-    fifo->tail = 0;
-    fifo->count = 0;
-}
-
-uint8_t fifo_msg_enqueue(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t Msg_n_hops, uint8_t agent_state) {
-    for (uint8_t i = 0, idx = fifo->head; i < fifo->count; ++i, idx = (idx + 1) % FIFO_MSG_SIZE) {
-        if (fifo->buffer[idx].agent_id == agent_id) return fifo_msg_move_to_tail(fifo,agent_id,Msg_n_hops,agent_state);
-    }
-    if (fifo->count >= FIFO_MSG_SIZE) {
-        fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
-        fifo->count--;
-    }
-    fifo->buffer[fifo->tail].agent_id = agent_id;
-    fifo->buffer[fifo->tail].msg_n_hops = Msg_n_hops;
-    fifo->buffer[fifo->tail].agent_state = agent_state;
-    fifo->tail = (fifo->tail + 1) % FIFO_MSG_SIZE;
-    fifo->count++;
-    return 1;
-}
-
-uint8_t fifo_msg_remove(fifo_msg_buffer_t* fifo, uint8_t agent_id) {
-    if (fifo->count == 0) return 0;
-    uint8_t idx = fifo->head;
-    for (uint8_t i = 0; i < fifo->count; ++i) {
-        if (fifo->buffer[idx].agent_id == agent_id) {
-            for (uint8_t j = i; j < fifo->count - 1; ++j) {
-                uint8_t from = (fifo->head + j + 1) % FIFO_MSG_SIZE;
-                uint8_t to = (fifo->head + j) % FIFO_MSG_SIZE;
-                fifo->buffer[to] = fifo->buffer[from];
-            }
-            fifo->tail = (fifo->tail == 0) ? FIFO_MSG_SIZE - 1 : fifo->tail - 1;
-            fifo->count--;
-            return 1;
-        }
-        idx = (idx + 1) % FIFO_MSG_SIZE;
-    }
-    return 0;
-}
-
-uint8_t fifo_msg_move_to_tail(fifo_msg_buffer_t* fifo, uint8_t agent_id, uint8_t msg_hops, uint8_t agent_state) {
-    if (fifo->count == 0) return 0;
-    uint8_t idx = fifo->head;
-    uint8_t found = 0;
-    for (uint8_t i = 0; i < fifo->count; ++i) {
-        if (fifo->buffer[idx].agent_id == agent_id) {
-            fifo->buffer[idx].msg_n_hops = msg_hops;
-            fifo->buffer[idx].agent_state = agent_state;
-            fifo_msg_remove(fifo, agent_id);
-            found = 1;
-            break;
-        }
-        idx = (idx + 1) % FIFO_MSG_SIZE;
-    }
-    if (!found) return 0;
-    return fifo_msg_enqueue(fifo, agent_id, msg_hops, agent_state);
-}
-
-uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id) {
-    if (fifo->count == 0) return 0;
-    *agent_id = fifo->buffer[fifo->head].agent_id;
-    return 1;
-}
-
-uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo) {
-    if (fifo->count == 0) return 0;
-    fifo->head = (fifo->head + 1) % FIFO_MSG_SIZE;
-    fifo->count--;
-    return 1;
-}
-
-void rnd_rebroadcast(){
-    // frequency log
-    num_other_info += 1;
-    // message
-    quorum_a *item = &quorum_buf[selected_msg_indx];
-    sa_type = sat_inc_u8(item->msg_n_hops);
-    sa_id = item->agent_id;
-    sa_payload = item->agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    item->delivered = sat_inc_u8(item->delivered);
-    item->msg_n_hops = sa_type;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-}
-
-uint8_t fifo_rebroadcast(uint8_t agent_id, uint8_t agent_state, uint8_t msg_hops, uint8_t agent_idx){
-    // frequency log
-    num_other_info += 1;
-    // message
-    sa_type = sat_inc_u8(msg_hops);
-    sa_id = agent_id;
-    sa_payload = agent_state;
-    for (uint8_t i = 0; i < 9; ++i) my_message.data[i]=0;
-    my_message.data[0] = sa_id;
-    my_message.data[1] = sa_type;
-    my_message.data[2] = sa_payload;
-
-    uint16_t q_idx = quorum_find_by_id(agent_id);
-    if(q_idx != QUORUM_NOT_FOUND){
-        quorum_buf[q_idx].delivered = sat_inc_u8(quorum_buf[q_idx].delivered);
-        quorum_buf[q_idx].msg_n_hops = sa_type;
-    }
-
-    rebroadcast_fifo.buffer[agent_idx].msg_n_hops = sa_type;
-    return 1;
-}
-
-uint16_t select_a_random_message(){
-    if(num_quorum_items>0) return rand_soft()%num_quorum_items;
-    return QUORUM_NOT_FOUND;
 }
 
 float random_in_range(float min, float max){
@@ -506,12 +284,8 @@ void parse_alf_message(uint8_t data[9]){
                 anonymous_comm = (data[2] & CFG_FLAG_ANONYMOUS) ? true : false;
                 dynamic_env = (data[2] & CFG_FLAG_DYNAMIC) ? true : false;
                 confined_env = (data[2] & CFG_FLAG_CONFINED) ? true : false;
-                broadcasting_flag = data[3];
-                msg_expiring_sec = read_u16(&data[4]);
-                msg_n_hops = data[6];
-                k_sampling = anonymous_comm ? data[8] : 0;
-                if(anonymous_comm) quorum_init(data[7], (uint32_t)msg_expiring_sec * TICKS_PER_SEC, 1);
-                else quorum_init(QUORUM_CAPACITY, (uint32_t)msg_expiring_sec * TICKS_PER_SEC, 0);
+                comm_configure(anonymous_comm, data[3], read_u16(&data[4]), data[6],
+                               (data[2] & CFG_FLAG_HOP_COUNT) ? 1 : 0, data[7], data[8], TICKS_PER_SEC);
                 led = RGB(3,3,0);
                 set_color(led);
                 init_received_config = true;
@@ -535,12 +309,6 @@ void parse_alf_message(uint8_t data[9]){
                 uint16_t midline = read_u16(&data[6]);
                 arena_midline = (midline == ARENA_NO_MIDLINE) ? -1 : midline * 0.01;
                 set_waypoint_area();
-                if(!anonymous_comm && msg_expiring_sec == 0){
-                    /* ID-aware default: as many seconds as the diagonal of the walkable area in cm */
-                    float w = (arena_width - 2*ARENA_BORDER_M) * 100;
-                    float h = (arena_height - 2*ARENA_BORDER_M) * 100;
-                    expiring_ticks_quorum = (uint32_t)sqrt(w*w + h*h) * TICKS_PER_SEC;
-                }
                 init_received_arena = true;
             }
             break;
@@ -568,31 +336,12 @@ void parse_alf_message(uint8_t data[9]){
     }
 }
 
-void update_messages(const uint8_t Msg_n_hops){
-    if(anonymous_comm){
-        uint32_t expiring_time = 0;
-        if(expiring_ticks_quorum > 0) expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-        quorum_push_anonymous(received_id,received_committed,expiring_time);
-    }
-    else{
-        uint32_t expiring_time = (uint32_t)exponential_distribution(expiring_ticks_quorum);
-        uint8_t result = quorum_update_by_id(received_id,received_committed,expiring_time,Msg_n_hops);
-        if(broadcasting_flag == 2) {
-            if(result == 1) fifo_msg_enqueue(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
-            else if(result == 2) fifo_msg_move_to_tail(&rebroadcast_fifo, received_id, Msg_n_hops, received_committed);
-        }
-    }
-    quorum_sort();
-}
-
 void parse_kilo_message(uint8_t data[9]){
     sa_id = data[0];
     if(init_received_config && sa_id!=(uint8_t)kilo_uid){
         sa_type = data[1];
         sa_payload = data[2];
-        received_id = sa_id;
-        received_committed = (uint8_t)sa_payload;
-        update_messages(sa_type);
+        comm_receive(sa_id, (uint8_t)sa_payload, sa_type);
     }
     else sa_id = 0;
 }
@@ -656,7 +405,7 @@ void setup(){
     /* Init state, message type and control parameters*/
     my_message.type = KILO_BROADCAST_MSG;
     my_message.crc = message_crc(&my_message);
-    quorum_init(QUORUM_CAPACITY, expiring_ticks_quorum, 0);
+    comm_configure(0, 0, 0, 0, 0, 0, 0, TICKS_PER_SEC);
     next_state_change = 0;
     variation_num_flips = 0;
     for(uint8_t i = 0; i < MAX_STATE_CHANGES; ++i) state_change_ticks[i] = 0;
@@ -676,8 +425,6 @@ void setup(){
     /* Init motion variables */
     set_motion(STOP);
 
-    // Inizializzazione della nuova coda strutturata
-    fifo_msg_init(&rebroadcast_fifo);
 }
 
 void loop(){
@@ -685,11 +432,10 @@ void loop(){
     ticks_elapsed = kilo_ticks;
     bool per_tick_log = dynamic_env || confined_env;
     if(init_received_config && !per_tick_log) log_buffer_ids();
-    quorum_decrement(delta_elapsed);
-    if(!anonymous_comm) quorum_erase_expired();
+    comm_tick(delta_elapsed);
     random_way_point_model();
     if(dynamic_env) apply_state_changes();
-    quorum_check(my_state, k_sampling);
+    comm_quorum(my_state);
     if(experiment_started) talk();
     if(!init_received_config) pending_log_lines++;
     else if(per_tick_log) log_step();

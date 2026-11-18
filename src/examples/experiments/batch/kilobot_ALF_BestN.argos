@@ -57,6 +57,7 @@
             confined = "__CONFINED__"
             rebroadcast = "__BROADCAST_POLICY__"
             msgs_n_hops = "__MSG_HOPS__"
+            hop_count = "__HOP_COUNT__"
             expiring_quorum_sec = "__MSG_EXPIRING_SECONDS__"
             committed_percentage = "__COMMITTED_PERC__"
             quorum_threshold = "__THRESHOLD__"

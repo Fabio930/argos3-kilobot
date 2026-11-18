@@ -57,16 +57,19 @@
              confined      = "true": committed robots stay left of middle_x_area (world x, meters),
                              uncommitted robots right of it
              dynamic and confined cannot be used together.
-             Common: rebroadcast (0 own state only, 1 random relay, 2 FIFO relay),
-                     expiring_quorum_sec (0 = ID: arena diagonal, anonymous: no timer / pure FIFO),
-                     msgs_n_hops (ID only), committed_percentage, quorum_threshold (default 0.8)
-             Anonymous only: queue_lenght (buffer length, required), k_sampling (default 0) -->
+             Communication protocol (src/examples/behaviors/quorum_comm.h):
+               expiring_quorum_sec: mean message lifetime (0 = ID: never expire, anonymous: pure FIFO)
+               committed_percentage, quorum_threshold (default 0.8)
+             ID only: rebroadcast (0 own state only, 1 random relay, 2 FIFO relay), msgs_n_hops,
+                      hop_count (0 update a known sender when its state changes, 1 when hops <= stored, also with the same state)
+             Anonymous only: rebroadcast must be 0, queue_lenght (buffer length, required), k_sampling (default 0) -->
         <hierarchicStruct
             communication = "id"
             dynamic = "false"
             confined = "false"
             rebroadcast = "2"
             msgs_n_hops = "0"
+            hop_count = "0"
             expiring_quorum_sec = "300"
             committed_percentage = "0.8"
             quorum_threshold = "0.8"

@@ -75,7 +75,9 @@ One branch (`quorum_analysis`) holds every variant of the experiment. The varian
 | `id_confined`    | `id`            | `false`   | `true`     | `quorum_analysis_segregation` |
 | `anon_confined`  | `anonymous`     | `false`   | `true`     | `Parker_replica_segregation`  |
 
-`dynamic` and `confined` cannot be used together. The parameters of each variant are documented in
+`dynamic` and `confined` cannot be used together. The robot-to-robot protocol (ID-aware / anonymous buffer,
+rebroadcast policies, `hop_count`) lives in `src/examples/behaviors/quorum_comm.*` and
+`quorum_structure.*`, which are identical in `QS_social_interaction_modulation`. The parameters of each variant are documented in
 `src/examples/experiments/kilobot_ALF_BestN.argos`; the old branch tips are kept as `archive/<branch>` tags.
 
 Single run with the GUI:

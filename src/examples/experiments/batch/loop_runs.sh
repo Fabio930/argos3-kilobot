@@ -15,7 +15,8 @@
 # they expect, e.g. Oresults_* for ID-aware and Presults_* / Psresults_* for anonymous runs).
 # Directories that already contain results are skipped, so an interrupted batch can be resumed.
 #
-# RUNS=<n> overrides the number of runs per configuration, SKIP_BUILD=1 skips the build check.
+# RUNS=<n> overrides the number of runs per configuration, HOP_COUNT=1 enables the hop check on
+# ID-aware updates (default 0), SKIP_BUILD=1 skips the build check.
 
 if [ "$#" -lt 2 ]; then
     echo "Usage: loop_runs.sh (from the repository root) <base_config_dir> <base_config_file_name> [variant]"
@@ -55,7 +56,7 @@ mkdir -p "$res_dir"
 ### experiment length and variation times in seconds ###
 ########################################################
 P_COMM="id"; P_DYN="false"; P_CONF="false"
-P_REBROAD=0; P_HOPS=0; P_EXP=0; P_COMMITTED=1; P_THR=0.8
+P_REBROAD=0; P_HOPS=0; P_HOP_COUNT=${HOP_COUNT:-0}; P_EXP=0; P_COMMITTED=1; P_THR=0.8
 P_QUEUE=1; P_K=0; P_VSTART=0; P_VEND=0; P_GT_AFTER=0; P_MIDDLE=0
 P_INNER_X=1.0; P_INNER_Y=1.0; P_ROBOTS=25; P_TIME=900
 
@@ -87,6 +88,7 @@ run_seeds() {
             -e "s|__CONFINED__|$P_CONF|g" \
             -e "s|__BROADCAST_POLICY__|$P_REBROAD|g" \
             -e "s|__MSG_HOPS__|$P_HOPS|g" \
+            -e "s|__HOP_COUNT__|$P_HOP_COUNT|g" \
             -e "s|__MSG_EXPIRING_SECONDS__|$P_EXP|g" \
             -e "s|__COMMITTED_PERC__|$P_COMMITTED|g" \
             -e "s|__THRESHOLD__|$P_THR|g" \

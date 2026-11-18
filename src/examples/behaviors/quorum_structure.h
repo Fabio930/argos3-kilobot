@@ -1,10 +1,13 @@
 /* Quorum buffer shared by the ID-aware and the anonymous communication models.
+ * This file is identical in quorum_analysis and QS_social_interaction_modulation:
+ * change it in both branches.
  *
  * The buffer is a plain array of entries (no linked list), so insertion,
  * eviction and expiry can never leave dangling pointers behind.
  *
  *  - ID-aware  (quorum_analysis):   one entry per sender ID, entries expire
- *    when their counter reaches 0, array kept sorted by descending counter.
+ *    when their counter reaches 0 (never when expiring_ticks_quorum == 0),
+ *    array kept sorted by descending counter.
  *  - anonymous (Parker_replica):    every received message is appended, the
  *    buffer holds at most buffer_lenght entries; when it is full the entry at
  *    index 0 is evicted. With expiring_ticks_quorum > 0 the array is kept
@@ -49,10 +52,12 @@ void set_quorum_threshold(const uint8_t Quorum_threshold_percent);
 /* ID-aware insertion.
  * returns 0: sender already known, nothing changed
  *         1: new sender appended
- *         2: known sender changed state (counter, state, hops and delivered refreshed)
- * A state change is accepted only if the new information travelled at most
- * as many hops as the stored one. */
-uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops);
+ *         2: known sender updated (counter, state, hops and delivered refreshed)
+ * Hop_count = 0: a known sender is updated when its state changed.
+ * Hop_count = 1: a known sender is updated when the new message travelled at most
+ *                as many hops as the stored one, even with the same state (the
+ *                expiry timer restarts). */
+uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t Hop_count);
 
 /* Anonymous insertion: always appends, evicting index 0 when full. Returns 1. */
 uint8_t quorum_push_anonymous(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time);
@@ -63,7 +68,8 @@ void quorum_sort();
 
 void quorum_decrement(uint64_t ticks);
 
-/* Removes every entry whose counter reached 0 (ID-aware model only). */
+/* Removes every entry whose counter reached 0 (ID-aware model only, nothing
+ * expires when expiring_ticks_quorum == 0). */
 void quorum_erase_expired();
 
 uint16_t quorum_find_by_id(const uint8_t agent_id);

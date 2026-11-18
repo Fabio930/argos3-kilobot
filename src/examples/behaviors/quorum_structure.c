@@ -42,11 +42,12 @@ void quorum_remove_at(uint8_t idx){
     num_quorum_items--;
 }
 
-uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops, const uint8_t Hop_count){
     for(uint8_t i = 0; i < num_quorum_items; i++){
         quorum_a *item = &quorum_buf[i];
         if(item->agent_id != Agent_id) continue;
-        if(received_state != item->agent_state && Msg_n_hops <= item->msg_n_hops){
+        /* hop_count 0: a state change; hop_count 1: information at most as old (hops) as the stored one */
+        if(Hop_count ? (Msg_n_hops <= item->msg_n_hops) : (received_state != item->agent_state)){
             item->counter = expiring_time;
             item->agent_state = received_state;
             item->delivered = 0;
@@ -97,6 +98,7 @@ void quorum_decrement(uint64_t ticks){
 }
 
 void quorum_erase_expired(){
+    if(expiring_ticks_quorum == 0) return;
     uint8_t write = 0;
     for(uint8_t read = 0; read < num_quorum_items; read++){
         if(quorum_buf[read].counter == 0) continue;

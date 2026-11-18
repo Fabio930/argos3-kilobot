@@ -5,7 +5,7 @@
  * the 9 data bytes as:   data[0] = kilobot id, data[1] = message kind,
  * data[2..8] = payload (multi-byte values are big endian).
  *
- *  CONFIG    [2] flags  [3] rebroadcast  [4..5] msg expiring seconds
+ *  CONFIG    [2] flags (CFG_FLAG_*)  [3] rebroadcast  [4..5] msg expiring seconds
  *            [6] msgs_n_hops  [7] queue length (anonymous)  [8] k_sampling
  *  STATE     [2] initial state  [3] quorum threshold in percent
  *  ARENA     [2..3] width cm  [4..5] height cm  [6..7] confinement midline cm
@@ -29,6 +29,7 @@
 #define CFG_FLAG_ANONYMOUS  0x01
 #define CFG_FLAG_DYNAMIC    0x02
 #define CFG_FLAG_CONFINED   0x04
+#define CFG_FLAG_HOP_COUNT  0x08
 
 #define ARENA_NO_MIDLINE    0xFFFF
 #define ARENA_BORDER_M      0.05
