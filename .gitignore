@@ -10,7 +10,6 @@ build
 *diagnostics_*/*
 *.tar.xz
 *_images*
-# Batch job limits used by loop_runs.sh: tracked despite !src/examples/experiments/batch/resources.sh
 # Batch runtime scratch (loop_runs.sh)
 .work/
 .batch.lock
