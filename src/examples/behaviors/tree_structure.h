@@ -8,6 +8,6 @@ typedef struct arena{
 
 void complete_tree(arena_a **the_arena);
 
-void set_vertices(arena_a **the_arena,const float BrX,const float BrY);
+void set_vertices(arena_a **the_arena,const float TlX,const float TlY,const float BrX,const float BrY);
 
 void destroy_tree(arena_a **the_arena);

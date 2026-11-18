@@ -1,22 +1,25 @@
-/* Kilobot control software for the simple ALF experment : clustering
+/* Kilobot control software for the simple ALF experment : bestN
  * author: Fabio Oddi (Università la Sapienza di Roma) oddi@diag.uniroma1.it
+ *
+ * One behavior for every experiment variant. The variant is chosen in the
+ * .argos file (<hierarchicStruct communication/dynamic/confined>) and sent
+ * by the ALF during the init handshake (see bestN_protocol.h):
+ *  - communication: ID-aware buffer (one entry per sender) or anonymous
+ *    circular buffer (Parker replica)
+ *  - dynamic:  the robot flips its committed state following a schedule
+ *  - confined: the robot picks waypoints only in its own half of the arena
  */
 #ifndef BESTN_H
 #define BESTN_H
 
 #include "kilolib.h"
+#include "bestN_protocol.h"
 #include "tree_structure.c"
 #include "quorum_structure.c"
 #include "distribution_functions.c"
 
 #define PI 3.14159265358979323846
 FILE *fp;
-
-/* divided by 10 */
-typedef enum{
-    ARENA_X = 10,
-    ARENA_Y = 10
-}arena_size;
 
 /* Enum for messages type */
 typedef enum{
@@ -25,13 +28,6 @@ typedef enum{
   KILO_BROADCAST_MSG = 255,
   KILO_IDENTIFICATION = 120
 }received_message_type;
-
-typedef enum{
-  MSG_A = 0,
-  MSG_B = 1,
-  MSG_C = 2,
-  MSG_D = 3
-}message_type;
 
 /* Enum for motion */
 typedef enum{
@@ -80,7 +76,7 @@ float RotSpeed = 45.0;
 
 /* current state */
 state_t my_state;
-uint8_t msg_n_hops;
+uint8_t msg_n_hops = 0;
 
 uint32_t turning_ticks = 0;
 uint32_t last_motion_ticks = 0;
@@ -90,9 +86,32 @@ uint8_t sa_id = 0;
 uint8_t sa_type = 0;
 uint16_t sa_payload = 0;
 
-bool init_received_A = false;
-bool init_received_B = false;
-bool init_received_C = false;
+/* experiment variant, received with the CONFIG message */
+bool anonymous_comm = false;
+bool dynamic_env = false;
+bool confined_env = false;
+uint8_t k_sampling = 0;
+
+/* init handshake */
+bool init_received_config = false;
+bool init_received_state = false;
+bool init_received_arena = false;
+bool init_received_variation = false;
+bool experiment_started = false;
+
+/* arena in the robot frame (meters) */
+float arena_width = 0;
+float arena_height = 0;
+float arena_midline = -1;
+
+/* state variation schedule (dynamic environment) */
+uint16_t variation_start_sec = 0;
+uint16_t variation_end_sec = 0;
+uint16_t variation_seed = 0;
+uint8_t variation_num_flips = 0;
+uint32_t variation_rng_state = 0;
+uint32_t state_change_ticks[MAX_STATE_CHANGES];
+uint8_t next_state_change = 0;
 
 /* counters for broadcast a message */
 const uint16_t broadcasting_ticks = 16;
@@ -112,12 +131,8 @@ arena_a *the_arena = NULL;
 
 uint64_t num_own_info=0;
 uint64_t num_other_info=0;
-uint64_t buffer_insertion=0;
-uint64_t buffer_update=0;
-uint64_t buffer_neglect=0;
-uint16_t selected_msg_indx = 0b1111111111111111;
-quorum_a *quorum_list = NULL;
-quorum_a **quorum_array;
+uint16_t selected_msg_indx = QUORUM_NOT_FOUND;
+
 #define FIFO_MSG_SIZE 128
 
 /* Struttura per il singolo elemento della coda */
@@ -135,9 +150,8 @@ typedef struct {
     uint8_t count;
 } fifo_msg_buffer_t;
 
-/* Istanza globale della coda di rebroadcast */
+/* Istanza globale della coda di rebroadcast (ID-aware, policy 2) */
 fifo_msg_buffer_t rebroadcast_fifo;
-// uint8_t quorum_reached = 0;
 char log_title[30];
 uint8_t led = RGB(0,0,0);
 
@@ -161,10 +175,16 @@ void message_tx_success();
 /*-------------------------------------------------------------------*/
 void talk();
 
+void talk_id_aware();
+
+void talk_anonymous();
+
 void broadcast();
 
+void anonymous_rebroadcast();
+
 /*-------------------------------------------------------------------*/
-/*             Rebroadcasting & FIFO Functions                   */
+/*             Rebroadcasting & FIFO Functions (ID-aware)            */
 /*-------------------------------------------------------------------*/
 void rnd_rebroadcast();
 
@@ -182,17 +202,7 @@ uint8_t fifo_msg_peek(fifo_msg_buffer_t* fifo, uint8_t* agent_id);
 
 uint8_t fifo_msg_dequeue(fifo_msg_buffer_t* fifo);
 
-/*-------------------------------------------------------------------*/
-/*           Bunch of funtions for handling the quorum               */
-/*-------------------------------------------------------------------*/
-uint8_t check_quorum_trigger(quorum_a **Array[]);
-
-void check_quorum(quorum_a **Array[]);
-
-/*-----------------------------------------------------------------------------------*/
-/*          sample a value, update the map, decide if change residence node          */
-/*-----------------------------------------------------------------------------------*/
-// void prepare_quorum_variables();
+uint16_t select_a_random_message();
 
 float random_in_range(float min, float max);
 
@@ -202,26 +212,33 @@ float random_in_range(float min, float max);
 void select_new_point(bool force);
 
 /*-------------------------------------------------------------------*/
-/*                   Parse smart messages                            */
+/*                   Parse ALF and kilobot messages                  */
 /*-------------------------------------------------------------------*/
-void parse_smart_arena_message(uint8_t data[9], uint8_t kb_index);
+void parse_alf_message(uint8_t data[9]);
 
-/*-------------------------------------------------------------------*/
-/*                   Check and save incoming data                    */
-/*-------------------------------------------------------------------*/
 void update_messages(const uint8_t Msg_n_hops);
 
-/*-------------------------------------------------------------------*/
-/*                      Parse smart messages                         */
-/*-------------------------------------------------------------------*/
 void parse_kilo_message(uint8_t data[9]);
 
-void parse_smart_arena_broadcast(uint8_t data[9]);
+void message_rx(message_t *msg, distance_measurement_t *d);
 
 /*-------------------------------------------------------------------*/
-/*              Callback function for message reception              */
+/*                   Environment set up                              */
 /*-------------------------------------------------------------------*/
-void message_rx(message_t *msg, distance_measurement_t *d);
+void set_waypoint_area();
+
+bool init_completed();
+
+/*-------------------------------------------------------------------*/
+/*                  Dynamic environment                              */
+/*-------------------------------------------------------------------*/
+uint16_t variation_rng_next();
+
+void build_state_change_schedule();
+
+void apply_state_changes();
+
+void set_state(uint8_t state);
 
 /*-------------------------------------------------------------------*/
 /*                      Compute angle to Goal                        */
@@ -234,6 +251,13 @@ float AngleToGoal();
 /*                      Random way point model                       */
 /*-------------------------------------------------------------------*/
 void random_way_point_model();
+
+/*-------------------------------------------------------------------*/
+/*                          Logging                                  */
+/*-------------------------------------------------------------------*/
+void log_buffer_ids();
+
+void log_step();
 
 /*-------------------------------------------------------------------*/
 /*                          Init function                            */

@@ -49,11 +49,33 @@
             logfilename="log.tsv">
         </variables>
 
+        <!-- Experiment variant:
+             communication = "id" (quorum_analysis) | "anonymous" (Parker_replica)
+             dynamic       = "true": the committed share goes from committed_percentage to
+                             next_committed_percentage between start_ and end_commitment_variation_time
+                             (seconds, end 0 = abrupt change at start)
+             confined      = "true": committed robots stay left of middle_x_area (world x, meters),
+                             uncommitted robots right of it
+             dynamic and confined cannot be used together.
+             Common: rebroadcast (0 own state only, 1 random relay, 2 FIFO relay),
+                     expiring_quorum_sec (0 = ID: arena diagonal, anonymous: no timer / pure FIFO),
+                     msgs_n_hops (ID only), committed_percentage, quorum_threshold (default 0.8)
+             Anonymous only: queue_lenght (buffer length, required), k_sampling (default 0) -->
         <hierarchicStruct
+            communication = "id"
+            dynamic = "false"
+            confined = "false"
             rebroadcast = "2"
             msgs_n_hops = "0"
             expiring_quorum_sec = "300"
             committed_percentage = "0.8"
+            quorum_threshold = "0.8"
+            queue_lenght = "24"
+            k_sampling = "0"
+            start_commitment_variation_time = "300"
+            end_commitment_variation_time = "0"
+            next_committed_percentage = "0.92"
+            middle_x_area = "0.0"
         >
         </hierarchicStruct>
 

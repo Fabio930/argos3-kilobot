@@ -1,148 +1,151 @@
 #include "quorum_structure.h"
 
-void set_quorum_vars(const uint32_t Expiring_time,const uint8_t Min_quorum_length,const uint8_t Quorum_scaling_factor){
-    expiring_ticks_quorum = Expiring_time;
-    // min_quorum_length = Min_quorum_length;
-    // quorum_scaling_factor = Quorum_scaling_factor*.01;
+quorum_a quorum_buf[QUORUM_CAPACITY];
+uint8_t num_quorum_items = 0;
+uint8_t buffer_lenght = QUORUM_CAPACITY;
+uint8_t quorum_anonymous = 0;
+uint32_t expiring_ticks_quorum = 10000;
+uint8_t min_quorum_length = 5;
+float quorum_threshold = 0.8;
+uint8_t quorum_reached = 0;
+
+void quorum_init(uint8_t capacity, uint32_t expiring_ticks, uint8_t anonymous){
+    if(capacity == 0) capacity = 1;   /* capacity is a uint8_t: at most QUORUM_CAPACITY */
+    buffer_lenght = capacity;
+    expiring_ticks_quorum = expiring_ticks;
+    quorum_anonymous = anonymous ? 1 : 0;
+    quorum_clear();
 }
 
-void sort_q(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items-1; i++){
-        for (uint8_t j = i+1; j < num_quorum_items; j++){
-            if(((*Array)[i] == NULL && (*Array)[j] != NULL) || (*Array)[i]->counter < (*Array)[j]->counter){
-                quorum_a *flag = (*Array)[i];
-                (*Array)[i] = (*Array)[j];
-                (*Array)[j] = flag;
-            }
-        }
-    }
-}
-
-void init_array_qrm(quorum_a **Array[]){
-    *Array = (quorum_a**)malloc(128*sizeof(quorum_a*));
-    for(uint8_t i=0;i<128;i++) (*Array)[i] = NULL;
-}
-
-void print_q(quorum_a **Array[],uint8_t id){
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i]!=NULL) printf("id:%d,%d\tQ__%d++%d++%d\n",id,num_quorum_items,(*Array)[i]->agent_id,(*Array)[i]->counter,(*Array)[i]->delivered);
-        else printf("NULL\n");
-    }
-}
-
-void increment_quorum_counter(quorum_a **Array[]){
-    for (uint8_t i = 0; i < num_quorum_items; i++) (*Array)[i]->counter = (*Array)[i]->counter+1;
-}
-
-void decrement_quorum_counter(quorum_a **Array[], uint64_t ticks){
-    for (uint8_t i = 0; i < num_quorum_items; i++){
-        if((*Array)[i]->counter>ticks) (*Array)[i]->counter = (*Array)[i]->counter-ticks;
-        else (*Array)[i]->counter = 0;
-    }
-}
-
-void erase_expired_items(quorum_a **Array[],quorum_a **Myquorum){
-    for(int8_t i=num_quorum_items-1;i>=0;i--){
-        if((*Array)[i]->counter<=0){
-            if((*Array)[i]->next == NULL && (*Array)[i]->prev == NULL){
-                free((*Array)[i]);
-                (*Array)[i] = NULL;
-                *Myquorum=NULL;
-            }
-            else if((*Array)[i]->next != NULL && (*Array)[i]->prev == NULL){
-                *Myquorum = (*Array)[i]->next;
-                (*Myquorum)->prev=NULL;
-                free((*Array)[i]);
-                (*Array)[i]=NULL;
-            }
-            else if((*Array)[i]->next == NULL && (*Array)[i]->prev != NULL){
-                (*Array)[i]->prev->next=NULL;
-                free((*Array)[i]);
-                (*Array)[i]=NULL;
-            }
-            else{
-                (*Array)[i]->next->prev = (*Array)[i]->prev;
-                (*Array)[i]->prev->next = (*Array)[i]->next;
-                free((*Array)[i]);
-                (*Array)[i]=NULL;
-            }
-            num_quorum_items--;
-        }
-        else break;
-    }
-}
-
-void destroy_quorum_memory(quorum_a **Array[],quorum_a **Myquorum){
-    for(uint8_t i=0;i<128;i++) if((*Array)[i]!=NULL) free((*Array)[i]);
-    free(*Array);
+void quorum_clear(){
     num_quorum_items = 0;
-    while(1){
-        if((*Myquorum)->next != NULL){
-            *Myquorum = (*Myquorum)->next;
-            free((*Myquorum)->prev);
-            (*Myquorum)->prev = NULL;
-        }
-        else{
-            free(*Myquorum);
-            break;
-        }
-    }
-    *Myquorum=NULL;
+    quorum_reached = 0;
 }
 
-uint8_t update_q(quorum_a **Array[],quorum_a **Myquorum,quorum_a **Prev,const uint8_t Agent_id,const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
-    uint8_t out;
-    out=1;
-    if(*Myquorum!=NULL){
-        if((*Myquorum)->agent_id==Agent_id){
-            out=0;
-            if((*Myquorum)->agent_state!=received_state){
-                out=2;
-                (*Myquorum)->counter=expiring_time;
-                (*Myquorum)->agent_state=received_state;
-                (*Myquorum)->delivered=0;
-                (*Myquorum)->msg_n_hops=Msg_n_hops;
-            }
+void set_quorum_threshold(const uint8_t Quorum_threshold_percent){
+    quorum_threshold = Quorum_threshold_percent*.01;
+}
+
+static void quorum_append(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+    quorum_a *item = &quorum_buf[num_quorum_items];
+    item->agent_id = Agent_id;
+    item->counter = expiring_time;
+    item->agent_state = received_state;
+    item->delivered = 0;
+    item->msg_n_hops = Msg_n_hops;
+    num_quorum_items++;
+}
+
+void quorum_remove_at(uint8_t idx){
+    if(idx >= num_quorum_items) return;
+    for(uint8_t i = idx; i + 1 < num_quorum_items; i++) quorum_buf[i] = quorum_buf[i+1];
+    num_quorum_items--;
+}
+
+uint8_t quorum_update_by_id(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time, const uint8_t Msg_n_hops){
+    for(uint8_t i = 0; i < num_quorum_items; i++){
+        quorum_a *item = &quorum_buf[i];
+        if(item->agent_id != Agent_id) continue;
+        if(received_state != item->agent_state && Msg_n_hops <= item->msg_n_hops){
+            item->counter = expiring_time;
+            item->agent_state = received_state;
+            item->delivered = 0;
+            item->msg_n_hops = Msg_n_hops;
+            return 2;
         }
-        if(out==1) out=update_q(Array,&((*Myquorum)->next),Myquorum,Agent_id,received_state,expiring_time,Msg_n_hops);
+        return 0;
+    }
+    if(num_quorum_items >= buffer_lenght) return 0;
+    quorum_append(Agent_id,received_state,expiring_time,Msg_n_hops);
+    return 1;
+}
+
+uint8_t quorum_push_anonymous(const uint8_t Agent_id, const uint8_t received_state, const uint32_t expiring_time){
+    if(num_quorum_items >= buffer_lenght) quorum_remove_at(0);
+    quorum_append(Agent_id,received_state,expiring_time,0);
+    return 1;
+}
+
+static void quorum_swap(uint8_t i, uint8_t j){
+    quorum_a tmp = quorum_buf[i];
+    quorum_buf[i] = quorum_buf[j];
+    quorum_buf[j] = tmp;
+}
+
+void quorum_sort(){
+    if(num_quorum_items < 2) return;
+    if(!quorum_anonymous){
+        /* descending counter: expired entries end up at the tail */
+        for(uint8_t i = 0; i < num_quorum_items-1; i++)
+            for(uint8_t j = i+1; j < num_quorum_items; j++)
+                if(quorum_buf[i].counter < quorum_buf[j].counter) quorum_swap(i,j);
+    }
+    else if(expiring_ticks_quorum > 0){
+        /* ascending counter: index 0 is the next to be evicted */
+        for(uint8_t i = 0; i < num_quorum_items-1; i++)
+            for(uint8_t j = i+1; j < num_quorum_items; j++)
+                if(quorum_buf[i].counter > quorum_buf[j].counter) quorum_swap(i,j);
+    }
+    /* anonymous FIFO: insertion order is kept */
+}
+
+void quorum_decrement(uint64_t ticks){
+    for(uint8_t i = 0; i < num_quorum_items; i++){
+        if(quorum_buf[i].counter > ticks) quorum_buf[i].counter -= ticks;
+        else quorum_buf[i].counter = 0;
+    }
+}
+
+void quorum_erase_expired(){
+    uint8_t write = 0;
+    for(uint8_t read = 0; read < num_quorum_items; read++){
+        if(quorum_buf[read].counter == 0) continue;
+        if(write != read) quorum_buf[write] = quorum_buf[read];
+        write++;
+    }
+    num_quorum_items = write;
+}
+
+uint16_t quorum_find_by_id(const uint8_t agent_id){
+    for(uint8_t i = 0; i < num_quorum_items; i++)
+        if(quorum_buf[i].agent_id == agent_id) return i;
+    return QUORUM_NOT_FOUND;
+}
+
+uint16_t quorum_select_undelivered(){
+    if(num_quorum_items == 0) return QUORUM_NOT_FOUND;
+    if(quorum_anonymous && expiring_ticks_quorum == 0){
+        for(uint8_t i = 0; i < num_quorum_items; i++)
+            if(quorum_buf[i].delivered == 0) return i;
     }
     else{
-        (*Myquorum)=(quorum_a*)malloc(sizeof(quorum_a));
-        (*Myquorum)->agent_id=Agent_id;
-        (*Myquorum)->counter=expiring_time;
-        (*Myquorum)->agent_state=received_state;
-        (*Myquorum)->delivered=0;
-        (*Myquorum)->msg_n_hops=Msg_n_hops;
-        num_quorum_items++;
-        if (Prev!=NULL && *Prev!=NULL){
-            (*Myquorum)->prev=*Prev;
-            (*Prev)->next=*Myquorum;
-        }
-        else (*Myquorum)->prev=NULL;
-        (*Myquorum)->next=NULL;
-        (*Array)[num_quorum_items-1] = *Myquorum;
+        for(int16_t i = num_quorum_items-1; i >= 0; i--)
+            if(quorum_buf[i].delivered == 0) return (uint16_t)i;
     }
-    return out;
+    return QUORUM_NOT_FOUND;
 }
 
-uint16_t select_a_random_message(){
-    if(num_quorum_items>0)return rand_soft()%num_quorum_items;
-    else return 0b1111111111111111;
-}
-
-uint16_t select_message_by_fifo(quorum_a **Array[],const uint8_t check_4_hops){
-    if(num_quorum_items>0){
-        for(uint8_t i=num_quorum_items-1;i>=0;i--){
-            switch (check_4_hops){
-                case 0:
-                    if((*Array)[i]->delivered == 0) return i;
-                    break;
-                default:
-                    if((*Array)[i]->delivered == 0 && (*Array)[i]->msg_n_hops > 0) return i;
-                    break;
-            }
-            if(i==0) break;
+uint8_t quorum_distinct_ids(){
+    uint8_t seen[32] = {0};
+    uint8_t count = 0;
+    for(uint8_t i = 0; i < num_quorum_items; i++){
+        uint8_t id = quorum_buf[i].agent_id;
+        if(!(seen[id >> 3] & (1 << (id & 7)))){
+            seen[id >> 3] |= (uint8_t)(1 << (id & 7));
+            count++;
         }
     }
-    return 0b1111111111111111;
+    return count;
+}
+
+uint8_t quorum_check(const uint8_t my_state, const uint8_t k_sampling){
+    uint16_t committed = my_state;
+    uint16_t valid_items = 0;
+    uint8_t start_idx = (num_quorum_items > k_sampling) ? k_sampling : num_quorum_items;
+    for(uint8_t i = start_idx; i < num_quorum_items; i++){
+        committed += quorum_buf[i].agent_state;
+        valid_items++;
+    }
+    quorum_reached = (valid_items >= min_quorum_length && committed >= (valid_items + 1)*quorum_threshold) ? 1 : 0;
+    return quorum_reached;
 }

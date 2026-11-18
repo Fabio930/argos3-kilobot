@@ -11,4 +11,8 @@ build
 *_data*/*
 *diagnostics_*/*
 *.tar.xz
-*_images*
+*_images*# batch runtime scratch
+.work/
+.batch.lock
+# tracked scripts despite **/*.sh
+!src/examples/experiments/batch/loop_runs.sh

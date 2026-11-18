@@ -13,6 +13,14 @@ from lifelines import WeibullFitter,KaplanMeierFitter
 from lifelines.utils import median_survival_times
 from scipy.special import gamma
 from scipy.optimize import brentq
+
+def _config_path(base, name):
+    """Plot config: the copy in the working directory wins, otherwise the one next to this script."""
+    local = os.path.join(base, name)
+    if os.path.exists(local):
+        return local
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 plt.rcParams.update({"font.size": 26})
 csv.field_size_limit(sys.maxsize)
@@ -161,7 +169,7 @@ class Data:
 ###################################################
     def _load_plot_config(self,config_name="plot_config.json"):
         cfg = self._default_plot_config()
-        path = os.path.join(self.base, config_name)
+        path = _config_path(self.base, config_name)
         if not os.path.exists(path):
             return cfg
         try:
