@@ -13,3 +13,6 @@ build
 *_images*
 # Batch job limits used by loop_runs.sh: tracked despite **/*.sh
 !src/examples/experiments/batch/resources.sh
+# Batch runtime scratch (loop_runs.sh)
+.work/
+.batch.lock

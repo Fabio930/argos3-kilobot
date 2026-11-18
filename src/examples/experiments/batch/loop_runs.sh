@@ -42,8 +42,20 @@ run_job() {
     mkdir -p "$work"
     # Absolute paths to the controller and loop functions: ARGoS runs inside the work folder
     sed "$@" -e "s|__SEED__|$i|g" -e "s|__KILOLOG__|$kilo_file|g" -e "s|\"build/|\"$wdir/build/|g" "$base_config" > "$work/exp.argos"
-    (cd "$work" && nice -n "$JOB_NICE" argos3 -c exp.argos > argos.log 2>&1)
-    local argos_status=$?
+    # A run takes about 1.5 min: one still going after RUN_TIMEOUT s is stuck. timeout kills
+    # ARGoS and its robot processes (same process group), and the run is tried again up to
+    # RUN_RETRIES times.
+    local argos_status attempt start_s
+    for (( attempt = 0; attempt <= RUN_RETRIES; attempt++ )); do
+        start_s=$(date +%s)
+        (cd "$work" && nice -n "$JOB_NICE" timeout --kill-after=30 "$RUN_TIMEOUT" argos3 -c exp.argos > argos.log 2>&1)
+        argos_status=$?
+        if [[ $argos_status -ne 124 && $argos_status -ne 137 ]]; then
+            break
+        fi
+        echo "[$(date '+%F %T')] TIMEOUT run $i after $(( $(date +%s) - start_s )) s (attempt $(( attempt + 1 ))/$(( RUN_RETRIES + 1 ))) -- $ctrl_par_dir" 1>&2
+        rm -f "$work"/quorum_log_agent#*.tsv
+    done
     local missing=0
     for (( j = 0; j < robots; j++ )); do
         if [[ ! -s "$work/quorum_log_agent#$j.tsv" ]]; then
@@ -53,8 +65,9 @@ run_job() {
     done
     if [[ $argos_status -ne 0 || $missing == 1 ]]; then
         # Only complete runs go into the results
-        echo "Run $i failed or incomplete (exit $argos_status) -- $ctrl_par_dir: logs discarded" 1>&2
+        echo "[$(date '+%F %T')] Run $i failed or incomplete (exit $argos_status) -- $ctrl_par_dir: logs discarded" 1>&2
     else
+        echo "[$(date '+%F %T')] Done    run $i in $(( $(date +%s) - start_s )) s -- ${ctrl_par_dir#$res_dir/}"
         for (( j = 0; j < robots; j++ )); do
             mv "$work/quorum_log_agent#$j.tsv" "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}"
         done
@@ -251,7 +264,7 @@ for exp_len_par in $experiment_length; do
                                                                     # Partial logs of this run (interrupted batch)
                                                                     rm -f "$ctrl_par_dir"/quorum_log_agent#*_"$kilo_file"
                                                                     wait_for_free_slot
-                                                                    echo "Running run $i -- $setting_key"
+                                                                    echo "[$(date '+%F %T')] Started run $i -- ${setting_key#results_loop_runs_${arena_label}/}"
                                                                     run_job "$i" "$ctrl_par_dir" "$agents_par" \
                                                                         -e "s|__BROADCAST_POLICY__|$comm_par|g" -e "s|__ADAPTIVE_COMM__|$adaptive_par|g" \
                                                                         -e "s|__ID_AWARE__|$id_aware_val|g" -e "s|__PRIORITY_K__|$priority_k_par|g" \
@@ -300,4 +313,4 @@ done
 
 # Wait for the runs and processing still in the background
 wait
-echo "All simulations completed."
+echo "[$(date '+%F %T')] All simulations completed."

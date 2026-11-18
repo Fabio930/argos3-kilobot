@@ -17,6 +17,9 @@ RESERVED_RAM_MB=${RESERVED_RAM_MB:-4096}  # RAM always left free
 JOB_CPU_CENTICORES=${JOB_CPU_CENTICORES:-120}  # peak CPU of one run, in hundredths of a core
 JOB_RAM_MB=${JOB_RAM_MB:-512}             # peak RAM of one run (measured 253 MB) plus margin
 JOB_NICE=${JOB_NICE:-10}                  # priority of the jobs: higher is lower priority
+RUN_TIMEOUT=${RUN_TIMEOUT:-5m}            # a run still going after this is stuck and killed (normal: max ~95 s
+                                          # with 100 robots and 2700 s: raise it for longer or bigger runs)
+RUN_RETRIES=${RUN_RETRIES:-1}             # attempts after a timeout before giving up on a run
 
 available_ram_mb() {
     awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo
@@ -30,7 +33,7 @@ if [[ -z "${MAX_JOBS:-}" ]]; then
     MAX_JOBS=$(( jobs_by_cpu < jobs_by_ram ? jobs_by_cpu : jobs_by_ram ))
 fi
 (( MAX_JOBS < 1 )) && MAX_JOBS=1
-echo "Machine: $CPUS CPUs, $TOTAL_RAM_MB MB RAM. Up to $MAX_JOBS parallel ARGoS runs ($RESERVED_CPUS CPUs and $RESERVED_RAM_MB MB RAM kept free)"
+echo "[$(date '+%F %T')] Machine: $CPUS CPUs, $TOTAL_RAM_MB MB RAM. Up to $MAX_JOBS parallel ARGoS runs ($RESERVED_CPUS CPUs and $RESERVED_RAM_MB MB RAM kept free), run timeout $RUN_TIMEOUT"
 
 # Wait until a new job can start: fewer than MAX_JOBS running and enough free RAM for it.
 # With no job running, one always starts, so the batch can never get stuck.
