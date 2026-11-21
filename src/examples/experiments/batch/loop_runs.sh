@@ -242,8 +242,14 @@ for exp_len_par in $experiment_length; do
                                                             for control_parameter_par in $control_parameter; do
                                                                 ctrl_par_dir=$voting_dir/"ControlParameter#"$control_parameter_par
                                                                 setting_key="results_loop_runs_${arena_label}/${ctrl_par_dir#$res_dir/}"
-                                                                # Processed into proc_data with all its runs: nothing left to do (its raw logs are gone)
+                                                                # Processed into proc_data with all its runs: nothing left to do
                                                                 if grep -qxF "${setting_key}	${RUNS}" "$done_list" 2>/dev/null; then
+                                                                    # Raw logs left by a batch stopped after the processing but before deleting them
+                                                                    if [[ -d "$ctrl_par_dir" ]]; then
+                                                                        echo "[$(date '+%F %T')] Already processed, raw logs left removed: ${setting_key#results_loop_runs_${arena_label}/}"
+                                                                        find "$ctrl_par_dir" -maxdepth 1 -name 'quorum_log_agent#*.tsv' -delete
+                                                                        remove_empty_dirs "$ctrl_par_dir"
+                                                                    fi
                                                                     continue
                                                                 fi
                                                                 if ! mkdir -p "$ctrl_par_dir"; then

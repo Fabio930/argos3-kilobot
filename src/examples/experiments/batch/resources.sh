@@ -73,6 +73,29 @@ check_archive_disk() {
         touch "$src/.offloaded"
         echo "[$(date '+%F %T')] proc_data was a symlink to $target: now a local folder merged into $ARCHIVE_DIR/proc_data"
     fi
+    merge_archive_done_list
+}
+
+# Settings already on the external disk go into the local processed_settings.txt (union, local
+# lines first), so they are skipped even if the local list was lost or another batch moved them there
+merge_archive_done_list() {
+    local ext="$ARCHIVE_DIR/proc_data/processed_settings.txt" loc="$wdir/proc_data/processed_settings.txt"
+    [[ -f "$ext" ]] || return 0
+    local before=0 after files=()
+    if [[ -f "$loc" ]]; then
+        before=$(grep -c . "$loc")
+        files+=("$loc")
+    fi
+    files+=("$ext")
+    if ! mkdir -p "$wdir/proc_data" || ! awk 'NF && !seen[$0]++' "${files[@]}" > "$loc.tmp" || ! mv "$loc.tmp" "$loc"; then
+        rm -f "$loc.tmp"
+        echo "Error: cannot merge $ext into $loc" 1>&2
+        exit 1
+    fi
+    after=$(grep -c . "$loc")
+    if (( after > before )); then
+        echo "[$(date '+%F %T')] $(( after - before )) settings already on the external disk added to $loc: they will be skipped"
+    fi
 }
 
 # Merge the local proc_data into ARCHIVE_DIR/proc_data (files with the same name are merged,
@@ -105,6 +128,8 @@ offload_proc_data() {
 check_batch_health() {
     if [[ -e "$work_root/dump_failed" ]]; then
         wait
+        # If proc_data was moved to the external disk, what was written since goes there too
+        declare -F finalize_offload > /dev/null && finalize_offload
         echo "[$(date '+%F %T')] Batch stopped: processing failed for:" 1>&2
         cat "$work_root/dump_failed" 1>&2
         exit 1
