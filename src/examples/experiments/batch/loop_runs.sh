@@ -104,6 +104,17 @@ if [[ ! -e $res_dir ]]; then
     echo "mkdir: directory '$res_dir' "
 fi
 
+# Only the folders of the settings with runs on disk are kept: a setting folder is created just
+# before its runs start and removed, with the parent folders left empty, once its raw logs are gone.
+remove_empty_dirs() {
+    local dir=$1
+    while [[ "$dir" != "$res_dir" && "$dir" == "$res_dir"/* ]] && rmdir "$dir" 2> /dev/null; do
+        dir=$(dirname "$dir")
+    done
+}
+# Empty folders left by an earlier batch (interrupted, or of settings that saved no logs)
+find "$res_dir" -mindepth 1 -depth -type d -empty -delete
+
 #######################################
 ### experiment_length is in seconds ###
 #######################################
@@ -134,19 +145,10 @@ for exp_len_par in $experiment_length; do
     # One log line per tick (10 ticks per second)
     log_lines=$(( exp_len_par * 10 ))
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
-    if [[ ! -e $exp_len_dir ]]; then
-        mkdir $exp_len_dir
-    fi
     for var_time_par in $variation_time; do
         var_time_dir=$exp_len_dir/"VariationTime#"$var_time_par
-        if [[ ! -e $var_time_dir ]]; then
-            mkdir $var_time_dir
-        fi
         for options_par in $options; do
             options_dir=$var_time_dir/"Options#"$options_par
-            if [[ ! -e $options_dir ]]; then
-                mkdir $options_dir
-            fi
             if [[ $options_par == "2" ]]; then
                 eta_init="0.4 0.5"
                 init_distr="0.5"
@@ -168,29 +170,14 @@ for exp_len_par in $experiment_length; do
                     eta_s_par=${eta_stop_list[$idx]}
                 fi
                 eta_dir=$options_dir/"Eta#"$eta_i_par
-                if [[ ! -e $eta_dir ]]; then
-                    mkdir $eta_dir
-                fi
                 eta_stop_dir=$eta_dir/"EtaStop#"$eta_s_par
-                if [[ ! -e $eta_stop_dir ]]; then
-                    mkdir $eta_stop_dir
-                fi
                 for spatial_correlation_par in $spatial_correlation; do
                     spatial_correlation_dir=$eta_stop_dir/"SpatCorr#"$spatial_correlation_par
-                    if [[ ! -e $spatial_correlation_dir ]]; then
-                        mkdir $spatial_correlation_dir
-                    fi
                     for agents_par in $numrobots; do
                         robots_dir=$spatial_correlation_dir/"Robots#"$agents_par
-                        if [[ ! -e $robots_dir ]]; then
-                            mkdir $robots_dir
-                        fi
                         last_id=`expr $agents_par - 1`
                         for comm_type in $comm_type_set; do
                             comm_type_dir=$robots_dir/"CommType#"$comm_type
-                            if [[ ! -e $comm_type_dir ]]; then
-                                mkdir $comm_type_dir
-                            fi
                             if [[ $comm_type == "anon" ]]; then
                                 id_aware_val=0
                                 priority_k_list=$priority_k_set
@@ -202,9 +189,6 @@ for exp_len_par in $experiment_length; do
                             fi
                             for comm_par in $rebroadcast_list; do
                                 comm_dir=$comm_type_dir/"Rebroadcast#"$comm_par
-                                if [[ ! -e $comm_dir ]]; then
-                                    mkdir $comm_dir
-                                fi
                                 if [[ $comm_type == "anon" ]]; then
                                     hop_count="0"
                                 elif [[ $comm_par == "1" ]]; then
@@ -220,34 +204,16 @@ for exp_len_par in $experiment_length; do
                                         continue
                                     fi
                                     adaptive_dir=$comm_dir/"Adaptive#"$adaptive_par
-                                    if [[ ! -e $adaptive_dir ]]; then
-                                        mkdir $adaptive_dir
-                                    fi
                                     for priority_k_par in $priority_k_list; do
                                         priority_dir=$adaptive_dir/"PriorityK#"$priority_k_par
-                                        if [[ ! -e $priority_dir ]]; then
-                                            mkdir $priority_dir
-                                        fi
                                         for msgs_par in $msgs_timeout; do
                                             msgs_dir=$priority_dir/"MsgExpTime#"$msgs_par
-                                            if [[ ! -e $msgs_dir ]]; then
-                                                mkdir $msgs_dir
-                                            fi
                                             for msgs_hop_par in $msgs_n_hops; do
                                                 msgs_hop_dir=$msgs_dir/"MsgHops#"$msgs_hop_par
-                                                if [[ ! -e $msgs_hop_dir ]]; then
-                                                    mkdir $msgs_hop_dir
-                                                fi
                                                 for init_par in $init_distr; do
                                                     init_dir=$msgs_hop_dir/"InitDistr#"$init_par
-                                                    if [[ ! -e $init_dir ]]; then
-                                                        mkdir $init_dir
-                                                    fi
                                                     for control_par in $control; do
                                                         control_dir=$init_dir/"Control#"$control_par
-                                                        if [[ ! -e $control_dir ]]; then
-                                                            mkdir $control_dir
-                                                        fi
                                                         if [[ $control_par == "static" ]]; then
                                                             control_parameter="0.8"
                                                         elif [[ $control_par == "linear" ]]; then
@@ -258,18 +224,17 @@ for exp_len_par in $experiment_length; do
                                                         fi
                                                         for voting_msgs_par in $voting_msgs; do
                                                             voting_dir=$control_dir/"VotingMsgs#"$voting_msgs_par
-                                                            if [[ ! -e $voting_dir ]]; then
-                                                                mkdir $voting_dir
-                                                            fi
                                                             for control_parameter_par in $control_parameter; do
                                                                 ctrl_par_dir=$voting_dir/"ControlParameter#"$control_parameter_par
-                                                                if [[ ! -e $ctrl_par_dir ]]; then
-                                                                    mkdir $ctrl_par_dir
-                                                                fi
                                                                 setting_key="results_loop_runs_${arena_label}/${ctrl_par_dir#$res_dir/}"
                                                                 # Processed into proc_data with all its runs: nothing left to do (its raw logs are gone)
                                                                 if grep -qxF "${setting_key}	${RUNS}" "$done_list" 2>/dev/null; then
                                                                     continue
+                                                                fi
+                                                                if ! mkdir -p "$ctrl_par_dir"; then
+                                                                    echo "Error: cannot create '$ctrl_par_dir'" 1>&2
+                                                                    wait
+                                                                    exit 1
                                                                 fi
                                                                 run_pids=()
                                                                 for i in $(seq 1 $RUNS); do
@@ -311,6 +276,7 @@ for exp_len_par in $experiment_length; do
                                                                         if nice -n "$JOB_NICE" "$PY" "$wdir/analysis/dump_results.py" --leaf "$ctrl_par_dir" > "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log" 2>&1; then
                                                                             find "$ctrl_par_dir" -maxdepth 1 -name 'quorum_log_agent#*.tsv' -delete
                                                                             rm -f "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log"
+                                                                            remove_empty_dirs "$ctrl_par_dir"
                                                                         else
                                                                             echo "Processing failed for $setting_key: raw logs kept (see $work_root)" 1>&2
                                                                             # Stops the batch before the next run (check_batch_health)
@@ -319,6 +285,8 @@ for exp_len_par in $experiment_length; do
                                                                     ) &
                                                                 else
                                                                     echo "Setting incomplete ($n_logs of $(( RUNS * agents_par )) logs), not processed: $setting_key" 1>&2
+                                                                    # No run saved: no folder left for it
+                                                                    remove_empty_dirs "$ctrl_par_dir"
                                                                 fi
                                                             done
                                                         done
@@ -339,6 +307,7 @@ done
 
 # Wait for the runs and processing still in the background
 wait
+find "$res_dir" -mindepth 1 -depth -type d -empty -delete
 if [[ -e "$work_root/dump_failed" ]]; then
     echo "[$(date '+%F %T')] Simulations completed, but processing failed for:" 1>&2
     cat "$work_root/dump_failed" 1>&2
