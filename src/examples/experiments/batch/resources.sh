@@ -22,8 +22,21 @@ RUN_TIMEOUT=${RUN_TIMEOUT:-5m}            # a run still going after this is stuc
 RUN_RETRIES=${RUN_RETRIES:-1}             # attempts after a timeout before giving up on a run
 MIN_FREE_GB=${MIN_FREE_GB:-20}            # free disk below this: proc_data is merged into ARCHIVE_DIR, then the batch stops
 # External disk for proc_data when the main disk runs out of space. It must be mounted when
-# the batch starts (check_archive_disk). Empty: no external disk, proc_data is never moved.
-ARCHIVE_DIR=${ARCHIVE_DIR-/media/admin/503618a1-b61d-4abf-b741-79275b0a8754/argos3-kilobot_proc_data}
+# the batch starts (check_archive_disk). Not set: the folder ARCHIVE_SUBDIR on the disk with
+# filesystem UUID ARCHIVE_UUID, wherever it is mounted (e.g. /media/<user>/<uuid>).
+# Empty: no external disk, proc_data is never moved.
+ARCHIVE_UUID=${ARCHIVE_UUID:-503618a1-b61d-4abf-b741-79275b0a8754}
+ARCHIVE_SUBDIR=${ARCHIVE_SUBDIR:-argos3-kilobot_proc_data}
+if [[ -z "${ARCHIVE_DIR+set}" ]]; then
+    archive_mount=$(findmnt -rn -S "UUID=$ARCHIVE_UUID" -o TARGET 2>/dev/null | head -n 1)
+    if [[ -z "$archive_mount" ]]; then
+        # Mount point left by udisks under any user's /media (or /run/media) folder
+        archive_mount=$(ls -d /media/*/"$ARCHIVE_UUID" /run/media/*/"$ARCHIVE_UUID" 2>/dev/null | head -n 1)
+    fi
+    # Not mounted: check_archive_disk stops the batch with this path in the message
+    ARCHIVE_DIR=${archive_mount:-/media/$USER/$ARCHIVE_UUID}/$ARCHIVE_SUBDIR
+    unset archive_mount
+fi
 
 available_ram_mb() {
     awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo
