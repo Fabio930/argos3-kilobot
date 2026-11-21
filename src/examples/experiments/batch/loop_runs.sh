@@ -42,6 +42,21 @@ if ! "$PY" -c "import pandas, numpy, scipy" 2>/dev/null; then
     exit 1
 fi
 
+# The external disk for proc_data must be there before any run starts
+check_archive_disk
+
+# If proc_data was moved to the external disk during the batch (or an earlier one), the files
+# written since then are merged there too, so all the results end up in one place
+finalize_offload() {
+    if [[ -n "$ARCHIVE_DIR" && -e "$wdir/proc_data/.offloaded" ]]; then
+        if ! offload_proc_data; then
+            echo "[$(date '+%F %T')] Final merge of proc_data into $ARCHIVE_DIR/proc_data failed: run the batch again to retry it" 1>&2
+            return 1
+        fi
+        echo "[$(date '+%F %T')] All the processed data are in $ARCHIVE_DIR/proc_data: run the analysis scripts from $ARCHIVE_DIR"
+    fi
+}
+
 # A robot log is complete when it has one line per tick and ends with a newline
 # (a run writing while the disk fills up leaves non-empty but truncated logs)
 log_complete() {
@@ -308,9 +323,12 @@ done
 # Wait for the runs and processing still in the background
 wait
 find "$res_dir" -mindepth 1 -depth -type d -empty -delete
+final_status=0
+finalize_offload || final_status=1
 if [[ -e "$work_root/dump_failed" ]]; then
     echo "[$(date '+%F %T')] Simulations completed, but processing failed for:" 1>&2
     cat "$work_root/dump_failed" 1>&2
     exit 1
 fi
 echo "[$(date '+%F %T')] All simulations completed."
+exit $final_status

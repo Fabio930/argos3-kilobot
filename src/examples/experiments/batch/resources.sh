@@ -20,8 +20,9 @@ JOB_NICE=${JOB_NICE:-10}                  # priority of the jobs: higher is lowe
 RUN_TIMEOUT=${RUN_TIMEOUT:-5m}            # a run still going after this is stuck and killed (normal: max ~95 s
                                           # with 100 robots and 2700 s: raise it for longer or bigger runs)
 RUN_RETRIES=${RUN_RETRIES:-1}             # attempts after a timeout before giving up on a run
-MIN_FREE_GB=${MIN_FREE_GB:-20}            # free disk below this: proc_data is moved to ARCHIVE_DIR, then the batch stops
-# Secondary disk for proc_data when the main disk runs out of space (empty: never move it)
+MIN_FREE_GB=${MIN_FREE_GB:-20}            # free disk below this: proc_data is merged into ARCHIVE_DIR, then the batch stops
+# External disk for proc_data when the main disk runs out of space. It must be mounted when
+# the batch starts (check_archive_disk). Empty: no external disk, proc_data is never moved.
 ARCHIVE_DIR=${ARCHIVE_DIR-/media/admin/503618a1-b61d-4abf-b741-79275b0a8754/argos3-kilobot_proc_data}
 
 available_ram_mb() {
@@ -33,31 +34,70 @@ free_disk_gb() {
     df -P -BG "$wdir" | awk 'NR == 2 {print int($4)}'
 }
 
-# Move proc_data to ARCHIVE_DIR and leave a symlink in its place, so every script still finds it
-# at proc_data/. Called with no job running (the dumps append to its CSV files). Returns 1 if not possible.
-relocate_proc_data() {
-    local src="$wdir/proc_data"
-    if [[ -z "$ARCHIVE_DIR" || -L "$src" || ! -d "$src" ]]; then
-        return 1
-    fi
-    if ! mkdir -p "$ARCHIVE_DIR" 2>/dev/null || [[ ! -w "$ARCHIVE_DIR" ]]; then
-        echo "[$(date '+%F %T')] ARCHIVE_DIR '$ARCHIVE_DIR' not writable (disk not mounted?): proc_data not moved" 1>&2
-        return 1
-    fi
-    local dst="$ARCHIVE_DIR/proc_data"
-    if [[ -e "$dst" ]]; then
-        echo "[$(date '+%F %T')] '$dst' already exists: proc_data not moved" 1>&2
-        return 1
-    fi
-    echo "[$(date '+%F %T')] Low disk space: moving proc_data to $dst"
-    if cp -a "$src" "$dst" && diff -rq "$src" "$dst" > /dev/null; then
-        mv "$src" "$src.old" && ln -s "$dst" "$src" && rm -rf "$src.old"
-        echo "[$(date '+%F %T')] proc_data moved: $src -> $dst ($(free_disk_gb) GB free)"
+# Check, before any run, that the external disk of ARCHIVE_DIR is mounted and writable.
+# Exits if it is not: without it the batch would stop as soon as the main disk fills up.
+check_archive_disk() {
+    if [[ -z "$ARCHIVE_DIR" ]]; then
+        echo "[$(date '+%F %T')] ARCHIVE_DIR empty: no external disk, proc_data stays on this disk"
         return 0
     fi
-    rm -rf "$dst"
-    echo "[$(date '+%F %T')] Copy of proc_data to $dst failed: proc_data not moved" 1>&2
-    return 1
+    # First existing folder of the path: on the main disk if the external one is not mounted
+    local probe="$ARCHIVE_DIR"
+    while [[ ! -e "$probe" ]]; do
+        probe=$(dirname "$probe")
+    done
+    if [[ $(stat -c %d "$probe") == $(stat -c %d "$wdir") ]]; then
+        echo "Error: external disk for ARCHIVE_DIR '$ARCHIVE_DIR' not mounted ('$probe' is on the same disk as $wdir)" 1>&2
+        echo "       Mount it, or run with ARCHIVE_DIR= to go on without it" 1>&2
+        exit 1
+    fi
+    local test_file="$ARCHIVE_DIR/.write_test_$$"
+    if ! mkdir -p "$ARCHIVE_DIR" 2>/dev/null || ! touch "$test_file" 2>/dev/null; then
+        echo "Error: ARCHIVE_DIR '$ARCHIVE_DIR' is not writable" 1>&2
+        exit 1
+    fi
+    rm -f "$test_file"
+    echo "[$(date '+%F %T')] External disk OK: $ARCHIVE_DIR (mounted on $(findmnt -n -o TARGET -T "$ARCHIVE_DIR"), $(df -P -BG "$ARCHIVE_DIR" | awk 'NR == 2 {print int($4)}') GB free)"
+
+    # proc_data left as a symlink to the external disk by an older version of this script:
+    # back to a local folder, whose data are merged there from now on
+    local src="$wdir/proc_data"
+    if [[ -L "$src" ]]; then
+        local target
+        target=$(readlink -f "$src")
+        if ! rm "$src" || ! mkdir -p "$src"; then
+            echo "Error: cannot replace the proc_data symlink with a folder" 1>&2
+            exit 1
+        fi
+        [[ -f "$target/processed_settings.txt" ]] && cp "$target/processed_settings.txt" "$src/"
+        touch "$src/.offloaded"
+        echo "[$(date '+%F %T')] proc_data was a symlink to $target: now a local folder merged into $ARCHIVE_DIR/proc_data"
+    fi
+}
+
+# Merge the local proc_data into ARCHIVE_DIR/proc_data (files with the same name are merged,
+# see analysis/merge_proc_data.py). Called with no job running (the dumps append to its CSV files).
+# proc_data/.offloaded records that its data now live on the external disk: at the end of the
+# batch the files left are merged there too (finalize_offload). Returns 1 if not possible.
+offload_proc_data() {
+    local src="$wdir/proc_data" dst="$ARCHIVE_DIR/proc_data"
+    if [[ -z "$ARCHIVE_DIR" || ! -d "$src" ]]; then
+        return 1
+    fi
+    local need_kb free_kb
+    need_kb=$(du -sk "$src" | cut -f1)
+    free_kb=$(df -P -k "$ARCHIVE_DIR" | awk 'NR == 2 {print $4}')
+    if (( free_kb < need_kb + 1048576 )); then
+        echo "[$(date '+%F %T')] Not enough space on the external disk ($(( free_kb / 1024 )) MB free, $(( need_kb / 1024 )) MB to move): proc_data not moved" 1>&2
+        return 1
+    fi
+    echo "[$(date '+%F %T')] Merging proc_data into $dst ($(( need_kb / 1024 )) MB)"
+    touch "$src/.offloaded"
+    if ! "$PY" "$wdir/analysis/merge_proc_data.py" "$src" "$dst"; then
+        echo "[$(date '+%F %T')] Merge of proc_data into $dst failed: the files not merged are still in $src" 1>&2
+        return 1
+    fi
+    echo "[$(date '+%F %T')] proc_data merged into $dst ($(free_disk_gb) GB free here)"
 }
 
 # Stop the batch (after the jobs still running) if a setting could not be processed, or if the
@@ -73,7 +113,10 @@ check_batch_health() {
         # The dumps in the background free the raw logs of their setting: wait for them first
         wait
         if (( $(free_disk_gb) < MIN_FREE_GB )); then
-            relocate_proc_data
+            if [[ -n "$ARCHIVE_DIR" ]] && ! offload_proc_data; then
+                echo "[$(date '+%F %T')] Batch stopped: proc_data could not be moved to the external disk" 1>&2
+                exit 1
+            fi
         fi
         if (( $(free_disk_gb) < MIN_FREE_GB )); then
             echo "[$(date '+%F %T')] Batch stopped: only $(free_disk_gb) GB free (MIN_FREE_GB=$MIN_FREE_GB)" 1>&2
@@ -91,7 +134,7 @@ if [[ -z "${MAX_JOBS:-}" ]]; then
 fi
 (( MAX_JOBS < 1 )) && MAX_JOBS=1
 echo "[$(date '+%F %T')] Machine: $CPUS CPUs, $TOTAL_RAM_MB MB RAM. Up to $MAX_JOBS parallel ARGoS runs ($RESERVED_CPUS CPUs and $RESERVED_RAM_MB MB RAM kept free), run timeout $RUN_TIMEOUT"
-echo "[$(date '+%F %T')] Disk: stop below $MIN_FREE_GB GB free${ARCHIVE_DIR:+, proc_data moved to $ARCHIVE_DIR first}"
+echo "[$(date '+%F %T')] Disk: stop below $MIN_FREE_GB GB free${ARCHIVE_DIR:+, proc_data merged into $ARCHIVE_DIR/proc_data first}"
 
 # Wait until a new job can start: fewer than MAX_JOBS running and enough free RAM for it.
 # With no job running, one always starts, so the batch can never get stuck.

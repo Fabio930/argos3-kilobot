@@ -67,11 +67,7 @@ def merge_csv_results_into_pickle(output_dir="proc_data"):
                 df = pd.concat([old_df, new_df], ignore_index=True)
             else:
                 df = new_df
-            if "setting" in df.columns:
-                keys = ["setting"] + (["option_id"] if "option_id" in df.columns else [])
-                has_key = df["setting"].notna()
-                keyed = df[has_key].drop_duplicates(subset=keys, keep="last")
-                df = pd.concat([df[~has_key], keyed], ignore_index=True)
+            df = dex.dedup_settings(df)
             tmp_file = pkl_file.with_suffix(".pkl.tmp")
             df.to_pickle(tmp_file)
             os.replace(tmp_file, pkl_file)

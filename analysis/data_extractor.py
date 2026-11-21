@@ -43,6 +43,17 @@ def done_settings(proc_dir: str = PROC_DIR) -> dict:
     return done
 
 
+def dedup_settings(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only the last row of every setting (and option_id): a setting processed again
+    replaces its old rows. Rows with no setting are all kept."""
+    if "setting" not in df.columns:
+        return df
+    keys = ["setting"] + (["option_id"] if "option_id" in df.columns else [])
+    has_key = df["setting"].notna()
+    keyed = df[has_key].drop_duplicates(subset=keys, keep="last")
+    return pd.concat([df[~has_key], keyed], ignore_index=True)
+
+
 def mark_done(setting: str, num_runs: int, proc_dir: str = PROC_DIR) -> None:
     output_path = os.path.join(os.path.abspath(""), proc_dir)
     os.makedirs(output_path, exist_ok=True)
