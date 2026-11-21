@@ -47,31 +47,43 @@ external_mounts() {
     done
 }
 
-# Sets ARCHIVE_DIR to the folder of the data on the external disk: the disk that already has
-# ARCHIVE_SUBDIR, otherwise the only external disk mounted. With no external disk, or several and
-# none with the data, ARCHIVE_DIR stays unset and archive_search_error says why.
+# Sets ARCHIVE_DIR to the folder of the data on an external disk. The disks that already have
+# ARCHIVE_SUBDIR come first, so the data stays in one place; among them (or among all the external
+# disks, if none has it) the one with the most free space is chosen. archive_other_disks lists the
+# disks not chosen, for the log. With no external disk, ARCHIVE_DIR stays unset and
+# archive_search_error says why.
 find_archive_dir() {
-    local mounts=() m
+    local -a mounts=() with_data=() pool=()
+    local m free best="" best_free=-1
     mapfile -t mounts < <(external_mounts)
-    for m in "${mounts[@]}"; do
-        if [[ -d "$m/$ARCHIVE_SUBDIR" ]]; then
-            ARCHIVE_DIR="${m%/}/$ARCHIVE_SUBDIR"
-            return 0
-        fi
-    done
-    if (( ${#mounts[@]} == 1 )); then
-        ARCHIVE_DIR="${mounts[0]%/}/$ARCHIVE_SUBDIR"
-        return 0
-    fi
     if (( ${#mounts[@]} == 0 )); then
         archive_search_error="no external disk mounted (under $ARCHIVE_MOUNT_ROOTS)"
-    else
-        archive_search_error="several external disks mounted (${mounts[*]}) and none has $ARCHIVE_SUBDIR"
+        return 1
     fi
-    return 1
+    for m in "${mounts[@]}"; do
+        [[ -d "$m/$ARCHIVE_SUBDIR" ]] && with_data+=("$m")
+    done
+    if (( ${#with_data[@]} > 0 )); then
+        pool=("${with_data[@]}")
+    else
+        pool=("${mounts[@]}")
+    fi
+    for m in "${pool[@]}"; do
+        free=$(df -P -k "$m" 2>/dev/null | awk 'NR == 2 {print $4}')
+        if (( ${free:-0} > best_free )); then
+            best=$m
+            best_free=${free:-0}
+        fi
+    done
+    ARCHIVE_DIR="${best%/}/$ARCHIVE_SUBDIR"
+    for m in "${mounts[@]}"; do
+        [[ $m != "$best" ]] && archive_other_disks+="${archive_other_disks:+, }$m"
+    done
+    return 0
 }
 
 archive_search_error=""
+archive_other_disks=""
 if [[ -z "${ARCHIVE_DIR+set}" ]]; then
     find_archive_dir
 fi
@@ -114,6 +126,7 @@ check_archive_disk() {
     fi
     rm -f "$test_file"
     echo "[$(date '+%F %T')] External disk OK: $ARCHIVE_DIR (mounted on $(findmnt -n -o TARGET -T "$ARCHIVE_DIR"), $(df -P -BG "$ARCHIVE_DIR" | awk 'NR == 2 {print int($4)}') GB free)"
+    [[ -n "$archive_other_disks" ]] && echo "[$(date '+%F %T')] Other external disks not used: $archive_other_disks (ARCHIVE_DIR=<folder> to use one of them)"
 
     # proc_data left as a symlink to the external disk by an older version of this script:
     # back to a local folder, whose data are merged there from now on
