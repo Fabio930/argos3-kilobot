@@ -22,20 +22,58 @@ RUN_TIMEOUT=${RUN_TIMEOUT:-5m}            # a run still going after this is stuc
 RUN_RETRIES=${RUN_RETRIES:-1}             # attempts after a timeout before giving up on a run
 MIN_FREE_GB=${MIN_FREE_GB:-20}            # free disk below this: proc_data is merged into ARCHIVE_DIR, then the batch stops
 # External disk for proc_data when the main disk runs out of space. It must be mounted when
-# the batch starts (check_archive_disk). Not set: the folder ARCHIVE_SUBDIR on the disk with
-# filesystem UUID ARCHIVE_UUID (the 2 TB disk labelled HDD_2TB), wherever it is mounted.
+# the batch starts (check_archive_disk). Not set: found by find_archive_dir below.
 # Empty: no external disk, proc_data is never moved.
-ARCHIVE_UUID=${ARCHIVE_UUID:-9b8e83f3-4392-489f-b119-f6dd9fe534bf}
-ARCHIVE_SUBDIR=${ARCHIVE_SUBDIR:-argos3-kilobot_proc_data}
-if [[ -z "${ARCHIVE_DIR+set}" ]]; then
-    archive_mount=$(findmnt -rn -S "UUID=$ARCHIVE_UUID" -o TARGET 2>/dev/null | head -n 1)
-    if [[ -z "$archive_mount" ]]; then
-        # Mount point left by udisks under any user's /media (or /run/media) folder
-        archive_mount=$(ls -d /media/*/"$ARCHIVE_UUID" /run/media/*/"$ARCHIVE_UUID" 2>/dev/null | head -n 1)
+ARCHIVE_SUBDIR=${ARCHIVE_SUBDIR:-argos3-kilobot_proc_data}   # folder of the data on the external disk
+
+ARCHIVE_MOUNT_ROOTS=${ARCHIVE_MOUNT_ROOTS:-/media /run/media /mnt}   # where external disks are mounted
+
+# Mounted filesystems that can hold the data: block devices mounted read-write under one of
+# ARCHIVE_MOUNT_ROOTS, writable, on a disk other than the one of the batch folder and of /
+external_mounts() {
+    local target source options dev dev_wdir dev_root root under
+    dev_wdir=$(stat -c %d "$wdir")
+    dev_root=$(stat -c %d /)
+    findmnt -rn -o TARGET,SOURCE,OPTIONS 2>/dev/null | while read -r target source options; do
+        target=$(printf '%b' "$target")   # findmnt -r writes a space as \x20
+        under=0
+        for root in $ARCHIVE_MOUNT_ROOTS; do
+            [[ $target == "$root" || $target == "$root"/* ]] && under=1
+        done
+        [[ $under == 1 && $source == /dev/* ]] || continue
+        [[ ",$options," == *,rw,* && -d $target && -w $target ]] || continue
+        dev=$(stat -c %d "$target") || continue
+        [[ $dev != "$dev_wdir" && $dev != "$dev_root" ]] && echo "$target"
+    done
+}
+
+# Sets ARCHIVE_DIR to the folder of the data on the external disk: the disk that already has
+# ARCHIVE_SUBDIR, otherwise the only external disk mounted. With no external disk, or several and
+# none with the data, ARCHIVE_DIR stays unset and archive_search_error says why.
+find_archive_dir() {
+    local mounts=() m
+    mapfile -t mounts < <(external_mounts)
+    for m in "${mounts[@]}"; do
+        if [[ -d "$m/$ARCHIVE_SUBDIR" ]]; then
+            ARCHIVE_DIR="${m%/}/$ARCHIVE_SUBDIR"
+            return 0
+        fi
+    done
+    if (( ${#mounts[@]} == 1 )); then
+        ARCHIVE_DIR="${mounts[0]%/}/$ARCHIVE_SUBDIR"
+        return 0
     fi
-    # Not mounted: check_archive_disk stops the batch with this path in the message
-    ARCHIVE_DIR=${archive_mount:-/media/$USER/$ARCHIVE_UUID}/$ARCHIVE_SUBDIR
-    unset archive_mount
+    if (( ${#mounts[@]} == 0 )); then
+        archive_search_error="no external disk mounted (under $ARCHIVE_MOUNT_ROOTS)"
+    else
+        archive_search_error="several external disks mounted (${mounts[*]}) and none has $ARCHIVE_SUBDIR"
+    fi
+    return 1
+}
+
+archive_search_error=""
+if [[ -z "${ARCHIVE_DIR+set}" ]]; then
+    find_archive_dir
 fi
 
 available_ram_mb() {
@@ -50,6 +88,11 @@ free_disk_gb() {
 # Check, before any run, that the external disk of ARCHIVE_DIR is mounted and writable.
 # Exits if it is not: without it the batch would stop as soon as the main disk fills up.
 check_archive_disk() {
+    if [[ -n "$archive_search_error" ]]; then
+        echo "Error: external disk for proc_data not found: $archive_search_error" 1>&2
+        echo "       Mount it, set ARCHIVE_DIR=<folder on the disk>, or run with ARCHIVE_DIR= to go on without it" 1>&2
+        exit 1
+    fi
     if [[ -z "$ARCHIVE_DIR" ]]; then
         echo "[$(date '+%F %T')] ARCHIVE_DIR empty: no external disk, proc_data stays on this disk"
         return 0
