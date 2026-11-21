@@ -5,8 +5,59 @@
 #include "BestN_ALF.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <dirent.h>
+#include <unistd.h>
 
 namespace {
+/* Number of child processes of ARGoS (the robot behaviours) stopped by a signal */
+size_t CountStoppedChildren() {
+    const pid_t tSelf = ::getpid();
+    size_t unStopped = 0;
+    DIR* ptProc = ::opendir("/proc");
+    if(ptProc == NULL) return 0;
+    while(struct dirent* ptEntry = ::readdir(ptProc)) {
+        if(ptEntry->d_name[0] < '0' || ptEntry->d_name[0] > '9') continue;
+        char pchPath[300];
+        std::snprintf(pchPath, sizeof(pchPath), "/proc/%s/stat", ptEntry->d_name);
+        FILE* ptStat = std::fopen(pchPath, "r");
+        if(ptStat == NULL) continue;
+        char pchLine[512];
+        size_t unLen = std::fread(pchLine, 1, sizeof(pchLine) - 1, ptStat);
+        std::fclose(ptStat);
+        pchLine[unLen] = '\0';
+        /* "pid (comm) state ppid ...": comm may contain spaces, so parse after the last ')' */
+        const char* pchAfterComm = std::strrchr(pchLine, ')');
+        char cState;
+        int nPPid;
+        if(pchAfterComm != NULL && std::sscanf(pchAfterComm + 1, " %c %d", &cState, &nPPid) == 2 &&
+           nPPid == tSelf && cState == 'T') {
+            ++unStopped;
+        }
+    }
+    ::closedir(ptProc);
+    return unStopped;
+}
+
+/* The behaviour process of each kilobot runs setup() and then stops itself, waiting for the
+ * first control step. If a process has not stopped yet when the first step starts, the
+ * SIGCONT of that step is lost and the robot stays one step behind for the whole run (its log
+ * ends one line short). Called after the controllers have started their processes: waits until
+ * all of them are stopped. */
+void WaitForRobotProcesses(size_t unExpected){
+    const time_t tDeadline = std::time(NULL) + 30;
+    size_t unStopped;
+    while((unStopped = CountStoppedChildren()) < unExpected) {
+        if(std::time(NULL) > tDeadline) {
+            THROW_ARGOSEXCEPTION("[BestN] only " << unStopped << " of " << unExpected
+                                 << " kilobot processes ready after 30 s");
+        }
+        ::usleep(1000);
+    }
+}
+
 UInt8 ControlModeFromString(const std::string& strControl) {
     if(strControl == "static") return 0;
     if(strControl == "linear") return 1;
@@ -39,12 +90,14 @@ CBestN_ALF::~CBestN_ALF(){}
 void CBestN_ALF::Init(TConfigurationNode& t_node){
     /* Initialize ALF*/
     CALF::Init(t_node);
+    WaitForRobotProcesses(GetSpace().GetEntitiesByType("kilobot").size());
 }
 
 /****************************************/
 /****************************************/
 
 void CBestN_ALF::Reset(){
+    WaitForRobotProcesses(GetSpace().GetEntitiesByType("kilobot").size());
 }
 
 /****************************************/
