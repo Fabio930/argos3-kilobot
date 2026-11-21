@@ -1,4 +1,4 @@
-import os, sys, logging, gc, time, psutil, argparse
+import os, sys, logging, gc, time, argparse
 import pandas as pd
 import data_extractor as dex
 from pathlib import Path
@@ -168,6 +168,9 @@ def main():
     if args.leaf is not None:
         # One setting, called by loop_runs.sh as soon as all its runs are there
         sys.exit(process_leaf(args.leaf, ticks_per_sec))
+
+    # Only the parallel mode below needs psutil (loop_runs.sh uses --leaf)
+    import psutil
 
     # Using a manager to handle the queue
     manager = Manager()

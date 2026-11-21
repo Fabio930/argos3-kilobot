@@ -29,17 +29,38 @@ PY="${PY:-python3}"
 done_list="$wdir/proc_data/processed_settings.txt"
 # Every run works in a folder of its own, so runs never share log or config files
 work_root="$wdir/.work"
-mkdir -p "$work_root"
+if ! mkdir -p "$work_root"; then
+    echo "Error: cannot create '$work_root'" 1>&2
+    exit 1
+fi
+# A failed processing of an earlier batch is tried again: its raw logs are still there
+rm -f "$work_root/dump_failed"
+
+# Without these the processing fails and the raw logs (about 4.7 GB per setting) fill the disk
+if ! "$PY" -c "import pandas, numpy, scipy" 2>/dev/null; then
+    echo "Error: '$PY' cannot import pandas, numpy and scipy, needed by analysis/dump_results.py" 1>&2
+    exit 1
+fi
+
+# A robot log is complete when it has one line per tick and ends with a newline
+# (a run writing while the disk fills up leaves non-empty but truncated logs)
+log_complete() {
+    local f=$1 lines=$2
+    [[ -s "$f" && $(wc -l < "$f") -eq $lines && -z "$(tail -c 1 "$f" | tr -d '\n')" ]]
+}
 
 # One run in its own folder: logs moved to the setting folder only if all robots wrote them.
-# Arguments: run number, setting folder, robots, then the sed expressions for the config.
+# Arguments: run number, setting folder, robots, lines of a complete log, then the sed expressions for the config.
 run_job() {
-    local i=$1 ctrl_par_dir=$2 robots=$3
-    shift 3
+    local i=$1 ctrl_par_dir=$2 robots=$3 log_lines=$4
+    shift 4
     local kilo_file="run#${i}.tsv"
     local work="$work_root/$(echo "$ctrl_par_dir" | md5sum | cut -c1-16)_run${i}"
     rm -rf "$work"
-    mkdir -p "$work"
+    if ! mkdir -p "$work"; then
+        echo "[$(date '+%F %T')] Run $i not started (cannot create $work) -- $ctrl_par_dir" 1>&2
+        return 1
+    fi
     # Absolute paths to the controller and loop functions: ARGoS runs inside the work folder
     sed "$@" -e "s|__SEED__|$i|g" -e "s|__KILOLOG__|$kilo_file|g" -e "s|\"build/|\"$wdir/build/|g" "$base_config" > "$work/exp.argos"
     # A run takes about 1.5 min: one still going after RUN_TIMEOUT s is stuck. timeout kills
@@ -58,7 +79,7 @@ run_job() {
     done
     local missing=0
     for (( j = 0; j < robots; j++ )); do
-        if [[ ! -s "$work/quorum_log_agent#$j.tsv" ]]; then
+        if ! log_complete "$work/quorum_log_agent#$j.tsv" "$log_lines"; then
             missing=1
             break
         fi
@@ -110,6 +131,8 @@ control="static linear polynomial"
 voting_msgs="3 5 9 15"
 
 for exp_len_par in $experiment_length; do
+    # One log line per tick (10 ticks per second)
+    log_lines=$(( exp_len_par * 10 ))
     exp_len_dir=$res_dir/"ExperimentLength#"$exp_len_par
     if [[ ! -e $exp_len_dir ]]; then
         mkdir $exp_len_dir
@@ -254,7 +277,7 @@ for exp_len_par in $experiment_length; do
                                                                     # A run is done when the logs of all its robots are there
                                                                     run_done=1
                                                                     for j in $(seq 0 $last_id); do
-                                                                        if [[ ! -s "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}" ]]; then
+                                                                        if ! log_complete "$ctrl_par_dir/quorum_log_agent#${j}_${kilo_file}" "$log_lines"; then
                                                                             run_done=0
                                                                             break
                                                                         fi
@@ -266,7 +289,7 @@ for exp_len_par in $experiment_length; do
                                                                     rm -f "$ctrl_par_dir"/quorum_log_agent#*_"$kilo_file"
                                                                     wait_for_free_slot
                                                                     echo "[$(date '+%F %T')] Started run $i -- ${setting_key#results_loop_runs_${arena_label}/}"
-                                                                    run_job "$i" "$ctrl_par_dir" "$agents_par" \
+                                                                    run_job "$i" "$ctrl_par_dir" "$agents_par" "$log_lines" \
                                                                         -e "s|__BROADCAST_POLICY__|$comm_par|g" -e "s|__QUEUE_LENGHT__|$((agents_par - 1))|g" \
                                                                         -e "s|__ID_AWARE__|$id_aware_val|g" -e "s|__PRIORITY_K__|$priority_k_par|g" \
                                                                         -e "s|__NUMROBOTS__|$agents_par|g" -e "s|__MSG_EXPIRING_SECONDS__|$msgs_par|g" \
@@ -290,6 +313,8 @@ for exp_len_par in $experiment_length; do
                                                                             rm -f "$work_root/dump_$(echo "$ctrl_par_dir" | md5sum | cut -c1-16).log"
                                                                         else
                                                                             echo "Processing failed for $setting_key: raw logs kept (see $work_root)" 1>&2
+                                                                            # Stops the batch before the next run (check_batch_health)
+                                                                            echo "$setting_key" >> "$work_root/dump_failed"
                                                                         fi
                                                                     ) &
                                                                 else
@@ -314,4 +339,9 @@ done
 
 # Wait for the runs and processing still in the background
 wait
+if [[ -e "$work_root/dump_failed" ]]; then
+    echo "[$(date '+%F %T')] Simulations completed, but processing failed for:" 1>&2
+    cat "$work_root/dump_failed" 1>&2
+    exit 1
+fi
 echo "[$(date '+%F %T')] All simulations completed."
